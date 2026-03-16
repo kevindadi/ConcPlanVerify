@@ -1,0 +1,20 @@
+{
+  "program": "semaphore_test",
+  "resources": [
+    {"name": "sem", "kind": "sync", "type": "Semaphore", "mode": "Sync", "count": 2}
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main",
+      "kind": "normal",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "sem", "acquire"], "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "sem", "release"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": "return", "transfer": "return"}
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main"
+}

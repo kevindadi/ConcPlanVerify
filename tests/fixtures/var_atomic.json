@@ -1,0 +1,21 @@
+{
+  "program": "var_atomic_test",
+  "resources": [
+    {"name": "count", "kind": "var",  "type": "Var",    "base": "Int",  "init": 0},
+    {"name": "flag",  "kind": "var",  "type": "Atomic", "base": "Bool", "init": false}
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main",
+      "kind": "normal",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "count", "write", "5"],   "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "flag", "store", "true"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": "return", "transfer": "return"}
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main"
+}

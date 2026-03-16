@@ -1,0 +1,18 @@
+[package]
+name = "cir2cvn"
+version = "0.1.0"
+edition = "2024"
+description = "Translator from CIR (Concurrency Intermediate Representation) to CVN (Concurrency Verification Net)"
+license = "MIT"
+
+[dependencies]
+cir = { package = "ceir", path = "./cir" }
+cvn = { path = "./cvn", features = ["cir-anchor"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+indexmap = { version = "2", features = ["serde"] }
+
+[dev-dependencies]
+insta = "1"
+pretty_assertions = "1"

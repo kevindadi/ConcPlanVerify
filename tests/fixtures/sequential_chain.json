@@ -1,0 +1,20 @@
+{
+  "program": "sequential_chain",
+  "resources": [
+    {"name": "mtx", "kind": "sync", "type": "Mutex", "mode": "Sync"}
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "worker",
+      "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "mtx", "lock"],  "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "mtx", "drop"],  "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": "return",                    "transfer": "return"}
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "worker"
+}

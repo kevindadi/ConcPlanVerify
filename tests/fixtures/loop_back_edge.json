@@ -1,0 +1,23 @@
+{
+  "program": "loop_test",
+  "resources": [
+    {"name": "i", "kind": "var", "type": "Var", "base": "Int", "init": 0}
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main",
+      "kind": "normal",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "i", "read"],
+         "transfer": ["branch", "i < 10", "s2", "s4"]},
+        {"sid": "s2", "op": ["res_op", "i", "write", "i + 1"],
+         "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": "return", "transfer": ["next", "s1"]},
+        {"sid": "s4", "op": "return", "transfer": "return"}
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main"
+}

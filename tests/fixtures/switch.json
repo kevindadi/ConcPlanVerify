@@ -1,0 +1,23 @@
+{
+  "program": "switch_test",
+  "resources": [
+    {"name": "state", "kind": "var", "type": "Var",
+     "base": {"Enum": ["Init", "Running", "Done"]}, "init": "Init"}
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main",
+      "kind": "normal",
+      "body": [
+        {"sid": "s5", "op": ["res_op", "state", "read"],
+         "transfer": ["switch", "state", {"Init": "s6", "Running": "s7", "Done": "s8"}]},
+        {"sid": "s6", "op": "return", "transfer": "return"},
+        {"sid": "s7", "op": "return", "transfer": "return"},
+        {"sid": "s8", "op": "return", "transfer": "return"}
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main"
+}

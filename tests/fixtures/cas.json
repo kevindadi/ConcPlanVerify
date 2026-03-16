@@ -1,0 +1,21 @@
+{
+  "program": "cas_test",
+  "resources": [
+    {"name": "flag", "kind": "var", "type": "Atomic", "base": "Bool", "init": false}
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main",
+      "kind": "normal",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "flag", "cas", "false", "true"],
+         "transfer": ["branch", "flag == false", "s2", "s3"]},
+        {"sid": "s2", "op": "return", "transfer": "return"},
+        {"sid": "s3", "op": "return", "transfer": "return"}
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main"
+}
