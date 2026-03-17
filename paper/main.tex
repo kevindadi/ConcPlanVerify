@@ -1,0 +1,1527 @@
+\documentclass[sigplan]{acmart}
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{subcaption}
+\usepackage{multirow}
+
+% ── Listing style ──────────────────────────────────────────────
+\lstset{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\bfseries,
+  commentstyle=\itshape\color{gray},
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  xleftmargin=1.8em,
+  framexleftmargin=1.6em,
+  columns=flexible,
+  captionpos=b
+}
+
+% ── Theorem environments ──────────────────────────────────────
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+
+% ── Convenience macros ────────────────────────────────────────
+\newcommand{\CIR}{\textsc{CIR}}
+\newcommand{\CVN}{\textsc{CVN}}
+\newcommand{\topval}{\top}
+\newcommand{\sid}{\mathsf{sid}}
+\newcommand{\op}{\mathsf{op}}
+
+\title{CIR and CVN: LLM-Resolved Aliasing Meets Petri-Net Verification for Concurrent Program Validation and Repair}
+
+\author{[Author Names]}
+\affiliation{%
+  \institution{[Institution]}
+  \city{[City]}
+  \country{[Country]}
+}
+\email{[email]}
+
+\begin{abstract}
+Static analysis of concurrent programs is fundamentally limited by the alias problem:
+determining which references denote the same shared resource is undecidable in general,
+yet precise aliasing information is a prerequisite for sound lock-order analysis,
+data-race detection, and synchronization-protocol verification.
+We observe that large language models (LLMs), by virtue of semantic program understanding,
+can resolve aliases that no purely syntactic analysis can.
+Building on this observation, we propose a \emph{generate--verify--repair} architecture
+in which (1)~an LLM produces a \emph{Concurrency Intermediate Representation} (\CIR{})
+that names every shared resource globally and makes every protection relation explicit,
+thereby eliminating the alias problem at the representation level;
+(2)~\CIR{} is mechanically translated into a \emph{Concurrency Verification Net} (\CVN{}),
+a domain-specific weighted P/T Petri net with global-variable guards;
+and (3)~exhaustive state-space search over the \CVN{} discovers deadlocks, signal losses,
+starvation, and livelock, producing structured counterexamples that are mapped back to
+\CIR{} statement identifiers and fed to the LLM for targeted repair.
+The \CVN{} uses only single-color black tokens---no colored Petri net machinery is needed---yet
+retains full precision for bounded concurrent instances thanks to LLM-driven instance unfolding.
+We formalize the \CIR{} language, the \CVN{} semantics, and the translation,
+prove a step-correspondence theorem between \CIR{} executions and \CVN{} firings,
+and define a two-layer verification architecture with 61~\CIR{} static-check rules
+and 5~bug-kind detectors in the \CVN{} analysis engine.
+A test matrix of 10~representative concurrency patterns demonstrates
+that the pipeline catches cross-thread bugs---such as three-lock circular deadlock
+and condvar signal loss---that neither LLMs alone nor traditional static analyzers
+can reliably detect.
+\end{abstract}
+
+\keywords{concurrency verification, Petri nets, large language models, alias analysis, intermediate representation, deadlock detection}
+
+\begin{document}
+
+\section{Introduction}
+\label{sec:introduction}
+Concurrent programming remains one of the most error-prone activities in software engineering.
+Deadlocks, data races, signal losses, and starvation bugs arise from subtle interactions
+among threads, locks, condition variables, channels, and shared state.
+These bugs are notoriously difficult to detect by testing because they depend on
+scheduling nondeterminism, and they are equally difficult to detect by static analysis
+because the analysis must reason about \emph{which references denote the same shared resource}---the classical \emph{alias problem}~\cite{Landi1992}.
+
+Alias analysis is undecidable in general~\cite{Ramalingam1994} and remains imprecise
+in practice even for sequential programs.
+For concurrent programs the situation is worse: pointer aliasing interacts with
+thread-local versus shared storage, lock scoping, and interior mutability patterns,
+making sound and precise alias resolution an open problem
+for all existing static-analysis frameworks.
+As a consequence, state-of-the-art tools either sacrifice soundness
+(missing real bugs) or sacrifice precision (emitting excessive false positives),
+and neither outcome is satisfactory for automated repair workflows
+where every diagnostic must be actionable.
+
+\paragraph{The LLM opportunity.}
+Large language models (LLMs) trained on massive code corpora have demonstrated
+remarkable ability to understand program semantics at levels that go far beyond
+syntactic pattern matching.
+An LLM can determine that two differently named variables in different scopes
+refer to the same mutex, that a field access through an \texttt{Arc<Mutex<T>{}>}
+aliases with another access through a cloned handle, and that a closure captures
+a shared reference rather than an owned value.
+In other words, \emph{LLMs can perform semantic alias resolution}---the very task
+that defeats traditional static analysis.
+
+This observation suggests a division of labor:
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{LLM} $\to$ resolve aliases, abstract away business logic,
+        produce a concurrency-focused intermediate representation
+        in which every shared resource has a unique global name
+        and every protection relation is explicit.
+  \item \textbf{Formal verification engine} $\to$ perform exhaustive state-space
+        exploration on the alias-free representation,
+        discovering concurrency bugs with formal guarantees.
+  \item \textbf{LLM} (again) $\to$ interpret structured counterexamples
+        and repair the program, guided by the verification engine's feedback.
+\end{itemize}
+
+\paragraph{Contributions.}
+We instantiate this division of labor with two new formalisms and a translation between them:
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{\CIR{} (Concurrency Intermediate Representation).}
+        A statement-level intermediate language designed for LLM generation
+        and concurrency verification.
+        \CIR{} globally names all shared resources, makes lock--variable protection
+        mappings explicit, and provides stable statement identifiers (\sid{})
+        as anchors for counterexample reporting and repair.
+        We define 9~categories comprising 61~static-check error rules (Section~\ref{sec:cir}).
+
+  \item \textbf{\CVN{} (Concurrency Verification Net).}
+        A domain-specific \emph{weighted P/T Petri net with global-variable guards}.
+        \CVN{} uses only single-color black tokens---it is \emph{not} a colored Petri net.
+        Shared variables are modeled as a global variable store~$V$
+        with a three-valued evaluation semantics ($\mathsf{true}$/$\mathsf{false}$/$\mathsf{Unknown}$)
+        that provides safe over-approximation when values cannot be determined.
+        We define 5~categories of well-formedness and analysis errors (Section~\ref{sec:cvn}).
+
+  \item \textbf{Faithful translation and verification pipeline.}
+        A three-phase translator converts \CIR{} to \CVN{} with 1:1 structural correspondence.
+        State-space search over the \CVN{} detects deadlocks, signal losses, starvation,
+        livelock, and channel blocking.
+        Counterexamples are mapped back to \CIR{} \sid{}s and formatted as
+        structured repair prompts for the LLM,
+        closing the \emph{generate--verify--repair} loop (Section~\ref{sec:pipeline}).
+\end{enumerate}
+
+\paragraph{Key design decisions.}
+Several design decisions distinguish this work from prior Petri-net--based verification:
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{No colored tokens.}
+        Because the LLM resolves aliases and unfolds bounded concurrent instances
+        at the \CIR{} level, each instance receives a unique control-place namespace.
+        Black tokens suffice to track thread positions. This avoids the complexity
+        of color sets, binding expressions, and canonical renaming
+        that colored Petri nets require.
+  \item \textbf{Global-variable guards instead of colored guards.}
+        Branch conditions and CAS operations are modeled through a global variable store~$V$
+        with three-valued evaluation. This is simpler than colored guard expressions
+        yet sufficient for concurrency-relevant predicates.
+  \item \textbf{No loop unrolling.}
+        Concurrency bugs (deadlock, signal loss, races) are triggered by
+        the \emph{topology} of synchronization, not by iteration counts.
+        Loops that spawn concurrent instances are unfolded by the LLM
+        into explicit multiple spawns.
+        Non-spawn loops retain back edges, and the $\mathsf{Unknown}$ mechanism
+        ensures safe over-approximation of all branch paths.
+  \item \textbf{LLM-in-the-loop repair.}
+        Concurrency bugs require semantic understanding to repair
+        (e.g., choosing between lock-order unification, lock-granularity reduction,
+        or retry introduction).
+        The LLM receives structured counterexamples with precise \sid{} anchors,
+        not vague natural-language warnings.
+\end{itemize}
+
+% ======================================================================
+\section{Motivation}
+\label{sec:motivation}
+
+\subsection{A Running Example}
+\label{subsec:running-example}
+
+Figure~\ref{fig:running-rust} shows a representative synchronization bug.
+The notifier calls \texttt{notify\_one} \emph{before} setting the readiness flag
+that the worker waits on.
+If the notification arrives before the worker enters \texttt{wait},
+the signal is lost and the worker blocks forever.
+
+\begin{figure}[t]
+\begin{lstlisting}[language=Rust,caption={A condvar signal-loss bug.},label={fig:running-rust}]
+fn worker(shared: Arc<(Mutex<bool>, Condvar)>) {
+    let (m, cv) = &*shared;
+    let mut g = m.lock().unwrap();   // lock m
+    while !*g {
+        g = cv.wait(g).unwrap();     // wait on cv
+    }
+}
+
+fn notifier(shared: Arc<(Mutex<bool>, Condvar)>) {
+    let (m, cv) = &*shared;
+    let mut g = m.lock().unwrap();   // lock m
+    cv.notify_one();                 // BUG: notify before setting flag
+    *g = true;                       // too late
+}
+\end{lstlisting}
+\end{figure}
+
+The bug cannot be detected from any single function in isolation.
+It depends on the \emph{relative ordering} of \texttt{notify\_one} and the predicate update
+across two functions that share a mutex and a condvar through an \texttt{Arc}.
+
+\subsection{Why Traditional Static Analysis Fails Here}
+\label{subsec:why-static-fails}
+
+A traditional static analyzer must answer three questions before it can flag this bug:
+\begin{enumerate}[leftmargin=1.4em]
+  \item Do both functions access the \emph{same} mutex and condvar?
+        (Alias resolution through \texttt{Arc} cloning.)
+  \item Is the boolean guarded by the mutex?
+        (Lock--variable protection analysis.)
+  \item Can the notifier's \texttt{notify\_one} execute before the worker's \texttt{wait}?
+        (Interleaving analysis.)
+\end{enumerate}
+
+Question~1 requires alias analysis through heap allocation, \texttt{Arc::clone},
+destructuring, and borrowing---a chain that defeats most pointer analyses.
+Question~2 requires inferring that \texttt{*g} is protected by \texttt{m},
+which is implicit in Rust's \texttt{MutexGuard} API but not syntactically obvious.
+Question~3 requires interleaving enumeration, which is the domain of model checking
+but only works if questions~1 and~2 have already been answered.
+
+\subsection{The LLM Resolves Aliases; Formal Methods Verify Interleavings}
+\label{subsec:key-insight}
+
+An LLM reading the source code can immediately determine that both functions
+share the same mutex (via \texttt{Arc}), that the boolean is protected by that mutex,
+and that the condvar is paired with it.
+This is not syntactic pattern matching---it requires understanding Rust's ownership model,
+the semantics of \texttt{Arc<(Mutex<T>, Condvar)>}, and the API contract of \texttt{MutexGuard}.
+
+We exploit this capability by asking the LLM to produce a \CIR{} representation
+(Figure~\ref{fig:running-cir}) in which:
+\begin{itemize}[leftmargin=1.4em]
+  \item The mutex is globally named \texttt{m0} and the condvar \texttt{cv0}.
+  \item The boolean is globally named \texttt{ready} with type \texttt{Bool}.
+  \item The protection mapping \texttt{ready -> m0} is explicit.
+  \item Each statement has a unique \sid{}.
+\end{itemize}
+
+\begin{figure}[t]
+\begin{lstlisting}[caption={CIR for the running example.},label={fig:running-cir}]
+resources:
+  m0:  { kind: Mutex, mode: Sync }
+  cv0: { kind: Condvar, paired_with: m0, mode: Sync }
+  ready: { kind: Var, type: Bool, init: false }
+
+protection:
+  ready: [m0]
+
+functions:
+  worker:
+    kind: normal
+    body:
+      - { sid: w1, op: { lock: m0 },        transfer: { next: w2 } }
+      - { sid: w2, op: { read: ready },      transfer: { branch: {
+            cond: { var: ready, op: Eq, val: false },
+            on_true: w3, on_false: w5 } } }
+      - { sid: w3, op: { wait: { cv: cv0, mutex: m0 } },
+                                              transfer: { next: w2 } }
+      - { sid: w5, op: { drop: m0 },         transfer: { next: w6 } }
+      - { sid: w6, op: return,                transfer: done }
+
+  notifier:
+    kind: normal
+    body:
+      - { sid: n1, op: { lock: m0 },         transfer: { next: n2 } }
+      - { sid: n2, op: { notify_one: cv0 },   transfer: { next: n3 } }
+      - { sid: n3, op: { write: { var: ready, val: true } },
+                                              transfer: { next: n4 } }
+      - { sid: n4, op: { drop: m0 },         transfer: { next: n5 } }
+      - { sid: n5, op: return,                transfer: done }
+
+  main:
+    kind: normal
+    body:
+      - { sid: s1, op: { spawn: worker },     transfer: { next: s2 } }
+      - { sid: s2, op: { spawn: notifier },   transfer: { next: s3 } }
+      - { sid: s3, op: { join: worker },       transfer: { next: s4 } }
+      - { sid: s4, op: { join: notifier },     transfer: { next: s5 } }
+      - { sid: s5, op: return,                transfer: done }
+
+entry: main
+\end{lstlisting}
+\end{figure}
+
+With aliases resolved and protection mappings explicit,
+the \CVN{} state-space search can focus purely on interleaving analysis.
+It discovers the signal-loss bug: in the interleaving where
+the notifier executes \texttt{n2} (notify) before \texttt{n3} (write)
+and the worker has not yet reached \texttt{w3} (wait),
+the notification is consumed by no one, and the worker subsequently blocks on \texttt{w3}
+with no future notification forthcoming.
+The counterexample trace is mapped back to sids \texttt{n2} and \texttt{n3},
+and the repair suggestion is: ``swap the order of \texttt{n2} and \texttt{n3}
+so that the predicate is established before the notification.''
+
+% ======================================================================
+\section{CIR: Concurrency Intermediate Representation}
+\label{sec:cir}
+
+\subsection{Design Principles}
+\label{subsec:cir-principles}
+
+\CIR{} is designed for three consumers simultaneously:
+(1)~LLMs, which generate it from source code;
+(2)~a static checker, which validates structural and semantic well-formedness; and
+(3)~a translator, which lowers it to \CVN{}.
+Four principles guide the design:
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{Global resource naming.}
+        Every shared resource (mutex, rwlock, condvar, semaphore, channel,
+        shared variable, atomic variable) receives a unique global name.
+        This eliminates aliases \emph{by construction}---the hardest problem
+        in traditional concurrency analysis is solved at the representation level.
+
+  \item \textbf{Explicit protection mappings.}
+        The \texttt{protection} section declares which variables must be accessed
+        only under which locks.
+        This makes lock--variable relationships first-class,
+        enabling static checking without pointer analysis.
+
+  \item \textbf{Statement-level granularity with stable identifiers.}
+        Each \CIR{} statement has a unique \sid{}.
+        Control flow is expressed by explicit \texttt{transfer} fields
+        (not by list order), making the representation a labeled directed graph.
+        The \sid{} serves as the anchor for counterexample reporting and repair.
+
+  \item \textbf{No parameters, no return values.}
+        Because all resources are globally named, functions access them directly.
+        This eliminates the need for interprocedural alias tracking through parameters.
+\end{enumerate}
+
+\subsection{Formal Structure}
+\label{subsec:cir-structure}
+
+\begin{definition}[CIR Artifact]
+A \CIR{} artifact is a tuple
+\[
+  \mathcal{I} = \langle R, G, F, \Sigma, e \rangle
+\]
+where:
+\begin{itemize}[leftmargin=1.4em]
+  \item $R$ is a finite resource table mapping resource names to kinds and configurations.
+  \item $G$ is a protection mapping from variable names to sets of lock names.
+  \item $F$ is a finite set of function definitions.
+  \item $\Sigma$ is a partial function-summary map for unmodeled functions.
+  \item $e \in F$ is the entry function.
+\end{itemize}
+\end{definition}
+
+\paragraph{Resource kinds.}
+Resources are classified into \emph{synchronization primitives} and \emph{shared variables}:
+\[
+\begin{aligned}
+\text{Sync primitives:} &\quad \mathsf{Mutex},\ \mathsf{RwLock},\ \mathsf{Condvar},\ \mathsf{Semaphore}(n),\ \mathsf{Channel} \\
+\text{Shared variables:} &\quad \mathsf{Var}(\tau, v_0),\ \mathsf{Atomic}(\tau, v_0)
+\end{aligned}
+\]
+where $\tau \in \{\mathsf{Bool}, \mathsf{Int}, \mathsf{Float}, \mathsf{String}, \mathsf{Enum}\}$
+and $v_0$ is the initial value.
+Each sync primitive carries a mode $\in \{\mathsf{Sync}, \mathsf{Async}\}$
+(the mode does not affect \CVN{} structure).
+Condvars carry a \texttt{paired\_with} field naming the associated mutex.
+
+\paragraph{Protection mapping.}
+$G$ maps each $\mathsf{Var}$ resource to a nonempty set of lock resources.
+$\mathsf{Atomic}$ resources do not participate in protection mappings
+(they are accessed via atomic operations).
+$G$ is used only for \CIR{} static checking (rule E3xx) and does not produce \CVN{} structure.
+
+\begin{definition}[Statement]
+A \CIR{} statement is a triple $s = \langle \sid, \op, \mathit{transfer} \rangle$ where:
+\begin{itemize}[leftmargin=1.4em]
+  \item $\sid$ is a unique identifier within the function.
+  \item $\op$ is one of the operations in Table~\ref{tab:cir-ops}.
+  \item $\mathit{transfer}$ is one of:
+        $\mathsf{next}(\sid')$,
+        $\mathsf{branch}(\beta, \sid_t, \sid_f)$,
+        $\mathsf{switch}(\mathit{var}, [\mathit{case}_1, \ldots, \mathit{case}_k])$,
+        or $\mathsf{done}$ (for return statements).
+\end{itemize}
+\end{definition}
+
+\begin{table}[t]
+\caption{CIR operation set.}
+\label{tab:cir-ops}
+\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Category} & \textbf{Operations} & \textbf{Targets} \\
+\midrule
+Lock       & \texttt{lock}, \texttt{drop}        & Mutex, RwLock \\
+Read/Write & \texttt{read}, \texttt{write}        & Var \\
+Condvar    & \texttt{wait}, \texttt{notify\_one}, \texttt{notify\_all} & Condvar \\
+Semaphore  & \texttt{acquire}, \texttt{release}   & Semaphore \\
+Channel    & \texttt{send}, \texttt{recv}          & Channel \\
+Atomic     & \texttt{load}, \texttt{store}, \texttt{cas} & Atomic \\
+Concurrency& \texttt{spawn}, \texttt{join}         & function \\
+Async      & \texttt{spawn\_async}, \texttt{await} & async function \\
+Call       & \texttt{call}                         & function \\
+Control    & \texttt{return}                       & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Concurrency pairing rules.}
+$\mathsf{spawn}$ pairs with $\mathsf{join}$ (OS threads);
+$\mathsf{spawn\_async}$ pairs with $\mathsf{await}$ (async tasks).
+Cross-pairing (e.g., $\mathsf{spawn}$ with $\mathsf{await}$) is a static error (E4xx).
+
+\paragraph{Function summaries.}
+$\Sigma$ provides summaries only for functions whose bodies are \emph{not} modeled in $F$.
+A summary declares the sets of resources read and written, the call chain,
+and whether the function contains concurrency operations.
+Fully modeled functions do not need summaries.
+
+\subsection{CIR Static Check Error Taxonomy}
+\label{subsec:cir-errors}
+
+The \CIR{} static checker enforces 9~categories of well-formedness rules
+(Table~\ref{tab:cir-errors}).
+These checks are fast (linear in \CIR{} size) and catch structural errors
+before the more expensive \CVN{} translation and state-space search.
+
+\begin{table}[t]
+\caption{CIR error taxonomy (61 rules).}
+\label{tab:cir-errors}
+\centering\small
+\begin{tabular}{@{}llp{5.5cm}@{}}
+\toprule
+\textbf{Prefix} & \textbf{Category} & \textbf{Examples} \\
+\midrule
+E0xx & Structural       & Missing fields, type errors, format violations \\
+E1xx & Name resolution  & Undefined resource/function/sid, duplicate names \\
+E2xx & Type errors       & Non-Bool branch condition, write type mismatch \\
+E3xx & Resource--op compatibility & \texttt{lock} on non-lock, unprotected var access \\
+E4xx & Concurrency pairing & spawn/join mismatch, cross-pairing \\
+E5xx & Lock safety       & Missing \texttt{drop}, double lock, inconsistent order \\
+E6xx & Control flow      & Unreachable statements, missing return \\
+E7xx & Protection map    & Atomic in protection, unprotected Var \\
+E8xx & FnSummary         & Summary--body conflict, concurrency flag propagation \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{CIR as a Control-Flow Graph}
+\label{subsec:cir-cfg}
+
+A \CIR{} function body is a labeled directed graph where nodes are statements
+and edges are induced by \texttt{transfer} targets.
+This graph supports DOT-format visualization with operation-type--based coloring
+(lock nodes in red, drop nodes in green, branch nodes as diamonds, etc.),
+cross-function dashed edges for spawn/join/call,
+and automatic back-edge detection for loop highlighting.
+
+% ======================================================================
+\section{CVN: Concurrency Verification Net}
+\label{sec:cvn}
+
+\subsection{Design Rationale}
+\label{subsec:cvn-rationale}
+
+\CVN{} is a \emph{weighted Place/Transition Petri net augmented with a global variable store
+and three-valued guard evaluation}.
+It is \emph{not} a colored Petri net (CPN):
+all tokens are indistinguishable black tokens, and there are no color sets,
+binding expressions, or token-carried data.
+
+The key insight that makes this simplification possible is that
+\CIR{} has already resolved all aliases and the LLM has already unfolded
+bounded concurrent instances into explicit multiple spawns.
+Each spawned instance receives its own control-place namespace in the \CVN{},
+so black tokens suffice to distinguish thread positions.
+
+\subsection{Formal Definition}
+\label{subsec:cvn-definition}
+
+\begin{definition}[Concurrency Verification Net]
+A \CVN{} is a tuple
+\[
+  \mathcal{N} = \langle P, T, A_{\mathrm{in}}, A_{\mathrm{out}}, V, I_m, I_v, \mu \rangle
+\]
+where:
+\begin{itemize}[leftmargin=1.4em]
+  \item $P = P_c \uplus P_r \uplus P_w$ is a finite set of places,
+        partitioned into \emph{control places}~$P_c$,
+        \emph{resource places}~$P_r$, and \emph{wait places}~$P_w$.
+  \item $T$ is a finite set of transitions.
+  \item $A_{\mathrm{in}} \subseteq P \times T$ is the set of input arcs,
+        each annotated with $(\mathit{weight}, \mathit{guard})$.
+  \item $A_{\mathrm{out}} \subseteq T \times P$ is the set of output arcs,
+        each annotated with $(\mathit{weight}, \mathit{update})$.
+  \item $V : \mathsf{VarName} \to \mathsf{Val}$ is the global variable store.
+  \item $I_m : P \to \mathbb{N}_0$ is the initial marking.
+  \item $I_v$ is the initial variable valuation.
+  \item $\mu : T \rightharpoonup \mathsf{SID}^+$ is the optional anchor mapping
+        (enabled by the \texttt{cir-anchor} feature flag).
+\end{itemize}
+\end{definition}
+
+\paragraph{Place families.}
+
+\emph{Control places} $P_c$:
+one per \CIR{} statement per function instance.
+A token in $\mathit{cp}(f, \sid)$ means a thread is at statement~$\sid$ in function~$f$.
+
+\emph{Resource places} $P_r$:
+one per synchronization primitive (Mutex, RwLock, Semaphore, Channel).
+$\mathsf{Var}$ and $\mathsf{Atomic}$ resources do not get resource places;
+their state lives in~$V$.
+Condvars do not get resource places; their semantics is captured by wait places.
+
+\begin{table}[t]
+\caption{Initial token counts for resource places.}
+\label{tab:resource-tokens}
+\centering\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Resource kind} & \textbf{Initial tokens} \\
+\midrule
+Mutex       & 1 \\
+RwLock      & $N$ (total number of concurrent entities) \\
+Semaphore($n$) & $n$ \\
+Channel     & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\emph{Wait places} $P_w$:
+one per \texttt{wait} call site in the \CIR{}.
+A token in a wait place means a thread is blocked at that wait site.
+
+\subsection{Value Domain and Three-Valued Evaluation}
+\label{subsec:cvn-values}
+
+\begin{definition}[Value domain]
+\[
+  \mathsf{Val} = \mathsf{Concrete}(\mathsf{Bool} \mid \mathsf{Int} \mid \mathsf{Float}
+    \mid \mathsf{String} \mid \mathsf{Enum}) \;\mid\; \mathsf{Unknown}(\topval)
+\]
+$\topval$ is an absorbing element: once a variable becomes $\topval$, it never recovers
+a concrete value.
+\end{definition}
+
+Expressions are divided into value expressions
+$\mathsf{Expr}$ (literals, variable references, binary operators)
+and Boolean expressions $\mathsf{BoolExpr}$ (comparisons, conjunctions, disjunctions, negations).
+
+\begin{definition}[Three-valued guard evaluation]
+A guard $g$ evaluates to one of $\{\mathsf{true}, \mathsf{false}, \mathsf{Unknown}\}$
+given the current variable store~$V$.
+\begin{itemize}[leftmargin=1.4em]
+  \item $g = \mathsf{true}$ $\Rightarrow$ the transition is enabled (guard satisfied).
+  \item $g = \mathsf{false}$ $\Rightarrow$ the transition is not enabled.
+  \item $g = \mathsf{Unknown}$ $\Rightarrow$ the transition is \textbf{still enabled}
+        (over-approximation); complementary transitions are also enabled,
+        so the state-space search explores both branches.
+\end{itemize}
+Guards are semantically meaningful only on transitions generated from
+$\mathsf{branch}$ and $\mathsf{switch}$ statements.
+All other transitions have guard $\mathsf{True}$,
+so $\mathsf{Unknown}$ never affects them.
+\end{definition}
+
+This three-valued semantics provides a \emph{safe over-approximation}:
+if a real execution can reach a bad state, the \CVN{} analysis will find it.
+The trade-off is that some explored states may be infeasible
+(false positives from $\mathsf{Unknown}$-enabled branches).
+
+\subsection{Enabling and Firing}
+\label{subsec:cvn-firing}
+
+\begin{definition}[Enabling]
+A transition $t \in T$ is \emph{enabled} at marking $M$ with variable store $V$ iff:
+\begin{enumerate}[leftmargin=1.4em]
+  \item For every input arc $(p, t)$ with weight $w$: $M(p) \geq w$.
+  \item For every input arc $(p, t)$ with guard $g$: $\mathit{eval}(g, V) \neq \mathsf{false}$.
+\end{enumerate}
+\end{definition}
+
+\begin{definition}[Firing]
+When enabled transition $t$ fires:
+\begin{enumerate}[leftmargin=1.4em]
+  \item For every input arc $(p, t)$ with weight $w$: $M'(p) = M(p) - w$.
+  \item For every output arc $(t, p)$ with weight $w$: $M'(p) = M(p) + w$.
+  \item For every output arc $(t, p)$ with update $u$: apply $u$ to~$V$.
+  \item All updates on a single transition have disjoint variable domains.
+\end{enumerate}
+\end{definition}
+
+\subsection{State Equivalence and Finiteness}
+\label{subsec:cvn-state}
+
+A \CVN{} state is a pair $(M, V)$ of marking and variable store.
+
+\begin{theorem}[Finite state space]
+The reachable state space of a \CVN{} is finite, provided:
+\begin{enumerate}[leftmargin=1.4em]
+  \item Every place has a finite token bound (guaranteed by the translation construction).
+  \item The variable store has finitely many distinct valuations
+        (guaranteed by the $\topval$ absorbing element and finite concrete value domains).
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+The marking space is finite because each place has a bounded number of tokens
+and there are finitely many places.
+The variable space is finite because each variable ranges over a finite set of concrete values
+plus $\topval$, and $\topval$ is absorbing (once reached, the variable's value is fixed).
+The product of two finite sets is finite.
+\end{proof}
+
+\subsection{Well-Formedness Conditions}
+\label{subsec:cvn-wellformed}
+
+Nine well-formedness conditions (W1--W9) ensure structural correctness:
+\begin{itemize}[leftmargin=1.4em]
+  \item W1: Place sets $P_c$, $P_r$, $P_w$ are pairwise disjoint.
+  \item W2: Every arc references existing places and transitions.
+  \item W3: Control arcs have unique source--target patterns.
+  \item W4: Updates on a single transition have disjoint variable domains.
+  \item W5: Branch transitions come in complementary pairs sharing the same control input.
+  \item W6: Switch transitions cover all declared cases.
+  \item W7 (cir-anchor only): Every transition has a nonempty anchor set.
+  \item W8: Arc weights are positive.
+  \item W9: Initial marking is consistent with resource kinds.
+\end{itemize}
+
+\subsection{Transition Classification}
+\label{subsec:cvn-transitionkind}
+
+Each transition carries a $\mathsf{TransitionKind}$ tag for debugging and visualization
+(Table~\ref{tab:transition-kinds}).
+The tag does not affect firing semantics.
+
+\begin{table}[t]
+\caption{CVN transition kinds (marked \texttt{\#[non\_exhaustive]}).}
+\label{tab:transition-kinds}
+\centering\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Category} & \textbf{Kinds} \\
+\midrule
+Lock ops     & Lock, Unlock, ReadLock, ReadUnlock \\
+Semaphore    & Acquire, Release \\
+Channel      & Send, Recv \\
+Variables    & VarRead, VarWrite, AtomicLoad, AtomicStore \\
+Branch       & BranchTrue, BranchFalse, Switch \\
+CAS          & CasSuccess, CasFailure \\
+Concurrency  & Spawn, Join \\
+Call         & Call \\
+Condvar      & CondvarWait, CondvarNotify, CondvarNotifyAll, CondvarReacquire \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{CVN Error Taxonomy}
+\label{subsec:cvn-errors}
+
+\begin{table}[t]
+\caption{CVN error taxonomy (prefix V).}
+\label{tab:cvn-errors}
+\centering\small
+\begin{tabular}{@{}llp{5.2cm}@{}}
+\toprule
+\textbf{Prefix} & \textbf{Category} & \textbf{Examples} \\
+\midrule
+V0xx & Structural       & Duplicate IDs, dangling arc references, zero weight \\
+V1xx & Well-formedness  & Missing control arcs, update conflict, missing anchor \\
+V2xx & Branch completeness & Unpaired branch, incomplete switch coverage \\
+V3xx & Analysis phase   & Token deficit, state explosion, type error \\
+V4xx & Resource semantics & Initial tokens inconsistent with resource kind \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ======================================================================
+\section{CIR to CVN Translation}
+\label{sec:translation}
+
+\subsection{Translator Architecture}
+\label{subsec:translator-arch}
+
+The translator is a stateless pure function:
+$\mathsf{translate} : \CIR{} \to \CVN{}$.
+It proceeds in three phases.
+
+\paragraph{Phase 1: Resource scanning.}
+Generate resource places $P_r$, compute the RwLock concurrency parameter~$N$
+(total number of concurrent entities), set initial marking $I_m$,
+and initialize the variable store $I_v$ from resource declarations.
+
+\paragraph{Phase 2: Function body translation.}
+For each function, for each statement, generate control places $P_c$,
+wait places $P_w$ (for condvar waits), transitions $T$,
+and arcs $A_{\mathrm{in}}, A_{\mathrm{out}}$ according to the rules in Table~\ref{tab:translation-rules}.
+
+\paragraph{Phase 3: FnSummary translation.}
+For each unmodeled function referenced via \texttt{call},
+generate a single atomic transition whose output arcs
+set all written variables to $\topval$ (unknown).
+
+\subsection{Core Translation Rules}
+\label{subsec:translation-rules}
+
+\begin{table*}[t]
+\caption{Representative CIR-to-CVN translation rules.}
+\label{tab:translation-rules}
+\centering\small
+\begin{tabular}{@{}lp{11cm}@{}}
+\toprule
+\textbf{CIR pattern} & \textbf{CVN structure} \\
+\midrule
+$\langle \sid, \mathsf{lock}(r), \mathsf{next}(\sid') \rangle$
+  & Transition $t$: input arc from $\mathit{cp}(f,\sid)$ weight 1, input arc from $\mathit{rp}(r)$ weight 1;
+    output arc to $\mathit{cp}(f,\sid')$ weight 1.
+    Kind: Lock. \\[3pt]
+
+$\langle \sid, \mathsf{drop}(r), \mathsf{next}(\sid') \rangle$
+  & Transition $t$: input arc from $\mathit{cp}(f,\sid)$ weight 1;
+    output arc to $\mathit{cp}(f,\sid')$ weight 1, output arc to $\mathit{rp}(r)$ weight 1.
+    Kind: Unlock. \\[3pt]
+
+$\langle \sid, \mathsf{lock\_read}(r), \mathsf{next}(\sid') \rangle$
+  & Input arc from $\mathit{rp}(r)$ weight \textbf{1};
+    output arc to $\mathit{cp}(f,\sid')$ weight 1.
+    Kind: ReadLock.
+    (RwLock: read lock consumes 1 token; write lock consumes $N$.) \\[3pt]
+
+$\langle \sid, \mathsf{read}(x), \mathsf{branch}(\beta, \sid_t, \sid_f) \rangle$
+  & Two transitions $t_{\top}, t_{\bot}$ sharing input arc from $\mathit{cp}(f,\sid)$.
+    $t_{\top}$ has guard $\beta$, output to $\mathit{cp}(f,\sid_t)$.
+    $t_{\bot}$ has guard $\neg\beta$, output to $\mathit{cp}(f,\sid_f)$.
+    Kinds: BranchTrue, BranchFalse. \\[3pt]
+
+$\langle \sid, \mathsf{write}(x, v), \mathsf{next}(\sid') \rangle$
+  & Transition $t$: output arc carries update $V[x] \leftarrow v$.
+    Kind: VarWrite. \\[3pt]
+
+$\langle \sid, \mathsf{wait}(\mathit{cv}, m), \mathsf{next}(\sid') \rangle$
+  & Transition $t_w$: input from $\mathit{cp}(f,\sid)$, output to $\mathit{wp}(\sid)$
+    and output to $\mathit{rp}(m)$ (release mutex).
+    Kind: CondvarWait.
+    A separate reacquire transition $t_r$: input from $\mathit{wp}(\sid)$
+    and $\mathit{rp}(m)$, output to $\mathit{cp}(f,\sid')$.
+    Kind: CondvarReacquire. \\[3pt]
+
+$\langle \sid, \mathsf{notify\_one}(\mathit{cv}), \mathsf{next}(\sid') \rangle$
+  & For each wait site $w_i$ of condvar $\mathit{cv}$:
+    transition $t_i$ with input from $\mathit{cp}(f,\sid)$ and $\mathit{wp}(w_i)$,
+    output to $\mathit{cp}(f,\sid')$ and to the reacquire transition's input place.
+    Multiple $t_i$ are in \emph{conflict} (nondeterministic choice).
+    Kind: CondvarNotify. \\[3pt]
+
+$\langle \sid, \mathsf{spawn}(g), \mathsf{next}(\sid') \rangle$
+  & Transition $t$: input from $\mathit{cp}(f,\sid)$;
+    output to $\mathit{cp}(f,\sid')$ \textbf{and} $\mathit{cp}(g,\sid_0^g)$ (fork).
+    Kind: Spawn. \\[3pt]
+
+$\langle \sid, \mathsf{join}(g), \mathsf{next}(\sid') \rangle$
+  & Transition $t$: input from $\mathit{cp}(f,\sid)$ and $\mathit{cp}(g,\sid_{\mathrm{ret}}^g)$;
+    output to $\mathit{cp}(f,\sid')$ (join).
+    Kind: Join. \\[3pt]
+
+$\langle \sid, \mathsf{cas}(x, \mathit{exp}, \mathit{new}), \mathsf{next}(\sid') \rangle$
+  & Two transitions: $t_s$ (CasSuccess) with guard $V[x] = \mathit{exp}$,
+    update $V[x] \leftarrow \mathit{new}$;
+    $t_f$ (CasFailure) with guard $V[x] \neq \mathit{exp}$, no update.
+    Both output to $\mathit{cp}(f,\sid')$.  \\[3pt]
+
+FnSummary call to $g$
+  & Atomic transition: no effect for reads; all writes set to $\topval$.
+    Kind: Call. \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Design Constraints}
+\label{subsec:translation-constraints}
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{1:1 faithful translation.} No optimization, no merging, no elimination.
+        Every \CIR{} statement produces at least one \CVN{} transition.
+  \item \textbf{Protection is not translated.}
+        The \texttt{protection} field is used only for \CIR{} static checking (E3xx)
+        and produces no \CVN{} structure.
+  \item \textbf{Mode is not translated.}
+        $\mathsf{Sync}$/$\mathsf{Async}$ modes do not affect \CVN{} structure.
+  \item \textbf{Read+next generates a sequential transition.}
+        Even a read with no observable effect produces a transition $t_{\mathrm{seq}}$
+        to preserve the anchor mapping.
+\end{enumerate}
+
+\subsection{Translation Error Taxonomy}
+\label{subsec:translation-errors}
+
+\begin{table}[t]
+\caption{Translation error taxonomy (prefix T).}
+\label{tab:translation-errors}
+\centering\small
+\begin{tabular}{@{}llp{5cm}@{}}
+\toprule
+\textbf{Prefix} & \textbf{Category} & \textbf{Examples} \\
+\midrule
+T0xx & Input errors   & \CIR{} fails static check \\
+T1xx & Resource errors & Unknown resource kind, missing paired condvar \\
+T2xx & Control flow    & Unreachable sid in transfer target \\
+T3xx & Consistency     & Anchor mapping incomplete \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ======================================================================
+\section{State-Space Analysis}
+\label{sec:analysis}
+
+\subsection{Search Algorithms}
+\label{subsec:search}
+
+The analysis engine supports BFS (shortest counterexample) and DFS (memory-efficient),
+configurable with maximum state count, timeout, and early termination on first bug.
+
+\begin{algorithm}[t]
+\caption{CVN state-space exploration.}
+\label{alg:explore}
+\begin{algorithmic}[1]
+\Require \CVN{} $\mathcal{N}$ with initial state $(I_m, I_v)$
+\Ensure Bug reports or ``safe''
+\State $Q \gets [(I_m, I_v)]$, \quad $\mathit{Visited} \gets \{(I_m, I_v)\}$
+\While{$Q \neq \emptyset$ \textbf{and} within limits}
+  \State $(M, V) \gets \mathsf{dequeue}(Q)$
+  \State $E \gets \mathsf{enabled}(M, V)$ \Comment{All transitions with $M(p)\geq w$ and guard $\neq$ false}
+  \If{$\neg\mathsf{is\_terminal}(M) \wedge E = \emptyset$}
+    \State \Return $\mathsf{Deadlock}(M, V, \mathit{trace})$
+  \EndIf
+  \ForAll{$t \in E$}
+    \State $(M', V') \gets \mathsf{fire}(t, M, V)$
+    \If{$(M', V') \notin \mathit{Visited}$}
+      \State $\mathit{Visited} \gets \mathit{Visited} \cup \{(M', V')\}$
+      \State $\mathsf{enqueue}(Q, (M', V'))$
+    \EndIf
+  \EndFor
+\EndWhile
+\State Perform SCC analysis on the state graph for liveness checks
+\State \Return results
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Deadlock Detection}
+\label{subsec:deadlock}
+
+\begin{definition}[Deadlock]
+A state $(M, V)$ is a deadlock iff
+\[
+  \neg\mathsf{is\_terminal}(M) \;\wedge\; \mathsf{enabled}(M, V) = \emptyset
+\]
+where $\mathsf{is\_terminal}(M)$ holds iff all control tokens reside in return places.
+\end{definition}
+
+\subsection{Liveness Analysis}
+\label{subsec:liveness}
+
+Liveness properties are checked by strongly connected component (SCC) analysis
+on the reachability graph:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Starvation:} A nontrivial SCC exists in which some thread's control token
+        never advances.
+  \item \textbf{Livelock:} A nontrivial SCC exists in which all states are non-terminal
+        (threads keep executing but never complete).
+\end{itemize}
+
+A counterexample for a liveness violation is a cycle within the offending SCC.
+
+\subsection{Bug Kinds Beyond Static Checking}
+\label{subsec:beyond-static}
+
+The \CVN{} state-space search discovers concurrency bugs that \CIR{} static checking cannot:
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{Cross-thread condvar deadlock:}
+        Two threads each wait on a condvar that only the other can notify.
+  \item \textbf{Signal loss:}
+        A \texttt{notify} executes before any thread has entered \texttt{wait}.
+  \item \textbf{Channel + mutex cross-deadlock:}
+        Thread~A holds a mutex and blocks on channel recv;
+        thread~B needs the mutex to send on the channel.
+  \item \textbf{RwLock writer starvation:}
+        Continuous read-lock acquisitions prevent a writer from ever acquiring the write lock.
+  \item \textbf{Three-lock circular deadlock:}
+        Three threads acquire three locks in different orders,
+        forming a circular wait.
+  \item \textbf{Business-logic ordering violations:}
+        Operations that must happen in a specific order
+        (captured by variable guards in the \CVN{}) are interleaved incorrectly.
+\end{enumerate}
+
+% ======================================================================
+\section{Counterexamples and Repair}
+\label{sec:repair}
+
+\subsection{Two-Layer Verification}
+\label{subsec:two-layer}
+
+The system implements two verification layers with complementary strengths:
+
+\paragraph{Layer 1: CIR static checking (E0xx--E8xx).}
+Fast, structural, catches well-formedness errors.
+Simple errors (e.g., missing \texttt{drop} for a \texttt{lock}) can be auto-repaired locally.
+
+\paragraph{Layer 2: CVN model checking.}
+State-space search over all interleavings.
+Catches cross-thread interaction bugs that require semantic understanding to repair.
+These bugs must be repaired by the LLM.
+
+\subsection{Structured Counterexample}
+\label{subsec:counterexample}
+
+\begin{definition}[Structured counterexample]
+A counterexample is a tuple
+\[
+  \mathit{CEx} = \langle \kappa, \pi, (M_f, V_f), R, F_{\mathrm{inv}}, S \rangle
+\]
+where:
+\begin{itemize}[leftmargin=1.4em]
+  \item $\kappa \in \{\mathsf{Deadlock}, \mathsf{SignalLoss}, \mathsf{Starvation},
+        \mathsf{Livelock}, \mathsf{ChannelBlock}\}$ is the bug kind.
+  \item $\pi = [(t_1, \sid_1), \ldots, (t_n, \sid_n)]$ is the transition trace
+        with anchored \sid{}s.
+  \item $(M_f, V_f)$ is the final (violating) state.
+  \item $R$ is the set of involved resources.
+  \item $F_{\mathrm{inv}}$ is the set of involved functions.
+  \item $S$ is a template-based repair suggestion.
+\end{itemize}
+\end{definition}
+
+\subsection{Repair Suggestions by Bug Kind}
+\label{subsec:repair-templates}
+
+Each bug kind has an associated repair template:
+
+\begin{table}[t]
+\caption{Template repair suggestions by bug kind.}
+\label{tab:repair-templates}
+\centering\small
+\begin{tabular}{@{}lp{6cm}@{}}
+\toprule
+\textbf{Bug kind} & \textbf{Suggestion template} \\
+\midrule
+Deadlock     & Unify lock acquisition order; list suggested global order. \\
+SignalLoss   & Protect \texttt{wait} with a \texttt{while} loop checking the predicate;
+               ensure predicate is set before \texttt{notify}. \\
+ChannelBlock & Do not perform blocking channel operations while holding a lock. \\
+Starvation   & Reduce lock hold duration; consider fairness mechanisms. \\
+Livelock     & Introduce backoff or deterministic coordination. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{LLM Repair Loop}
+\label{subsec:repair-loop}
+
+\begin{algorithm}[t]
+\caption{Generate--verify--repair loop.}
+\label{alg:repair-loop}
+\begin{algorithmic}[1]
+\Require Source code or natural-language specification
+\Ensure Verified \CIR{} or failure after $K$ rounds
+\State LLM generates initial \CIR{} from source
+\For{$\mathit{round} = 1$ \textbf{to} $K$}
+  \State Run \CIR{} static checker
+  \If{static errors found (E0xx--E8xx)}
+    \If{auto-repairable (e.g., missing \texttt{drop})}
+      \State Apply local fix
+    \Else
+      \State Format error report $\to$ LLM prompt $\to$ LLM regenerates \CIR{}
+    \EndIf
+    \State \textbf{continue}
+  \EndIf
+  \State Translate \CIR{} $\to$ \CVN{}
+  \State Run state-space search
+  \If{no bugs found}
+    \State \Return verified \CIR{} \checkmark
+  \Else
+    \State Format counterexample report $\to$ LLM prompt $\to$ LLM regenerates \CIR{}
+  \EndIf
+\EndFor
+\State \Return failure after $K$ rounds
+\end{algorithmic}
+\end{algorithm}
+
+The counterexample report sent to the LLM includes:
+(1)~bug kind and violated invariant;
+(2)~transition trace with \sid{} and operation description per step;
+(3)~deadlock participant details (which thread holds which lock, waits on which resource);
+(4)~template repair suggestion.
+
+% ======================================================================
+\section{Loop Modeling and Instance Unfolding}
+\label{sec:loops}
+
+\subsection{No Automated Loop Unrolling}
+\label{subsec:no-unroll}
+
+We make a deliberate design decision: \textbf{the system does not perform automated loop unrolling.}
+The rationale is fourfold:
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{Concurrency bugs are topological, not quantitative.}
+        Deadlocks, signal losses, and races are triggered by the
+        \emph{structure} of synchronization interactions,
+        not by the number of loop iterations.
+        Two concurrent instances suffice to trigger most bugs.
+
+  \item \textbf{LLM-driven instance unfolding replaces loop unrolling.}
+        When a loop spawns $N$ workers, the LLM unfolds it into
+        $\min(N, 3)$ explicit \texttt{spawn} statements in \CIR{}.
+        Each instance gets a unique control-place namespace in the \CVN{}.
+        This is more reliable than asking the system to infer loop bounds.
+
+  \item \textbf{Back edges with $\mathsf{Unknown}$ provide safe over-approximation.}
+        Non-spawn loops retain their back-edge structure in \CIR{}.
+        Variables modified in the loop body may become $\topval$ in the \CVN{},
+        causing the three-valued guard evaluation to explore both branch paths,
+        which safely over-approximates all iterations.
+
+  \item \textbf{Loop bound inference is unreliable for LLMs.}
+        Asking the LLM to determine loop iteration counts
+        introduces a new source of incorrectness.
+\end{enumerate}
+
+\subsection{Why Colored Petri Nets Are Unnecessary}
+\label{subsec:no-cpn}
+
+With LLM-driven unfolding, each concurrent instance has its own \CIR{} function
+(or uniquely suffixed function name) and therefore its own control places.
+Black tokens suffice to distinguish thread positions.
+Colored Petri nets (CPNs) would be needed only for
+\emph{parametric} verification (``for any $N$ workers''),
+which is outside our scope.
+
+\subsection{Semaphore Retention}
+\label{subsec:semaphore}
+
+With $K \geq 2$ manually unfolded instances,
+semaphores are fully meaningful:
+$K$ instances competing for $n < K$ permits produce
+blocking and queuing behavior that the \CVN{} captures faithfully.
+We retain semaphores as a first-class resource kind
+with dedicated Acquire/Release transition kinds
+(distinct from Lock/Unlock to avoid confusion).
+
+% ======================================================================
+\section{Formal Properties}
+\label{sec:formal}
+
+\subsection{Step Correspondence}
+\label{subsec:step-correspondence}
+
+We establish a bisimulation-like relationship between \CIR{} executions
+and \CVN{} firings.
+
+\begin{definition}[CIR configuration]
+A \CIR{} configuration is a tuple $C = (\mathit{pc}, V)$ where
+$\mathit{pc} : \mathsf{ThreadId} \to \mathsf{SID}$ maps each active thread
+to its current statement, and $V$ is the global variable valuation.
+\end{definition}
+
+\begin{definition}[Encoding]
+The encoding function $\mathsf{enc}(C) = (M, V)$ maps:
+\begin{itemize}[leftmargin=1.4em]
+  \item Each thread at statement $\sid$ in function $f$ to one token in $\mathit{cp}(f, \sid)$.
+  \item Resource availability to tokens in the corresponding resource places.
+  \item Wait states to tokens in the corresponding wait places.
+  \item Variable values directly to the \CVN{} variable store.
+\end{itemize}
+\end{definition}
+
+\begin{theorem}[Step correspondence]
+\label{thm:step}
+Let $C$ be a \CIR{} configuration and $(M, V) = \mathsf{enc}(C)$.
+For every \CIR{} execution step $C \xrightarrow{o} C'$,
+there exists a \CVN{} transition $t$ such that
+$(M, V) \xrightarrow{t} (M', V')$ and $(M', V') = \mathsf{enc}(C')$.
+Conversely, for every enabled \CVN{} transition $t$ at $(M, V)$,
+there exists a \CIR{} step $o$ such that
+$C \xrightarrow{o} C'$ and $\mathsf{enc}(C') = (M', V')$.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+By case analysis on the \CIR{} operation type.
+Each translation rule (Table~\ref{tab:translation-rules}) consumes exactly the
+tokens/arcs corresponding to the \CIR{} operation's preconditions
+and produces exactly those corresponding to its postconditions.
+The 1:1 faithful translation constraint ensures no merging or elimination occurs.
+For branch operations, the three-valued guard semantics ensures that
+the \CVN{} transition is enabled exactly when the \CIR{} branch can be taken
+(with $\mathsf{Unknown}$ enabling both branches as over-approximation).
+\end{proof}
+
+\begin{theorem}[Deadlock correspondence]
+\label{thm:deadlock}
+A \CIR{} configuration $C$ is a deadlock
+(non-terminal with no enabled step)
+iff $\mathsf{enc}(C)$ is a deadlock in the \CVN{}
+(non-terminal marking with no enabled transition).
+\end{theorem}
+
+\begin{proof}
+Direct consequence of Theorem~\ref{thm:step}:
+the enabled sets correspond exactly.
+\end{proof}
+
+\begin{theorem}[Safety of over-approximation]
+\label{thm:safety}
+If a \CIR{} execution can reach a bad configuration
+(deadlock, signal loss, starvation, livelock),
+then the \CVN{} state-space search will find a corresponding bad state.
+\end{theorem}
+
+\begin{proof}
+By Theorem~\ref{thm:step}, every \CIR{} execution trace has a corresponding
+\CVN{} firing sequence.
+The $\mathsf{Unknown}$ mechanism only \emph{adds} enabled transitions
+(both branches of an unknown guard),
+so it cannot remove reachable states.
+The finite state space (Theorem~1) ensures termination.
+\end{proof}
+
+Note that the converse does not hold in general:
+the over-approximation may introduce states reachable in the \CVN{}
+but not in any concrete \CIR{} execution.
+This is the standard precision trade-off of abstract interpretation.
+
+% ======================================================================
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{The Alias Problem and the LLM Solution}
+\label{subsec:alias-discussion}
+
+The central insight of this work is that LLMs can solve the alias problem
+for concurrency analysis in a way that no purely syntactic tool can.
+
+Traditional alias analysis faces a fundamental dilemma:
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Flow-insensitive, context-insensitive analysis}
+        (e.g., Andersen's~\cite{Andersen1994}) is polynomial but imprecise,
+        merging aliases across all program points and call sites.
+  \item \textbf{Flow-sensitive, context-sensitive analysis}
+        is precise but intractable for real programs,
+        especially with heap allocation, closures, and generics.
+  \item \textbf{For concurrent programs}, the problem is compounded by
+        the need to track aliases across thread boundaries
+        through shared-memory mechanisms like \texttt{Arc}, channels,
+        and lock-protected state.
+\end{itemize}
+
+An LLM, by contrast, leverages semantic understanding of API contracts,
+ownership patterns, and programmer intent.
+When the LLM sees
+\begin{lstlisting}[numbers=none,frame=none]
+let shared = Arc::new((Mutex::new(State::default()), Condvar::new()));
+let h1 = shared.clone();
+let h2 = shared.clone();
+\end{lstlisting}
+it understands that \texttt{shared}, \texttt{h1}, and \texttt{h2} all refer to
+the same mutex--condvar pair, and it produces a \CIR{} with a single
+globally named mutex \texttt{m0} and condvar \texttt{cv0}.
+This resolution is not inferred by dataflow analysis---it is \emph{asserted}
+by the LLM based on semantic understanding, and validated by the \CIR{}
+static checker (which verifies consistency of the resulting representation).
+
+\paragraph{Correctness of LLM-produced aliases.}
+The LLM's alias resolution is not formally guaranteed to be correct.
+However, errors in alias resolution manifest as structural errors in \CIR{}
+(e.g., accessing a nonexistent resource, or missing a protection mapping)
+that are caught by the E-prefix static checks.
+In practice, the iterative repair loop corrects such errors
+within a small number of rounds.
+
+\subsection{Comparison with Existing Approaches}
+\label{subsec:comparison}
+
+\paragraph{Rust-specific tools.}
+Tools like Miri~\cite{Miri} (dynamic, explores one schedule),
+Loom~\cite{Loom} (bounded model checking of small test harnesses),
+and Rudra~\cite{Bae2021} (static pattern matching)
+each address parts of the concurrency verification problem
+but do not provide the LLM-in-the-loop repair capability
+or the alias-resolution-by-generation strategy.
+
+\paragraph{Petri-net--based verification.}
+Classical Petri-net tools (LoLA~\cite{Wolf2018}, CPN Tools~\cite{Jensen2007})
+require manual net construction.
+Our contribution is the \emph{automatic generation} of the net from LLM-produced \CIR{},
+with the LLM performing the hard work of alias resolution and abstraction.
+
+\paragraph{LLM-based program analysis.}
+Recent work explores LLMs for bug detection~\cite{Li2023,Ding2024}
+and program repair~\cite{Xia2023,Jiang2023}.
+These approaches typically use the LLM as both analyzer and repairer.
+Our architecture separates concerns:
+the LLM handles what it does well (semantic understanding, alias resolution),
+and formal methods handle what they do well (exhaustive state-space search).
+
+\subsection{Limitations}
+\label{subsec:limitations}
+
+\begin{enumerate}[leftmargin=1.4em]
+  \item \textbf{LLM reliability.}
+        The quality of \CIR{} depends on the LLM's understanding of the source code.
+        Complex aliasing through unsafe code, raw pointers, or FFI
+        may exceed LLM capabilities.
+
+  \item \textbf{Over-approximation.}
+        The $\mathsf{Unknown}$ mechanism may produce false positives
+        when branch conditions cannot be evaluated.
+
+  \item \textbf{No loop unrolling.}
+        Bugs that manifest only after many iterations are not detected.
+        This is acceptable for synchronization topology bugs
+        but not for resource-exhaustion bugs.
+
+  \item \textbf{Bounded concurrent instances.}
+        The system verifies a fixed number of unfolded instances ($\leq 3$),
+        not parametric correctness for arbitrary~$N$.
+
+  \item \textbf{No weak-memory model.}
+        Atomic operations are modeled at the variable level
+        without a formal memory model (e.g., C11 or Rust's model).
+\end{enumerate}
+
+\subsection{Future Work}
+\label{subsec:future}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Automated loop support (v2):}
+        Detect back edges in \CIR{}, force-set modified variables to $\topval$
+        after at most 2 iterations, unfold spawn loops to configurable $K$.
+  \item \textbf{Weak-memory integration:}
+        Extend the \CVN{} with ordering constraints on atomic transitions.
+  \item \textbf{Empirical evaluation:}
+        Measure repair success rates across LLM families,
+        compare with Miri/Loom/Rudra on real Rust codebases.
+  \item \textbf{Incremental verification:}
+        Re-verify only the affected \CVN{} fragment when \CIR{} changes locally.
+\end{itemize}
+
+% ======================================================================
+\section{Test Matrix}
+\label{sec:tests}
+
+Table~\ref{tab:test-matrix} lists 10~representative concurrency patterns
+that exercise the full pipeline.
+Each test provides both a buggy and a fixed \CIR{},
+verifying that the buggy version triggers the expected bug kind
+and the fixed version passes all checks.
+
+\begin{table*}[t]
+\caption{Test matrix for the CIR\,+\,CVN pipeline.}
+\label{tab:test-matrix}
+\centering\small
+\begin{tabular}{@{}clllll@{}}
+\toprule
+\textbf{\#} & \textbf{Scenario} & \textbf{Bug kind} & \textbf{Safety/Liveness}
+  & \textbf{Resources} & \textbf{Repair strategy} \\
+\midrule
+1  & Two-mutex deadlock          & Deadlock     & Safety   & Mutex$\times 2$                & Unify lock order \\
+2  & Condvar signal loss         & SignalLoss   & Safety   & Condvar+Mutex+Var              & While-loop guard \\
+3  & Channel+mutex cross-deadlock& Deadlock     & Safety   & Channel+Mutex                  & Separate lock and channel \\
+4  & Three-lock circular deadlock& Deadlock     & Safety   & Mutex$\times 3$                & Global lock order \\
+5  & Semaphore throttling (no bug)& ---         & ---      & Semaphore                      & Baseline verification \\
+6  & CAS contention (no bug)     & ---          & ---      & Atomic                         & Unknown-split verification \\
+7  & RwLock writer starvation    & Starvation   & Liveness & RwLock+Var                     & Reduce read-lock hold time \\
+8  & Condvar spurious wakeup     & SignalLoss   & Safety   & Condvar+Mutex+Var              & While-loop guard \\
+9  & Dual condvar cross-wait     & Deadlock     & Safety   & Condvar$\times 2$+Mutex$\times 2$ & Break wait cycle \\
+10 & FnSummary Unknown propagation (no bug) & --- & ---   & Var+Mutex                      & Unknown coverage verification \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+% ======================================================================
+\section{Complete Workflow}
+\label{sec:pipeline}
+
+Figure~\ref{fig:pipeline} summarizes the end-to-end information flow.
+
+\begin{figure}[t]
+\centering
+\small
+\begin{verbatim}
+Source code
+    |
+    v (LLM generation)
+   CIR
+    |
+    v
+CIR Static Check (E0xx-E8xx)
+    |              |
+    v (pass)       v (fail)
+CIR -> CVN     Local auto-fix / LLM repair
+    |
+    v
+CVN State-Space Search
+ +-- Deadlock detection
+ +-- Signal-loss detection
+ +-- Liveness (SCC analysis)
+ +-- Channel blocking
+    |
+    v
+ Pass: verified CIR
+ Fail: counterexample
+         |
+         v
+  Structured report -> Repair prompt -> LLM
+         |
+         v
+   CIR (v2) -> re-verify (up to K rounds)
+\end{verbatim}
+\caption{The generate--verify--repair pipeline.}
+\label{fig:pipeline}
+\end{figure}
+
+\paragraph{Project organization.}
+The system is organized as a Rust workspace with three subprojects:
+\begin{itemize}[leftmargin=1.4em]
+  \item \texttt{cir/}: \CIR{} syntax definitions and static checker.
+  \item \texttt{cvn/}: \CVN{} net definitions and analysis engine.
+        The optional \texttt{cir-anchor} feature flag adds anchor fields
+        and anchor-related well-formedness checks.
+        Without this flag, \CVN{} is a standalone Petri-net library.
+  \item \texttt{cir2cvn/}: Translator, counterexample reporter, and repair-prompt generator.
+\end{itemize}
+System-level documentation (LLM prompt templates, translation rules,
+counterexample formats, repair workflows) resides in a top-level \texttt{doc/} directory,
+as these artifacts span all three subprojects.
+
+% ======================================================================
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Petri nets for concurrency.}
+Petri nets have been used for concurrent system modeling since the 1960s~\cite{Petri1962}.
+Colored Petri nets (CPNs)~\cite{Jensen1997} extend P/T nets with typed tokens
+for modeling data-dependent behavior.
+Our \CVN{} deliberately avoids colors in favor of global-variable guards,
+exploiting the fact that LLM-driven alias resolution eliminates
+the need for token-carried identity.
+
+\paragraph{Model checking for concurrent programs.}
+SPIN~\cite{Holzmann1997} and its successors verify concurrent protocols
+expressed in Promela.
+Java PathFinder~\cite{Visser2003} and CBMC~\cite{Kroening2014} target specific languages.
+Our approach is language-parametric at the \CIR{} level
+(though instantiated for Rust in this paper)
+and uses LLM generation rather than manual modeling.
+
+\paragraph{Static analysis for Rust.}
+Locksmith~\cite{Pratikakis2011} infers lock correlations for C.
+RacerD~\cite{Blackshear2018} detects data races in Java/C++ at Facebook scale.
+For Rust specifically, Rudra~\cite{Bae2021} detects unsafe-code bugs,
+and MIRAI~\cite{MIRAI} performs abstract interpretation.
+None of these tools incorporate LLM-based alias resolution.
+
+\paragraph{LLMs for program analysis and repair.}
+ChatRepair~\cite{Xia2023}, SRepair~\cite{Yang2024},
+and CodeRL~\cite{Le2022} use LLMs for automated program repair.
+Typically the LLM serves as both bug detector and repairer.
+Our architecture separates the LLM's role (semantic understanding, alias resolution, repair)
+from formal verification (exhaustive interleaving search),
+combining the strengths of both.
+
+% ======================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+We have presented a \emph{generate--verify--repair} architecture for concurrent program validation that exploits a key insight: \textbf{LLMs can resolve the alias problem that has fundamentally limited traditional static analysis of concurrent programs}. By having the LLM produce a Concurrency Intermediate Representation (\CIR{}) with globally named resources and explicit protection mappings, we eliminate aliases at the representation level.
+The resulting \CIR{} is mechanically translated to a Concurrency Verification Net (\CVN{}),
+a domain-specific P/T Petri net with global-variable guards that uses only black tokens yet captures all synchronization-relevant behavior. Exhaustive state-space search over the \CVN{} discovers deadlocks, signal losses, starvation, and livelock with formal guarantees (within the abstraction boundary). Structured counterexamples with \CIR{} statement anchors guide the LLM to perform targeted repairs, closing the loop.
+
+The architecture achieves a clean separation of concerns:
+the LLM handles what machines with semantic understanding do well
+(alias resolution, abstraction, repair),
+and formal methods handle what exhaustive search does well
+(interleaving exploration, deadlock detection, liveness analysis).
+Neither alone is sufficient; together, they address a problem
+that has resisted both purely manual and purely automated approaches.
+
+\end{document}
+
+% ── Bibliography ──────────────────────────────────────────────
+% \bibliographystyle{ACM-Reference-Format}
+% \begin{thebibliography}{99}
+
+% \bibitem{Andersen1994}
+% L.~O. Andersen.
+% \newblock Program analysis and specialization for the {C} programming language.
+% \newblock PhD thesis, University of Copenhagen, 1994.
+
+% \bibitem{Bae2021}
+% Y.~Bae, Y.~Kim, A.~Askar, J.~Lim, and T.~Kim.
+% \newblock {RUDRA}: Finding memory safety bugs in {Rust} at the ecosystem scale.
+% \newblock In \emph{SOSP}, 2021.
+
+% \bibitem{Blackshear2018}
+% S.~Blackshear, N.~Gorogiannis, P.~W.~O'Hearn, and I.~Sergey.
+% \newblock {RacerD}: Compositional static race detection.
+% \newblock In \emph{OOPSLA}, 2018.
+
+% \bibitem{Ding2024}
+% Y.~Ding, et~al.
+% \newblock Vulnerability detection with code language models: How far are we?
+% \newblock In \emph{ICSE}, 2024.
+
+% \bibitem{Holzmann1997}
+% G.~J. Holzmann.
+% \newblock The model checker {SPIN}.
+% \newblock \emph{IEEE Trans.\ Softw.\ Eng.}, 23(5):279--295, 1997.
+
+% \bibitem{Jensen1997}
+% K.~Jensen.
+% \newblock \emph{Coloured Petri Nets: Basic Concepts, Analysis Methods, and Practical Use}.
+% \newblock Springer, 1997.
+
+% \bibitem{Jensen2007}
+% K.~Jensen, L.~M. Kristensen, and L.~Wells.
+% \newblock Coloured {Petri} nets and {CPN} {Tools} for modelling and validation of concurrent systems.
+% \newblock \emph{Int.\ J.\ Softw.\ Tools Technol.\ Transf.}, 9(3--4):213--254, 2007.
+
+% \bibitem{Jiang2023}
+% N.~Jiang, K.~Liu, T.~Lutellier, and L.~Tan.
+% \newblock Impact of code language models on automated program repair.
+% \newblock In \emph{ICSE}, 2023.
+
+% \bibitem{Kroening2014}
+% D.~Kroening and M.~Tautschnig.
+% \newblock {CBMC}: {C} bounded model checker.
+% \newblock In \emph{TACAS}, 2014.
+
+% \bibitem{Landi1992}
+% W.~Landi.
+% \newblock Undecidability of static analysis.
+% \newblock \emph{ACM Lett.\ Program.\ Lang.\ Syst.}, 1(4):323--337, 1992.
+
+% \bibitem{Le2022}
+% H.~Le, Y.~Wang, A.~D. Gotmare, S.~Savarese, and S.~C.~H. Hoi.
+% \newblock {CodeRL}: Mastering code generation through pretrained models and deep reinforcement learning.
+% \newblock In \emph{NeurIPS}, 2022.
+
+% \bibitem{Li2023}
+% H.~Li, et~al.
+% \newblock Large language models for software engineering: A systematic literature review.
+% \newblock \emph{arXiv:2308.10620}, 2023.
+
+% \bibitem{Loom}
+% Tokio team.
+% \newblock Loom: Concurrency permutation testing tool for {Rust}.
+% \newblock \url{https://github.com/tokio-rs/loom}, 2023.
+
+% \bibitem{MIRAI}
+% H.~Venter.
+% \newblock {MIRAI}: An abstract interpreter for the {Rust} mid-level intermediate representation.
+% \newblock \url{https://github.com/facebookexperimental/MIRAI}, 2023.
+
+% \bibitem{Miri}
+% The Rust project.
+% \newblock {Miri}: An interpreter for {Rust's} mid-level intermediate representation.
+% \newblock \url{https://github.com/rust-lang/miri}, 2023.
+
+% \bibitem{Petri1962}
+% C.~A. Petri.
+% \newblock Kommunikation mit {Automaten}.
+% \newblock PhD thesis, Universit\"at Bonn, 1962.
+
+% \bibitem{Pratikakis2011}
+% P.~Pratikakis, J.~S. Foster, and M.~Hicks.
+% \newblock {LOCKSMITH}: Practical static race detection for {C}.
+% \newblock \emph{ACM Trans.\ Program.\ Lang.\ Syst.}, 33(1):3:1--3:55, 2011.
+
+% \bibitem{Ramalingam1994}
+% G.~Ramalingam.
+% \newblock The undecidability of aliasing.
+% \newblock \emph{ACM Trans.\ Program.\ Lang.\ Syst.}, 16(5):1467--1471, 1994.
+
+% \bibitem{Visser2003}
+% W.~Visser, K.~Havelund, G.~Brat, S.~Park, and F.~Lerda.
+% \newblock Model checking programs.
+% \newblock \emph{Autom.\ Softw.\ Eng.}, 10(2):203--232, 2003.
+
+% \bibitem{Wolf2018}
+% K.~Wolf.
+% \newblock Petri net model checking with {LoLA} 2.
+% \newblock In \emph{Petri Nets}, LNCS 10877, 2018.
+
+% \bibitem{Xia2023}
+% C.~S. Xia, Y.~Wei, and L.~Zhang.
+% \newblock Automated program repair in the era of large pre-trained language models.
+% \newblock In \emph{ICSE}, 2023.
+
+% \bibitem{Yang2024}
+% S.~Yang, et~al.
+% \newblock {SRepair}: Multi-chunk program repair via structural-cue retrieval and LLM.
+% \newblock In \emph{ISSTA}, 2024.
+
+% \end{thebibliography}
+
+

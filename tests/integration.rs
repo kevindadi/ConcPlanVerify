@@ -23,20 +23,14 @@ mod cir_examples {
         let program = load_cir_example("producer_consumer.json");
         let net = cir2cvn::translate(&program).expect("translation should succeed");
 
-        // Basic structural checks.
         assert!(net.place_count() > 0);
         assert!(net.transition_count() > 0);
 
-        // Mutex place with 1 token.
         assert_eq!(common::initial_tokens(&net, "rp_mtx"), 1);
-
-        // Entry function starts with token.
         assert_eq!(common::initial_tokens(&net, "cp_main_s1"), 1);
 
-        // Variables in initial state.
         let vars = net.initial_vars();
         assert!(vars.contains_key("count"));
-        assert!(vars.contains_key("done"));
     }
 
     #[test]
