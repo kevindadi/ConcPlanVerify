@@ -111,6 +111,9 @@ fn translate_statement(ctx: &mut TranslateContext, fn_name: &str, stmt: &Stateme
         Op::Return => {
             translate_return_op(ctx, fn_name, stmt, &input_cp);
         }
+        Op::Nop => {
+            translate_nop(ctx, fn_name, stmt, &input_cp);
+        }
     }
 }
 
@@ -613,6 +616,56 @@ fn translate_call(
 }
 
 // ── return ──────────────────────────────────────────────────────────────
+
+fn translate_nop(
+    ctx: &mut TranslateContext,
+    fn_name: &str,
+    stmt: &Statement,
+    input_cp: &str,
+) {
+    let plan = plan_transfer(ctx, fn_name, &stmt.sid, &stmt.transfer);
+
+    match plan {
+        TransferPlan::Return { target_cp } | TransferPlan::Next { target_cp } => {
+            let t_id = tid(fn_name, &stmt.sid, "nop");
+            emit_simple_transition(
+                ctx,
+                &t_id,
+                TransitionKind::Sequential,
+                &[&stmt.sid],
+                input_cp,
+                &target_cp,
+                BoolExpr::True,
+                None,
+            );
+        }
+        TransferPlan::Branch {
+            true_tid,
+            true_cp,
+            false_tid,
+            false_cp,
+            guard,
+        } => {
+            emit_branch_transitions(
+                ctx,
+                &[&stmt.sid],
+                input_cp,
+                &true_tid,
+                &true_cp,
+                &false_tid,
+                &false_cp,
+                guard,
+            );
+        }
+        TransferPlan::Switch { arms } => {
+            let switch_var = match &stmt.transfer {
+                Transfer::Switch { var, .. } => var.as_str(),
+                _ => "",
+            };
+            emit_switch_transitions(ctx, &[&stmt.sid], input_cp, switch_var, &arms);
+        }
+    }
+}
 
 fn translate_return_op(
     ctx: &mut TranslateContext,

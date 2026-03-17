@@ -5,6 +5,10 @@ edition = "2024"
 description = "Translator from CIR (Concurrency Intermediate Representation) to CVN (Concurrency Verification Net)"
 license = "MIT"
 
+[features]
+default = []
+llm = ["dep:uni-llm", "dep:tokio"]
+
 [dependencies]
 cir = { package = "ceir", path = "./cir" }
 cvn = { path = "./cvn", features = ["cir-anchor"] }
@@ -12,6 +16,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 indexmap = { version = "2", features = ["serde"] }
+uni-llm = { path = "./uni-llm", optional = true }
+tokio = { version = "1", features = ["full"], optional = true }
 
 [dev-dependencies]
 insta = "1"
