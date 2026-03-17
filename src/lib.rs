@@ -1,4 +1,5 @@
 pub mod error;
+pub mod repair;
 mod translator;
 pub mod validate;
 

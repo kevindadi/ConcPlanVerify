@@ -1,0 +1,39 @@
+{
+  "program": "cas_race",
+  "resources": [
+    {"name": "flag", "kind": "var", "type": "Atomic", "base": "Bool", "init": false}
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main", "kind": "normal",
+      "body": [
+        {"sid": "s1", "op": ["spawn", "setter1"], "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["spawn", "setter2"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["join", "setter1"],  "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["join", "setter2"],  "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": "return",             "transfer": "return"}
+      ]
+    },
+    {
+      "name": "setter1", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "flag", "cas", "false", "true"],
+         "transfer": ["branch", "flag == false", "s2", "s3"]},
+        {"sid": "s2", "op": "return", "transfer": "return"},
+        {"sid": "s3", "op": "return", "transfer": "return"}
+      ]
+    },
+    {
+      "name": "setter2", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "flag", "cas", "false", "true"],
+         "transfer": ["branch", "flag == false", "s2", "s3"]},
+        {"sid": "s2", "op": "return", "transfer": "return"},
+        {"sid": "s3", "op": "return", "transfer": "return"}
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main"
+}

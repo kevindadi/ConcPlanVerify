@@ -1,0 +1,40 @@
+{
+  "program": "channel_mutex_deadlock",
+  "resources": [
+    {"name": "mtx", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+    {"name": "ch",  "kind": "sync", "type": "Channel", "mode": "Async", "base": "Int"}
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main", "kind": "normal",
+      "body": [
+        {"sid": "s1", "op": ["spawn", "sender"],   "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["spawn", "receiver"],  "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["join", "sender"],     "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["join", "receiver"],   "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": "return",               "transfer": "return"}
+      ]
+    },
+    {
+      "name": "sender", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "mtx", "lock"],      "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "ch", "send", "42"],  "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["res_op", "mtx", "drop"],      "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": "return",                        "transfer": "return"}
+      ]
+    },
+    {
+      "name": "receiver", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "mtx", "lock"],      "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "ch", "recv"],        "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["res_op", "mtx", "drop"],      "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": "return",                        "transfer": "return"}
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main"
+}

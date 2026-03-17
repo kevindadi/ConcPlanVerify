@@ -1,0 +1,61 @@
+{
+  "program": "three_way_deadlock",
+  "resources": [
+    {"name": "mtx_a", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+    {"name": "mtx_b", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+    {"name": "mtx_c", "kind": "sync", "type": "Mutex", "mode": "Sync"}
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main", "kind": "normal",
+      "body": [
+        {"sid": "s1", "op": ["spawn", "w1"], "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["spawn", "w2"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["spawn", "w3"], "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["join", "w1"],  "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": ["join", "w2"],  "transfer": ["next", "s6"]},
+        {"sid": "s6", "op": ["join", "w3"],  "transfer": ["next", "s7"]},
+        {"sid": "s7", "op": "return",        "transfer": "return"}
+      ]
+    },
+    {
+      "name": "w1", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "mtx_a", "lock"], "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "mtx_b", "lock"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["res_op", "mtx_b", "drop"], "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["res_op", "mtx_a", "drop"], "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": "return",                     "transfer": "return"}
+      ]
+    },
+    {
+      "name": "w2", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "mtx_a", "lock"], "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "mtx_b", "lock"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["res_op", "mtx_b", "drop"], "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["res_op", "mtx_a", "drop"], "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": ["res_op", "mtx_b", "lock"], "transfer": ["next", "s6"]},
+        {"sid": "s6", "op": ["res_op", "mtx_c", "lock"], "transfer": ["next", "s7"]},
+        {"sid": "s7", "op": ["res_op", "mtx_c", "drop"], "transfer": ["next", "s8"]},
+        {"sid": "s8", "op": ["res_op", "mtx_b", "drop"], "transfer": ["next", "s9"]},
+        {"sid": "s9", "op": "return",                     "transfer": "return"}
+      ]
+    },
+    {
+      "name": "w3", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "mtx_a", "lock"], "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "mtx_b", "lock"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["res_op", "mtx_c", "lock"], "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["res_op", "mtx_c", "drop"], "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": ["res_op", "mtx_b", "drop"], "transfer": ["next", "s6"]},
+        {"sid": "s6", "op": ["res_op", "mtx_a", "drop"], "transfer": ["next", "s7"]},
+        {"sid": "s7", "op": "return",                     "transfer": "return"}
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main"
+}
