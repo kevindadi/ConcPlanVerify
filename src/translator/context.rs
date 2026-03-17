@@ -22,14 +22,24 @@ pub(crate) fn wp_id(cv_name: &str, fn_name: &str, sid: &str) -> String {
     format!("wp_{cv_name}_{fn_name}_{sid}")
 }
 
-/// Reacquire intermediate control place id: `cp_{fn_name}_{sid}_reacquire`
-pub(crate) fn reacquire_cp_id(fn_name: &str, wait_sid: &str) -> String {
-    format!("cp_{fn_name}_{wait_sid}_reacquire")
+/// Reacquire place id: `ra_{fn_name}_{sid}`
+pub(crate) fn ra_id(fn_name: &str, wait_sid: &str) -> String {
+    format!("ra_{fn_name}_{wait_sid}")
 }
 
 /// Transition id: `{fn_name}_{sid}_{suffix}`
 pub(crate) fn tid(fn_name: &str, sid: &str, suffix: &str) -> String {
     format!("{fn_name}_{sid}_{suffix}")
+}
+
+/// Condvar waiter-count variable name: `nw_{cv_name}`
+pub(crate) fn nw_var_name(cv_name: &str) -> String {
+    format!("nw_{cv_name}")
+}
+
+/// Per-wait-site notify-all flag variable name: `na_{fn_name}_{sid}`
+pub(crate) fn na_var_name(fn_name: &str, sid: &str) -> String {
+    format!("na_{fn_name}_{sid}")
 }
 
 // ── Resource info ───────────────────────────────────────────────────────────
@@ -189,6 +199,17 @@ impl TranslateContext {
         let key = (fn_name.to_string(), sid.to_string());
         if self.control_places.insert(key) {
             self.add_control_place(fn_name, sid);
+        }
+    }
+
+    /// Ensure a reacquire place `ra_{fn_name}_{sid}` exists. Modeled as a
+    /// control place with a distinctive id prefix.
+    pub(crate) fn ensure_reacquire_place(&mut self, fn_name: &str, sid: &str) {
+        let ra_sid = format!("{sid}_ra");
+        let key = (fn_name.to_string(), ra_sid.clone());
+        if self.control_places.insert(key) {
+            let id = ra_id(fn_name, sid);
+            self.builder = self.take_builder().add_control_place(&id, fn_name, &ra_sid);
         }
     }
 

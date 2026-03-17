@@ -1,7 +1,7 @@
 use cir::ast::{Function, Op, Statement, Transfer};
 use cvn::model::{BoolExpr, CmpOp, Expr, TransitionKind, Val, VarUpdate};
 use super::condvar;
-use super::context::{LockKind, ResKind, TranslateContext, cp_id, rp_id, tid};
+use super::context::{LockKind, ResKind, TranslateContext, cp_id, na_var_name, rp_id, tid};
 use super::control_flow::{
     TransferPlan, emit_branch_transitions, emit_simple_transition, emit_switch_transitions,
     plan_transfer,
@@ -47,6 +47,10 @@ fn prescan_condvar_waits(ctx: &mut TranslateContext, fn_name: &str, body: &[Stat
                         sid: stmt.sid.clone(),
                         mutex: mutex_name.clone(),
                     });
+
+                // Register per-wait-site notify-all flag variable.
+                let na_var = na_var_name(fn_name, &stmt.sid);
+                ctx.add_variable(&na_var, Val::bool(false));
 
                 // If the transfer target is a lock on the same mutex, mark it.
                 if let Transfer::Next(resume_sid) = &stmt.transfer {

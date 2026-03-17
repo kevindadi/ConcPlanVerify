@@ -668,7 +668,7 @@ Branch       & BranchTrue, BranchFalse, Switch \\
 CAS          & CasSuccess, CasFailure \\
 Concurrency  & Spawn, Join \\
 Call         & Call \\
-Condvar      & CondvarWait, CondvarNotify, CondvarNotifyAll, CondvarReacquire \\
+Condvar      & CondvarWaitEnter, CondvarWakeByNotify, CondvarWakeByNotifyAll, CondvarReacquire, CondvarNotify, CondvarNotifyLost, CondvarNotifyAll, CondvarNotifyAllLost \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -757,19 +757,28 @@ $\langle \sid, \mathsf{write}(x, v), \mathsf{next}(\sid') \rangle$
     Kind: VarWrite. \\[3pt]
 
 $\langle \sid, \mathsf{wait}(\mathit{cv}, m), \mathsf{next}(\sid') \rangle$
-  & Transition $t_w$: input from $\mathit{cp}(f,\sid)$, output to $\mathit{wp}(\sid)$
-    and output to $\mathit{rp}(m)$ (release mutex).
-    Kind: CondvarWait.
-    A separate reacquire transition $t_r$: input from $\mathit{wp}(\sid)$
-    and $\mathit{rp}(m)$, output to $\mathit{cp}(f,\sid')$.
-    Kind: CondvarReacquire. \\[3pt]
+  & Four transitions.
+    $t_{\mathrm{enter}}$ (CondvarWaitEnter): $\mathit{cp}(f,\sid) \to \mathit{wp}(\sid) + \mathit{rp}(m)$,
+    update $\mathit{nw\_cv} \mathrel{+}= 1$, $\mathit{na\_sid} \leftarrow \mathit{false}$.
+    $t_{\mathrm{wake1}}$ (CondvarWakeByNotify): $\mathit{wp}(\sid) + \mathit{rp}(\mathit{cv}) \to \mathit{ra}(\sid)$,
+    update $\mathit{nw\_cv} \mathrel{-}= 1$.
+    $t_{\mathrm{wakeA}}$ (CondvarWakeByNotifyAll): $\mathit{wp}(\sid) \to \mathit{ra}(\sid)$,
+    guard $\mathit{na\_sid} = \mathit{true}$, update $\mathit{nw\_cv} \mathrel{-}= 1$, $\mathit{na\_sid} \leftarrow \mathit{false}$.
+    $t_{\mathrm{reacq}}$ (CondvarReacquire): $\mathit{ra}(\sid) + \mathit{rp}(m) \to \mathit{cp}(f,\sid')$. \\[3pt]
 
 $\langle \sid, \mathsf{notify\_one}(\mathit{cv}), \mathsf{next}(\sid') \rangle$
-  & For each wait site $w_i$ of condvar $\mathit{cv}$:
-    transition $t_i$ with input from $\mathit{cp}(f,\sid)$ and $\mathit{wp}(w_i)$,
-    output to $\mathit{cp}(f,\sid')$ and to the reacquire transition's input place.
-    Multiple $t_i$ are in \emph{conflict} (nondeterministic choice).
-    Kind: CondvarNotify. \\[3pt]
+  & Two transitions.
+    $t_{\mathrm{notify}}$ (CondvarNotify): $\mathit{cp}(f,\sid) \to \mathit{cp}(f,\sid') + \mathit{rp}(\mathit{cv})$,
+    guard $\mathit{nw\_cv} > 0$.
+    $t_{\mathrm{lost}}$ (CondvarNotifyLost): $\mathit{cp}(f,\sid) \to \mathit{cp}(f,\sid')$,
+    guard $\mathit{nw\_cv} = 0$ (signal loss detection point). \\[3pt]
+
+$\langle \sid, \mathsf{notify\_all}(\mathit{cv}), \mathsf{next}(\sid') \rangle$
+  & Two transitions (wait sites $\{w_1,\ldots,w_k\}$).
+    $t_{\mathrm{notifyAll}}$ (CondvarNotifyAll): $\mathit{cp}(f,\sid) \to \mathit{cp}(f,\sid')$,
+    guard $\mathit{nw\_cv} > 0$, update $\mathit{na}_{w_1},\ldots,\mathit{na}_{w_k} \leftarrow \mathit{true}$.
+    $t_{\mathrm{allLost}}$ (CondvarNotifyAllLost): $\mathit{cp}(f,\sid) \to \mathit{cp}(f,\sid')$,
+    guard $\mathit{nw\_cv} = 0$ (signal loss detection point). \\[3pt]
 
 $\langle \sid, \mathsf{spawn}(g), \mathsf{next}(\sid') \rangle$
   & Transition $t$: input from $\mathit{cp}(f,\sid)$;

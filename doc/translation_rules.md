@@ -38,23 +38,47 @@ Notation: `cp(f,s)` = control place for function `f`, statement `s`;
 
 ## 3. Condvar Operations
 
+### Auxiliary structures
+
+Each Condvar `cv` introduces:
+- Resource place `rp(cv)`: initial 0 tokens
+- Global variable `nw_cv`: Int, initial 0 (current waiter count)
+
+Each wait call-site `sid` introduces:
+- Wait place `wp(sid)`
+- Reacquire place `ra(sid)`
+- Global variable `na_sid`: Bool, initial false
+
 ### wait(cv, mtx)
 
+At sid with successor sid', generates 4 transitions:
+
 ```
-t_cv_wait:      cp(f,s) → wp(cv,f,s) + rp(mtx)        [release lock]
-t_cv_reacquire: cp(f,s_reacquire) + rp(mtx) → cp(f,s_resume)  [reacquire]
+t_enter  [CondvarWaitEnter]:       cp(f,sid) → wp(sid) + rp(mtx)   update: nw_cv += 1, na_sid ← false
+t_wake1  [CondvarWakeByNotify]:    wp(sid) + rp(cv) → ra(sid)      update: nw_cv -= 1
+t_wakeA  [CondvarWakeByNotifyAll]: wp(sid) → ra(sid)               guard: na_sid == true
+                                                                    update: nw_cv -= 1, na_sid ← false
+t_reacq  [CondvarReacquire]:       ra(sid) + rp(mtx) → cp(f,sid')
 ```
 
-### notify(cv)
+### notify_one(cv)
 
-For each wait-site `(fk, s_wk)`:
+At sid_n with successor sid_n', generates 2 transitions:
+
 ```
-t_cv_notify_k: cp(g,s) + wp(cv,fk,s_wk) → cp(g,s_next) + cp(fk,s_wk_reacquire)
+t_notify [CondvarNotify]:     cp(f,sid_n) → cp(f,sid_n') + rp(cv)  guard: nw_cv > 0
+t_lost   [CondvarNotifyLost]: cp(f,sid_n) → cp(f,sid_n')           guard: nw_cv == 0  (SignalLoss)
 ```
 
 ### notify_all(cv)
 
-Chain expansion with 2K transitions for K wait-sites.
+At sid_n with wait-sites {w1, ..., wk}, successor sid_n', generates 2 transitions:
+
+```
+t_notifyAll [CondvarNotifyAll]:     cp(f,sid_n) → cp(f,sid_n')     guard: nw_cv > 0
+                                                                    update: na_w1..na_wk ← true
+t_allLost   [CondvarNotifyAllLost]: cp(f,sid_n) → cp(f,sid_n')     guard: nw_cv == 0  (SignalLoss)
+```
 
 ## 4. Concurrency
 

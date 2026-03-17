@@ -45,9 +45,9 @@ fn classify_counterexample(net: &CvnNet, cx: &Counterexample) -> BugReport {
             .unwrap_or(false)
     });
 
-    let has_stuck_notify = detect_stuck_condvar_notify(net, cx);
+    let has_signal_loss_trace = detect_signal_loss_in_trace(net, cx);
 
-    let (kind, summary) = if has_wait_place || has_stuck_notify {
+    let (kind, summary) = if has_wait_place || has_signal_loss_trace {
         classify_signal_loss(net, cx, &blocked)
     } else {
         classify_deadlock(net, cx, &blocked)
@@ -68,27 +68,21 @@ fn classify_counterexample(net: &CvnNet, cx: &Counterexample) -> BugReport {
     }
 }
 
-/// Detect if a CondvarNotify transition is stuck because the waiter
-/// hasn't reached the wait place yet (its control input is satisfied
-/// but the wait place input is empty).
-fn detect_stuck_condvar_notify(net: &CvnNet, cx: &Counterexample) -> bool {
-    for t in net.transitions() {
-        if let cvn::model::TransitionKind::CondvarNotify { .. } = &t.kind {
-            let inputs = net.input_arcs(&t.id);
-            let has_satisfied_control = inputs.iter().any(|arc| {
-                cx.final_state.tokens(&arc.place) >= arc.weight
-                    && net.place(&arc.place).map(|p| p.is_control()).unwrap_or(false)
-            });
-            let has_unsatisfied_wait = inputs.iter().any(|arc| {
-                cx.final_state.tokens(&arc.place) < arc.weight
-                    && net.place(&arc.place).map(|p| p.is_wait()).unwrap_or(false)
-            });
-            if has_satisfied_control && has_unsatisfied_wait {
-                return true;
-            }
-        }
-    }
-    false
+/// Detect if a CondvarNotifyLost or CondvarNotifyAllLost transition
+/// fired in the counterexample trace, indicating that a signal was
+/// sent when no waiter was present.
+fn detect_signal_loss_in_trace(net: &CvnNet, cx: &Counterexample) -> bool {
+    cx.trace.iter().any(|step| {
+        net.transition(&step.transition_id)
+            .map(|t| {
+                matches!(
+                    t.kind,
+                    cvn::model::TransitionKind::CondvarNotifyLost
+                        | cvn::model::TransitionKind::CondvarNotifyAllLost
+                )
+            })
+            .unwrap_or(false)
+    })
 }
 
 fn classify_signal_loss(
@@ -109,26 +103,15 @@ fn classify_signal_loss(
     }
 
     if waiter_tid.is_empty() {
-        for t in net.transitions() {
-            if let cvn::model::TransitionKind::CondvarNotify {
-                target_wait_place,
-            } = &t.kind
-            {
-                let inputs = net.input_arcs(&t.id);
-                let stuck = inputs.iter().any(|arc| {
-                    cx.final_state.tokens(&arc.place) >= arc.weight
-                        && net.place(&arc.place).map(|p| p.is_control()).unwrap_or(false)
-                });
-                if stuck {
+        // Look for a CondvarNotifyLost/CondvarNotifyAllLost transition in the trace.
+        for step in &cx.trace {
+            if let Some(t) = net.transition(&step.transition_id) {
+                if matches!(
+                    t.kind,
+                    cvn::model::TransitionKind::CondvarNotifyLost
+                        | cvn::model::TransitionKind::CondvarNotifyAllLost
+                ) {
                     notifier_tid = t.id.0.clone();
-                    if let Some(wp) = net.place(&PlaceId::new(target_wait_place.clone())) {
-                        if let PlaceKind::Wait {
-                            fn_name, sid, ..
-                        } = &wp.kind
-                        {
-                            waiter_tid = format!("{fn_name}.{sid}");
-                        }
-                    }
                     break;
                 }
             }
@@ -324,10 +307,14 @@ fn format_step_description(
         TK::Spawn => "spawn",
         TK::Join => "join",
         TK::Call => "call",
-        TK::CondvarWait => "condvar_wait",
-        TK::CondvarNotify { .. } => "condvar_notify",
-        TK::CondvarNotifyAll => "condvar_notify_all",
+        TK::CondvarWaitEnter => "condvar_wait_enter",
+        TK::CondvarWakeByNotify => "condvar_wake_by_notify",
+        TK::CondvarWakeByNotifyAll => "condvar_wake_by_notify_all",
         TK::CondvarReacquire => "condvar_reacquire",
+        TK::CondvarNotify => "condvar_notify",
+        TK::CondvarNotifyLost => "condvar_notify_lost",
+        TK::CondvarNotifyAll => "condvar_notify_all",
+        TK::CondvarNotifyAllLost => "condvar_notify_all_lost",
         TK::Return => "return",
         _ => "unknown",
     };
