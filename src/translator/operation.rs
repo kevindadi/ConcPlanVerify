@@ -186,22 +186,21 @@ fn translate_lock(
         return;
     }
 
-    let weight = match res_kind {
-        Some(ResKind::Mutex) | Some(ResKind::Semaphore { .. }) => 1,
+    let (weight, kind, suffix) = match res_kind {
+        Some(ResKind::Semaphore { .. }) => (1, TransitionKind::Acquire, "acquire"),
         Some(ResKind::RwLock) => {
-            // Write-lock: consume N tokens.
             ctx.lock_tracker.insert(
                 (fn_name.to_string(), resource.to_string()),
                 LockKind::Write,
             );
-            ctx.rwlock_n
+            (ctx.rwlock_n, TransitionKind::Lock, "lock")
         }
-        _ => 1,
+        _ => (1, TransitionKind::Lock, "lock"),
     };
 
     if let TransferPlan::Next { target_cp } = plan {
-        let t_id = tid(fn_name, &stmt.sid, "lock");
-        ctx.add_transition(&t_id, TransitionKind::Lock, &[&stmt.sid]);
+        let t_id = tid(fn_name, &stmt.sid, suffix);
+        ctx.add_transition(&t_id, kind, &[&stmt.sid]);
         ctx.add_input_arc(input_cp, &t_id, 1, BoolExpr::True);
         ctx.add_input_arc(&rp_id(resource), &t_id, weight, BoolExpr::True);
         ctx.add_output_arc(&t_id, &target_cp, 1, None);
@@ -224,7 +223,7 @@ fn translate_rw_read_lock(
     let plan = plan_transfer(ctx, fn_name, &stmt.sid, &stmt.transfer);
     if let TransferPlan::Next { target_cp } = plan {
         let t_id = tid(fn_name, &stmt.sid, "read_lock");
-        ctx.add_transition(&t_id, TransitionKind::Lock, &[&stmt.sid]);
+        ctx.add_transition(&t_id, TransitionKind::ReadLock, &[&stmt.sid]);
         ctx.add_input_arc(input_cp, &t_id, 1, BoolExpr::True);
         ctx.add_input_arc(&rp_id(resource), &t_id, 1, BoolExpr::True);
         ctx.add_output_arc(&t_id, &target_cp, 1, None);
@@ -243,27 +242,28 @@ fn translate_drop(
 ) {
     let plan = plan_transfer(ctx, fn_name, &stmt.sid, &stmt.transfer);
 
-    let weight = match res_kind {
+    let (weight, kind, suffix) = match res_kind {
+        Some(ResKind::Semaphore { .. }) => (1, TransitionKind::Release, "release"),
         Some(ResKind::RwLock) => {
             let key = (fn_name.to_string(), resource.to_string());
             match ctx.lock_tracker.get(&key) {
-                Some(LockKind::Write) => ctx.rwlock_n,
-                Some(LockKind::Read) => 1,
+                Some(LockKind::Write) => (ctx.rwlock_n, TransitionKind::Unlock, "unlock"),
+                Some(LockKind::Read) => (1, TransitionKind::ReadUnlock, "read_unlock"),
                 None => {
                     ctx.push_error(TranslateError::AmbiguousRwLockDrop {
                         fn_name: fn_name.to_string(),
                         sid: stmt.sid.clone(),
                     });
-                    1
+                    (1, TransitionKind::Unlock, "unlock")
                 }
             }
         }
-        _ => 1,
+        _ => (1, TransitionKind::Unlock, "unlock"),
     };
 
     if let TransferPlan::Next { target_cp } = plan {
-        let t_id = tid(fn_name, &stmt.sid, "unlock");
-        ctx.add_transition(&t_id, TransitionKind::Unlock, &[&stmt.sid]);
+        let t_id = tid(fn_name, &stmt.sid, suffix);
+        ctx.add_transition(&t_id, kind, &[&stmt.sid]);
         ctx.add_input_arc(input_cp, &t_id, 1, BoolExpr::True);
         ctx.add_output_arc(&t_id, &target_cp, 1, None);
         ctx.add_output_arc(&t_id, &rp_id(resource), weight, None);
@@ -289,12 +289,11 @@ fn translate_read(
 
     match plan {
         TransferPlan::Next { target_cp } => {
-            // read + next → Sequential (no observable effect).
-            let t_id = tid(fn_name, &stmt.sid, "seq");
+            let t_id = tid(fn_name, &stmt.sid, "var_read");
             emit_simple_transition(
                 ctx,
                 &t_id,
-                TransitionKind::Sequential,
+                TransitionKind::VarRead,
                 &[&stmt.sid],
                 input_cp,
                 &target_cp,
@@ -329,11 +328,11 @@ fn translate_read(
             emit_switch_transitions(ctx, &[&stmt.sid], input_cp, switch_var, &arms);
         }
         TransferPlan::Return { target_cp } => {
-            let t_id = tid(fn_name, &stmt.sid, "seq");
+            let t_id = tid(fn_name, &stmt.sid, "var_read");
             emit_simple_transition(
                 ctx,
                 &t_id,
-                TransitionKind::Sequential,
+                TransitionKind::VarRead,
                 &[&stmt.sid],
                 input_cp,
                 &target_cp,
@@ -431,8 +430,30 @@ fn translate_store(
     args: &[String],
     input_cp: &str,
 ) {
-    // Same as Var write.
-    translate_write(ctx, fn_name, stmt, resource, args, input_cp);
+    let plan = plan_transfer(ctx, fn_name, &stmt.sid, &stmt.transfer);
+
+    let value_expr = if let Some(val_str) = args.first() {
+        parse_expr(val_str, &ctx.all_enum_variants).unwrap_or(Expr::Lit(Val::Unknown))
+    } else {
+        Expr::Lit(Val::Unknown)
+    };
+
+    let mut update = VarUpdate::new();
+    update.insert(resource.to_string(), value_expr);
+
+    if let TransferPlan::Next { target_cp } = plan {
+        let t_id = tid(fn_name, &stmt.sid, "atomic_store");
+        emit_simple_transition(
+            ctx,
+            &t_id,
+            TransitionKind::AtomicStore,
+            &[&stmt.sid],
+            input_cp,
+            &target_cp,
+            BoolExpr::True,
+            Some(update),
+        );
+    }
 }
 
 // ── CAS (Atomic) ────────────────────────────────────────────────────────

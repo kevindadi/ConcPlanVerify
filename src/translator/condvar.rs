@@ -72,7 +72,7 @@ pub(crate) fn translate_wait(
 
     // 5. t_cv_reacquire: cp(fn, sid_reacquire) + rp(mtx) → cp(fn, resume_sid)
     let reacquire_tid = tid(fn_name, &stmt.sid, "cv_reacquire");
-    ctx.add_transition(&reacquire_tid, TransitionKind::Lock, &[&stmt.sid]);
+    ctx.add_transition(&reacquire_tid, TransitionKind::CondvarReacquire, &[&stmt.sid]);
     ctx.add_input_arc(&reacquire_cp, &reacquire_tid, 1, BoolExpr::True);
     ctx.add_input_arc(&rp_id(&mutex_name), &reacquire_tid, 1, BoolExpr::True);
     ctx.add_output_arc(&reacquire_tid, &cp_id(fn_name, &resume_sid), 1, None);

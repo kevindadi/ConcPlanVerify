@@ -1,4 +1,5 @@
 use crate::common;
+use cvn::model::{TransitionId, TransitionKind};
 
 #[test]
 fn semaphore_initial_tokens() {
@@ -10,9 +11,10 @@ fn semaphore_initial_tokens() {
 fn semaphore_acquire_release() {
     let net = common::translate_fixture("semaphore.json");
 
-    // Acquire = lock, Release = unlock.
-    let tid_acq = cvn::model::TransitionId::new("main_s1_lock");
-    let tid_rel = cvn::model::TransitionId::new("main_s2_unlock");
-    assert!(net.transition(&tid_acq).is_some());
-    assert!(net.transition(&tid_rel).is_some());
+    let tid_acq = TransitionId::new("main_s1_acquire");
+    let tid_rel = TransitionId::new("main_s2_release");
+    let t_acq = net.transition(&tid_acq).expect("acquire transition");
+    let t_rel = net.transition(&tid_rel).expect("release transition");
+    assert!(matches!(t_acq.kind, TransitionKind::Acquire));
+    assert!(matches!(t_rel.kind, TransitionKind::Release));
 }
