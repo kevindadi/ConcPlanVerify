@@ -1,0 +1,275 @@
+\section{Analysis and Repair}
+\label{sec:analysis-repair}
+
+The previous section defined the translation from \textsc{Cir} to \textsc{Cvn}. This section describes how the \textsc{Cvn} is analyzed and how analysis results are transformed into actionable repair guidance for the LLM. The analysis algorithms themselves are standard. The contribution lies in the connection between \textsc{Cvn} states and \textsc{Cir}-anchored counterexamples, and in the structured repair loop that exploits this connection.
+
+% ─────────────────────────────────────────────────────────────
+\subsection{State-Space Search}
+\label{subsec:search}
+
+The analysis engine explores the reachable state space of the \textsc{Cvn} starting from the initial state $(I_m, I_v)$. A state is a pair $(M, V)$ of marking and variable store. The engine
+supports two traversal strategies: breadth-first search (BFS), which produces shortest counterexamples, and depth-first search (DFS), which uses less memory. Three termination parameters are configurable: a maximum number of visited states, a wall-clock timeout, and a flag indicating whether to stop after the first bug or to continue searching for all bugs.
+
+At each state, the engine computes the set of enabled transitions (Definition~\ref{def:enabling}), fires each enabled transition (Definition~\ref{def:firing}), and checks whether the successor state has been visited. Visited states are identified by equality of both the marking $M$ and the variable store $V$ (Definition~\ref{def:state}). The state space is finite (Theorem~\ref{thm:finite}), so the search terminates.
+
+Algorithm~\ref{alg:search} summarizes the procedure. Bug detection is interleaved with exploration: each newly reached state is checked against the bug patterns defined in the next subsection.
+
+\begin{algorithm}[t]
+\caption{State-space search with bug detection.}
+\label{alg:search}
+\begin{algorithmic}[1]
+\Require \textsc{Cvn} $\mathcal{N}$ with initial state $(I_m, I_v)$
+\Ensure Set of structured counterexamples, or ``verified''
+\State $Q \gets [(I_m, I_v)]$
+\State $\mathit{Visited} \gets \{(I_m, I_v)\}$
+\State $\mathit{Parent} \gets \emptyset$
+  \Comment{Records predecessor and transition for trace reconstruction}
+\State $\mathit{Bugs} \gets \emptyset$
+\While{$Q \neq \emptyset$ \textbf{and} within limits}
+  \State $(M, V) \gets \mathsf{dequeue}(Q)$
+  \State $E \gets \{t \in T \mid t \text{ is enabled at } (M, V)\}$
+  \If{$\neg\,\mathsf{terminal}(M) \;\wedge\; E = \emptyset$}
+    \State $\mathit{Bugs} \gets \mathit{Bugs} \cup
+      \{\mathsf{build\_cex}(\textsc{Deadlock}, M, V, \mathit{Parent})\}$
+    \If{stop-on-first} \textbf{break} \EndIf
+  \EndIf
+  \ForAll{$t \in E$}
+    \State $(M', V') \gets \mathsf{fire}(t, M, V)$
+    \If{$(M', V') \notin \mathit{Visited}$}
+      \State $\mathit{Visited} \gets \mathit{Visited} \cup \{(M', V')\}$
+      \State $\mathit{Parent}[(M', V')] \gets ((M, V),\; t)$
+      \State $\mathsf{enqueue}(Q, (M', V'))$
+    \EndIf
+  \EndFor
+\EndWhile
+\State $\mathit{Bugs} \gets \mathit{Bugs} \cup
+  \mathsf{scc\_liveness}(\mathit{Visited}, \mathit{Parent})$
+\State \Return $\mathit{Bugs}$ if nonempty, else ``verified''
+\end{algorithmic}
+\end{algorithm}
+
+% ─────────────────────────────────────────────────────────────
+\subsection{Bug Detection Patterns}
+\label{subsec:bug-patterns}
+
+The engine detects five categories of concurrency bugs. Each category is defined as a predicate over states or state-graph structure.
+
+\begin{definition}[Terminal state]
+\label{def:terminal}
+A state $(M, V)$ is terminal if every control token resides in a return place: for every function $f$ and every statement $\mathit{sid} \neq \mathit{ret}$, $M(\mathit{cp}(f, \mathit{sid})) = 0$.
+\end{definition}
+
+\begin{definition}[Deadlock]
+\label{def:deadlock}
+A state $(M, V)$ is a deadlock if it is not terminal and no transition is enabled:
+\[
+  \neg\,\mathsf{terminal}(M) \;\wedge\;
+  \{t \in T \mid t \text{ is enabled at } (M,V)\} = \emptyset
+\]
+\end{definition}
+
+\begin{definition}[Signal loss]
+\label{def:signal-loss}
+A signal loss occurs when a \textsf{CondvarNotify} or \textsf{CondvarNotifyAll} transition fires but no token exists in any wait place associated with that condition variable. The notification reaches no thread and is irrecoverably lost.
+\end{definition}
+
+The remaining three bug kinds are detected by analyzing the reachability graph after exploration completes.
+
+\begin{definition}[Starvation]
+\label{def:starvation}
+A thread suffers starvation if there exists a nontrivial strongly connected component (SCC) in the reachability graph such that the thread's control token never advances within the SCC. The thread is alive (not in a return place) but makes no progress.
+\end{definition}
+
+\begin{definition}[Livelock]
+\label{def:livelock}
+A livelock exists if there is a nontrivial SCC in which all states are non-terminal. Threads continue to execute transitions but no thread ever reaches its return place.
+\end{definition}
+
+\begin{definition}[Channel blocking]
+\label{def:channel-block}
+A channel blocking deadlock is a special case of Definition~\ref{def:deadlock} in which the deadlock involves a \textsf{Recv} transition waiting for a channel token that will never
+be produced because the sending thread is blocked on another resource.
+\end{definition}
+
+Signal loss is detected during exploration (line 12 in Algorithm~\ref{alg:search} can be extended to check the notification pattern upon firing). Starvation and livelock are detected by a post-exploration SCC analysis using Tarjan's algorithm~\cite{Tarjan1972} on the visited state graph.
+
+Table~\ref{tab:bug-detection} summarizes the detection method for each bug kind.
+
+\begin{table}[t]
+\caption{Bug detection methods.}
+\label{tab:bug-detection}
+\centering\footnotesize
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Bug kind} & \textbf{Property} & \textbf{Detection} \\
+\midrule
+Deadlock       & Safety   & During exploration \\
+SignalLoss     & Safety   & During exploration \\
+ChannelBlock   & Safety   & During exploration \\
+Starvation     & Liveness & Post-exploration SCC \\
+Livelock       & Liveness & Post-exploration SCC \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ─────────────────────────────────────────────────────────────
+\subsection{Structured Counterexample}
+\label{subsec:counterexample}
+
+When a bug is detected, the engine constructs a structured counterexample. The counterexample is the primary interface between the formal verification engine and the LLM. Its design is driven by
+two requirements: it must be precise enough for targeted repair, and it must be interpretable by an LLM without knowledge of \textsc{Cvn} internals.
+
+\begin{definition}[Structured counterexample]
+\label{def:counterexample}
+A structured counterexample is a six-tuple
+\[
+  \mathit{CEx} = (\kappa,\; \pi,\;
+    (M_f, V_f),\; R_{\mathit{inv}},\;
+    F_{\mathit{inv}},\; S)
+\]
+where
+\begin{itemize}[leftmargin=1.4em]
+  \item $\kappa \in \{\textsc{Deadlock},\; \textsc{SignalLoss},\; \textsc{Starvation},\; \textsc{Livelock},\; \textsc{ChannelBlock}\}$ is the bug kind,
+  \item $\pi = [(t_1, \mathit{sid}_1),\; \ldots,\; (t_n, \mathit{sid}_n)]$ is the transition trace, where each step carries the anchor mapping to \textsc{Cir} statement identifiers,
+  \item $(M_f, V_f)$ is the final state at which the bug is detected,
+  \item $R_{\mathit{inv}}$ is the set of resources involved in the bug,
+  \item $F_{\mathit{inv}}$ is the set of functions involved in the bug, and
+  \item $S$ is a template repair suggestion.
+\end{itemize}
+\end{definition}
+
+The trace $\pi$ is reconstructed by following the $\mathit{Parent}$ map from the bug state back to the initial state and reversing the path. For liveness bugs detected by SCC analysis, the trace is a cycle within the SCC.
+
+\paragraph{Trace anchoring.}
+Each transition $t_i$ in the trace has an anchor $\mu(t_i) \in \mathit{SID}^+$ that maps it to one or more \textsc{Cir} statement identifiers. The LLM sees \textsc{Cir} identifiers, not \textsc{Cvn} transition names. This anchoring is maintained by the faithful 1:1 translation
+(Section~\ref{subsec:translation}): every \textsc{Cvn} transition corresponds to exactly one \textsc{Cir} statement.
+
+\paragraph{Final state interpretation.}
+The final state $(M_f, V_f)$ is interpreted to produce a human-readable description. For a deadlock, the interpretation lists each thread's position (which control place holds a token), which resources each thread holds (which resource places have reduced token counts), and which resources each thread is waiting for (which input arcs of the blocked transitions require unavailable tokens). For a signal loss, the interpretation identifies the notification
+site and the empty wait places.
+
+\paragraph{Template repair suggestions.}
+Each bug kind is associated with a repair template (Table~\ref{tab:repair-templates}). The template provides structural guidance rather than a concrete code patch. It identifies the nature
+of the fix and the affected \textsc{Cir} statements.
+
+\begin{table}[t]
+\caption{Repair suggestion templates.}
+\label{tab:repair-templates}
+\centering\footnotesize
+\begin{tabular}{@{}lp{5cm}@{}}
+\toprule
+\textbf{Bug kind} & \textbf{Suggestion template} \\
+\midrule
+\textsc{Deadlock}
+  & Unify the lock acquisition order across all involved
+    functions. Suggested order: $r_1 < r_2 < \ldots$ \\[3pt]
+\textsc{SignalLoss}
+  & Ensure the predicate is established before the notification.
+    Protect \textsf{wait} with a while-loop that re-checks the
+    condition. \\[3pt]
+\textsc{ChannelBlock}
+  & Do not perform blocking channel operations while holding a
+    lock. Release the lock before \textsf{send} or \textsf{recv}. \\[3pt]
+\textsc{Starvation}
+  & Reduce lock hold duration. Consider bounded retry or fairness
+    mechanisms. \\[3pt]
+\textsc{Livelock}
+  & Introduce backoff or a deterministic coordination protocol. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Counterexample format.}
+The counterexample is serialized in two formats. A structured format (for programmatic consumption) contains all fields of Definition~\ref{def:counterexample} as typed data. A text format (for LLM consumption) presents the same information in a template:
+
+\begin{lstlisting}
+BUG: <kind>
+TRACE:
+  step <i>: [<function>/<sid>] <operation> <resource>
+  ...
+  >> <bug-specific annotation>
+STATE:
+  <thread positions and held resources>
+RESOURCES: <involved resources>
+FUNCTIONS: <involved functions>
+SUGGESTION:
+  <template text with affected sids>
+\end{lstlisting}
+
+The text format uses \textsc{Cir} vocabulary throughout. The LLM does not need to know what a \textsc{Cvn} place or transition is. It sees function names, statement identifiers, operation names, and resource names, all of which match the \textsc{Cir} it generated.
+
+% ─────────────────────────────────────────────────────────────
+\subsection{Repair Loop}
+\label{subsec:repair-loop}
+
+The repair loop connects the verification engine back to the LLM, closing the generate-verify-repair cycle described in Section~\ref{sec:architecture}.
+
+\subsubsection{Repair Strategy}
+
+Two classes of errors require different repair strategies.
+
+\textbf{Layer-1 errors} (CIR static check, E0xx--E8xx) are structural. Some admit local automatic repair. A missing \textsf{drop} statement can be inserted after the last use of the
+lock guard. A duplicate resource name can be renamed. These repairs do not require semantic understanding.
+
+\textbf{Layer-2 errors} (CVN model checking) are behavioral. They arise from cross-thread interactions and require semantic understanding to repair. Fixing a deadlock requires choosing between several strategies: unifying lock order, reducing lock granularity, or restructuring the synchronization protocol. This choice depends on the program's business intent, which only the LLM has access to. Layer-2 errors are therefore always repaired by the LLM.
+
+\subsubsection{Repair Prompt Construction}
+
+When a Layer-2 bug is found, the engine constructs a repair prompt from the structured counterexample. The prompt contains five sections.
+
+\begin{enumerate}[leftmargin=1.4em]
+\item \textbf{Context.} The original \textsc{Cir} artifact that was verified, so the LLM can see the full concurrency structure.
+
+\item \textbf{Bug report.} The text-format counterexample from Section~\ref{subsec:counterexample}, including the bug kind, the trace with statement identifiers, and the final state.
+
+\item \textbf{Repair suggestion.} The template suggestion from Table~\ref{tab:repair-templates}, instantiated with the specific resources and statement identifiers from the counterexample.
+
+\item \textbf{Constraints.} Instructions to the LLM: minimize edits, preserve the resource naming, do not introduce new synchronization primitives unless the suggestion requires it, and maintain statement identifier stability where possible.
+
+\item \textbf{Output format.} A specification of the expected \textsc{Cir} output format, so the repaired artifact can be parsed and re-verified.
+\end{enumerate}
+
+\subsubsection{Iterative Repair}
+
+Algorithm~\ref{alg:repair} describes the iterative repair process.
+
+\begin{algorithm}[t]
+\caption{Generate-verify-repair loop.}
+\label{alg:repair}
+\begin{algorithmic}[1]
+\Require Source code or specification
+\Ensure Verified \textsc{Cir} or failure
+\State LLM generates \textsc{Cir} from source
+\For{$\mathit{round} = 1$ \textbf{to} $K$}
+  \State Run \textsc{Cir} static checker
+  \If{Layer-1 errors}
+    \If{auto-repairable}
+      \State Apply local fix
+    \Else
+      \State Send error report to LLM
+      \State LLM regenerates \textsc{Cir}
+    \EndIf
+    \State \textbf{continue}
+  \EndIf
+  \State Translate \textsc{Cir} to \textsc{Cvn}
+  \State Run state-space search
+  \If{no bugs found}
+    \State \Return verified \textsc{Cir}
+  \EndIf
+  \State Construct repair prompt from counterexample
+  \State LLM generates repaired \textsc{Cir}
+\EndFor
+\State \Return failure after $K$ rounds
+\end{algorithmic}
+\end{algorithm}
+
+The maximum number of rounds $K$ is a configurable parameter. Each round involves one LLM invocation and one verification pass. In practice, $K = 3$ to $5$ is sufficient for most patterns, because the structured counterexample provides precise enough guidance for the LLM to produce a correct fix within a small number of attempts.
+
+\subsubsection{Convergence Considerations}
+
+The repair loop is not guaranteed to converge. The LLM may introduce new bugs while fixing existing ones. Two mechanisms mitigate this risk. First, the \textsc{Cir} static checker (Layer~1) catches structural regressions immediately. A repair that introduces an undefined
+resource reference or a broken control-flow edge is rejected before reaching the more expensive \textsc{Cvn} analysis. Second, the repair prompt explicitly instructs the LLM to minimize
+edits. This reduces the probability of unintended side effects. The prompt also includes the full \textsc{Cir} as context, so the LLM can reason about the impact of its changes on the rest of the concurrency structure. If the loop does not converge within $K$ rounds, the system reports
+all discovered bugs and the history of repair attempts, allowing a human developer to intervene.
+
+

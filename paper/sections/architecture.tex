@@ -1,0 +1,120 @@
+\section{System Architecture}
+\label{sec:architecture}
+
+This section presents the overall architecture before the formal definitions of individual components. The goal is to establish the information flow and the division of responsibilities so that the detailed definitions in subsequent sections can be read in context.
+
+\subsection{Pipeline Overview}
+\label{subsec:pipeline-overview}
+
+Figure~\ref{fig:pipeline} shows the complete pipeline. The process consists of five stages.
+
+\begin{figure}[t]
+\centering
+\small
+\begin{verbatim}
+ Source code / specification
+          |
+          v  [LLM generation]
+        CIR
+          |
+          v
+ Layer 1: CIR Static Check (E0xx-E8xx)
+     |                |
+     v (pass)         v (fail)
+ CIR -> CVN       auto-fix or LLM re-generation
+     |
+     v
+ Layer 2: CVN State-Space Search
+     |
+     v
+  pass: verified     fail: counterexample
+                        |
+                        v
+                  structured report
+                        |
+                        v  [LLM repair]
+                   CIR (v2) -> re-verify
+                       (up to K rounds)
+\end{verbatim}
+\caption{The generate-verify-repair pipeline.}
+\label{fig:pipeline}
+\end{figure}
+
+\textbf{Stage 1: CIR generation.} An LLM reads the source code or a natural-language specification and produces a \textsc{Cir} artifact. The LLM identifies shared resources, names them globally, declares protection mappings, and emits statement-level control flow with unique identifiers. The output is a structured document, not executable code.
+
+\textbf{Stage 2: CIR static checking.} A deterministic checker validates the \textsc{Cir} against 61 well-formedness rules organized in 9 categories. These rules catch structural errors (missing fields, undefined resources), semantic errors (lock operation on a non-lock resource, unprotected variable access), and consistency errors (spawn without join, unreachable statements). Simple errors such as a missing \texttt{drop} can be repaired
+automatically. Complex errors are reported back to the LLM for re-generation.
+
+\textbf{Stage 3: Translation.} A stateless translator converts the validated \textsc{Cir} into a \textsc{Cvn}. The translation is faithful: each \textsc{Cir} statement produces at least one
+\textsc{Cvn} transition, and no optimization or merging is performed. The translator also establishes an anchor mapping from \textsc{Cvn} transitions back to \textsc{Cir} statement identifiers.
+
+\textbf{Stage 4: State-space analysis.} The analysis engine explores the \textsc{Cvn} reachability graph. It checks for deadlocks (non-terminal states with no enabled transition), signal losses (notification with no waiter), starvation and livelock (cycles in strongly connected components), and channel blocking. The search is exhaustive within the bounded state space.
+
+\textbf{Stage 5: Repair.} If a bug is found, the engine produces a structured counterexample anchored to \textsc{Cir} statement identifiers. This counterexample is formatted into a repair prompt and sent to the LLM. The LLM generates a corrected \textsc{Cir}, which re-enters the pipeline at Stage~2. The loop repeats for at most $K$ rounds.
+
+\subsection{Component Responsibilities}
+\label{subsec:responsibilities}
+
+Table~\ref{tab:responsibilities} summarizes the division of labor. Each component has a well-defined input, output, and scope of responsibility.
+
+\begin{table}[t]
+\caption{Component responsibilities.}
+\label{tab:responsibilities}
+\centering\footnotesize
+\begin{tabular}{@{}lp{5.4cm}@{}}
+\toprule
+\textbf{Component} & \textbf{Responsibility} \\
+\midrule
+LLM
+  & Understand business logic. Identify shared resources and
+    protection relations. Generate alias-free \textsc{Cir}.
+    Interpret counterexamples and generate repairs. \\[4pt]
+CIR checker
+  & Validate structural and semantic well-formedness of \textsc{Cir}.
+    Report errors with statement identifiers. Auto-fix simple
+    patterns. \\[4pt]
+Translator
+  & Convert validated \textsc{Cir} to \textsc{Cvn}. Maintain
+    anchor mapping. No optimization. \\[4pt]
+CVN engine
+  & Explore state space. Detect concurrency bugs. Produce
+    structured counterexamples with transition traces and
+    involved resources. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The LLM is the only component that interacts with the source code. The checker, translator, and analysis engine operate entirely on \textsc{Cir} and \textsc{Cvn} structures. This separation means that the formal components do not need alias analysis, type inference, or any language-specific reasoning. All language-specific understanding is concentrated in the LLM.
+
+\subsection{Two-Layer Verification}
+\label{subsec:two-layer}
+
+The system uses two verification layers with complementary characteristics.
+
+\textbf{Layer 1: CIR static checking.} This layer is fast (linear in \textsc{Cir} size) and deterministic. It catches errors that can be detected from the structure of a single \textsc{Cir} artifact without considering interleavings. Examples include a \texttt{lock} without a matching \texttt{drop}, a \texttt{spawn} without a matching \texttt{join}, an access to an undefined resource, and a branch condition with a non-boolean type. These errors often indicate that the LLM misunderstood the program structure or made a syntactic mistake. Many of them can be repaired locally without re-generating the entire \textsc{Cir}.
+
+\textbf{Layer 2: CVN model checking.} This layer is more expensive (exponential in the number of concurrent entities in the worst case) but catches bugs that are invisible to any single-artifact analysis. Examples include cross-thread deadlocks involving multiple locks, signal losses where a notification precedes all waits, and starvation caused by unfair lock acquisition patterns. These bugs arise from the interaction of multiple threads and cannot be detected without exploring interleavings. They require the LLM to repair because the fix involves understanding business intent (e.g., choosing between lock-order unification and lock-granularity reduction).
+
+Table~\ref{tab:two-layer} illustrates the division.
+
+\begin{table}[t]
+\caption{Two-layer verification: what each layer catches.}
+\label{tab:two-layer}
+\centering\footnotesize
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Bug type} & \textbf{Layer} & \textbf{Repair by} \\
+\midrule
+Missing \texttt{drop}         & CIR check & Auto-fix \\
+Undefined resource            & CIR check & LLM \\
+Spawn/join mismatch           & CIR check & LLM \\
+Unprotected variable access   & CIR check & LLM \\
+Two-lock deadlock             & CVN search & LLM \\
+Condvar signal loss           & CVN search & LLM \\
+Three-lock circular deadlock  & CVN search & LLM \\
+Writer starvation             & CVN search & LLM \\
+Channel-mutex cross-deadlock  & CVN search & LLM \\
+\bottomrule
+\end{tabular}
+\end{table}
+

@@ -1,0 +1,106 @@
+\section{Motivation}
+\label{sec:motivation}
+
+\subsection{A Running Example}
+\label{subsec:running-example}
+
+Figure~\ref{fig:running-rust} shows a condition-variable bug in Rust. The \texttt{notifier} calls \texttt{notify\_one} before setting the readiness flag. If the notifier runs before the worker enters \texttt{wait}, the notification reaches no waiting thread. The worker then blocks forever. The program compiles without warnings and passes most tests.
+
+\begin{figure}[t]
+\begin{lstlisting}[language=Rust]
+fn worker(shared: Arc<(Mutex<bool>, Condvar)>) {
+    let (m, cv) = &*shared;
+    let mut g = m.lock().unwrap();
+    while !*g {
+        g = cv.wait(g).unwrap();
+    }
+}
+
+fn notifier(shared: Arc<(Mutex<bool>, Condvar)>) {
+    let (m, cv) = &*shared;
+    let mut g = m.lock().unwrap();
+    cv.notify_one();   // BUG: notify before flag update
+    *g = true;         // too late
+}
+
+fn main() {
+    let shared = Arc::new((Mutex::new(false), Condvar::new()));
+    let h1 = {let s = shared.clone(); thread::spawn(move || worker(s))};
+    let h2 = {let s = shared.clone(); thread::spawn(move || notifier(s))};
+    h1.join().unwrap();
+    h2.join().unwrap();
+}
+\end{lstlisting}
+\caption{A condition-variable signal-loss bug.}
+\label{fig:running-rust}
+\end{figure}
+
+\subsection{Why Static Analysis Fails}
+\label{subsec:why-fails}
+
+Detecting this bug requires three facts. First, both functions operate on the \emph{same} mutex and condition variable. Establishing this requires tracing values through \texttt{Arc::new}, \texttt{clone}, closure capture, and pattern destructuring. This is an alias-analysis problem that is undecidable in general. Second, the boolean is protected by the mutex. This relationship is implicit in the \texttt{MutexGuard} type and is not declared in the source. Third, a scheduling exists in which the notification precedes any \texttt{wait} call. This interleaving analysis is feasible only after the first two facts are established.
+
+In practice, existing static analyzers fail at the first or second fact. The third fact never gets a chance to contribute.
+
+\subsection{How CIR Eliminates the Barrier}
+\label{subsec:cir-eliminates}
+
+Figure~\ref{fig:running-cir} shows the \textsc{Cir} for this example. The LLM understands the program's purpose and declares three globally named resources: mutex \texttt{m0}, condition variable \texttt{cv0}, and boolean \texttt{ready}. The protection section states that \texttt{ready} is guarded by \texttt{m0}. Both functions reference these names directly.
+
+The three facts that defeated static analysis are now explicit declarations. Shared identity is established by global naming. The protection relation is a first-class declaration. The interleaving structure is visible from the spawn and join statements in \texttt{main}. No pointer analysis was performed. The LLM expressed what it understood about the program's design.
+
+\begin{figure}[t]
+\begin{lstlisting}
+resources:
+  m0:    { kind: Mutex, mode: Sync }
+  cv0:   { kind: Condvar, paired_with: m0 }
+  ready: { kind: Var, type: Bool, init: false }
+protection:
+  ready: [m0]
+functions:
+  worker:
+    kind: normal
+    body:
+      - { sid: w1, op: {lock: m0},       transfer: {next: w2} }
+      - { sid: w2, op: {read: ready},    transfer:
+            {branch: {cond: {var: ready, op: Eq, val: false},
+                      on_true: w3, on_false: w5}} }
+      - { sid: w3, op: {wait: {cv: cv0, mutex: m0}},
+                                          transfer: {next: w2} }
+      - { sid: w5, op: {drop: m0},       transfer: {next: w6} }
+      - { sid: w6, op: return,           transfer: done }
+  notifier:
+    kind: normal
+    body:
+      - { sid: n1, op: {lock: m0},       transfer: {next: n2} }
+      - { sid: n2, op: {notify_one: cv0},transfer: {next: n3} }
+      - { sid: n3, op: {write: {var: ready, val: true}},
+                                          transfer: {next: n4} }
+      - { sid: n4, op: {drop: m0},       transfer: {next: n5} }
+      - { sid: n5, op: return,           transfer: done }
+  main:
+    kind: normal
+    body:
+      - { sid: s1, op: {spawn: worker},  transfer: {next: s2} }
+      - { sid: s2, op: {spawn: notifier},transfer: {next: s3} }
+      - { sid: s3, op: {join: worker},   transfer: {next: s4} }
+      - { sid: s4, op: {join: notifier}, transfer: {next: s5} }
+      - { sid: s5, op: return,           transfer: done }
+entry: main
+\end{lstlisting}
+\caption{\textsc{Cir} for the running example.}
+\label{fig:running-cir}
+\end{figure}
+
+\subsection{How CVN Discovers the Bug}
+\label{subsec:cvn-discovers}
+
+The \textsc{Cir} is translated into a \textsc{Cvn}. The mutex becomes a resource place with one token. Each statement becomes a control place. The boolean is stored in the global variable store. The \texttt{wait} call site generates a wait place.
+
+The state-space search explores all interleavings of the worker and notifier threads. It detects a signal-loss pattern: the \texttt{notify} transition at \texttt{n2} fires while no token exists in the wait place for \texttt{w3}. The notification reaches no thread and is lost. The analysis reports a structured counterexample identifying statements \texttt{n2} and \texttt{n3}, resources \texttt{cv0} and \texttt{ready}, and a repair suggestion: move the flag update before the notification. Section~\ref{sec:cvn} defines the \textsc{Cvn} semantics.
+
+\subsection{Closing the Loop}
+\label{subsec:closing-loop}
+
+The counterexample is formatted as a repair prompt with statement identifiers. The LLM swaps \texttt{n2} and \texttt{n3} in the \textsc{Cir} so that the flag is set before the notification. The fixed \textsc{Cir} is re-translated and re-verified. The signal-loss pattern no longer occurs. The verification passes. This example illustrates the division of labor. The LLM contributes semantic understanding: it knows which resources are shared and how they relate. The formal engine contributes exhaustive coverage: it finds the interleaving that triggers the bug. The structured counterexample connects the two, enabling targeted repair. The remainder of this paper formalizes each component.
+
