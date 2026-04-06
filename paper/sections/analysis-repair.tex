@@ -1,10 +1,13 @@
 \section{Analysis and Repair}
 \label{sec:analysis-repair}
 % 本节描述了如何分析 Cvn，以及如何将分析结果转化为 LLM 可操作的修复指导。分析算法本身是标准的。本文的贡献在于建立了 Cvn 状态与基于 Cir 的反例之间的联系，以及利用这种联系的结构化修复循环。
+% 本节关注两个问题：一是怎么在 CVN 上找 bug，二是怎么把形式化诊断结果变成 LLM 能据此修复的输入。
 This section describes how the \textsc{Cvn} is analyzed and how analysis results are transformed into actionable repair guidance for the LLM. The analysis algorithms themselves are standard. The contribution lies in the connection between \textsc{Cvn} states and \textsc{Cir}-anchored counterexamples, and in the structured repair loop that exploits this connection.
 
+% 这里补充说明搜索语义：如果 guard 里出现 unknown，就把真分支和假分支都纳入搜索。
 The analysis engine performs an exhaustive reachability search to identify safety and liveness violations. Given the potential for $\top$ values in $V$, the search accounts for non-deterministic branching: if $\mathit{eval}(g, V) = \mathsf{unknown}$, both the true and false transitions are explored.
 
+% 算法 1 是状态空间遍历与 bug 收集的伪代码，先做可达性搜索，再做 SCC 分析以识别活性类错误。
 \begin{algorithm}
 \caption{CVN Reachability and Bug Detection}
 \label{alg:search}
@@ -39,9 +42,11 @@ The analysis engine performs an exhaustive reachability search to identify safet
 \end{algorithmic}
 \end{algorithm}
 
+% 接下来显式定义论文关心的五类并发错误谓词。
 \subsection{Bug Detection Patterns}
 \label{subsec:bug-patterns}
 
+% 这里把各种 bug 都翻译成 reachability graph 上的判定条件。
 We define five categories of concurrency violations as predicates over the reachability graph:
 
 \begin{itemize}[leftmargin=1.5em]
@@ -53,20 +58,26 @@ We define five categories of concurrency violations as predicates over the reach
 \end{itemize}
 
 % ─────────────────────────────────────────────────────────────
+% 找到 bug 后，还需要把抽象执行轨迹映射回 CIR 的 sid，才能支持“定点修复”。
 \subsection{Structured Counterexample Generation}
 \label{subsec:counterexample}
 
+% 这段说明反例不只是一个 bug 标签，还包括可回溯的诊断轨迹。
 When a bug is detected, the engine reconstructs a \textit{Diagnostic Trace} $\mathcal{T}$ to facilitate LLM repair.
 
+% Anchored trace 就是把 transition 序列投影到对应的 CIR 语句编号上。
 \begin{definition}[Anchored Trace]
 Let $\pi = \langle t_1, t_2, \dots, t_n \rangle$ be a sequence of transitions from $s_0$ to a violation state. An anchored trace $\pi_{\mu}$ is the projection $\langle \mu(t_1), \mu(t_2), \dots, \mu(t_n) \rangle$, mapping each transition to its corresponding \textsc{Cir} $\mathsf{sid}$.
 \end{definition}
 
+% 最终的结构化反例由 bug 类型、锚定轨迹、状态差异和修复模板组成。
 The resulting structured counterexample $\mathcal{C}$ is a four-tuple $(\kappa, \pi_{\mu}, \Delta, \mathcal{S})$, where $\Delta$ is a \textit{State Delta} describing resource possession (e.g., $m_1$ is held by Thread A) and $\mathcal{S}$ is a repair strategy template from Table~\ref{tab:repair-templates}.
 
+% 下面把前面提到的三层修复策略具体落成一个 goal-aware 的迭代算法。
 \subsection{The Tiered Repair Loop}
 \label{subsec:repair-loop-final}
 
+% 重点不是每轮都调用 LLM，而是先看能不能自动修，再看是静态层问题还是逻辑层问题。
 The repair process operationalizes the \textbf{Tiered Repair Strategy} defined in Section~\ref{subsec:repair-tier}. By categorizing errors into three tiers, the system minimizes expensive LLM invocations for trivial fixes while providing high-fidelity context for complex concurrency logic.
 
 % \begin{algorithm}[H]
@@ -98,6 +109,7 @@ The repair process operationalizes the \textbf{Tiered Repair Strategy} defined i
 % \State \Return Failure
 % \end{algorithmic}
 % \end{algorithm}
+% 算法 2 给出完整闭环：先修静态错误，再修并发 bug，最后在 bug-free 的前提下检查 goal reachability。
 \begin{algorithm}[t]
 \caption{Goal-Aware Generate-Verify-Repair Loop}
 \label{alg:repair-goal}
@@ -137,11 +149,14 @@ The repair process operationalizes the \textbf{Tiered Repair Strategy} defined i
 \end{algorithmic}
 \end{algorithm}
 
+% 这里强调检查顺序很关键，goal 只能在 bug-free 之后检查，否则无法区分“路径被 bug 卡住”还是“语义被修坏了”。
 The key design choice is the ordering of checks. Goal reachability is evaluated \emph{only after} the \textsc{Cvn} analysis reports no bugs (Line~8--10). This avoids conflating two distinct failure modes: a goal may be unreachable because a deadlock blocks the path (a bug problem, not a goal problem), or because a repair
 removed a necessary operation (a goal problem). By checking goals only in the bug-free state, every goal violation is attributable to a semantic deficiency in the \textsc{Cir} itself, not to an unresolved concurrency bug.
 
+% 当某个目标不可达时，系统会给出结构化的目标违例反馈，而不是笼统说“结果不对”。
 When a goal $\gamma$ is unreachable, the engine generates a goal violation report:
 
+% 这个示例展示 goal violation 提示里会包含哪个目标失败、缺少什么状态以及一个面向修复的 hint。
 \begin{figure}[t]
 \begin{lstlisting}[basicstyle=\small\ttfamily, frame=single]
 === Goal Violation (Round 3) ===
@@ -159,9 +174,11 @@ UNREACHABLE GOAL: G1
 \label{fig:goal-violation}
 \end{figure}
 
+% 最后把 bug 类别与建议修复策略做一个模板化映射，减少 LLM 自己搜索修复空间的负担。
 \subsection{Repair Strategy Templates}
 \label{subsec:repair-templates}
 
+% 表中每种 bug 都对应一个比较稳定的修复方向，例如统一锁顺序、while 守护 wait、减少锁持有时间等。
 The effectiveness of the LLM-driven repair depends on the precision of the semantic hints provided in the prompt. Table~\ref{tab:repair-templates} defines the mapping from formal bug categories $\kappa$ to structural repair strategies $\mathcal{S}$.
 
 \begin{table*}
@@ -195,5 +212,5 @@ $\textsf{Recv}$ on empty channel with no potential $\textsf{Senders}$. &
 \end{tabular}
 \end{table*}
 
+% 这里举 deadlock 为例说明，实际发给 LLM 的修复提示会把模板和具体 sid、资源名结合起来。
 When a counterexample $\mathcal{C}$ is generated, the system instantiates these templates with concrete metadata. For a \textbf{Deadlock}, the prompt does not merely say ``fix the order''; it specifies: \textit{``Deadlock detected between \texttt{sid\_12} and \texttt{sid\_45}. Resources involved: $\{m_{std}, m_{net}\}$. Suggested fix: acquire $m_{std}$ before $m_{net}$ in both Function $A$ and $B$.''} This high-fidelity feedback minimizes the LLM's search space for a valid patch.
-

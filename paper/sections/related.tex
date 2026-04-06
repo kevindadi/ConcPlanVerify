@@ -1,33 +1,39 @@
 \section{Related Work}
 \label{sec:related}
 
+% 相关工作部分的目的，是把本文放在四条研究脉络中定位：静态分析、动态探索、形式化建模、LLM 辅助软件工程。
 Research on concurrency bug detection spans static analysis, dynamic exploration, formal modeling, and, more recently, LLM-assisted software engineering. Our work is related to all four lines, but it occupies a different point in the design space: the LLM is used to recover synchronization intent and construct an alias-free model, while the formal engine is used for exhaustive reasoning over interleavings.
 
 \paragraph{Static analysis for concurrency.}
+% 这一段对比传统源码级并发静态分析，强调它们的强项是直接分析程序本身，弱项是离不开 alias 与保护关系恢复。
 A large body of work detects deadlocks, races, atomicity violations, and protocol misuse directly from source code using lock-order analysis, pointer analysis, abstract interpretation, effect systems, ownership disciplines, and language-specific type systems. The strength of these approaches is that they reason about the program as written. Their weakness is that they must infer, or be told, which references correspond to the same shared resource and which lock protects which state. In realistic programs, this requires reasoning through heap allocation, aliasing, container indirection, closure capture, and interprocedural flow. Our work does not claim to solve source-level alias
 analysis. Instead, it moves the resource-identification step out of the formal back-end and into an LLM-generated intermediate model in which shared-resource identity is explicit.
 
 \paragraph{Dynamic analysis and systematic schedule exploration.}
+% 这一段对比动态工具，指出其优点是对观察到的执行很精确，但缺点是离不开可执行代码且覆盖受限。
 Dynamic race detectors, interpreters, and schedule explorers detect concurrency bugs by observing concrete executions or by exploring bounded schedules of executable code. Such tools are often highly precise for the executions they observe, and some can systematically enumerate schedules within a bounded test harness. However, they still depend on executable code and cannot in general guarantee the absence of bugs outside the explored schedules or harness bounds. Our approach is complementary rather than competitive: instead of exploring executions of the original program, we explore executions of a compact concurrency model generated from the program's synchronization structure.
 
 \paragraph{Model checking and Petri-net-based verification.}
+% 这里把本文放到 Petri 网与模型检测工作里，强调 CVN 的特征是先在 CIR 里消掉资源身份问题，再用有限变量存储和三值守卫处理数据相关控制。
 Formal verification of concurrent systems has long relied on explicit state model checking, SAT/SMT-based encodings, process algebras, and Petri nets. Petri nets are particularly attractive for concurrency because causality, resource contention, and parallelism are represented directly in the net structure. Classical colored Petri nets extend this expressiveness with token-carried data, but at the cost of more complex state representation and binding semantics. Prior Petri-net-based approaches often
 either require manual modeling or rely on language-specific
 extraction pipelines from source code or traces. Our
 \textsc{Cvn} differs in its intended use: resource identity is resolved before verification by \textsc{Cir}'s global naming, and data-dependent control is handled by a finite global store with three-valued guards rather than by colored tokens. This design trades generality for a simpler and more analyzable model targeted to bounded concurrency patterns.
 
 \paragraph{LLMs for program analysis, verification, and repair.}
+% 这一段说明本文并不是“LLM 自己验证并发”，而是把 LLM 用在意图恢复和修复两个环节，把穷举搜索交给形式后端。
 Recent work has explored LLMs for bug finding, invariant inference, test generation, static-analysis assistance, and automated program repair. These methods exploit the fact that LLMs can recognize common implementation idioms and infer likely developer intent from code or natural-language specifications. However, LLMs
 alone do not provide exhaustive reasoning about the combinatorial space of thread interleavings. Our work uses LLMs in a narrower and more structured way: the LLM generates an alias-free concurrency model and later consumes structured counterexamples to repair that model, while exhaustive bug discovery remains the responsibility of
 the formal verification engine. In this sense, the contribution is not an ``LLM-only'' verifier, but a generate--verify--repair loop in which the LLM and the formal back-end play sharply separated roles.
 
 \paragraph{Source-model extraction and conformance checking.}
+% 最后这一段对应本文的 trust boundary，指出源码到模型的一致性检查是互补方向，而不是本文当前已经解决的问题。
 Another closely related line of work extracts formal models---such as automata, state machines, and Petri nets---from source code, binaries, or execution traces, and studies translation validation or conformance between code and model. This line is highly relevant to the trust boundary of our architecture. In the present work, that boundary is placed at the \textsc{Cir} level: we verify
 the generated model rather than prove general source-to-\textsc{Cir} equivalence. Source-level extraction and conformance checking are therefore complementary to our method rather than substitutes for it. An independent extractor that recovers a concurrency model from
 generated code could serve as an additional validation layer for source--\textsc{Cir} consistency, which we regard as an important direction for future work.
 
+% 收束相关工作定位：本文试图站在“源码直接分析”和“手工建模后验证”之间的中间地带。
 In summary, prior work typically chooses one of two extremes: either reason directly from source code and bear the cost of aliasing and language-specific analysis, or manually construct a formal model and verify that model exhaustively. Our work aims at the middle ground: use an LLM to recover synchronization intent and generate a compact,
 alias-free concurrency model, then verify that model formally and feed structured counterexamples back into the same semantic loop.
-
 
 

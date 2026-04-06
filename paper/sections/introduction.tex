@@ -1,24 +1,36 @@
 \section{Introduction}
 \label{sec:introduction}
 
+% 先说明问题背景。并发错误难修复，是因为问题来自线程交互，而不是单个线程内部逻辑；动态方法能找具体错误，但不能覆盖全部调度。
 Concurrency bugs such as deadlocks, signal losses, starvation, and blocking protocol errors remain difficult to detect and repair because they arise from interactions among threads rather than from a single local control path. Dynamic tools can expose concrete failing schedules, but they do not rule out unexplored interleavings. Static techniques can, in principle, provide broader guarantees, yet they face a familiar obstacle: the analysis must determine which operations refer to the same shared resource and which synchronization primitives protect which shared state.
 
+% 这里解释传统静态分析为什么卡住：要先知道哪些操作指向同一共享资源，而这件事被 alias、堆对象、闭包捕获等实现细节严重干扰。
 That source-level inference problem is dominated by aliasing and representation details. In realistic code, a verifier may need to track a mutex or condition variable through heap allocation, cloning, container indirection, borrowing, and closure capture before it can even ask whether two operations contend for the same object. For concurrency reasoning, this is more than a nuisance: lock-order analysis, protocol checking, and protection checking all depend on a reliable notion of resource identity.
 
+% 这里开始提出本文的重构思路。作者不声称解决源码级 alias 分析，而是把“识别资源身份”前移到模型生成阶段，由 LLM 直接产出显式并发模型。
 This paper explores a different formulation. We do not claim to solve source-level alias analysis. Instead, we shift resource identification to a model-generation step and ask an LLM to synthesize an explicit concurrency artifact from a natural-language requirement or system specification. The key premise is that many concurrency designs are easier to describe at the level of intended resources and protocols than at the level of pointer identity. Once those intended resources are named explicitly, the formal back-end no longer needs alias recovery to reason about synchronization behavior.
 
+% 介绍第一个核心形式 CIR。它不是通用 IR，而是一个面向并发验证的、无别名的语句级模型，强调全局资源命名、显式保护关系和可定位的 sid。
 The first artifact in this formulation is the Concurrency Intermediate Representation (\textsc{Cir}), a statement-level concurrency model rather than a general-purpose compiler IR. \textsc{Cir} assigns every shared resource a global name, records lock-to-variable protection relations explicitly, and associates each statement with a stable identifier (\texttt{sid}) for diagnostics and repair. This design intentionally narrows the modeling scope to the concurrency skeleton of the program: synchronization operations, thread creation and joining, and data-dependent control over shared state.
 
+% 介绍第二个核心形式 CVN。它基于加权 P/T Petri 网，并加入全局变量存储和三值守卫，使其能表达与数据相关的控制分支。
 The second artifact is the Concurrency Verification Net (\textsc{Cvn}), a verification model built on a weighted place/transition Petri net. \textsc{Cvn} keeps the Petri-net view of concurrency and resource contention, while extending it with a finite global variable store and three-valued guards so that data-dependent branching can be analyzed without moving to a full colored-net formalism. A validated \textsc{Cir} artifact is translated mechanically to \textsc{Cvn}, and the resulting state space is explored exhaustively within the bounded model.
 
+% 这里说明完整工作流是“生成-验证-修复”闭环，而不是只做一次建模。反例会锚定到 sid，便于 LLM 做局部修复；此外还要检查业务目标，避免通过“删功能”换取 bug-free。
 The generate--verify--repair loop is central to the architecture. Static checking first filters out malformed \textsc{Cir} artifacts. State-space analysis then reports concurrency violations using traces anchored to \textsc{Cir} statement identifiers, allowing the LLM to revise specific parts of the model rather than regenerate the entire artifact. We further require that accepted repairs preserve user-stated business goals. This additional check matters because a bug-free repair can still be incorrect if it achieves safety by deleting required behavior.
 
+% 这里主动收缩 claim，说明本文的信任边界在 CIR，而不在最终源码；也就是说，论文验证的是生成出的模型，而不是一般意义上的源码与模型等价性。
 The trust boundary of the present paper is therefore the generated \textsc{Cir} artifact, not arbitrary source code. We verify the model that the LLM produces; we do not prove source-to-\textsc{Cir} equivalence. This boundary is a limitation, but it is also what makes the approach analyzable: by separating semantic model construction from exhaustive state exploration, the pipeline combines LLM-assisted intent recovery with formal reasoning about interleavings.
 
+% 下面用更克制的方式列贡献点，避免把“绕开 alias”写成“彻底解决 alias 分析”。
 We summarize our primary contributions as follows:
 \begin{itemize}
+    % 贡献 1 是提出一种 model-first 的并发验证表述，把资源身份识别交给 LLM 生成的验证模型，而不是让形式后端直接做源码级 alias 推理。
     \item A model-first formulation of concurrency verification that shifts shared-resource identification from source-level alias reasoning to an LLM-synthesized verification artifact. The claim is not that alias analysis is solved, but that the formal reasoning layer no longer depends on it.
+    % 贡献 2 是提出 CIR 和 CVN 两个形式化对象，并简要说明它们分别负责建模和验证。
     \item Two formalisms tailored to this workflow: \textsc{Cir} (Concurrency Intermediate Representation, an alias-free statement-level model with global resource names, explicit protection mappings, and stable statement identifiers) and \textsc{Cvn} (Concurrency Verification Net, a weighted P/T Petri net with a finite global store and three-valued guards).
+    % 贡献 3 是完整的两层闭环流程，包括静态检查、机械翻译、状态空间分析、反例锚定以及 goal reachability 检查。
     \item A two-layer generate--verify--repair pipeline that combines deterministic \textsc{Cir} checking, mechanical translation, exhaustive state-space analysis, anchored counterexamples, and goal reachability checks to reject bug-free yet semantically incomplete repairs.
+    % 贡献 4 是评估，展示该流程在有限并发模式上的生成、检测、修复与目标保持表现。
     \item An evaluation on 9 representative bounded-concurrency patterns showing the behavior of the generation, detection, repair, and goal-preservation stages under this workflow.
 \end{itemize}
