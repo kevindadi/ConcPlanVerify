@@ -15,10 +15,12 @@ Dynamic race detectors, interpreters, and schedule explorers detect concurrency 
 
 \paragraph{Model checking and Petri-net-based verification.}
 % 这里把本文放到 Petri 网与模型检测工作里,强调 CVN 的特征是先在 CIR 里消掉资源身份问题,再用有限变量存储和三值守卫处理数据相关控制.
-Formal verification of concurrent systems has long relied on explicit state model checking, SAT/SMT-based encodings, process algebras, and Petri nets. Petri nets are particularly attractive for concurrency because causality, resource contention, and parallelism are represented directly in the net structure. Classical colored Petri nets extend this expressiveness with token-carried data, but at the cost of more complex state representation and binding semantics. Prior Petri-net-based approaches often
-either require manual modeling or rely on language-specific
-extraction pipelines from source code or traces. Our
-\textsc{Cvn} differs in its intended use: resource identity is resolved before verification by \textsc{Cir}'s global naming, and data-dependent control is handled by a finite global store with three-valued guards rather than by colored tokens. This design trades generality for a simpler and more analyzable model targeted to bounded concurrency patterns.
+Formal verification of concurrent systems has long relied on explicit state model checking, SAT/SMT-based encodings, process algebras, and Petri nets. 
+Petri nets are particularly attractive for concurrency because causality, resource contention, and parallelism are represented directly in the net structure. 
+Classical colored Petri nets extend this expressiveness with token-carried data, but at the cost of more complex state representation and binding semantics. 
+Prior Petri-net-based approaches often either require manual modeling or rely on language-specific extraction pipelines from source code or traces. 
+Our \textsc{Cvn} differs in its intended use: resource identity is resolved before verification by \textsc{Cir}'s global naming, and data-dependent control is handled by a finite global store with three-valued guards rather than by colored tokens. 
+This design trades generality for a simpler and more analyzable model targeted to bounded concurrency patterns.
 
 \paragraph{LLMs for program analysis, verification, and repair.}
 % 这一段说明本文并不是“LLM 自己验证并发”,而是把 LLM 用在意图恢复和修复两个环节,把穷举搜索交给形式后端.
