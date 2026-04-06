@@ -1,504 +1,96 @@
-% ══════════════════════════════════════════════════════════════
-%  §6  Formal Properties and Discussion
-% ══════════════════════════════════════════════════════════════
-\section{Formal Properties and Discussion}
+\section{Formal Properties}
 \label{sec:properties}
 
-This section establishes the formal relationship between \textsc{Cir}
-executions and \textsc{Cvn} firings, states the guarantees provided
-by the analysis, and discusses the modeling decisions and limitations
-of the approach.
+This section states the formal guarantees of the translation and analysis. Full proofs proceed by case analysis on \textsc{Cir} operations and are provided in the appendix.
 
 % ─────────────────────────────────────────────────────────────
-\subsection{CIR Execution Semantics}
-\label{subsec:cir-semantics}
+\subsection{Encoding and Simulation}
+\label{subsec:encoding-simulation}
 
 \begin{definition}[\textsc{Cir} configuration]
 \label{def:cir-config}
 A \textsc{Cir} configuration is a tuple
 $C = (\mathit{pc}, L, W, \mathit{NW}, \mathit{NA}, V)$
-where
-\begin{itemize}[leftmargin=1.4em]
-  \item $\mathit{pc} : \mathit{ThreadId} \to \mathit{SID} \cup
-        \{\mathit{ret}\}$ maps each thread to its current statement,
-  \item $L : \mathit{ResourceName} \to \mathbb{N}_0$ records the
-        available count of each synchronization resource (mutexes,
-        semaphores, channels) and each condvar notification token,
-  \item $W : \mathit{SID} \to \mathbb{N}_0$ records the number of
-        threads blocked at each wait site,
-  \item $\mathit{NW} : \mathit{CondvarName} \to \mathbb{N}_0$
-        records the total number of waiters for each condvar,
-  \item $\mathit{NA} : \mathit{SID} \to \mathsf{Bool}$ records the
-        notify-all flag for each wait site, and
-  \item $V : \mathit{VarName} \to \mathit{Val}$ is the variable
-        store.
-\end{itemize}
+where $\mathit{pc}$ maps each thread to its current statement,
+$L$ records the available count of each synchronization resource and each condvar notification token, $W$ records waiters at each wait site, $\mathit{NW}$ records the total waiter count per condvar, $\mathit{NA}$ records the notify-all flag per wait site, and $V$ is the variable store.
 \end{definition}
-
-The \textsc{Cir} step rules for condvar operations are:
-
-\textbf{Wait.} Thread $\theta$ at $(\mathit{sid},\;
-\textsf{wait}(\mathit{cv}, m),\; \textsf{next}(\mathit{sid}'))$
-performs two sub-steps. Enter: $L'(m) = L(m) + 1$,
-$W'(\mathit{sid}) = W(\mathit{sid}) + 1$,
-$\mathit{NW}'(\mathit{cv}) = \mathit{NW}(\mathit{cv}) + 1$,
-$\mathit{NA}'(\mathit{sid}) = \mathsf{false}$,
-thread enters waiting state at $\mathit{sid}$. Wake (by notify):
-requires $L(\mathit{cv}) \geq 1$; sets $L'(\mathit{cv}) = L(\mathit{cv}) - 1$,
-$W'(\mathit{sid}) = W(\mathit{sid}) - 1$,
-$\mathit{NW}'(\mathit{cv}) = \mathit{NW}(\mathit{cv}) - 1$,
-thread enters reacquire state. Wake (by notify-all):
-requires $\mathit{NA}(\mathit{sid}) = \mathsf{true}$; sets
-$W'(\mathit{sid}) = W(\mathit{sid}) - 1$,
-$\mathit{NW}'(\mathit{cv}) = \mathit{NW}(\mathit{cv}) - 1$,
-$\mathit{NA}'(\mathit{sid}) = \mathsf{false}$,
-thread enters reacquire state. Reacquire: requires $L(m) \geq 1$;
-sets $L'(m) = L(m) - 1$, $\mathit{pc}'(\theta) = \mathit{sid}'$.
-
-\textbf{Notify\_one.} If $\mathit{NW}(\mathit{cv}) > 0$: set
-$L'(\mathit{cv}) = L(\mathit{cv}) + 1$,
-$\mathit{pc}'(\theta) = \mathit{sid}'$. If
-$\mathit{NW}(\mathit{cv}) = 0$: notification lost,
-$\mathit{pc}'(\theta) = \mathit{sid}'$.
-
-\textbf{Notify\_all.} If $\mathit{NW}(\mathit{cv}) > 0$: for each
-wait site $w_i$ of $\mathit{cv}$, set
-$\mathit{NA}'(w_i) = \mathsf{true}$,
-$\mathit{pc}'(\theta) = \mathit{sid}'$. If
-$\mathit{NW}(\mathit{cv}) = 0$: notification lost,
-$\mathit{pc}'(\theta) = \mathit{sid}'$.
-
-
-% ─────────────────────────────────────────────────────────────
-\subsection{Encoding Function}
-\label{subsec:encoding}
 
 \begin{definition}[Encoding]
 \label{def:encoding}
-The encoding function $\mathsf{enc}$ maps a \textsc{Cir}
-configuration $C = (\mathit{pc}, L, W, \mathit{NW}, \mathit{NA}, V)$
-to a \textsc{Cvn} state $(M, V')$ as follows:
-\begin{itemize}[leftmargin=1.4em]
-  \item For each thread $\theta$ at $\mathit{sid}$ in function $f$
-        (not waiting, not reacquiring):
-        $M(\mathit{cp}(f, \mathit{sid})) \mathrel{+}= 1$.
-  \item For each thread $\theta$ waiting at site $\mathit{sid}$:
-        $M(\mathit{wp}(\mathit{sid})) \mathrel{+}= 1$.
-  \item For each thread $\theta$ reacquiring at site $\mathit{sid}$:
-        $M(\mathit{ra}(\mathit{sid})) \mathrel{+}= 1$.
-  \item For each synchronization resource $r$:
-        $M(\mathit{rp}(r)) = L(r)$.
-  \item For each condvar $\mathit{cv}$:
-        $M(\mathit{rp}(\mathit{cv})) = L(\mathit{cv})$.
-  \item $V'$ extends $V$ with:
-        $V'[\mathit{nw}_{\mathit{cv}}] = \mathit{NW}(\mathit{cv})$
-        for each condvar, and
-        $V'[\mathit{na}_{w_i}] = \mathit{NA}(w_i)$ for each wait
-        site.
-\end{itemize}
+The encoding $\mathsf{enc}(C) = (M, V')$ maps each thread's
+position to a token in the corresponding control, wait, or
+reacquire place; each resource count to the corresponding resource place; and extends $V$ with the condvar auxiliary variables $\mathit{nw}_{\mathit{cv}}$ and $\mathit{na}_{w_i}$.
 \end{definition}
-
-The encoding preserves all concurrency-relevant information. It does
-not preserve thread identity (which thread is at which position),
-because \textsc{Cvn} tokens are indistinguishable. This is
-acceptable because the analysis does not require thread identity:
-two tokens in the same control place represent two interchangeable
-threads at the same program point.
-
-% ─────────────────────────────────────────────────────────────
-
-\subsection{Step Correspondence}
-\label{subsec:step-correspondence}
 
 \begin{theorem}[Forward simulation]
 \label{thm:forward}
-Let $C$ be a \textsc{Cir} configuration and
-$(M, V) = \mathsf{enc}(C)$. For every \textsc{Cir} step
-$C \xrightarrow{o} C'$, there exists a \textsc{Cvn} transition $t$
-such that $(M, V) \xrightarrow{t} (M', V')$ and
-$(M', V') = \mathsf{enc}(C')$.
+For every \textsc{Cir} step $C \xrightarrow{o} C'$, there exists a \textsc{Cvn} transition $t$ such that
+$\mathsf{enc}(C) \xrightarrow{t} \mathsf{enc}(C')$.
 \end{theorem}
 
-\begin{proof}
-By case analysis on the operation $o$. We present the condvar cases;
-the remaining cases follow the same structure as before.
-
-\textbf{Case} $o = \textsf{lock}(m)$. The \textsc{Cir} step
-requires $L(m) \geq 1$ and produces $L'(m) = L(m) - 1$,
-$\mathit{pc}'(\theta) = \mathit{sid}'$. The corresponding
-\textsc{Cvn} transition $t$ [Lock] has input arcs from
-$\mathit{cp}(f, \mathit{sid})$ weight 1 and $\mathit{rp}(m)$
-weight 1, and output arc to $\mathit{cp}(f, \mathit{sid}')$
-weight 1. The precondition $M(\mathit{rp}(m)) = L(m) \geq 1$
-guarantees that $t$ is enabled. Firing $t$ produces
-$M'(\mathit{rp}(m)) = M(\mathit{rp}(m)) - 1 = L'(m)$ and
-$M'(\mathit{cp}(f, \mathit{sid}')) = M(\mathit{cp}(f,
-\mathit{sid}')) + 1$, matching $\mathsf{enc}(C')$.
-
-\textbf{Case} $o = \textsf{drop}(m)$. Symmetric: the transition
-returns a token to $\mathit{rp}(m)$.
-
-\textbf{Case} $o = \textsf{write}(x, v)$. The \textsc{Cir} step
-sets $V'[x] = v$. The \textsc{Cvn} transition [VarWrite] carries
-the update $V[x] \leftarrow v$, producing the same variable
-store.
-
-\textbf{Case} $o = \textsf{read}(x)$ with
-$\textsf{branch}(\beta, \mathit{sid}_t, \mathit{sid}_f)$. The
-\textsc{Cir} step evaluates $\beta$ to a definite boolean and
-branches accordingly. The \textsc{Cvn} has two transitions
-$t_\top$ and $t_\bot$ with complementary guards. Since $\beta$
-evaluates to a concrete boolean, exactly one guard evaluates to
-$\mathsf{true}$ and the other to $\mathsf{false}$. The enabled
-transition matches the \textsc{Cir} branch direction.
-
-\textbf{Case} $o = \textsf{wait}(\mathit{cv}, m)$. The
-\textsc{Cir} step moves the thread to a waiting state and releases
-the mutex. The \textsc{Cvn} transition $t_w$ [CondvarWait] moves
-the token from $\mathit{cp}(f, \mathit{sid})$ to
-$\mathit{wp}(\mathit{sid})$ and returns a token to
-$\mathit{rp}(m)$, matching the encoding of the new configuration.
-
-\textbf{Case} $o = \textsf{notify\_one}(\mathit{cv})$. If at
-least one thread is waiting (some $W(\mathit{sid}_w) \geq 1$),
-the \textsc{Cir} step wakes one waiter nondeterministically. The
-corresponding wake transition $t_i$ [CondvarNotify] consumes a
-token from $\mathit{wp}(\mathit{sid}_w)$, matching the waiter
-selection. If no thread is waiting, the \textsc{Cir} step has no
-wake effect and advances control. The corresponding pass-through
-transition advances control without consuming from any wait place.
-
-\textbf{Case} $o = \textsf{spawn}(g)$. The \textsc{Cir} step
-creates a new thread at the entry of $g$. The \textsc{Cvn}
-transition [Spawn] produces tokens in both
-$\mathit{cp}(f, \mathit{sid}')$ and
-$\mathit{cp}(g, \mathit{sid}_0^g)$, matching the fork.
-
-\textbf{Case} $o = \textsf{wait}(\mathit{cv}, m)$, \emph{enter
-sub-step}. The \textsc{Cir} step increments
-$W(\mathit{sid})$, increments $\mathit{NW}(\mathit{cv})$,
-resets $\mathit{NA}(\mathit{sid})$, and releases the mutex
-($L(m) + 1$). The \textsc{Cvn} transition
-$t_{\mathit{enter}}$ [CondvarWaitEnter] consumes one token from
-$\mathit{cp}(f, \mathit{sid})$, produces one token in
-$\mathit{wp}(\mathit{sid})$ and one token in $\mathit{rp}(m)$,
-updates $V[\mathit{nw}_{\mathit{cv}}] \leftarrow
-V[\mathit{nw}_{\mathit{cv}}] + 1$ and
-$V[\mathit{na}_{\mathit{sid}}] \leftarrow \mathsf{false}$.
-Enabling: $M(\mathit{cp}(f, \mathit{sid})) \geq 1$ holds because
-the thread is at $\mathit{sid}$. No guard. The resulting marking and
-variable store match $\mathsf{enc}(C')$.
-
-\textbf{Case} $o = \textsf{wait}(\mathit{cv}, m)$, \emph{wake by
-notify sub-step}. The \textsc{Cir} step requires
-$L(\mathit{cv}) \geq 1$, decrements $W(\mathit{sid})$, decrements
-$\mathit{NW}(\mathit{cv})$, and consumes one notification token. The
-\textsc{Cvn} transition $t_{\mathit{wake1}}$
-[CondvarWakeByNotify] consumes one token from
-$\mathit{wp}(\mathit{sid})$ and one token from
-$\mathit{rp}(\mathit{cv})$, produces one token in
-$\mathit{ra}(\mathit{sid})$, updates
-$V[\mathit{nw}_{\mathit{cv}}] \leftarrow
-V[\mathit{nw}_{\mathit{cv}}] - 1$. Enabling:
-$M(\mathit{wp}(\mathit{sid})) \geq 1$ holds because the thread is
-waiting, and $M(\mathit{rp}(\mathit{cv})) = L(\mathit{cv}) \geq 1$.
-No guard. Match follows.
-
-\textbf{Case} $o = \textsf{wait}(\mathit{cv}, m)$, \emph{wake by
-notify-all sub-step}. The \textsc{Cir} step requires
-$\mathit{NA}(\mathit{sid}) = \mathsf{true}$, does not consume a
-notification token, decrements $W(\mathit{sid})$ and
-$\mathit{NW}(\mathit{cv})$, resets
-$\mathit{NA}(\mathit{sid})$. The \textsc{Cvn} transition
-$t_{\mathit{wakeA}}$ [CondvarWakeByNotifyAll] consumes one token
-from $\mathit{wp}(\mathit{sid})$, has guard
-$V[\mathit{na}_{\mathit{sid}}] = \mathsf{true}$, produces one
-token in $\mathit{ra}(\mathit{sid})$, and updates
-$V[\mathit{nw}_{\mathit{cv}}] \leftarrow
-V[\mathit{nw}_{\mathit{cv}}] - 1$,
-$V[\mathit{na}_{\mathit{sid}}] \leftarrow \mathsf{false}$. Enabling:
-token in $\mathit{wp}(\mathit{sid})$ holds; guard holds because
-$V[\mathit{na}_{\mathit{sid}}] = \mathit{NA}(\mathit{sid}) =
-\mathsf{true}$. Match follows.
-
-\textbf{Case} $o = \textsf{wait}(\mathit{cv}, m)$, \emph{reacquire
-sub-step}. The \textsc{Cir} step requires $L(m) \geq 1$ and sets
-$\mathit{pc}'(\theta) = \mathit{sid}'$. The \textsc{Cvn} transition
-$t_{\mathit{reacq}}$ [CondvarReacquire] consumes one token from
-$\mathit{ra}(\mathit{sid})$ and one from $\mathit{rp}(m)$, produces
-one token in $\mathit{cp}(f, \mathit{sid}')$. Enabling: both tokens
-are present. Match follows.
-
-\textbf{Case} $o = \textsf{notify\_one}(\mathit{cv})$ with
-$\mathit{NW}(\mathit{cv}) > 0$. The \textsc{Cir} step deposits one
-notification token: $L'(\mathit{cv}) = L(\mathit{cv}) + 1$. The
-\textsc{Cvn} transition $t_{\mathit{notify}}$ [CondvarNotify] has
-guard $V[\mathit{nw}_{\mathit{cv}}] > 0$, which holds because
-$V[\mathit{nw}_{\mathit{cv}}] = \mathit{NW}(\mathit{cv}) > 0$.
-The transition produces one token in $\mathit{rp}(\mathit{cv})$.
-Match follows.
-
-\textbf{Case} $o = \textsf{notify\_one}(\mathit{cv})$ with
-$\mathit{NW}(\mathit{cv}) = 0$. The notification is lost. The
-\textsc{Cvn} transition $t_{\mathit{lost}}$ [CondvarNotifyLost]
-has guard $V[\mathit{nw}_{\mathit{cv}}] = 0$, which holds. The
-transition advances control without depositing a token. Match
-follows.
-
-\textbf{Case} $o = \textsf{notify\_all}(\mathit{cv})$ with
-$\mathit{NW}(\mathit{cv}) > 0$. The \textsc{Cir} step sets
-$\mathit{NA}'(w_i) = \mathsf{true}$ for all wait sites $w_i$ of
-$\mathit{cv}$. The \textsc{Cvn} transition
-$t_{\mathit{notifyAll}}$ [CondvarNotifyAll] has guard
-$V[\mathit{nw}_{\mathit{cv}}] > 0$, which holds. The transition
-updates $V[\mathit{na}_{w_i}] \leftarrow \mathsf{true}$ for all
-$w_i$. Match follows.
-
-\textbf{Case} $o = \textsf{notify\_all}(\mathit{cv})$ with
-$\mathit{NW}(\mathit{cv}) = 0$. Same as the notify-lost case.
-
-The remaining cases (\textsf{join}, \textsf{cas}, \textsf{acquire},
-\textsf{release}, \textsf{send}, \textsf{recv}, \textsf{call},
-\textsf{return}) follow the same pattern. Each \textsc{Cir}
-precondition maps to the corresponding \textsc{Cvn} enabling
-condition, and each postcondition maps to the corresponding firing
-effect.
+\begin{proof}[Proof sketch]
+By case analysis on $o$. Each \textsc{Cir} operation has a
+corresponding \textsc{Cvn} transition by construction of the
+translation rules in Table~\ref{tab:translation-rules}. The
+precondition of the \textsc{Cir} operation maps to the enabling
+condition of the \textsc{Cvn} transition. The postcondition maps to the firing effect. The condvar cases decompose into
+four sub-steps, each matching one of the four generated transitions.
 \end{proof}
-
-The forward simulation guarantees that every \textsc{Cir} behavior
-is represented in the \textsc{Cvn}. The \textsc{Cvn} cannot miss a
-bug that exists in the \textsc{Cir}.
 
 \begin{theorem}[Backward simulation under concrete valuation]
 \label{thm:backward}
-Let $(M, V) = \mathsf{enc}(C)$ where all variables in $V$ have
-concrete values (no variable equals $\top$). For every enabled
-\textsc{Cvn} transition $t$ at $(M, V)$, there exists a \textsc{Cir}
-step $C \xrightarrow{o} C'$ such that
-$\mathsf{enc}(C') = \mathsf{fire}(t, M, V)$.
+If all variables have concrete values (no $\top$), then for every enabled \textsc{Cvn} transition $t$ at $\mathsf{enc}(C)$, there exists a corresponding \textsc{Cir} step.
 \end{theorem}
 
-\begin{proof}
-When all variables are concrete, guard evaluation in the \textsc{Cvn}
-produces only $\mathsf{true}$ or $\mathsf{false}$, never
-$\mathsf{unknown}$. The enabling conditions of \textsc{Cvn}
-transitions therefore coincide exactly with the preconditions of
-\textsc{Cir} operations. The argument proceeds by case analysis,
-symmetric to Theorem~\ref{thm:forward}.
+\begin{proof}[Proof sketch]
+When all variables are concrete, guards evaluate to
+$\mathsf{true}$ or $\mathsf{false}$, never $\mathsf{unknown}$.
+The enabling conditions of \textsc{Cvn} transitions coincide
+exactly with the preconditions of \textsc{Cir} operations.
+The condvar auxiliary variables ($\mathit{nw}$, $\mathit{na}$) are always concrete because they are maintained by precise arithmetic and boolean updates.
 \end{proof}
 
-When some variable has the value $\top$, the backward simulation may
-fail: a guard involving that variable evaluates to $\mathsf{unknown}$,
-enabling the transition in the \textsc{Cvn}, but the corresponding
-\textsc{Cir} branch may not be takeable under any concrete valuation.
-This is the source of potential false positives, discussed in
-Section~\ref{subsec:over-approx}.
 % ─────────────────────────────────────────────────────────────
-\subsection{Deadlock Correspondence}
-\label{subsec:deadlock-correspondence}
+\subsection{Correspondence and Soundness}
+\label{subsec:soundness}
 
 \begin{theorem}[Deadlock correspondence]
 \label{thm:deadlock-corr}
-A \textsc{Cir} configuration $C$ is a deadlock (non-terminal with no
-enabled step) if and only if $\mathsf{enc}(C)$ is a deadlock in the
-\textsc{Cvn} (non-terminal marking with no enabled transition),
-provided all variables have concrete values.
+Under concrete valuation, a \textsc{Cir} configuration $C$ is a
+deadlock if and only if $\mathsf{enc}(C)$ is a deadlock in the
+\textsc{Cvn}.
 \end{theorem}
 
-\begin{proof}
-A configuration is a deadlock when the set of enabled
-operations/transitions is empty and at least one thread has not
-returned. By Theorems~\ref{thm:forward} and~\ref{thm:backward}, the
-enabled sets coincide under concrete valuation. The non-terminal
-condition is preserved by the encoding: a thread at
-$\mathit{sid} \neq \mathit{ret}$ maps to a token in a non-return
-control place.
-\end{proof}
+This follows directly from Theorems~\ref{thm:forward}
+and~\ref{thm:backward}: the enabled sets coincide, so both sides agree on whether the set is empty. Under $\top$-valued variables, the correspondence is one-directional: a \textsc{Cir} deadlock implies a \textsc{Cvn} deadlock, but not vice versa.
 
-Under $\top$-valued variables, the correspondence is one-directional:
-a \textsc{Cir} deadlock implies a \textsc{Cvn} deadlock (by
-Theorem~\ref{thm:forward}), but a \textsc{Cvn} deadlock may not
-correspond to any \textsc{Cir} deadlock (the \textsc{Cvn} may have
-reached the state through an infeasible branch enabled by
-$\mathsf{unknown}$).
-
-
-\subsection{Signal Loss Soundness}
-\label{subsec:signal-loss-soundness}
-
-The updated condvar model enables a precise characterization of
-signal loss.
-
-\begin{proposition}[Signal loss detection]
+\begin{proposition}[Signal loss precision]
 \label{prop:signal-loss}
-A \textsf{notify\_one} or \textsf{notify\_all} operation at
-$\mathit{sid}_n$ causes a signal loss in a \textsc{Cir} execution if
-and only if the corresponding \textsc{Cvn} transition
-$t_{\mathit{lost}}$ or $t_{\mathit{allLost}}$ fires at state
-$(M, V)$ with $V[\mathit{nw}_{\mathit{cv}}] = 0$.
+A notification at $\mathit{sid}_n$ causes a signal loss in a
+\textsc{Cir} execution if and only if the corresponding
+$t_{\mathit{lost}}$ transition fires in the \textsc{Cvn}.
 \end{proposition}
 
-\begin{proof}
-Forward direction: if the \textsc{Cir} notification occurs with
-$\mathit{NW}(\mathit{cv}) = 0$, then by the encoding
-$V[\mathit{nw}_{\mathit{cv}}] = 0$, and the guard of
-$t_{\mathit{lost}}$ is satisfied. Backward direction: if
-$t_{\mathit{lost}}$ fires, then
-$V[\mathit{nw}_{\mathit{cv}}] = 0 = \mathit{NW}(\mathit{cv})$,
-and the \textsc{Cir} notification has no waiters.
-\end{proof}
-
-This proposition establishes that the signal-loss annotation on the
-lost transitions is both sound (no false negatives) and precise (no
-false positives) with respect to the \textsc{Cir} semantics. A
-signal loss is recorded if and only if the notification has no
-waiters in the corresponding \textsc{Cir} execution.
-
-
-
-% ─────────────────────────────────────────────────────────────
-\subsection{Soundness of Over-Approximation}
-\label{subsec:over-approx}
+This follows from the encoding: $V[\mathit{nw}_{\mathit{cv}}] =
+\mathit{NW}(\mathit{cv})$ is always concrete, so the guard
+$\mathit{nw}_{\mathit{cv}} = 0$ evaluates correctly in both
+directions. Signal loss detection has no false positives and no
+false negatives.
 
 \begin{theorem}[Soundness]
 \label{thm:soundness}
-If a \textsc{Cir} execution can reach a bug configuration (deadlock,
-signal loss, starvation, or livelock), then the \textsc{Cvn}
-state-space search will find a corresponding bug state.
+If a \textsc{Cir} execution can reach a bug configuration, the
+\textsc{Cvn} state-space search will find a corresponding bug
+state.
 \end{theorem}
 
-\begin{proof}
-Let $C_0 \xrightarrow{o_1} C_1 \xrightarrow{o_2} \cdots
-\xrightarrow{o_n} C_n$ be a \textsc{Cir} execution reaching a bug
-configuration $C_n$. By Theorem~\ref{thm:forward}, there exists a
-corresponding \textsc{Cvn} firing sequence
-$(M_0, V_0) \xrightarrow{t_1} \cdots \xrightarrow{t_n}
-(M_n, V_n)$ with $(M_i, V_i) = \mathsf{enc}(C_i)$ for each $i$.
-
-The $\mathsf{unknown}$ mechanism only adds enabled transitions to
-the \textsc{Cvn} (both branches of an unknown guard become enabled).
-It never removes transitions that would be enabled under concrete
-evaluation. Therefore, every transition enabled in the concrete
-\textsc{Cvn} is also enabled in the $\mathsf{unknown}$-augmented
-\textsc{Cvn}. The firing sequence above remains valid.
-
-The bug predicate (deadlock, signal loss, starvation, livelock) is
-defined over \textsc{Cvn} states and state-graph structure
-(Definitions~\ref{def:deadlock}--\ref{def:channel-block}). Since
-$(M_n, V_n) = \mathsf{enc}(C_n)$ and $C_n$ satisfies the bug
-predicate at the \textsc{Cir} level, $(M_n, V_n)$ satisfies the
-corresponding predicate at the \textsc{Cvn} level.
-
-The finite state space (Theorem~\ref{thm:finite}) guarantees that
-the search terminates and visits $(M_n, V_n)$.
+\begin{proof}[Proof sketch]
+By Theorem~\ref{thm:forward}, every \textsc{Cir} trace has a
+corresponding \textsc{Cvn} firing sequence. The $\mathsf{unknown}$ mechanism only adds enabled transitions; it never removes transitions that would be enabled under
+concrete evaluation. The bug predicates are defined over
+\textsc{Cvn} states and are preserved by the encoding. The finite state space guarantees that the search terminates and visits all reachable states.
 \end{proof}
 
-The converse does not hold: the \textsc{Cvn} may report bugs in
-states that are reachable only through $\mathsf{unknown}$-enabled
-branches and that no concrete \textsc{Cir} execution can reach.
-These are false positives. In practice, false positives arise only
-when variables modified by summarized functions
-(Section~\ref{subsec:translation}, Phase~3) are used in branch
-conditions. For fully modeled programs where all functions have
-bodies in the \textsc{Cir}, all variables have concrete values
-throughout execution, and the analysis produces no false positives.
-
-% ─────────────────────────────────────────────────────────────
-\subsection{Loop Modeling}
-\label{subsec:loop-discussion}
-
-The system does not perform automated loop unrolling. This is a
-deliberate design decision based on two observations.
-
-\textbf{Concurrency bugs are topological.} Deadlocks, signal losses,
-and starvation are triggered by the structure of synchronization
-interactions, not by loop iteration counts. A circular lock
-dependency causes deadlock on the first iteration. A misplaced
-notification causes signal loss regardless of how many times the loop
-body executes. Two or three concurrent instances are sufficient to
-expose the vast majority of synchronization bugs.
-
-\textbf{LLM-driven instance unfolding replaces loop unrolling.}
-When the source code contains a loop that spawns $N$ workers, the
-LLM unfolds the loop into a small number (typically 2 or 3) of
-explicit \textsf{spawn} statements in the \textsc{Cir}. Each
-instance receives a unique function name (e.g.,
-\texttt{worker\_0}, \texttt{worker\_1}) and therefore a unique set
-of control places in the \textsc{Cvn}. Black tokens suffice to
-distinguish thread positions because the places themselves are
-distinct.
-
-Non-spawn loops retain their back-edge structure in \textsc{Cir}. A
-loop body that modifies a shared variable may cause that variable to
-take different values on different iterations. If the variable's
-value cannot be determined statically, it becomes $\top$ in the
-\textsc{Cvn} after the first iteration. The three-valued guard
-evaluation then enables both branches of any condition involving
-that variable, ensuring that all paths through the loop body are
-explored. This provides a safe over-approximation of all loop
-iterations without explicit unrolling.
-
-\textbf{Consequence.} The system verifies a fixed, bounded number of
-concurrent instances, not parametric correctness for arbitrary $N$.
-Bugs that require more instances than the LLM generates (e.g., a
-$k$-way circular deadlock where $k$ exceeds the unfolding count)
-will not be detected. In practice, setting the unfolding count to
-$\min(N, 3)$ is sufficient for the patterns in our test matrix
-(Section~\ref{sec:evaluation}).
-
-% ─────────────────────────────────────────────────────────────
-\subsection{Why Colored Tokens Are Unnecessary}
-\label{subsec:no-color}
-
-Classical colored Petri nets (CPNs) attach typed data to tokens,
-enabling a single parameterized net to model multiple instances. In
-our architecture, this parameterization is unnecessary for two
-reasons.
-
-First, the LLM has already resolved all resource identities at the
-\textsc{Cir} level. Tokens do not need to carry resource names
-because each resource has a dedicated place. Second, the LLM has
-already unfolded concurrent instances into distinct functions. Tokens
-do not need to carry thread identities because each instance has
-dedicated control places. Black tokens are sufficient.
-
-This simplification eliminates the need for color sets, binding
-expressions, arc inscriptions, and the canonical state
-representation that CPNs require for state-space exploration. The
-resulting \textsc{Cvn} is a standard weighted P/T net (augmented
-with global-variable guards), for which efficient analysis algorithms
-are well established~\cite{Murata1989}.
-
-% ─────────────────────────────────────────────────────────────
-\subsection{Limitations}
-\label{subsec:limitations}
-
-\textbf{LLM reliability.} The correctness of the \textsc{Cir}
-depends on the LLM's understanding of the source code. Complex
-aliasing through unsafe code, raw pointers, or foreign function
-interfaces may exceed current LLM capabilities. Errors in the LLM's
-resource identification manifest as structural errors in \textsc{Cir}
-and are caught by the static checker, but subtle omissions (e.g.,
-failing to model a shared resource) may lead to missed bugs.
-
-\textbf{Over-approximation.} The $\top$ mechanism may produce false
-positives when branch conditions involve variables whose values
-cannot be determined. The false positive rate depends on the
-proportion of summarized functions and the complexity of branch
-conditions.
-
-\textbf{Bounded instances.} The system verifies a fixed number of
-unfolded instances. Parametric correctness (``safe for any $N$'') is
-outside the current scope.
-
-\textbf{No weak-memory model.} Atomic operations are modeled at the
-variable level without a formal memory model. Bugs that depend on
-weak-memory ordering (e.g., missing barriers on ARM) are not
-detected.
-
-\textbf{State explosion.} The state space grows exponentially with
-the number of concurrent entities. For programs with many threads
-and many synchronization operations, the search may exceed the
-configured state limit before completing. The timeout and
-state-limit parameters allow trading completeness for practicality.
+The converse does not hold: the \textsc{Cvn} may report false
+positives in states reachable only through $\mathsf{unknown}$-enabled branches. For fully modeled programs, all variables remain concrete and no false positives arise.
 

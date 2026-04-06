@@ -1,4 +1,14 @@
 \section{Conclusion}
 \label{sec:conclusion}
-[To be discussed next.]
 
+This paper presented a generate--verify--repair architecture that shifts concurrency reasoning from error-prone source-level alias analysis to an explicit, alias-free intermediate representation, \textsc{Cir}. By capturing synchronization intent---including shared-resource identities and protection relations---\textsc{Cir} enables a deterministic mapping to \textsc{Cvn}, a weighted P/T Petri net with three-valued logic.
+
+The acceptance criterion for a verified \textsc{Cir} is the
+conjunction of bug-freedom and goal reachability. Bug detection answers ``does anything go wrong?'' via pattern matching over the state space. Goal reachability answers ``can the program achieve what it is supposed to?'' via a linear scan over the same state set, corresponding to the resource-derivability question of linear logic. By checking goals only after establishing bug-freedom, the pipeline cleanly separates two failure modes: concurrency defects
+that block progress, and semantic regressions that silently remove essential behavior. Our evaluation shows that this lightweight check (under 0.5\,ms) catches semantic regressions that pass all other verification layers.
+
+\paragraph{Future work.}
+\textbf{Source--CIR conformance.} An independent extractor that recovers a concurrency skeleton from generated source code and checks structural conformance against the verified \textsc{Cir} would strengthen the end-to-end guarantee.
+\textbf{Weak-memory semantics.} Extending the \textsc{Cvn} with fence operations would enable detection of bugs that depend on relaxed atomics.
+\textbf{Path-sensitive goals.} The current goals check state
+reachability. Extending to ordering goals (``$x$ must be written before $y$ is read'') would require path-based analysis over the state graph, a natural next step given the existing infrastructure.

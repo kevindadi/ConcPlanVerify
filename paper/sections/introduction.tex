@@ -1,120 +1,24 @@
-% ══════════════════════════════════════════════════════════════
-%  INTRODUCTION
-% ══════════════════════════════════════════════════════════════
 \section{Introduction}
 \label{sec:introduction}
 
-% ── 1. 并发 bug 的严重性 ──────────────────────────────────
-% 并发错误——包括死锁、数据竞争、信号丢失和饥饿——是软件系统中代价最高的缺陷之一。它们源于线程、锁、条件变量、通道和共享状态之间微妙的交互，并且由于依赖于调度的不确定性，因此极难复现。与确定性地显现的顺序错误不同，并发错误可能在数百万次的测试运行中都难以被发现，而只有在特定的时间条件下才会在生产环境中出现。工业界和学术界都采用了两种主要的策略来对抗这些错误：动态分析，即在运行时探索程序的执行过程；以及静态分析，即在不执行程序的情况下推断其行为。诸如 Miri、ThreadSanitizer 和 Loom 之类的动态工具能够有效地检测已探索调度中的错误，但它们本质上无法保证未探索调度中不存在错误。原则上，静态分析可以提供这种保证——但它面临着一个根本性的障碍。
-Concurrency bugs---deadlocks, data races, signal losses, and starvation---are among the most costly defects in software systems. They arise from subtle interactions among threads, locks, condition variables, channels, and shared state,and they are notoriously difficult to reproduce because they depend on scheduling nondeterminism. Unlike sequential bugs that manifest deterministically, a concurrency bug may hide through millions of test runs and surface only in production under specific timing conditions.Both industry and academia have pursued two broad strategies to combat these bugs: \emph{dynamic analysis}, which explores program executions at runtime, and \emph{static analysis}, which reasons about program behavior without executing it. Dynamic tools such as Miri, Thread Sanitizer, and Loom are effective at detecting bugs along explored schedules, but they inherently cannot guarantee the absence of bugs along unexplored schedules. Static analysis, in principle, can provide such guarantees---but it faces a fundamental barrier.
+Concurrency bugs such as deadlocks, signal losses, starvation, and blocking protocol errors remain difficult to detect and repair because they arise from interactions among threads rather than from a single local control path. Dynamic tools can expose concrete failing schedules, but they do not rule out unexplored interleavings. Static techniques can, in principle, provide broader guarantees, yet they face a familiar obstacle: the analysis must determine which operations refer to the same shared resource and which synchronization primitives protect which shared state.
 
-% ── 2. 别名问题：静态分析的根本障碍 ─────────────────────
-% 根本障碍在于别名问题：确定两个程序引用是否指向同一内存位置。这个问题通常是不可判定的，即使对于顺序程序，在实践中也难以精确判断。对于并发程序，情况则更为糟糕。考虑一个 Rust 程序，其中两个线程各自接收一个 Arc<(Mutex<State>, Condvar)> 的克隆。为了确定两个线程是否操作同一个互斥锁-条件变量对，静态分析器必须追踪该值经过堆分配、Arc::clone、模式解构、借用和闭包捕获的过程——这条链使得大多数指针分析都无法奏效。然而，别名信息对于并发验证来说并非可有可无。如果不知道两个锁操作是否指向同一个互斥锁，死锁检测器就无法构建锁序图。如果不知道变量访问和锁获取指向一个受保护的变量对，竞争检测器就无法判断该访问是否受保护。所有主要的并发分析类别——锁顺序分析、先行断言、数据竞争检测、同步协议验证——都要求精确的别名信息作为前提条件。因此，别名问题不仅仅是造成精度不足的原因；它是整个分析的“承重墙”，一旦移除，整个分析就会崩溃。现有工具通过各种折衷方案来应对这一障碍。流不敏感分析通过合并所有程序点的别名集来牺牲精度。流敏感分析可以实现更高的精度，但扩展性差。动态工具通过在运行时观察具体地址来绕过别名，但会牺牲覆盖率。所有这些折衷方案都无法满足“自动化修复”工作流程的要求，因为在自动化修复工作流程中，每个诊断结果都必须既精确（避免浪费修复工作的误报）又可操作（指向具体的代码位置）。
-\subsection{The Alias Barrier in Concurrency Analysis}
-\label{subsec:alias-barrier}
-The fundamental barrier is the \emph{alias problem}: determining whether two program references denote the same memory location. This problem is undecidable in general and remains imprecise in practice even for sequential programs. For concurrent programs, the situation is substantially worse. Consider a Rust program in which two threads each receive a clone of an\texttt{Arc<(Mutex<State>,\,Condvar)>}. To determine whether both threads operate on the \emph{same} mutex--condvar pair, astatic analyzer must trace the value through heap allocation,\texttt{Arc::clone}, pattern destructuring, borrowing, and closure capture---a chain that defeats most pointer analyses.Yet alias information is not optional for concurrency verification.Without knowing that two lock operations target the same mutex, a deadlock detector cannot construct a lock-order graph. Without knowing that a variable access and a lock acquisition refer to a guarded pair, a race detector cannot determine whether the access is protected. Every major category of concurrency analysis---lock-order analysis, happens-before reasoning, data-race detection,synchronization-protocol verification---requires precise alias information as a prerequisite. The alias problem is therefore not merely a source of imprecision; it is the \emph{load-bearing wall}whose removal collapses the entire analysis.Existing tools cope with this barrier through various compromises.Flow-insensitive analyses sacrifice precision by merging alias sets across all program points. Flow-sensitive analyses achieve better precision but scale poorly. Dynamic tools sidestep aliases by observing concrete addresses at runtime, but sacrifice coverage. None of these compromises is satisfactory for an\emph{automated repair} workflow in which every diagnostic must be both precise (no false positives that waste repair effort) and actionable (pointing to specific code locations).
+That source-level inference problem is dominated by aliasing and representation details. In realistic code, a verifier may need to track a mutex or condition variable through heap allocation, cloning, container indirection, borrowing, and closure capture before it can even ask whether two operations contend for the same object. For concurrency reasoning, this is more than a nuisance: lock-order analysis, protocol checking, and protection checking all depend on a reliable notion of resource identity.
 
-% ── 3. 关键洞察：不是解析别名，而是理解业务 ──────────────
-% 我们观察到，别名问题的难点在于其框架。传统分析提出的问题是关于实现工件的：“给定这堆指针、闭包和引用计数句柄，哪些表达式对恰好指向同一个对象？”这是一个关于偶然巧合的问题，其难点恰恰在于答案取决于指针操作的完整历史。但对于并发分析而言，有一个更简单的问题也能提供相同的信息：“这个程序打算使用哪些共享资源，哪些锁保护哪些变量？”这是一个关于业务语义的问题——关于程序员打算构建什么，而不是关于编译器看到什么。
-\subsection{Reframing: From ``What Aliases'' to ``What Should Be Shared''}
-\label{subsec:reframing}
-We observe that the difficulty of the alias problem stems from its framing. Traditional analysis asks a question about \emph{implementation artifacts}: ``Given this heap of pointers, closures, and reference-counted handles, which pairs of expressions happen to refer to the same object?'' This is a question about emergent coincidence, and it is hard precisely because the answer depends on the full history of pointer manipulation. But there is a much easier question that yields the same information for concurrency analysis: ``What shared resources does this program \emph{intend} to use, and which locks protect which variables?'' This is a question about \emph{business semantics}---about what the programmer \emph{meant} to build, not about what the compiler sees.
+This paper explores a different formulation. We do not claim to solve source-level alias analysis. Instead, we shift resource identification to a model-generation step and ask an LLM to synthesize an explicit concurrency artifact from a natural-language requirement or system specification. The key premise is that many concurrency designs are easier to describe at the level of intended resources and protocols than at the level of pointer identity. Once those intended resources are named explicitly, the formal back-end no longer needs alias recovery to reason about synchronization behavior.
 
-% 基于海量代码语料库训练的大型语言模型（LLM）擅长此类语义理解。读取生产者-消费者实现的LLM无需追踪Arc::clone链；它理解程序有一个共享队列、一个保护它的互斥锁和一个指示数据可用性的条件变量。它之所以知道这一点，是因为它理解了业务模式，而不是因为它执行了指针分析。这一洞见提示了一种根本性的重新构建：与其构建一个更好的别名分析器，不如让LLM生成一个不存在别名的表示。如果每个共享资源在生成时都获得一个唯一的全局名称，则无需解析别名——问题通过构造而非分析得到消除。LLM的作用不是“解析别名”（这相当于要求它执行与传统分析相同的艰巨任务）；它的作用是根据对业务逻辑的理解来声明程序的资源架构。
-Large language models (LLMs), trained on massive code corpora, excel at precisely this kind of semantic understanding. An LLM reading a producer--consumer implementation does not need to trace \texttt{Arc::clone} chains; it understands that the program has one shared queue, one mutex protecting it, and one condvar signaling data availability. It knows this because it understands the \emph{business pattern}, not because it performs pointer analysis. This insight suggests a fundamental reframing: instead of building a better alias analyzer, \textbf{we ask the LLM to generate a representation in which aliases do not exist}. If every shared resource receives a unique global name at generation time, there are no aliases to resolve. The LLM's role is not to resolve aliases which would be asking it to perform the same hard task as traditional analysis; its role is to declare the resource architecture of the program based on its understanding of the business logic.
+The first artifact in this formulation is the Concurrency Intermediate Representation (\textsc{Cir}), a statement-level concurrency model rather than a general-purpose compiler IR. \textsc{Cir} assigns every shared resource a global name, records lock-to-variable protection relations explicitly, and associates each statement with a stable identifier (\texttt{sid}) for diagnostics and repair. This design intentionally narrows the modeling scope to the concurrency skeleton of the program: synchronization operations, thread creation and joining, and data-dependent control over shared state.
 
-% ── 4. CIR：基于业务理解的中间表示 ───────────────────────
-% 基于这种重新构建，我们提出了并发中间表示（Cir）。Cir 是一种中间语言，旨在由逻辑逻辑模型（LLM）生成，并由形式验证引擎使用。其核心设计原则直接解决了别名障碍：全局资源命名。每个共享资源——互斥锁、读写锁、条件变量、信号量、通道、共享变量、原子变量——都拥有一个唯一的全局名称。函数直接通过名称引用资源，无需参数或返回值。没有指针、堆，也没有间接寻址。显式保护映射。Cir 在一个专门的“保护”部分声明哪些锁保护哪些变量。这种关系在传统分析中需要费力推断，而在这里则被声明为一等声明，因为 LLM 可以通过理解程序设计自动获知它。语句级标识符。每个 Cir 语句都带有一个唯一的标识符 (sid)，为反例报告和定向修复提供稳定的锚点。Cir 不是通用编译器中间表示 (IR)。它仅保留与并发验证相关的结构：同步操作、线程控制和共享状态上的分支。业务逻辑（算术运算、字符串操作、I/O）已被抽象化。这种刻意的缩小范围使得 LLM 生成可靠：LLM 不需要生成完整的可执行程序；它只需要捕获并发架构。静态检查器会根据 61 条规则（分为 9 个错误类别 E0xx 到 E8xx）验证 Cir 工件，在执行更耗时的验证步骤之前捕获结构错误（缺少字段、未定义的资源）、语义错误（对非锁定资源加锁、未受保护的变量访问）和一致性错误（spawn/join 不匹配、不可达语句）。
-\subsection{\textsc{Cir}: Concurrency Intermediate Representation}
-\label{subsec:intro-cir}
+The second artifact is the Concurrency Verification Net (\textsc{Cvn}), a verification model built on a weighted place/transition Petri net. \textsc{Cvn} keeps the Petri-net view of concurrency and resource contention, while extending it with a finite global variable store and three-valued guards so that data-dependent branching can be analyzed without moving to a full colored-net formalism. A validated \textsc{Cir} artifact is translated mechanically to \textsc{Cvn}, and the resulting state space is explored exhaustively within the bounded model.
 
-Based on this reframing, we propose the \emph{Concurrency Intermediate Representation} (\textsc{Cir}). \textsc{Cir} is an intermediate language designed to be generated by an LLM and consumed by a formal verification engine. Its core design principles directly address the alias barrier: 1. Every shared resource (mutex, read-write lock, condition variable, semaphore, channel, shared variable, atomic variable) receives a unique global name. Functions reference resources directly by name without parameters or return values. There are no pointers, no heap, no indirection. 2. The \textsc{Cir} declares which locks protect which variables in a dedicated \texttt{protection} section. This relationship, which traditional analysis must laboriously infer, is stated as a first-class declaration because the LLM knows it from understanding the program's design. 3. Each \textsc{Cir} statement carries a unique identifier ($\mathsf{sid}$), providing stable anchors for counterexample reporting and targeted repair. 
+The generate--verify--repair loop is central to the architecture. Static checking first filters out malformed \textsc{Cir} artifacts. State-space analysis then reports concurrency violations using traces anchored to \textsc{Cir} statement identifiers, allowing the LLM to revise specific parts of the model rather than regenerate the entire artifact. We further require that accepted repairs preserve user-stated business goals. This additional check matters because a bug-free repair can still be incorrect if it achieves safety by deleting required behavior.
 
-\textsc{Cir} is not a general-purpose compiler IR. It retains only the structure relevant to concurrency verification: synchronization operations, thread control, and branching over shared state. Business logic (arithmetic, string manipulation, I/O) is abstracted away. This deliberate narrowing is what makes LLM generation reliable: the LLM does not need to produce a complete, executable program; it only needs to capture the concurrency architecture. A static checker validates \textsc{Cir} artifacts against 61~rules organized in 9~error categories, catching structural errors (missing fields, undefined resources), semantic errors (lock on non-lock resource, unprotected variable access), and consistency errors (spawn/join mismatch, unreachable statements) before the more expensive verification step.
+The trust boundary of the present paper is therefore the generated \textsc{Cir} artifact, not arbitrary source code. We verify the model that the LLM produces; we do not prove source-to-\textsc{Cir} equivalence. This boundary is a limitation, but it is also what makes the approach analyzable: by separating semantic model construction from exhaustive state exploration, the pipeline combines LLM-assisted intent recovery with formal reasoning about interleavings.
 
-
-% ── 5. 为什么还需要形式化验证 ────────────────────────────
-% 如果逻辑逻辑模型（LLM）对并发的理解足以生成循环死锁（Cir），为什么不直接要求它们验证正确性呢？答案在于并发性错误的本质。跨线程错误源于独立正确操作之间的组合交互。考虑三个线程以不同的顺序获取三个锁：每个线程的代码在局部都是正确的，但系统却出现了循环死锁。交错操作的数量随着并发实体和同步操作的数量呈指数级增长。LLM本质上是顺序推理器。它们可以理解局部模式（“这个锁在那个锁之前获取”）和常见惯用法（“条件变量 wait 应该放在 while 循环中”），但它们无法系统地枚举 10^6 种交错操作来找到导致死锁的那一种。这正是形式化验证方法的作用：它们提供给定抽象范围内状态空间的“穷举覆盖”。
-\subsection{Why LLMs Alone Are Not Enough}
-\label{subsec:why-verify}
-
-If LLMs understand concurrency well enough to generate \textsc{Cir}, why not simply ask them to also verify correctness? The answer lies in the nature of concurrency bugs. Cross-thread bugs emerge from \emph{combinatorial interactions} among independently correct operations. Consider three threads acquiring three locks in different orders: each thread's code is locally correct, but the system exhibits circular deadlock. The number of interleavings grows exponentially with the number of concurrent entities and synchronization operations. LLMs are fundamentally sequential reasoners. They can understand local patterns (``this lock is acquired before that one'') and common idioms (``condvar wait should be in a while loop''), but they cannot systematically enumerate $10^6$ interleavings to find the one that leads to deadlock. This is precisely what formal verification methods do: they provide \emph{exhaustive coverage} of the state space within a given abstraction.
-
-This leads to a natural separation of concerns: the LLM is tasked with the semantic heavy-lifting—interpreting the program's intent to generate a precise, alias-free \textsc{Cir}; the formal engine then takes over to rigorously explore all possible execution interleavings for bugs; and finally, the LLM re-enters the loop to diagnose and rectify the specification based on the formal engine’s findings.
-
-% ── 6. 为什么选 Petri 网，为什么是 CVN ───────────────────
-% 形式化验证后端的选择并非显而易见。原则上，一些成熟的框架都可以作为分析引擎。在阐述我们选择的理由之前，我们会对主要的替代方案进行比较。显式状态模型检测（例如 SPIN）要求将程序重新表达为领域特定的建模语言（Promela）。虽然功能强大，但这引入了一个手动转换步骤，而我们的架构旨在实现这一步骤的自动化。此外，生成的模型也缺乏用于模块化分析的自然组合结构。有界模型检测（例如 CBMC）将有界执行编码为 SAT/SMT 问题。它对于顺序程序和有界线程数的程序是有效的，但同步原语（条件变量语义、通道阻塞、信号量计数）的编码需要大量的人工工作，并且无法自然地支持需要循环检测的活性属性（饥饿、活锁）。动态分析（例如 Miri、Loom）探索具体的执行过程。Miri 每次执行运行一个调度； Loom 系统地探索了小型测试框架的有限调度方案。两者都不能提供全面的测试覆盖，而且都需要可执行代码，而不是抽象的中间表示。
-\subsection{Why Petri Nets, and Why \textsc{Cvn}}
-\label{subsec:why-petri}
-The choice of formal verification back-end is not obvious. Several established frameworks could, in principle, serve as the analysis engine. We compare the main alternatives before justifying our choice. Explicit-state model checking (e.g., SPIN) requires programs to be re-expressed in a domain-specific modeling language (Promela). While powerful, this imposes a manual translation step that our architecture seeks to automate. The resulting models also lack a natural compositional structure for modular analysis. Bounded model checking (e.g., CBMC) encodes bounded executions as SAT/SMT problems. It is effective for sequential programs and bounded thread counts, but the encoding of synchronization primitives (condvar semantics, channel blocking, semaphore counting) requires substantial manual effort and does not naturally support liveness properties (starvation, livelock) that require cycle detection. Dynamic analysis (e.g., Miri, Loom) explores concrete executions. Miri runs one schedule per execution; Loom systematically explores bounded schedules for small test harnesses. Neither provides exhaustive coverage, and both require executable code rather than an abstract intermediate representation.
-
-Petri nets offer a natural fit for this task for several compelling reasons. First, they provide a native concurrency model where tokens in places represent thread positions and resource availability, and transitions represent operations; concurrency is inherent rather than encoded atop a sequential framework. Second, they boast well-studied decidability properties—deadlock detection, boundedness, and coverability are decidable for P/T nets, while liveness can be verified through strongly connected component analysis on the reachability graph. Third, their compositional structure allows separate subnets for different functions to compose naturally via shared resource places, mirroring the structure of \textsc{Cir}. Finally, their visual interpretability provides a natural graphical representation that greatly aids in debugging and understanding counterexamples.
-
-However, standard P/T nets lack the ability to model data-dependent branching. While Classical Colored Petri Nets (\textsc{CPNs}) address this by attaching typed data to tokens, they introduce significant complexity regarding color sets, bindings, and arc inscriptions. For our setting, this complexity is unnecessary.
-
-% 由于 CIR 已通过全局命名解析了所有资源标识，因此令牌无需携带标识信息。LLM 已将有界并发实例展开为显式的多个 spawn，为每个实例赋予其自身的控制位置命名空间。因此，黑色令牌（不可区分且未着色）足以跟踪线程位置和资源可用性。为了在不使用着色令牌的情况下对共享变量状态和数据相关的分支进行建模，我们引入了一个具有三值求值的全局变量存储 $V$。这引出了我们的第二个形式化模型：并发验证网 (CVN)。CVN 是一个具有特定增强功能的加权 P/T Petri 网。它包含一个全局变量存储 $V$ : \mathsf{VarName} 到 \mathsf{Val}，其中 \mathsf{Val} 包含具体值和一个吸收未知元素 \topval。它利用输入弧上的守卫，这些输入弧是 $V$ 上的布尔表达式，只有当其值为非假时，转换才能启用。它定义了输出弧上的更新，这些更新是在触发时对 $V$ 执行的赋值操作。关键在于，它采用了三值求值：真（启用）、假（禁用）和未知（通过过度近似启用）。这种设计实现了并发验证所需的建模能力——特别是数据相关的分支和变量保护的同步——而无需使用彩色标记。表~\ref{tab:comparison} 总结了这些模型之间的比较。
-Because \textsc{Cir} has already resolved all resource identities through global naming, tokens do not need to carry identity information. The LLM has already unfolded bounded concurrent instances into explicit multiple spawns, giving each instance its own control-place namespace. Black tokens—indistinguishable and uncolored—are therefore sufficient to track thread positions and resource availability. To model shared variable state and data-dependent branching without colored tokens, we introduce a global variable store $V$ with three-valued evaluation. This leads to our second formalism: the Concurrency Verification Net (\textsc{Cvn}). \textsc{Cvn} is a weighted P/T Petri net augmented with specific features. It incorporates a global variable store $V$: $\mathsf{VarName}$ to $\mathsf{Val}$, where $\mathsf{Val}$ includes concrete values and an absorbing unknown element $\top$. It utilizes guards on input arcs, which are Boolean expressions over $V$ that must evaluate to non-false for a transition to enable. It defines updates on output arcs, which are assignments to $V$ executed upon firing. Critically, it employs three-valued evaluation: $\mathsf{true}$, $\mathsf{false}$, and $\mathsf{Unknown}$ enabled via over-approximation. This design achieves the necessary modeling power for concurrency verification—specifically data-dependent branching and variable-guarded synchronization—without the overhead of colored tokens. Table~\ref{tab:comparison} summarizes the comparison between these models.
-
-\begin{table}[t]
-\caption{Comparison of verification approaches.}
-\label{tab:comparison}
-\centering\footnotesize
-\begin{tabular}{@{}p{1.4cm}ccccc@{}}
-\toprule
-& \rotatebox{65}{Exhaustive}
-& \rotatebox{65}{No manual model}
-& \rotatebox{65}{Liveness}
-& \rotatebox{65}{Data guards}
-& \rotatebox{65}{Simplicity} \\
-\midrule
-SPIN        & \checkmark &            & \checkmark & \checkmark &            \\
-CBMC        & bounded    &            &            & \checkmark &            \\
-Miri/Loom   &            & \checkmark &            & \checkmark & \checkmark \\
-CPN         & \checkmark &            & \checkmark & \checkmark &            \\
-\textbf{\textsc{Cvn}} & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark \\
-\bottomrule
-\end{tabular}
-\vspace{-6pt}
-\end{table}
-
-% ── 7. 反例驱动的修复闭环 ────────────────────────────────
-% Cir 生成和 Cvn 验证并非独立进行，它们共同构成一个闭环的生成-验证-修复循环。在 Cvn 状态空间搜索过程中发现的错误会生成一个结构化的反例。该反例明确指出错误类型——死锁、信号丢失、饥饿、活锁或通道阻塞。它提供了一个转换跟踪。该跟踪包含每个步骤的 Cir 语句 ID，将抽象执行与具体的 Cir 语句关联起来。它捕获最终状态，指示哪些线程持有哪些锁以及哪些线程正在等待哪些资源。它还包含一个模板修复建议。该建议源自错误类型，例如，统一死锁的锁获取顺序，或使用 while 循环保护信号丢失的等待操作。
-\subsection{Closing the Loop: Counterexample-Guided Repair}
-\label{subsec:intro-repair}
-
-\textsc{Cir} generation and \textsc{Cvn} verification do not stand alone. They serve the closed generate–verify–repair loop. A bug found during \textsc{Cvn} state-space search produces a structured counterexample. This counterexample specifies the bug kind—deadlock, signal loss, starvation, livelock, or channel blocking. It provides a transition trace. This trace contains the \textsc{Cir} statement ID of every step, anchoring abstract execution to concrete \textsc{Cir} statements. It captures the final state, indicating which threads hold which locks and which threads wait on which resources. It includes a template repair suggestion. This suggestion is derived from the bug kind, such as unifying lock acquisition order for deadlock or protecting a wait with a while loop for signal loss.
-
-% 该结构化的反例会被格式化为修复提示并发送到 LLM。由于反例锚定于 $\mathsf{sid}$s 而非模糊的自然语言描述，LLM 可以生成有针对性的修复——修改特定的 \textsc{Cir} 语句，而不是重写整个程序。修复后的 \textsc{Cir} 通过同一流程重新验证，该过程最多重复 K 轮。这种架构利用了互补性：LLM 提供语义理解（程序应该做什么），而形式引擎提供穷举覆盖（程序在所有交错情况下实际做什么）。两者单独都不够：LLM 无法枚举交错情况，形式引擎也无法理解业务意图。它们共同构成了一个各自都无法独立完成的闭环。
-This structured counterexample is formatted into a repair prompt and sent to the LLM. Because the counterexample is anchored to $\mathsf{sid}$s rather than vague natural-language descriptions, the LLM can generate a \emph{targeted} fix---modifying specific \textsc{Cir} statements rather than rewriting the entire program. The repaired \textsc{Cir} is re-validated through the same pipeline, and the process repeats for at most $K$ rounds. This architecture exploits a complementarity: the LLM contributes \emph{semantic understanding} (what the program should do), while the formal engine contributes \emph{exhaustive coverage} (what the program actually does under all interleavings). Neither alone is sufficient: the LLM cannot enumerate interleavings, and the formal engine cannot understand business intent. Together, they close a loop that neither can close independently.
-
-% ── 8. 贡献 ──────────────────────────────────────────────
-\subsection{Contributions}
-\label{subsec:contributions}
-
-This paper makes the following contributions:
-
-\begin{enumerate}
-\item We show that the alias barrier can be bypassed entirely by exploiting LLM semantic understanding to generate an alias-free intermediate representation. The hard question ''what aliases?'' is replaced by an easy question ``what should be shared?'' that LLMs answer reliably.
-
-\item \textsc{Cir} features global resource naming, explicit protection mappings, and statement-level anchors. A static checker enforces 61~well-formedness rules in 9~categories.
-
-\item \textsc{Cvn} extends weighted P/T nets with global-variable guards and three-valued evaluation, achieving the modeling power of colored Petri nets for concurrency analysis without colored-token complexity.
-
-\item A faithful translation from \textsc{Cir} to \textsc{Cvn} with a step-correspondence theorem guaranteeing that every \textsc{Cir} execution has a corresponding \textsc{Cvn} firing sequence and vice versa.
-
-\item A two-layer verification architecture combining fast \textsc{Cir} static checking with exhaustive \textsc{Cvn} state-space search, producing structured counterexamples for LLM-driven repair.
-
-\item A test matrix of 10~representative patterns demonstrating that the pipeline catches cross-thread bugs that neither LLMs alone nor existing static analyzers can reliably detect.
-\end{enumerate}
-
-Section~\ref{sec:motivation} presents a motivating example.
-Section~\ref{sec:cir} defines \textsc{Cir}.
-Section~\ref{sec:cvn} defines \textsc{Cvn}.
-Section~\ref{sec:translation} presents the translation.
-Section~\ref{sec:analysis} describes state-space analysis.
-Section~\ref{sec:repair} covers counterexamples and repair.
-Section~\ref{sec:loops} discusses loop modeling.
-Section~\ref{sec:formal} states formal properties.
-Section~\ref{sec:tests} presents the test matrix.
-Section~\ref{sec:related} surveys related work.
-Section~\ref{sec:conclusion} concludes.
+We summarize our primary contributions as follows:
+\begin{itemize}
+    \item A model-first formulation of concurrency verification that shifts shared-resource identification from source-level alias reasoning to an LLM-synthesized verification artifact. The claim is not that alias analysis is solved, but that the formal reasoning layer no longer depends on it.
+    \item Two formalisms tailored to this workflow: \textsc{Cir} (Concurrency Intermediate Representation, an alias-free statement-level model with global resource names, explicit protection mappings, and stable statement identifiers) and \textsc{Cvn} (Concurrency Verification Net, a weighted P/T Petri net with a finite global store and three-valued guards).
+    \item A two-layer generate--verify--repair pipeline that combines deterministic \textsc{Cir} checking, mechanical translation, exhaustive state-space analysis, anchored counterexamples, and goal reachability checks to reject bug-free yet semantically incomplete repairs.
+    \item An evaluation on 9 representative bounded-concurrency patterns showing the behavior of the generation, detection, repair, and goal-preservation stages under this workflow.
+\end{itemize}

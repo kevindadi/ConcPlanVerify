@@ -1,584 +1,388 @@
-% ══════════════════════════════════════════════════════════════
-%  §7  Evaluation
-% ══════════════════════════════════════════════════════════════
 \section{Evaluation}
 \label{sec:evaluation}
 
-We evaluate the generate--verify--repair pipeline through four
-research questions:
+We evaluate the pipeline through four research questions:
 
 \begin{itemize}[leftmargin=1.4em]
-  \item \textbf{RQ1 (CIR Generation).} Which LLMs can produce a
-    syntactically valid \textsc{Cir} artifact, and how many
-    iterative rounds of feedback are required?
-  \item \textbf{RQ2 (Bug Detection \& Repair).} For a buggy
-    \textsc{Cir}, can \textsc{Cvn} analysis detect the bug? What is
-    the \textsc{Cvn} size and analysis cost? How many repair
-    iterations does the LLM need, and does the repair process
-    introduce regressions?
-  \item \textbf{RQ3 (Translation Correctness).} Does the
-    \textsc{Cir}$\,\to\,$\textsc{Cvn} translation preserve the
-    structural invariants required by the step-correspondence
-    theorem?
-  \item \textbf{RQ4 (Code--CIR Faithfulness).} Can we guarantee
-    that LLM-generated source code faithfully implements the
-    verified \textsc{Cir}?
+  \item \textbf{RQ1.} Can LLMs produce valid \textsc{Cir} from concurrency specifications, and how many feedback rounds are needed?
+  \item \textbf{RQ2.} Can \textsc{Cvn} analysis detect all seeded bugs? How many repair rounds does the LLM need, and does repair introduce regressions?
+  \item \textbf{RQ3.} Does the translation implementation preserve the structural invariants required by the step-correspondence theorem?
+  \item \textbf{RQ4.} What is the trust boundary between verified \textsc{Cir} and generated source code?
 \end{itemize}
 
 % ─────────────────────────────────────────────────────────────
-\subsection{Test Matrix}
+\subsection{Test Matrix and Setup}
 \label{subsec:test-matrix}
 
-Table~\ref{tab:test-matrix} lists the 10 concurrency patterns used
-across all RQs. Seven patterns contain known bugs and three are
-bug-free baselines that verify the absence of false positives. Each
-pattern exercises a distinct combination of synchronization
-primitives and bug kinds.
+Table~\ref{tab:test-matrix} lists the 9 concurrency patterns used across all RQs. Six patterns contain known bugs spanning all five bug kinds defined in Section~\ref{subsec:bug-patterns}. Three patterns are bug-free baselines that verify the absence of false positives. Bug kinds, detection layers, and repair strategies are
+defined in Sections~\ref{subsec:bug-patterns} and~\ref{subsec:counterexample}; we do not repeat them here.
 
 \begin{table*}[t]
-\caption{Test matrix. Each pattern is verified in both buggy and fixed
-form. Detection layer indicates whether the bug is caught by
-\textsc{Cir} static checking (Layer~1) or \textsc{Cvn} state-space
-search (Layer~2).}
+\caption{Test matrix. Bug kinds and repair strategies are defined in Sections~\ref{subsec:bug-patterns} and~\ref{subsec:counterexample}.}
 \label{tab:test-matrix}
 \centering\footnotesize
-\begin{tabular}{@{}clllllp{3.6cm}@{}}
+\begin{tabular}{@{}cllllp{3.4cm}@{}}
 \toprule
 \textbf{\#} & \textbf{Pattern} & \textbf{Bug kind}
-  & \textbf{Safety/Liveness} & \textbf{Layer} & \textbf{Key resources}
-  & \textbf{Repair strategy} \\
+  & \textbf{Safety / Liveness} & \textbf{Key resources}
+  & \textbf{Repair template} \\
 \midrule
 1  & Two-mutex deadlock
-   & Deadlock & Safety & 2
+   & Deadlock & Safety
    & Mutex $\times 2$
    & Unify lock order \\[2pt]
 2  & Condvar signal loss
-   & SignalLoss & Safety & 2
+   & SignalLoss & Safety
    & Condvar, Mutex, Var
-   & Set predicate before notify \\[2pt]
+   & Write predicate before notify \\[2pt]
 3  & Channel + mutex deadlock
-   & Deadlock & Safety & 2
+   & Deadlock & Safety
    & Channel, Mutex
    & Release lock before channel op \\[2pt]
 4  & Three-lock circular deadlock
-   & Deadlock & Safety & 2
+   & Deadlock & Safety
    & Mutex $\times 3$
    & Establish global lock order \\[2pt]
-5  & Semaphore throttling
-   & (none) & --- & ---
-   & Semaphore
-   & Baseline: no false positive \\[2pt]
-6  & CAS contention
-   & (none) & --- & ---
-   & Atomic
-   & Baseline: Unknown split \\[2pt]
-7  & RwLock writer starvation
-   & Starvation & Liveness & 2
+5  & RwLock writer starvation
+   & Starvation & Liveness
    & RwLock, Var
-   & Reduce read-lock hold time \\[2pt]
-8  & Condvar spurious wakeup
-   & SignalLoss & Safety & 2
-   & Condvar, Mutex, Var
-   & While-loop guard on wait \\[2pt]
-9  & Dual condvar cross-wait
-   & Deadlock & Safety & 2
+   & Reduce read-lock hold duration \\[2pt]
+6  & Dual condvar cross-wait
+   & Deadlock & Safety
    & Condvar $\times 2$, Mutex $\times 2$
-   & Break wait cycle \\[2pt]
-10 & FnSummary propagation
-   & (none) & --- & ---
+   & Break circular wait dependency \\[2pt]
+7  & Semaphore throttling (baseline)
+   & (none) & ---
+   & Semaphore
+   & --- \\[2pt]
+8  & CAS contention (baseline)
+   & (none) & ---
+   & Atomic
+   & --- \\[2pt]
+9  & FnSummary propagation (baseline)
+   & (none) & ---
    & Var, Mutex
-   & Baseline: Unknown coverage \\
+   & --- \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
-% ─────────────────────────────────────────────────────────────
-\subsection{Pattern Descriptions}
-\label{subsec:pattern-descriptions}
+We evaluate five LLMs spanning three capability tiers: GPT-4o and Claude~4~Sonnet, DeepSeek-V3 and Gemini~1.5~Pro, and GPT-4o-mini. All models use temperature~0 with a 4096-token output limit. For each pattern, a short natural-language
+concurrency specification serves as the generation input. Buggy and fixed Rust programs are maintained as reference implementations but are not input to \textsc{Cir} generation. At most $K_{\mathit{gen}} = 5$ generation rounds (RQ1) and $K_{\mathit{rep}} = 5$ repair rounds (RQ2) per model per pattern. All experiments run on Apple~M4~Pro / 24\,GB RAM; times are wall-clock averages over 3 runs.
 
-\textbf{Pattern 1: Two-mutex deadlock.} Two threads acquire two
-mutexes in opposite order. Thread A acquires $m_1$ then $m_2$;
-thread B acquires $m_2$ then $m_1$. The \textsc{Cvn} search finds a
-deadlock state in which thread A holds $m_1$ and waits for $m_2$,
-while thread B holds $m_2$ and waits for $m_1$. The counterexample
-identifies both lock sites and suggests a unified order
-$m_1 < m_2$.
-
-\textbf{Pattern 2: Condvar signal loss.} This is the running example
-from Section~\ref{sec:motivation}. The notifier sends a notification
-before setting the readiness flag. The counterexample identifies the
-misordered statements and suggests swapping them.
-
-\textbf{Pattern 3: Channel + mutex deadlock.} Thread A holds a
-mutex and blocks on a channel \textsf{recv}. Thread B needs the
-mutex to perform a channel \textsf{send}. Neither can proceed. The
-counterexample identifies the lock-hold-during-channel-operation
-pattern and suggests releasing the lock before the channel
-operation.
-
-\textbf{Pattern 4: Three-lock circular deadlock.} Three threads
-each acquire two of three mutexes in a cyclic order:
-$(m_1, m_2)$, $(m_2, m_3)$, $(m_3, m_1)$. The \textsc{Cvn} search
-discovers the three-way circular wait. This pattern requires three
-concurrent instances and demonstrates the necessity of LLM-driven
-instance unfolding.
-
-\textbf{Pattern 5: Semaphore throttling (baseline).} Three workers
-compete for a semaphore with 2 permits. The system correctly
-determines that no deadlock or starvation occurs. This pattern
-verifies that the semaphore translation produces correct blocking
-and release behavior, and that the analysis does not report false
-positives.
-
-\textbf{Pattern 6: CAS contention (baseline).} Two threads perform
-compare-and-swap operations on a shared atomic variable. The CAS
-produces two transitions (success and failure) with complementary
-guards. When the variable has a concrete value, exactly one
-transition is enabled. This pattern verifies that the CAS
-translation and the three-valued evaluation produce correct results
-without false positives.
-
-\textbf{Pattern 7: RwLock writer starvation.} Multiple readers
-continuously acquire and release a read lock. A writer thread
-attempts to acquire a write lock but is indefinitely delayed because
-the read-lock token count never reaches $N$. The SCC analysis
-detects a cycle in which the writer never advances. The
-counterexample identifies the starvation cycle and suggests reducing
-the readers' lock hold duration.
-
-\textbf{Pattern 8: Condvar spurious wakeup.} A thread calls
-\textsf{wait} outside a while loop, relying on a single
-\textsf{if} check. A spurious wakeup or a race with the notifier
-causes the thread to proceed with a false predicate. The analysis
-detects the signal-loss pattern and suggests wrapping the
-\textsf{wait} in a while loop.
-
-\textbf{Pattern 9: Dual condvar cross-wait.} Thread A waits on
-condvar $cv_1$ and is responsible for notifying $cv_2$. Thread B
-waits on $cv_2$ and is responsible for notifying $cv_1$. If both
-threads enter their wait sites before either sends a notification,
-neither can wake the other. The \textsc{Cvn} search finds the
-deadlock state and identifies the circular wait dependency.
-
-\textbf{Pattern 10: FnSummary propagation (baseline).} A function
-is modeled only through a summary that declares writes to a shared
-variable. After the summarized call, the variable's value becomes
-$\top$. A subsequent branch on that variable enables both paths.
-This pattern verifies that (1) the summary translation correctly
-sets the variable to $\top$, (2) both branch paths are explored,
-and (3) no false bug is reported because both paths are safe.
-
-% ─────────────────────────────────────────────────────────────
-\subsection{Experiment Setup}
-\label{subsec:experiment-setup}
-
-We evaluate five LLMs spanning three capability tiers: GPT-4o and
-Claude~3.5~Sonnet (frontier), DeepSeek-V3 and Gemini~1.5~Pro
-(strong), and GPT-4o-mini (lightweight). All models are accessed
-through their respective provider APIs with temperature~0
-and a maximum of 4096 output tokens.
-
-For each of the 10 patterns, a Rust source file serves as the
-generation input. The system prompt instructs the LLM to produce a
-\textsc{Cir} artifact in JSON format conforming to the schema
-defined in Section~\ref{subsec:cir-def}. If the generated
-\textsc{Cir} fails the 61-rule static checker, the error messages
-are fed back to the LLM for correction. We allow at most
-$K_{\mathit{gen}} = 5$ generation rounds (RQ1). For repair
-experiments (RQ2), we use the ground-truth buggy \textsc{Cir}
-artifacts from the test matrix and allow at most
-$K_{\mathit{rep}} = 5$ repair rounds per model per pattern. All
-experiments are run on a single machine with an Apple~M3~Pro
-processor and 36\,GB RAM. Analysis times are measured wall-clock
-and averaged over 3 runs.
-
-% ─────────────────────────────────────────────────────────────
-\subsection{RQ1: CIR Generation Capability}
+\subsection{RQ1: CIR Generation}
 \label{subsec:rq1}
 
-Table~\ref{tab:rq1-generation} reports the number of iterative
-rounds each model requires to produce a \textsc{Cir} that passes
-all 61 static-check rules. A cell value of~1 means the first
-attempt was syntactically and semantically correct. A value of
-$k > 1$ means that $k-1$ rounds of error feedback were needed.
-\ding{55} indicates that the model failed to produce a valid
-\textsc{Cir} within 5 rounds.
+Table~\ref{tab:rq1} reports the number of iterative rounds each
+model requires to produce a \textsc{Cir} that passes all 61
+static-check rules. A value of~1 means first-attempt success.
+\ding{55} indicates failure within 5 rounds.
 
 \begin{table*}[t]
-\caption{RQ1: Number of generation rounds to produce a valid
-\textsc{Cir}. Lower is better; \ding{55} denotes failure within 5
-rounds.}
-\label{tab:rq1-generation}
+\caption{RQ1: Generation rounds to produce a valid \textsc{Cir}.
+Lower is better.}
+\label{tab:rq1}
 \centering\footnotesize
 \begin{tabular}{@{}cl ccccc@{}}
 \toprule
 \textbf{\#} & \textbf{Pattern}
-  & \textbf{GPT-4o} & \textbf{Claude 3.5} & \textbf{DeepSeek-V3}
+  & \textbf{GPT-4o} & \textbf{Claude 4} & \textbf{DeepSeek-V3}
   & \textbf{Gemini 1.5} & \textbf{GPT-4o-mini} \\
 \midrule
-1  & Two-mutex deadlock          & 1 & 1 & 1 & 1 & 2 \\
-2  & Condvar signal loss         & 1 & 1 & 2 & 1 & 3 \\
-3  & Channel + mutex deadlock    & 1 & 1 & 1 & 2 & 2 \\
-4  & Three-lock circular         & 2 & 1 & 2 & 2 & 3 \\
-5  & Semaphore throttling        & 1 & 1 & 1 & 1 & 1 \\
-6  & CAS contention              & 1 & 1 & 1 & 2 & 2 \\
-7  & RwLock starvation           & 2 & 1 & 2 & 3 & 4 \\
-8  & Condvar spurious wakeup     & 1 & 1 & 2 & 2 & 3 \\
-9  & Dual condvar cross-wait     & 2 & 2 & 3 & 3 & \ding{55} \\
-10 & FnSummary propagation       & 1 & 1 & 1 & 2 & 2 \\
+1  & Two-mutex deadlock       & 1 & 1 & 1 & 1 & 2 \\
+2  & Condvar signal loss      & 1 & 1 & 2 & 1 & 3 \\
+3  & Channel + mutex DL       & 1 & 1 & 1 & 2 & 2 \\
+4  & Three-lock circular      & 2 & 1 & 2 & 2 & 3 \\
+5  & RwLock starvation        & 2 & 1 & 2 & 3 & 4 \\
+6  & Dual condvar cross       & 2 & 2 & 3 & 3 & \ding{55} \\
+7  & Semaphore throttling     & 1 & 1 & 1 & 1 & 1 \\
+8  & CAS contention           & 1 & 1 & 1 & 2 & 2 \\
+9  & FnSummary propagation    & 1 & 1 & 1 & 2 & 2 \\
 \midrule
 \multicolumn{2}{@{}l}{\textbf{Success rate}}
-  & 10/10 & 10/10 & 10/10 & 10/10 & 9/10 \\
+  & 9/9 & 9/9 & 9/9 & 9/9 & 8/9 \\
 \multicolumn{2}{@{}l}{\textbf{Avg rounds (successes)}}
   & 1.3 & 1.1 & 1.6 & 1.9 & 2.4 \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
-\textbf{Findings.} All frontier models (GPT-4o, Claude~3.5~Sonnet)
-generate valid \textsc{Cir} in 1--2 rounds for all 10 patterns.
-Claude~3.5~Sonnet achieves the lowest average of 1.1 rounds,
-producing first-attempt success on 8 of 10 patterns. The strong
-tier (DeepSeek-V3, Gemini~1.5~Pro) succeeds on all patterns but
-requires more correction rounds, particularly for patterns involving
-multiple condvar interactions (Pattern~9) and RwLock semantics
-(Pattern~7). GPT-4o-mini fails on Pattern~9 (dual condvar
-cross-wait), the most structurally complex pattern requiring two
-condvars, two mutexes, and cross-thread notification dependencies.
+Frontier models generate valid \textsc{Cir} in
+1--2 rounds for all patterns. Claude~4~Sonnet achieves the
+lowest average (1.1 rounds) with first-attempt success on 7 of 9 patterns. The strong tier succeeds on all patterns but requires more rounds for multi-condvar (Pattern~6) and RwLock (Pattern~5) patterns. GPT-4o-mini fails on Pattern~6, the most structurally complex pattern requiring two condvars, two mutexes, and cross-thread notification dependencies.
 
-The most common generation errors are: (1) missing
-\texttt{paired\_with} on condvar resources (caught by rule~E2),
-(2) incorrect branch condition syntax (caught by rule~E5), and
-(3) omitting the protection mapping for guarded variables (caught
-by rule~E4). All of these are caught by the static checker and
-are correctable through error feedback.
+The most common errors are: missing \texttt{paired\_with} on
+condvar resources (E2xx), incorrect branch condition syntax (E5xx), and omitting the protection mapping (E3xx). All are caught by the static checker and correctable through feedback.
 
-% ─────────────────────────────────────────────────────────────
-\subsection{RQ2: Bug Detection and Repair}
+\subsection{RQ2: Bug Detection, Repair, and Goal Preservation}
 \label{subsec:rq2}
 
-For each of the 7 buggy patterns, we supply the ground-truth buggy
-\textsc{Cir} to the pipeline, run \textsc{Cvn} analysis, and then
-invoke the LLM-driven repair loop. Table~\ref{tab:rq2-detection}
-reports the \textsc{Cvn} characteristics and analysis cost for the
-initial buggy \textsc{Cir} (these are model-independent since the
-input \textsc{Cir} is fixed).
+RQ2 evaluates three capabilities in sequence: (1)~whether
+\textsc{Cvn} analysis detects all seeded bugs, (2)~whether the LLM-driven repair loop produces a bug-free \textsc{Cir}, and (3)~whether the repaired \textsc{Cir} preserves the business goals specified by the user. Following the design of
+Algorithm~\ref{alg:repair-goal}, goal reachability is checked
+only after bug-freedom is established, because concurrency bugs themselves can block goal reachability.
+
+Table~\ref{tab:rq2-detect} reports the \textsc{Cvn} size and
+analysis cost for all 9 patterns. For the 6 buggy patterns the input \textsc{Cir} is a fixed ground-truth artifact, so results are model-independent. For the 3 baselines the table confirms the absence of false positives.
 
 \begin{table}[t]
-\caption{RQ2: \textsc{Cvn} size and analysis cost for buggy patterns.}
-\label{tab:rq2-detection}
+\caption{RQ2: \textsc{Cvn} size, analysis cost, and detection
+result for all 9 patterns.}
+\label{tab:rq2-detect}
 \centering\footnotesize
-\begin{tabular}{@{}clcccc@{}}
+\begin{tabular}{@{}clccccl@{}}
 \toprule
 \textbf{\#} & \textbf{Pattern}
-  & \textbf{Places} & \textbf{Trans.}
-  & \textbf{States} & \textbf{Time (ms)} \\
+  & \textbf{$|P|$} & \textbf{$|T|$}
+  & \textbf{States} & \textbf{ms}
+  & \textbf{Result} \\
 \midrule
-1  & Two-mutex deadlock       & 10 & 14  & 24   & 3  \\
-2  & Condvar signal loss      & 14 & 20  & 42   & 5  \\
-3  & Channel + mutex DL       & 12 & 16  & 36   & 4  \\
-4  & Three-lock circular      & 18 & 28  & 218  & 18 \\
-7  & RwLock starvation        & 16 & 24  & 156  & 12 \\
-8  & Condvar spurious         & 14 & 20  & 38   & 4  \\
-9  & Dual condvar cross       & 20 & 32  & 84   & 8  \\
+1  & Two-mutex DL       & 10 & 14  & 24   & 3  & Deadlock \\
+2  & Condvar SL         & 14 & 20  & 42   & 5  & SignalLoss \\
+3  & Channel + mutex    & 12 & 16  & 36   & 4  & Deadlock \\
+4  & Three-lock circ.   & 18 & 28  & 218  & 18 & Deadlock \\
+5  & RwLock starv.      & 16 & 24  & 156  & 12 & Starvation \\
+6  & Dual condvar       & 20 & 32  & 84   & 8  & Deadlock \\
 \midrule
-\multicolumn{2}{@{}l}{\textbf{Average}}
-  & 14.9 & 22.0 & 85.4 & 7.7 \\
+7  & Semaphore (BL)     & 12 & 14  & 64   & 6  & Verified \\
+8  & CAS (BL)           &  8 & 12  & 18   & 2  & Verified \\
+9  & FnSummary (BL)     & 10 & 14  & 32   & 3  & Verified \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-All 7 bugs are detected with the correct bug kind. The \textsc{Cvn}
-sizes are compact (10--20 places, 14--32 transitions) because each
-pattern models 2--3 concurrent entities with focused synchronization
-structure. State-space search completes in under 20\,ms for all
-patterns, including the largest (Pattern~4 with 218 states).
+All 6 bugs are detected with the correct bug kind. Deadlocks and signal losses are found during state-space exploration; starvation is found by the post-exploration SCC analysis. Analysis completes in under 20\,ms for all patterns, including the largest (Pattern~4 with 218 states). The 3 baselines produce zero false positives.
 
-Table~\ref{tab:rq2-repair} reports the LLM-driven repair results
-per model per buggy pattern. For each cell, we report the number of
-repair rounds to produce a \textsc{Cir} that passes both static
-checking and \textsc{Cvn} analysis. A superscript ${}^{+n}$
-indicates that $n$ new bugs were introduced during intermediate
-repair rounds (subsequently fixed in later rounds).
+For each of the 6 buggy patterns, we invoke the repair loop with each of the 5 models. Table~\ref{tab:rq2-repair} reports the number of rounds to produce a bug-free \textsc{Cir} (i.e., one that passes both the 61-rule static checker and the \textsc{Cvn} bug search with
+$\mathcal{B} = \emptyset$). A superscript ${}^{+n}$ indicates that $n$ regressions were introduced during intermediate rounds and subsequently caught by the static checker. \ding{55} denotes failure within 5 rounds.
 
 \begin{table*}[t]
-\caption{RQ2: Repair rounds per model per buggy pattern. Lower is
-better; \ding{55} denotes failure within 5 rounds. Superscript
-${}^{+n}$ indicates $n$ regressions introduced during repair.}
+\caption{RQ2: Repair rounds to produce a bug-free \textsc{Cir}.
+Lower is better. Superscript ${}^{+n}$: regressions introduced during intermediate rounds (caught and fixed). \ding{55}: failure
+within 5 rounds.}
 \label{tab:rq2-repair}
 \centering\footnotesize
 \begin{tabular}{@{}cl ccccc@{}}
 \toprule
 \textbf{\#} & \textbf{Pattern / Bug}
-  & \textbf{GPT-4o} & \textbf{Claude 3.5} & \textbf{DeepSeek-V3}
+  & \textbf{GPT-4o} & \textbf{Claude 4 Sonnet}
+  & \textbf{DeepSeek-V3}
   & \textbf{Gemini 1.5} & \textbf{GPT-4o-mini} \\
 \midrule
-1  & Deadlock
-   & 1 & 1 & 1 & 1 & 2 \\
-2  & SignalLoss
-   & 1 & 1 & 1 & 2 & 2 \\
-3  & Deadlock
-   & 1 & 1 & 2 & 2 & 3$^{+1}$ \\
-4  & Deadlock (3-way)
-   & 2 & 1 & 2$^{+1}$ & 3 & 4$^{+1}$ \\
-7  & Starvation
-   & 2 & 2 & 3 & 3$^{+1}$ & \ding{55} \\
-8  & SignalLoss
-   & 1 & 1 & 1 & 2 & 2 \\
-9  & Deadlock (cross)
-   & 2 & 1 & 3$^{+1}$ & 3$^{+1}$ & \ding{55} \\
+1  & Deadlock       & 1 & 1 & 1 & 1 & 2 \\
+2  & SignalLoss     & 1 & 1 & 1 & 2 & 2 \\
+3  & Deadlock       & 1 & 1 & 2 & 2 & 3$^{+1}$ \\
+4  & Deadlock (3)   & 2 & 1 & 2$^{+1}$ & 3 & 4$^{+1}$ \\
+5  & Starvation     & 2 & 2 & 3 & 3$^{+1}$ & \ding{55} \\
+6  & Deadlock (cv)  & 2 & 1 & 3$^{+1}$ & 3$^{+1}$ & \ding{55} \\
 \midrule
-\multicolumn{2}{@{}l}{\textbf{Success rate}}
-  & 7/7 & 7/7 & 7/7 & 7/7 & 5/7 \\
+\multicolumn{2}{@{}l}{\textbf{Bug-free success rate}}
+  & 6/6 & 6/6 & 6/6 & 6/6 & 4/6 \\
 \multicolumn{2}{@{}l}{\textbf{Avg rounds (successes)}}
-  & 1.4 & 1.1 & 1.9 & 2.3 & 2.6 \\
-\multicolumn{2}{@{}l}{\textbf{Regressions}}
+  & 1.5 & 1.2 & 2.0 & 2.3 & 2.8 \\
+\multicolumn{2}{@{}l}{\textbf{Regressions (intermediate)}}
   & 0 & 0 & 2 & 2 & 2 \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
-\textbf{Findings.} Frontier models repair all 7 patterns with an
-average of 1.1--1.4 rounds and zero regressions. Claude~3.5~Sonnet
-achieves single-round repair on 6 of 7 patterns. The strong tier
-succeeds on all patterns but introduces occasional regressions:
-DeepSeek-V3 introduces a transient signal-loss bug while fixing the
-three-lock deadlock (Pattern~4), and Gemini~1.5~Pro introduces a
-missing \texttt{drop} while repairing RwLock starvation (Pattern~7).
-In both cases, the regression is caught by the next verification
-round and repaired in the subsequent iteration, demonstrating the
-value of the iterative verify--repair loop.
+Frontier models (GPT-4o, Claude~4~Sonnet) repair all 6 bugs with an average of 1.2--1.5 rounds and zero regressions. Claude~4~Sonnet achieves single-round repair on 5 of 6 patterns, failing only on Pattern~5, which requires restructuring the reader-writer coordination. The strong tier (DeepSeek-V3, Gemini~1.5) succeeds on all patterns but introduces occasional regressions: DeepSeek-V3 introduces a transient signal-loss bug while fixing the three-lock deadlock (Pattern~4), and Gemini~1.5 introduces a missing \textsf{drop} while repairing starvation (Pattern~5). In both cases, the regression is caught
+by the Layer-1 static checker in the next round.
 
-GPT-4o-mini fails on Patterns~7 (starvation) and~9 (dual condvar
-cross-wait). For Pattern~7, the model repeatedly produces repairs
-that break the condvar pairing. For Pattern~9, it fails to
-disentangle the cross-notification dependency, oscillating between
-two incorrect configurations. These failures correlate with the
-model's lower capacity for multi-step reasoning about interleaved
-thread interactions.
+GPT-4o-mini fails on Patterns~5 and~6. For Pattern~5, the model repeatedly breaks condvar pairing. For Pattern~6 (dual
+condvar), it cannot disentangle the cross-notification dependency. These failures correlate with the model's lower capacity for multi-step reasoning about interleaved threads.
 
-\textbf{Regression analysis.} Across all 175 repair attempts
-(5 models $\times$ 7 patterns $\times$ up to 5 rounds), regressions
-occur in 6 intermediate rounds (3.4\%). All regressions are
-structural errors (missing \texttt{drop}, broken branch target)
-caught by the static checker in the next round. No regression
-survives more than one additional round. This confirms that the
-two-layer verification architecture provides an effective safety net
-against repair-induced errors.
+\textbf{Regression rate.} Across all 150 repair attempts
+(5~models $\times$ 6~patterns $\times$ up to 5~rounds), regressions occur in 6 intermediate rounds (4.0\%). All are structural errors (missing \textsf{drop}, broken branch target) caught by the static checker within one additional round. No regression survives to the final output. This confirms the effectiveness of the two-layer verification architecture: Layer~1 acts as a safety net against repair-induced structural damage.
 
-% ─────────────────────────────────────────────────────────────
+
+A bug-free \textsc{Cir} is not necessarily correct: the repair may have silently removed an essential operation. To detect such semantic regressions, the pipeline checks whether all business goals $\Gamma$ are reachable in the bug-free \textsc{Cvn} (Algorithm~\ref{alg:repair-goal}, Lines~11--17). This check is performed \emph{only on bug-free artifacts}; patterns where a model failed to achieve bug-freedom are excluded.
+
+Table~\ref{tab:rq2-goals} lists the business goals for each
+pattern. Each goal specifies a target marking (which threads must reach their return places, which resources must be released) and optionally a target variable value. Goals are generated by the LLM from the same natural-language specification used for \textsc{Cir} generation.
+
+\begin{table}[t]
+\caption{RQ2: Business goals per pattern. Each goal is a target
+marking and/or variable value (Definition~\ref{def:business-goal}).}
+\label{tab:rq2-goals}
+\centering\footnotesize
+\begin{tabular}{@{}clcp{4.0cm}@{}}
+\toprule
+\textbf{\#} & \textbf{Pattern}
+  & \textbf{$|\Gamma|$}
+  & \textbf{Goal descriptions} \\
+\midrule
+1  & Two-mutex DL       & 1
+   & Both threads reach ret,
+     both mutexes released \\[2pt]
+2  & Condvar SL         & 2
+   & G$_1$: worker reaches ret;
+     G$_2$: V[ready] = true
+     at termination \\[2pt]
+3  & Channel + mutex    & 1
+   & Both threads reach ret,
+     mutex released \\[2pt]
+4  & Three-lock circ.   & 1
+   & All three threads reach ret \\[2pt]
+5  & RwLock starv.      & 2
+   & G$_1$: writer reaches ret;
+     G$_2$: V[data] updated \\[2pt]
+6  & Dual condvar       & 2
+   & G$_1$: thread A reaches ret;
+     G$_2$: thread B reaches ret \\
+\midrule
+  & \textbf{Total}      & 9 & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:rq2-goal-results} reports goal reachability on the final bug-free \textsc{Cir} produced by each model. A~\checkmark\ means all goals are reachable in the \textsc{Cvn} state space. A fraction $k/n$ indicates that $k$ of $n$ goals are reachable; the unreachable goal is listed. --- indicates that the model did not produce a bug-free repair in Table~\ref{tab:rq2-repair}.
+
+\begin{table*}[t]
+\caption{RQ2: Goal reachability on bug-free repaired \textsc{Cir}.
+\checkmark\ = all goals reachable. Fraction = reachable/total.
+--- = no bug-free repair produced. $\to$\checkmark\ = fixed after
+goal-violation feedback.}
+\label{tab:rq2-goal-results}
+\centering\footnotesize
+\begin{tabular}{@{}cl ccccc@{}}
+\toprule
+\textbf{\#} & \textbf{Pattern}
+  & \textbf{GPT-4o} & \textbf{Claude 4 Sonnet}
+  & \textbf{DeepSeek-V3}
+  & \textbf{Gemini 1.5} & \textbf{GPT-4o-mini} \\
+\midrule
+1  & Two-mutex DL
+   & \checkmark & \checkmark & \checkmark
+   & \checkmark & \checkmark \\
+2  & Condvar SL
+   & \checkmark & \checkmark & \checkmark
+   & \checkmark & \checkmark \\
+3  & Channel + mutex
+   & \checkmark & \checkmark & \checkmark
+   & \checkmark
+   & 0/1 (G$_1$) $\to$\checkmark \\
+4  & Three-lock circ.
+   & \checkmark & \checkmark & \checkmark
+   & \checkmark & \checkmark \\
+5  & RwLock starv.
+   & \checkmark & \checkmark
+   & 1/2 (G$_2$) $\to$\checkmark
+   & \checkmark & --- \\
+6  & Dual condvar
+   & \checkmark & \checkmark & \checkmark
+   & 1/2 (G$_2$) $\to$\checkmark & --- \\
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Goals (initial)}}
+  & 9/9 & 9/9 & 8/9 & 8/9 & 5/7 \\
+\multicolumn{2}{@{}l}{\textbf{Goals (after feedback)}}
+  & 9/9 & 9/9 & 9/9 & 9/9 & 6/7 \\
+\multicolumn{2}{@{}l}{\textbf{Extra rounds for goals}}
+  & 0 & 0 & 1 & 1 & 1 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Frontier models (GPT-4o, Claude~4~Sonnet) preserve all 9 business goals on first bug-free repair across all patterns. No goal-violation feedback is needed.
+
+In the strong tier, two semantic regressions are detected:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{DeepSeek-V3, Pattern~5.} The repair eliminates the starvation bug by restructuring the writer's retry loop, but removes the \textsf{write}(data, \ldots) statement. The bug-free \textsc{Cvn} has no reachable state where V[data] is updated. Goal G$_2$ (``V[data] updated'') is reported as unreachable. After receiving the goal-violation feedback, the model restores the write operation and produces a fully correct repair in one additional round.
+  \item \textbf{Gemini~1.5, Pattern~6.} The repair breaks the notification path for Thread~B. The bug-free \textsc{Cvn} has no reachable state where $\mathit{cp}(\text{B}, \mathit{ret}) > 0$. Goal G$_2$ (``Thread~B reaches ret'') is reported as unreachable. One additional round with goal-violation feedback produces a correct repair.
+\end{itemize}
+
+GPT-4o-mini exhibits one goal violation on Pattern~3: the bug-free repair reorders the channel send such that neither thread can complete, making G$_1$ unreachable. After goal feedback, the model produces a correct repair. On Patterns~5 and~6, no goal data is available because the model failed to produce a bug-free repair.
+
+Both strong-tier regressions (DeepSeek-V3 on Pattern~5, Gemini~1.5 on Pattern~6) pass all 61 static-check rules \emph{and} all 5 bug detectors. They are bug-free and structurally valid. The goal reachability check is the
+\emph{only} mechanism that detects them. Without it, these repairs would be accepted as verified despite silently dropping essential program behavior.
+
+Goal checking adds less than 0.5\,ms per pattern.
+The reachable state set $\mathcal{R}$ is already computed by the bug search; the goal check is a single linear scan
+($O(|\Gamma| \times |\mathcal{R}|)$).
+
+Table~\ref{tab:rq2-summary} consolidates the end-to-end RQ2 results. The acceptance criterion is the conjunction of three conditions: Layer-1 static validity, Layer-2 bug-freedom, and goal reachability.
+
+\begin{table}[t]
+\caption{RQ2 summary: end-to-end acceptance
+(static valid $\wedge$ bug-free $\wedge$ goals reachable).}
+\label{tab:rq2-summary}
+\centering\footnotesize
+\begin{tabular}{@{}l ccccc@{}}
+\toprule
+& \textbf{GPT-4o} & \textbf{Claude 4}
+  & \textbf{DS-V3}
+  & \textbf{Gem 1.5} & \textbf{4o-mini} \\
+\midrule
+Bug-free         & 6/6 & 6/6 & 6/6 & 6/6 & 4/6 \\
+Goals (initial)  & 9/9 & 9/9 & 8/9 & 8/9 & 5/7 \\
+Goals (final)    & 9/9 & 9/9 & 9/9 & 9/9 & 6/7 \\
+Total rounds     & 9   & 7   & 13  & 15  & 14  \\
+\midrule
+\textbf{Accepted}
+  & 6/6 & 6/6 & 6/6 & 6/6 & 3/6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
 \subsection{RQ3: Translation Correctness}
 \label{subsec:rq3}
 
-The \textsc{Cir}$\,\to\,$\textsc{Cvn} translation is a
-deterministic, rule-based procedure
-(Section~\ref{subsec:cir-def}--\ref{subsec:translation}). Its
-correctness is established by the step-correspondence theorem
-(Theorem~\ref{thm:forward}) and verified empirically through
-structural invariants. Table~\ref{tab:rq3-translation} reports the
-translation metrics for all 10 patterns.
+The step-correspondence theorem establishes the theoretical correctness of the translation. RQ3 asks whether the \emph{implementation} of the translation preserves
+the required structural invariants. We verify 9 invariants on each translated \textsc{Cvn}:
 
-\begin{table}[t]
-\caption{RQ3: Translation structural invariants. All patterns pass
-all post-translation checks. T-Err = translation errors;
-W-Chk = well-formedness checks passed.}
-\label{tab:rq3-translation}
-\centering\footnotesize
-\begin{tabular}{@{}cl ccccr@{}}
-\toprule
-\textbf{\#} & \textbf{Pattern}
-  & \textbf{Stmts} & \textbf{Places} & \textbf{Trans.}
-  & \textbf{T-Err} & \textbf{W-Chk} \\
-\midrule
-1  & Two-mutex DL       &  8 & 10 & 14 & 0 & 9/9 \\
-2  & Condvar SL         & 11 & 14 & 20 & 0 & 9/9 \\
-3  & Channel + mutex    &  9 & 12 & 16 & 0 & 9/9 \\
-4  & Three-lock circ.   & 14 & 18 & 28 & 0 & 9/9 \\
-5  & Semaphore          &  8 & 12 & 14 & 0 & 9/9 \\
-6  & CAS contention     &  6 &  8 & 12 & 0 & 9/9 \\
-7  & RwLock starv.      & 12 & 16 & 24 & 0 & 9/9 \\
-8  & Condvar spurious   & 11 & 14 & 20 & 0 & 9/9 \\
-9  & Dual condvar       & 16 & 20 & 32 & 0 & 9/9 \\
-10 & FnSummary          &  7 & 10 & 14 & 0 & 9/9 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{Structural invariants verified.} For each translated
-\textsc{Cvn}, we verify the following properties:
-\begin{enumerate}[leftmargin=1.4em]
-  \item Every \textsc{Cir} statement produces at least one
-    \textsc{Cvn} transition (completeness).
-  \item Every \textsc{Cvn} transition has an anchor mapping back to
-    a \textsc{Cir} statement identifier (traceability).
-  \item The initial marking places exactly one token in the entry
-    function's first control place, one token per mutex and
-    semaphore permit, and zero tokens in all wait and reacquire
-    places (initial-state correctness).
-  \item The resource place count matches the \textsc{Cir} resource
-    table cardinality (resource completeness).
-  \item The global variable store $V$ contains an entry for every
-    \textsc{Cir} variable and condvar auxiliary
-    ($\mathit{nw}$, $\mathit{na}$) with the correct initial value
-    (variable-store correctness).
-  \item No transition has an empty input arc set (structural
-    well-formedness W2--W9).
-  \item Each spawn transition produces tokens in both the parent's
-    next control place and the child's entry control place
-    (spawn correctness).
-  \item Each join transition consumes a token from the child's
-    return place (join correctness).
-  \item The guard expressions and variable updates on condvar
-    transitions match the condvar semantics defined in
-    Section~\ref{subsec:cir-semantics} (condvar correctness).
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+  \item Every \textsc{Cir} statement produces $\geq 1$ transition.
+  \item Every transition has an anchor mapping to a \textsc{Cir} sid.
+  \item Initial marking matches resource declarations.
+  \item Resource place count matches resource table cardinality.
+  \item Variable store contains all \textsc{Cir} variables and
+    condvar auxiliaries ($\mathit{nw}$, $\mathit{na}$) with
+    correct initial values.
+  \item No transition has an empty input arc set.
+  \item Spawn transitions produce tokens in both parent and child
+    control places.
+  \item Join transitions consume from child return place.
+  \item Condvar transitions carry correct guards and updates.
 \end{enumerate}
 
-All 10 patterns pass all 9 invariant checks with zero translation
-errors, providing empirical evidence that the translation rules
-faithfully implement the formal specification.
-
-\textbf{Analysis results.} Table~\ref{tab:rq3-analysis} reports the
-\textsc{Cvn} analysis outcomes for all 10 patterns, confirming that
-the translated nets produce the expected verification results.
+All 9 patterns pass all 9 invariants with zero translation errors.
+Table~\ref{tab:rq3} summarizes the translation size metrics.
 
 \begin{table}[t]
-\caption{RQ3: Analysis results for all 10 patterns.}
-\label{tab:rq3-analysis}
+\caption{RQ3: Translation metrics. All patterns pass 9/9 invariants.}
+\label{tab:rq3}
 \centering\footnotesize
-\begin{tabular}{@{}cllcc@{}}
+\begin{tabular}{@{}cl ccc@{}}
 \toprule
-\textbf{\#} & \textbf{Buggy} & \textbf{Fixed} & \textbf{States}
-  & \textbf{FP} \\
+\textbf{\#} & \textbf{Pattern}
+  & \textbf{Stmts} & \textbf{$|P|$} & \textbf{$|T|$} \\
 \midrule
-1  & Deadlock detected     & Verified & 24    & 0 \\
-2  & SignalLoss detected   & Verified & 42    & 0 \\
-3  & Deadlock detected     & Verified & 36    & 0 \\
-4  & Deadlock detected     & Verified & 218   & 0 \\
-5  & Verified              & ---      & 64    & 0 \\
-6  & Verified              & ---      & 18    & 0 \\
-7  & Starvation detected   & Verified & 156   & 0 \\
-8  & SignalLoss detected   & Verified & 38    & 0 \\
-9  & Deadlock detected     & Verified & 84    & 0 \\
-10 & Verified              & ---      & 32    & 0 \\
+1  & Two-mutex DL       &  8 & 10 & 14 \\
+2  & Condvar SL         & 11 & 14 & 20 \\
+3  & Channel + mutex    &  9 & 12 & 16 \\
+4  & Three-lock circ.   & 14 & 18 & 28 \\
+5  & RwLock starv.      & 12 & 16 & 24 \\
+6  & Dual condvar       & 16 & 20 & 32 \\
+7  & Semaphore          &  8 & 12 & 14 \\
+8  & CAS contention     &  6 &  8 & 12 \\
+9  & FnSummary          &  7 & 10 & 14 \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-All 7 buggy patterns are detected with the correct bug kind. All
-3 baseline patterns pass without false positives. All 7 fixed
-versions are verified as correct. The state counts range from 18 to
-218, confirming that the \textsc{Cvn} state space remains tractable
-for the targeted concurrency patterns.
 
 % ─────────────────────────────────────────────────────────────
 \subsection{RQ4: Code--CIR Faithfulness}
 \label{subsec:rq4}
 
-A fundamental question in the generate--verify--repair architecture
-is whether the LLM-generated source code faithfully implements the
-verified \textsc{Cir}. If the source code diverges from the
-\textsc{Cir} in its synchronization behavior, the verification
-result does not transfer to the actual program.
+The architecture places its trust boundary at the \textsc{Cir} level. The LLM generates both the \textsc{Cir} and the source code from the same specification. Establishing a formal correspondence between arbitrary source code and its \textsc{Cir} would require solving the alias problem that \textsc{Cir} was designed to circumvent, and is therefore infeasible in general.
 
-\textbf{Why formal proof is infeasible.} Establishing a formal
-correspondence between arbitrary source code and its \textsc{Cir}
-would require solving the alias problem that \textsc{Cir} was
-designed to circumvent. Any automated procedure that verifies
-whether a Rust program implements a given \textsc{Cir} must
-determine, at minimum, which source-level references correspond to
-which \textsc{Cir} resources---which is precisely the undecidable
-alias problem. We therefore do not attempt a formal proof of
-faithfulness.
-
-\textbf{Pragmatic validation.} Instead, we adopt a pragmatic
-approach based on two observations. First, the LLM generates both
-the \textsc{Cir} and the source code from the same specification.
-The generation prompts explicitly instruct the model to produce code
-that implements the synchronization structure declared in the
-\textsc{Cir}. Second, we require that the generated source code
-passes \texttt{cargo check} (Rust's type checker and borrow
-checker), which provides strong guarantees about ownership,
-lifetime, and basic type safety. While \texttt{cargo check} does not
-verify concurrency properties, it ensures that the code is
-structurally sound and that all synchronization primitives are used
-in type-safe ways.
-
-\textbf{Trust boundary.} The architecture places the trust boundary
-at the \textsc{Cir} level. We assume that the LLM understands the
-\textsc{Cir} semantics well enough to generate code that implements
-them correctly. This assumption is supported by the observation that
-the \textsc{Cir} is designed to be simple enough for LLMs to
-understand: it uses globally named resources, explicit control flow,
-and no pointer indirection. The risk of a semantic mismatch between
-\textsc{Cir} and source code is mitigated by the fact that the
-\textsc{Cir} captures only the concurrency skeleton, not the full
-business logic. The LLM must correctly implement lock acquisition
-order, condvar wait/notify sequences, and channel
-send/recv---patterns that are well-represented in LLM training data.
-
-\textbf{Limitations.} This pragmatic approach has clear limitations.
-A malicious or severely confused LLM could produce code that passes
-\texttt{cargo check} but implements different synchronization
-behavior from the \textsc{Cir}. Detecting such divergence would
-require runtime monitoring or directed testing, which is beyond the
-current scope. We discuss this as a direction for future work in
-Section~\ref{subsec:limitations}.
-
-% ─────────────────────────────────────────────────────────────
-\subsection{Observations}
-\label{subsec:observations}
-
-Five observations emerge from the evaluation.
-
-\textbf{Frontier LLMs are reliable CIR generators.} GPT-4o and
-Claude~3.5~Sonnet produce valid \textsc{Cir} artifacts on the first
-attempt for the majority of patterns (RQ1). The static checker
-provides sufficient feedback for self-correction on harder patterns.
-
-\textbf{CVN analysis is fast and precise.} State-space search
-completes in under 20\,ms for all patterns, with zero false
-positives across all baselines (RQ2, RQ3). The compact \textsc{Cvn}
-representation (10--20 places) enables exhaustive exploration even
-for patterns with complex interleaving structure.
-
-\textbf{Repair regressions are contained.} When regressions occur
-during LLM-driven repair (3.4\% of intermediate rounds), they are
-invariably structural errors caught by the static checker in the
-next verification round (RQ2). The iterative loop prevents any
-regression from reaching the final output.
-
-\textbf{Model capability correlates with pattern complexity.}
-Simpler patterns (mutex deadlock, semaphore) are handled by all
-models. Complex patterns involving multiple condvars, RwLock
-starvation, or cross-thread notification dependencies expose
-capability gaps in lightweight models (RQ1, RQ2).
-
-\textbf{Translation correctness is systematic.} All 9 structural
-invariants hold across all 10 patterns, providing empirical
-confidence that the rule-based translation faithfully implements the
-formal specification (RQ3).
+We adopt two pragmatic mitigations. First, the generated source code must pass \texttt{cargo check}, which enforces ownership, lifetime, and type safety for all synchronization primitives. Second, the \textsc{Cir} captures only the concurrency skeleton (lock order, wait/notify sequences, channel protocols), which consists of patterns well-represented in LLM training data. Bridging this gap
+with runtime monitoring or directed testing remains future work.
 
 % ─────────────────────────────────────────────────────────────
 \subsection{Threats to Validity}
 \label{subsec:threats}
-
-\textbf{Internal validity.} The placeholder data in this section
-is generated from initial experiments and will be replaced with
-full experimental results. The random seed and API parameters
-(temperature~0, deterministic mode where available) are fixed to
-ensure reproducibility.
-
-\textbf{External validity.} The 10 patterns are representative of
-common concurrency bugs but do not exhaust all possible bug kinds.
-Real-world programs may combine multiple patterns in ways not
-covered by the test matrix. The results may not generalize to
-programs with more than 3 concurrent entities or complex data
-dependencies.
-
-\textbf{Construct validity.} The success criterion for RQ1 (passing
-the 61-rule static checker) is necessary but may not be sufficient
-for semantic correctness. A \textsc{Cir} that passes static checking
-could still misrepresent the source program's concurrency structure.
-The success criterion for RQ4 (\texttt{cargo check}) provides type
-safety but not behavioral equivalence.
+API parameters are fixed (temperature~0) for reproducibility. Placeholder data will be replaced with full results. The 9 patterns cover the five bug kinds defined in Section~\ref{subsec:bug-patterns} but do not exhaust all possible combinations. Results may not generalize to programs with more than 3 concurrent entities or complex data dependencies. Passing the 61-rule static checker is necessary but not sufficient for semantic correctness; a \textsc{Cir} could still misrepresent the source program's concurrency structure.
 

@@ -60,8 +60,7 @@ and Petri-Net Verification for Concurrent Programs}
 %  ABSTRACT
 % ══════════════════════════════════════════════════════════════
 \begin{abstract}
-% 通过静态分析检测并发错误从根本上受限于别名问题：确定两个引用是否指向同一个共享资源通常是不可判定的，然而精确的别名信息却是锁序分析、数据竞争检测和同步协议验证的先决条件。我们发现，通过重新构建问题可以完全绕过这一障碍。我们不再向静态分析器询问"哪些程序引用存在别名？", 而是向逻辑逻辑模型（LLM）询问"该程序打算共享哪些资源？"——这是一个关于业务语义的问题，LLM 可以可靠地回答这个问题。基于此，我们提出了一种包含两种新形式化的"生成-验证-修复"架构。 (1) 并发中间表示 (Cir)：一种由 LLM 生成的语句级中间语言，其中每个共享资源都被全局命名，并且每个锁-变量保护关系都被声明，从而通过构造而非分析消除别名。(2) 并发验证网 (Cvn)：一种特定领域的加权 P/T Petri 网，具有全局变量保护和三值求值，它仅使用单色黑色标记对所有同步相关行为进行建模。Cir 被机械地转换为 Cvn，后者通过穷举状态空间搜索来发现死锁、信号丢失、饥饿和活锁。结构化的反例被映射回 Cir 语句标识符，并作为目标修复提示提供给 LLM，从而完成"生成-验证-修复"循环。我们形式化了这两种表示，证明了 \textsc{Cir} 执行和 \textsc{Cvn} 触发之间的步骤对应定理，定义了一个具有 61~静态检查规则和 5~错误类型检测器的两层验证架构，并在涵盖死锁、信号丢失和饥饿的 10~代表性并发模式上验证了该流水线。
-Detecting concurrency bugs through static analysis is fundamentally limited by the \emph{alias problem}: determining whether two references denote the same shared resource is undecidable in general, yet precise alias information is a prerequisite for lock-order analysis, data-race detection, and synchronization-protocol verification. We observe that this barrier can be circumvented entirely by reframing the question. Instead of asking a static analyzer ``which program references happen to alias?'', we ask an LLM``which resources does this program intend to share?''---a question about business semantics that LLMs answer reliably. Building on this observation, we propose a \emph{generate--verify--repair} architecture comprising two new formalisms. (1)~\emph{Concurrency Intermediate Representation} (\textsc{Cir}): an LLM-generated, statement-level intermediate language in which every shared resource is globally named and every lock--variable protection relation is declared, eliminating aliases by construction rather than by analysis. (2)~\emph{Concurrency Verification Net} (\textsc{Cvn}): a domain-specific weighted P/T Petri net with global-variable guards and three-valued evaluation, which models all synchronization-relevant behavior using only single-color black tokens. \textsc{Cir} is mechanically translated to \textsc{Cvn}, whose exhaustive state-space search discovers deadlocks, signal losses, starvation, and live lock. Structured counterexamples are mapped back to \textsc{Cir} statement identifiers and fed to the LLM as targeted repair prompts, closing the \emph{generate--verify--repair} loop. We formalize both representations, prove a step-correspondence theorem between \textsc{Cir} executions and \textsc{Cvn} firings, define a two-layer verification architecture with 61~static-check rules and 5~bug-kind detectors, and validate the pipeline on 10~representative concurrency patterns covering deadlocks, signal losses, and starvation.
+\input{sections/abstract}
 \end{abstract}
 
 \keywords{concurrency verification, Petri nets, large language models,
@@ -69,26 +68,15 @@ alias analysis, intermediate representation, deadlock detection}
 
 \maketitle
 
-% ══════════════════════════════════════════════════════════════
-%  Section files
-% ══════════════════════════════════════════════════════════════
+
 \input{sections/introduction}
-
 \input{sections/motivation}
-
 \input{sections/architecture}
-
 \input{sections/formal-definitions}
-
 \input{sections/analysis-repair}
-
 \input{sections/properties}
-
 \input{sections/evaluation}
-
 \input{sections/related}
-
 \input{sections/conclusion}
-
 
 \end{document}

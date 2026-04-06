@@ -1,87 +1,22 @@
 \section{Formal Definitions}
 \label{sec:formal-defs}
+% 本节定义了三个核心形式：并发中间表示（\textsc{Cir}）、并发验证网（\textsc{Cvn}）以及从\textsc{Cir}到\textsc{Cvn}的转换。
+This section defines the three core formalisms: \textsc{Cir}, \textsc{Cvn} and the translation from \textsc{Cir} to \textsc{Cvn}.
 
-This section defines the three core formalisms: the Concurrency Intermediate Representation (\textsc{Cir}), the Concurrency Verification Net (\textsc{Cvn}), and the translation from
-\textsc{Cir} to \textsc{Cvn}. Each subsection first states the formal structure, then describes its components, and finally presents the associated error taxonomy.
-
-% ══════════════════════════════════════════════════════════════
-%  4.1  CIR
-% ══════════════════════════════════════════════════════════════
 \subsection{CIR: Concurrency Intermediate Representation}
 \label{subsec:cir-def}
 
-\subsubsection{Top-Level Structure}
+\begin{definition}[Function and Statement]
+\label{def:statement}
+A function definition is a triple $(f, k, B)$ where $f$ is the name, $k \in \{ \textsf{normal}, \textsf{async}, \textsf{closure} \}$ is the kind, and $B$ is a body consisting of statements. A statement $s$ is a triple $(\mathit{sid},\; \mathit{op},\; \mathit{transfer})$, where $\mathit{sid}$ is a unique identifier; $\mathit{op}$ is an operation from Table~\ref{tab:cir-ops}; and $\mathit{transfer} \in \{ \textsf{next}(s'), \textsf{branch}(\beta, s_t, s_f), \\ \textsf{switch}(x, \dots), \textsf{done} \}$ defines the successor logic.
+\end{definition}
 
 \begin{definition}[\textsc{Cir} artifact]
 \label{def:cir}
-A \textsc{Cir} artifact is a five-tuple
-\[
-  \mathcal{I} = ( R,\; G,\; F,\; \Sigma,\; e )
-\]
-where
-\begin{itemize}[leftmargin=1.4em]
-  \item $R$ is a finite resource table,
-  \item $G$ is a protection mapping,
-  \item $F$ is a finite set of function definitions,
-  \item $\Sigma$ is a partial function-summary map, and
-  \item $e \in F$ is the entry function.
-\end{itemize}
+A \textsc{Cir} artifact is a 5-tuple $\mathcal{I} = ( R,\; G,\; F,\; \Sigma,\; e )$, where $R$ is a finite resource table mapping names to kinds and configurations; $G: \mathit{VarName} \rightharpoonup \mathcal{P}(\mathit{LockName})$ is a protection mapping; $F$ is a finite set of function definitions $(f, k, B)$; $\Sigma$ is a partial function-summary map for external calls; and $e \in F$ is the designated entry function.
 \end{definition}
 
-\subsubsection{Resource Table}
-
-The resource table $R$ maps each resource name to a kind and a configuration. Resources are classified into two families.
-
-\textbf{Synchronization primitives.} Each primitive has a kind and a mode.
-\[
-\begin{aligned}
-\mathit{kind} &\in \{ \textsf{Mutex},\; \textsf{RwLock},\;
-  \textsf{Condvar},\; \textsf{Semaphore}(n),\; \textsf{Channel} \} \\
-\mathit{mode} &\in \{ \textsf{Sync},\; \textsf{Async} \}
-\end{aligned}
-\]
-A \textsf{Condvar} carries a \texttt{paired\_with} field naming the associated mutex. A \textsf{Semaphore}$(n)$ carries an initial permit count $n \geq 1$.
-
-\textbf{Shared variables.} Each variable has a kind, a base type, and an initial value.
-\[
-\begin{aligned}
-\mathit{kind} &\in \{ \textsf{Var},\; \textsf{Atomic} \} \\
-\mathit{type} &\in \{ \textsf{Bool},\; \textsf{Int},\;
-  \textsf{Float},\; \textsf{String},\; \textsf{Enum}(S) \} \\
-\mathit{init} &\in \mathit{Values}(\mathit{type})
-\end{aligned}
-\]
-where $\textsf{Enum}(S)$ denotes an enumeration over a finite set of variants $S$.
-
-Every resource has a unique global name. There are no pointers, no heap indirection, and no aliasing. Functions reference resources directly by name.
-
-\subsubsection{Protection Mapping}
-
-The protection mapping is a partial function
-\[
-  G : \mathit{VarName} \rightharpoonup \mathcal{P}(\mathit{LockName})
-\]
-that maps each \textsf{Var} resource to a nonempty set of lock resources. A declaration $G(x) = \{m_1, m_2\}$ means that any access to variable $x$ requires holding at least one of $m_1$ or $m_2$.
-
-\textsf{Atomic} resources do not participate in the protection mapping. They are accessed through atomic operations that provide their own synchronization guarantees.
-
-The protection mapping is used only for \textsc{Cir} static checking. It does not produce any \textsc{Cvn} structure.
-
-\subsubsection{Functions and Statements}
-
-A function definition is a triple $(f, k, B)$ where $f$ is the function name, $k \in \{ \textsf{normal}, \textsf{async}, \textsf{closure} \}$ is the function kind, and $B$ is the function body.
-
-A function body $B$ is a finite set of statements. Each statement is a triple
-\[
-  s = (\mathit{sid},\; \mathit{op},\; \mathit{transfer})
-\]
-where $\mathit{sid}$ is a unique identifier within the function, $\mathit{op}$ is the operation, and $\mathit{transfer}$ specifies control flow after the operation.
-
-Functions do not take parameters and do not return values. All inter-function communication occurs through globally named resources.
-
-\subsubsection{Operations}
-
-Table~\ref{tab:cir-ops} lists the complete operation set. Operations are grouped into four categories.
+Every resource in $R$ has a unique global name. We strictly forbid pointers, heap indirection, and aliasing; functions reference resources directly by name. The protection mapping $G$ is used exclusively for \textsc{Cir} static checking and does not produce \textsc{Cvn} structures.
 
 \begin{table}[t]
 \caption{\textsc{Cir} operations.}
@@ -123,50 +58,12 @@ Table~\ref{tab:cir-ops} lists the complete operation set. Operations are grouped
 \end{tabular}
 \end{table}
 
-\textsf{spawn} pairs with \textsf{join} for OS threads. \textsf{spawn\_async} pairs with \textsf{await} for asynchronous tasks. Cross-pairing is a static error. \textsf{acquire} and
-\textsf{release} are used for semaphores and are distinct from \textsf{lock} and \textsf{drop}.
-
-\subsubsection{Control Transfer}
-
-The $\mathit{transfer}$ field takes one of the following forms.
-
-\[
-\begin{aligned}
-\mathit{transfer} ::= \;&\textsf{next}(\mathit{sid'}) \\
-  \mid\;& \textsf{branch}(\beta,\; \mathit{sid}_t,\; \mathit{sid}_f) \\
-  \mid\;& \textsf{switch}(x,\; [(v_1, \mathit{sid}_1), \ldots, (v_k, \mathit{sid}_k)]) \\
-  \mid\;& \textsf{done}
-\end{aligned}
-\]
-
-\textsf{next} transfers control to a single successor. \textsf{branch} evaluates a boolean condition $\beta$ over variable state and transfers to $\mathit{sid}_t$ if true or $\mathit{sid}_f$ if false. \textsf{switch} dispatches on the value of a variable. \textsf{done} terminates the function.
-
-Control flow is determined by explicit target identifiers in the $\mathit{transfer}$ field. The ordering of statements within the body has no semantic significance. A \textsc{Cir} function body is a labeled directed graph, not a list.
-
-\subsubsection{Branch Conditions}
-
-A branch condition is a boolean expression over global variable state:
-\[
-\begin{aligned}
-\beta ::= \;&(x \;\mathit{cmp}\; v) \\
-  \mid\;& \beta_1 \wedge \beta_2 \\
-  \mid\;& \neg \beta
-\end{aligned}
-\]
-where $x$ is a variable name, $v$ is a literal value, and $\mathit{cmp} \in \{ =, \neq, <, \leq, >, \geq \}$.
-
-\subsubsection{Function Summary}
-
 The summary map $\Sigma$ provides summaries only for functions whose bodies are not modeled in $F$. A summary is a tuple
 \[
   \Sigma(f) = (\mathit{reads},\; \mathit{writes},\;
     \mathit{calls},\; \mathit{has\_concurrency})
 \]
-where $\mathit{reads}$ and $\mathit{writes}$ are sets of resource names, $\mathit{calls}$ is a set of callee names, and $\mathit{has\_concurrency}$ is a boolean. Fully modeled functions do
-not have summaries.
-
-\subsubsection{CIR Error Taxonomy}
-\label{subsubsec:cir-errors}
+where $\mathit{reads}$ and $\mathit{writes}$ are sets of resource names, $\mathit{calls}$ is a set of callee names, and $\mathit{has\_concurrency}$ is a boolean. Fully modeled functions do not have summaries.
 
 The static checker enforces 61 well-formedness rules organized in 9 categories with prefix E. Table~\ref{tab:cir-errors} summarizes the categories.
 
@@ -178,96 +75,68 @@ The static checker enforces 61 well-formedness rules organized in 9 categories w
 \toprule
 \textbf{Code} & \textbf{Category} & \textbf{Examples} \\
 \midrule
-E0xx & Structural
-  & Missing fields, invalid format \\
-E1xx & Name resolution
-  & Undefined resource, duplicate name \\
-E2xx & Type
-  & Non-boolean branch condition \\
-E3xx & Resource compatibility
-  & \textsf{lock} on non-lock resource, unprotected variable access \\
-E4xx & Concurrency pairing
-  & \textsf{spawn} without \textsf{join}, cross-pairing \\
-E5xx & Lock safety
-  & Missing \textsf{drop}, double lock, inconsistent lock order \\
-E6xx & Control flow
-  & Unreachable statement, missing \textsf{return} \\
-E7xx & Protection mapping
-  & \textsf{Atomic} in protection, \textsf{Var} without protection \\
-E8xx & Function summary
-  & Summary conflicts with body \\
+E0xx & Structural & Missing fields, invalid format \\
+E1xx & Name resolution & Undefined resource, duplicate name \\
+E2xx & Type & Non-boolean branch condition \\
+E3xx & Resource compatibility & \textsf{lock} on non-lock resource, unprotected variable access \\
+E4xx & Concurrency pairing & \textsf{spawn} without \textsf{join}, cross-pairing \\
+E5xx & Lock safety & Missing \textsf{drop}, double lock, inconsistent lock order \\
+E6xx & Control flow & Unreachable statement, missing \textsf{return} \\
+E7xx & Protection mapping & \textsf{Atomic} in protection, \textsf{Var} without protection \\
+E8xx & Function summary & Summary conflicts with body \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-% ══════════════════════════════════════════════════════════════
-%  4.2  CVN
-% ══════════════════════════════════════════════════════════════
+\begin{definition}[Business goal]
+\label{def:business-goal}
+A business goal is a pair $\gamma = (\mathit{M}_\gamma,\; \mathit{V}_\gamma)$ where $\mathit{M}_\gamma : P \rightharpoonup \mathbb{N}_0$ is a partial marking specifying the required token counts for a subset
+of places, and $\mathit{V}_\gamma : \mathit{VarName}
+\rightharpoonup \mathit{Val}$ is a partial valuation specifying the required values for a subset of variables. A \textsc{Cvn} state $(M, V)$ \emph{satisfies} $\gamma$, written $(M, V) \models \gamma$, iff
+$\forall p \in \mathit{dom}(\mathit{M}_\gamma):
+M(p) \geq \mathit{M}_\gamma(p)$ and
+$\forall x \in \mathit{dom}(\mathit{V}_\gamma):
+V(x) = \mathit{V}_\gamma(x)$.
+\end{definition}
+
+Business goals capture what the program is \emph{supposed to
+achieve}, not merely what it should avoid. A buggy program may fail to reach its goals precisely because a deadlock or signal loss blocks the execution path. Conversely, a repair that eliminates all concurrency bugs may still fail to reach a goal if it inadvertently removes a critical operation. The acceptance criterion for a verified \textsc{Cir} is therefore the conjunction of two conditions: (1)~no concurrency bug is detected, and (2)~every business goal is reachable. Goal reachability is checked only after the bug-freedom condition is established, because bugs themselves can block goal reachability.
+
+This check corresponds to the resource-consumption perspective of linear logic: each \textsc{Cvn} transition is a linear implication $A_1 \otimes \cdots \otimes A_k \multimap B_1 \otimes \cdots \otimes B_m$ that consumes and produces resources. The business goal asks whether the target resource configuration is derivable from the initial resources. The \textsc{Cvn} reachability search answers this question exhaustively.
+
+\begin{figure}[t]
+\begin{lstlisting}[basicstyle=\small\ttfamily, frame=single]
+goals:
+  - id: G1
+    desc: "Both threads complete, lock released,
+           ready flag set"
+    marking:
+      cp(worker, ret): 1
+      cp(notifier, ret): 1
+      rp(m0): 1
+    variables:
+      ready: true
+  - id: G2
+    desc: "Worker reaches completion state"
+    marking:
+      cp(worker, w6): 1
+\end{lstlisting}
+\caption{Business goals for the running example.}
+\label{fig:goals-example}
+\end{figure}
+
 \subsection{CVN: Concurrency Verification Net}
 \label{subsec:cvn-def}
 
-\subsubsection{Overview}
-
-A \textsc{Cvn} is a weighted Place/Transition Petri net augmented with a global variable store and three-valued guard evaluation. It is not a colored Petri net. All tokens are indistinguishable black tokens. There are no color sets, no binding expressions, and no
-token-carried data.
-
-\subsubsection{Net Structure}
+A \textsc{Cvn} is a weighted Place/Transition Petri net augmented with a global variable store and three-valued guard evaluation. 
 
 \begin{definition}[\textsc{Cvn}]
 \label{def:cvn}
-A Concurrency Verification Net is an eight-tuple
-\[
-  \mathcal{N} = ( P,\; T,\; A_{\mathrm{in}},\; A_{\mathrm{out}},\;
-    V,\; I_m,\; I_v,\; \mu )
-\]
-where
-\begin{itemize}[leftmargin=1.4em]
-  \item $P = P_c \uplus P_r \uplus P_w$ is a finite set of places, partitioned into control places $P_c$, resource places $P_r$, and wait places $P_w$,
-  \item $T$ is a finite set of transitions,
-  \item $A_{\mathrm{in}} \subseteq P \times T$ is the set of input arcs, each annotated with a weight $w \in \mathbb{N}^+$ and a guard $g$,
-  \item $A_{\mathrm{out}} \subseteq T \times P$ is the set of output arcs, each annotated with a weight $w \in \mathbb{N}^+$ and an update $u$,
-  \item $V : \mathit{VarName} \to \mathit{Val}$ is the global variable store,
-  \item $I_m : P \to \mathbb{N}_0$ is the initial marking,
-  \item $I_v$ is the initial variable valuation, and
-  \item $\mu : T \rightharpoonup \mathit{SID}^+$ is the anchor mapping from transitions to \textsc{Cir} statement identifiers (optional, controlled by a feature flag).
-\end{itemize}
+A Concurrency Verification Net is an 8-tuple $\mathcal{N} = ( P,\; T,\; A_{\mathrm{in}},\; A_{\mathrm{out}},\; V,\; I_m,\; I_v,\; \mu )$, where $P = P_c \uplus P_r \uplus P_w$ is a finite set of places partitioned into control, resource, and wait places; $T$ is a finite set of transitions; $A_{\mathrm{in}} \subseteq P \times T$ and $A_{\mathrm{out}} \subseteq T \times P$ are sets of weighted arcs potentially annotated with guards $g$ or updates $u$; $V : \mathit{VarName} \to \mathit{Val}$ is the global variable store; $I_m$ and $I_v$ are initial markings and valuations; and $\mu: T \rightharpoonup \mathit{SID}^+$ is the anchor mapping.
 \end{definition}
 
-\subsubsection{Place Families}
-
-\textbf{Control places} $P_c$. There is one control place $\mathit{cp}(f, \mathit{sid})$ for each statement in each function. A token in $\mathit{cp}(f, \mathit{sid})$ means that a thread is
-at statement $\mathit{sid}$ in function $f$. Each function also has a return place $\mathit{cp}(f, \mathit{ret})$ that receives a token when the function returns.
-
-\textbf{Resource places} $P_r$. There is one resource place $\mathit{rp}(r)$ for each synchronization primitive. The initial token count depends on the resource kind (Table~\ref{tab:init-tokens}). \textsf{Var} and \textsf{Atomic} resources do not have resource
-places. Their state is stored in the variable store $V$.  Each condition variable $\mathit{cv}$ with associated wait sites $\{w_1, \ldots, w_k\}$ introduces the following \textsc{Cvn}
+There is one control place $\mathit{cp}(f, \mathit{sid})$ for each statement in each function. A token in $\mathit{cp}(f, \mathit{sid})$ means that a thread is at statement $\mathit{sid}$ in function $f$. Each function also has a return place $\mathit{cp}(f, \mathit{ret})$ that receives a token when the function returns. There is one resource place $\mathit{rp}(r)$ for each synchronization primitive. The initial token count depends on the resource kind in Table~\ref{tab:init-tokens}. \textsf{Var} and \textsf{Atomic} resources do not have resource places. Their state is stored in the variable store $V$. Each condition variable $\mathit{cv}$ with associated wait sites $\{w_1, \ldots, w_k\}$ introduces the following \textsc{Cvn}
 elements.
-
-\textbf{Places.}
-\begin{itemize}[leftmargin=1.4em]
-  \item $\mathit{rp}(\mathit{cv})$: a resource place for the condition variable itself, initialized with 0 tokens. A \textsf{notify\_one} deposits one token; a \textsf{wait} wake-up consumes one token.
-  \item $\mathit{wp}(w_i)$: a wait place for each wait site $w_i$. A token here means a thread is blocked at $w_i$.
-  \item $\mathit{ra}(w_i)$: a reacquire place for each wait site $w_i$. A token here means a thread has been woken and is waiting to reacquire the associated mutex.
-\end{itemize}
-
-\textbf{Global variables.}
-\begin{itemize}[leftmargin=1.4em]
-  \item $\mathit{nw}_{\mathit{cv}}$: an integer variable counting
-        the number of threads currently waiting on $\mathit{cv}$.
-        Initialized to 0. Incremented when a thread enters a wait
-        place, decremented when a thread leaves a wait place.
-  \item $\mathit{na}_{w_i}$: a boolean variable for each wait site
-        $w_i$. Initialized to $\mathsf{false}$. Set to
-        $\mathsf{true}$ by \textsf{notify\_all}, reset to
-        $\mathsf{false}$ when the thread enters the wait place or
-        wakes up via this flag.
-\end{itemize}
-
-The waiter count $\mathit{nw}_{\mathit{cv}}$ enables the
-\textsf{notify} transitions to determine whether any thread is
-waiting, using a guard on a global variable rather than inspecting
-token counts in places. The per-site flag $\mathit{na}_{w_i}$
-provides a second wake-up channel for \textsf{notify\_all} that does
-not consume a token from $\mathit{rp}(\mathit{cv})$.
 
 \begin{table}[t]
 \caption{Initial token counts for resource places.}
@@ -280,15 +149,14 @@ not consume a token from $\mathit{rp}(\mathit{cv})$.
 \textsf{Mutex}          & 1 \\
 \textsf{RwLock}         & $N$ (total concurrent entities) \\
 \textsf{Semaphore}$(n)$ & $n$ \\
-\textsf{Channel}        & 0 \\
+\textsf{Channel}(c)        & $c$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{Wait places} $P_w$. There is one wait place $\mathit{wp}(\mathit{sid})$ for each \textsf{wait} statement in the \textsc{Cir}. A token in $\mathit{wp}(\mathit{sid})$ means that
+A wait place $\mathit{wp}(\mathit{sid})$ for each \textsf{wait} statement in the \textsc{Cir}. A token in $\mathit{wp}(\mathit{sid})$ means that
 a thread is blocked at that wait site.
 
-\subsubsection{Value Domain}
 
 \begin{definition}[Value domain]
 \label{def:val}
@@ -308,81 +176,22 @@ Value expressions:
     \mathit{BinOp}(\mathit{Expr}, \oplus, \mathit{Expr})
 \]
 
-Boolean expressions:
-\[
-  \mathit{BoolExpr} ::= \textsf{True} \;\mid\;
-    \mathit{Cmp}(\mathit{Expr}, \mathit{cmp}, \mathit{Expr}) \;\mid\;
+Boolean expressions:$ \mathit{BoolExpr} ::= \textsf{True} \;\mid\; \mathit{Cmp}(\mathit{Expr}, \mathit{cmp}, \mathit{Expr}) \;\mid\;
     \mathit{And}(\mathit{BoolExpr}, \mathit{BoolExpr}) \;\mid\;
-    \mathit{Not}(\mathit{BoolExpr})
-\]
-
-\subsubsection{Three-Valued Guard Evaluation}
+    \mathit{Not}(\mathit{BoolExpr})$
 
 \begin{definition}[Guard evaluation]
 \label{def:guard-eval}
-A guard $g$ is a $\mathit{BoolExpr}$. Given a variable store $V$, the evaluation $\mathit{eval}(g, V)$ returns one of three results:
-\begin{itemize}[leftmargin=1.4em]
-  \item $\mathsf{true}$: the guard is satisfied.
-  \item $\mathsf{false}$: the guard is not satisfied.
-  \item $\mathsf{unknown}$: the guard involves a variable whose
-        value is $\top$.
-\end{itemize}
-When any operand of a comparison is $\top$, the comparison evaluates to $\mathsf{unknown}$. The conjunction $\mathsf{unknown} \wedge \mathsf{false}$ evaluates to $\mathsf{false}$. The conjunction $\mathsf{unknown} \wedge \mathsf{true}$ evaluates to $\mathsf{unknown}$.
+A guard $g$ is a $\mathit{BoolExpr}$. Given a variable store $V$, the evaluation $\mathit{eval}(g, V)$ returns one of three results: $\{true, false, \mathsf{unknown}(\top) \}$. When any operand of a comparison is $\top$, the comparison evaluates to $\mathsf{unknown}$. The conjunction $\mathsf{unknown} \wedge \mathsf{false}$ evaluates to $\mathsf{false}$. The conjunction $\mathsf{unknown} \wedge \mathsf{true}$ evaluates to $\mathsf{unknown}$.
 \end{definition}
 
-The evaluation semantics for $\mathsf{unknown}$ is an over-approximation. When a guard evaluates to $\mathsf{unknown}$, the transition is treated as enabled. If the guard arises from a branch statement, both the true-branch and the false-branch transitions are enabled simultaneously. The state-space search explores both paths. This ensures that no reachable state is missed
-at the cost of potentially exploring infeasible states.
+The evaluation semantics for $\mathsf{unknown}$ is an over-approximation. When a guard evaluates to $\mathsf{unknown}$, the transition is treated as enabled. If the guard arises from a branch statement, both the true-branch and the false-branch transitions are enabled simultaneously. The state-space search explores both paths. This ensures that no reachable state is missed at the cost of potentially exploring infeasible states. Guards are semantically meaningful only on transitions generated from \textsf{branch} and \textsf{switch} statements. All other transitions have guard $\textsf{True}$.
 
-Guards are semantically meaningful only on transitions generated from \textsf{branch} and \textsf{switch} statements. All other transitions have guard $\textsf{True}$.
-
-\subsubsection{Enabling and Firing}
-
-\begin{definition}[Enabling]
-\label{def:enabling}
-A transition $t \in T$ is enabled at state $(M, V)$ if and only if:
-\begin{enumerate}[leftmargin=1.4em]
-  \item for every input arc $(p, t)$ with weight $w$: $M(p) \geq w$, and
-  \item for every input arc $(p, t)$ with guard $g$: $\mathit{eval}(g, V) \neq \mathsf{false}$.
-\end{enumerate}
+\begin{definition}[Enabling and Firing]
+\label{def:enabling_firing}
+A transition $t \in T$ is enabled at state $(M, V)$ iff (1) $\forall (p, t) \in A_{\mathrm{in}}: M(p) \geq w(p, t)$, and (2) $\mathit{eval}(g, V) \neq \mathsf{false}$. 
+Upon firing, the successor marking $M'(p) = M(p) - w_{\mathrm{in}} + w_{\mathrm{out}}$, and the successor valuation $V'$ is updated by $u \in \mathit{Updates}(t)$. If multiple transitions are enabled (e.g., a branch with $\mathsf{unknown}$ guard), the search explores all resulting interleavings.
 \end{definition}
-
-\begin{definition}[Firing]
-\label{def:firing}
-When an enabled transition $t$ fires at state $(M, V)$, the successor state $(M', V')$ is computed as follows:
-\begin{enumerate}[leftmargin=1.4em]
-  \item For every input arc $(p, t)$ with weight $w$:
-        $M'(p) = M(p) - w$.
-  \item For every output arc $(t, p)$ with weight $w$:
-        $M'(p) = M(p) + w$ (applied after step 1).
-  \item For places not involved in any arc of $t$:
-        $M'(p) = M(p)$.
-  \item For every output arc $(t, p)$ with update $u$:
-        apply $u$ to $V$, yielding $V'$.
-  \item Updates on the same transition have pairwise disjoint
-        variable domains.
-\end{enumerate}
-\end{definition}
-
-\subsubsection{State and Finiteness}
-
-\begin{definition}[State]
-\label{def:state}
-A \textsc{Cvn} state is a pair $(M, V)$ where $M : P \to \mathbb{N}_0$ is the marking and $V : \mathit{VarName} \to \mathit{Val}$ is the variable store. Two states are equal if and only if they agree on both $M$ and $V$.
-\end{definition}
-
-\begin{theorem}[Finite state space]
-\label{thm:finite}
-The reachable state space of a \textsc{Cvn} is finite if every place has a finite token bound and every variable has a finite value domain.
-\end{theorem}
-
-\begin{proof}
-The marking space is finite because there are finitely many places and each place holds at most a bounded number of tokens. The variable space is finite because each variable takes values in a finite set of concrete values or $\top$, and $\top$ is absorbing. The product of two finite sets is finite.
-\end{proof}
-
-Both conditions hold for nets produced by the translation in Section~\ref{subsec:translation}. Token bounds follow from the translation construction: control places are one-safe, resource
-places are bounded by the initial token count, and wait places are one-safe. Variable domains are finite because the \textsc{Cir} restricts variable types to finite base types plus $\top$.
-
-\subsubsection{Transition Kinds}
 
 Each transition carries a classification tag $\mathit{kind}$ for debugging and visualization. The tag does not affect the firing semantics. Table~\ref{tab:transition-kinds} lists the classification.
 
@@ -402,67 +211,14 @@ Branch      & BranchTrue, BranchFalse, Switch \\
 CAS         & CasSuccess, CasFailure \\
 Concurrency & Spawn, Join \\
 Call        & Call \\
-Condvar     & CondvarWait, CondvarNotify, CondvarNotifyAll, CondvarReacquire \\
+Condvar     & Wait, Notify, NotifyAll, Reacquire \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsubsection{Well-Formedness}
-
-A \textsc{Cvn} is well-formed if it satisfies conditions W1 through W9.
-
-\begin{itemize}[leftmargin=1.4em]
-\item[W1.] $P_c$, $P_r$, and $P_w$ are pairwise disjoint.
-\item[W2.] Every arc references an existing place and an existing transition.
-\item[W3.] Each control place has at most one input arc per transition.
-\item[W4.] Updates on a single transition have pairwise disjoint variable domains.
-\item[W5.] Branch transitions come in complementary pairs: for each branch, there exist exactly two transitions sharing the same control input place, with guards $g$ and $\neg g$.
-\item[W6.] Switch transitions cover all declared cases of the dispatched variable.
-\item[W7.] (When the anchor feature is enabled.) Every transition has a nonempty anchor set in $\mu$.
-\item[W8.] All arc weights are strictly positive.
-\item[W9.] The initial marking is consistent with resource kinds (Table~\ref{tab:init-tokens}).
-\end{itemize}
-
-\subsubsection{CVN Error Taxonomy}
-
-Table~\ref{tab:cvn-errors} lists the \textsc{Cvn} error categories
-with prefix V.
-
-\begin{table}[t]
-\caption{\textsc{Cvn} error categories.}
-\label{tab:cvn-errors}
-\centering\footnotesize
-\begin{tabular}{@{}llp{3.4cm}@{}}
-\toprule
-\textbf{Code} & \textbf{Category} & \textbf{Examples} \\
-\midrule
-V0xx & Structural
-  & Duplicate ID, dangling arc, zero weight \\
-V1xx & Well-formedness
-  & Control arc violation, update conflict, missing anchor \\
-V2xx & Branch completeness
-  & Unpaired branch, incomplete switch \\
-V3xx & Analysis
-  & Token deficit, state explosion \\
-V4xx & Resource semantics
-  & Initial tokens inconsistent with kind \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-% ══════════════════════════════════════════════════════════════
-%  4.3  Translation
-% ══════════════════════════════════════════════════════════════
 \subsection{CIR to CVN Translation}
 \label{subsec:translation}
-
-\subsubsection{Overview}
-
-The translator is a pure function
-\[
-  \mathit{translate} : \textsc{Cir} \to \textsc{Cvn}
-\]
-that takes a validated \textsc{Cir} artifact and produces a \textsc{Cvn}. The translator is stateless and deterministic. It proceeds in three phases.
+The translator is a pure function $\mathit{translate} : \textsc{Cir} \to \textsc{Cvn}$ that takes a validated \textsc{Cir} artifact and produces a \textsc{Cvn}. The translator is stateless and deterministic. It proceeds in three phases.
 
 \textbf{Phase 1: Resource scanning.} For each synchronization primitive in $R$, generate a resource place $\mathit{rp}(r)$ and set its initial token count according to Table~\ref{tab:init-tokens}. Compute the RwLock concurrency parameter $N$ as the total number of concurrent entities (threads and async tasks). For each \textsf{Var} and \textsf{Atomic} resource, initialize the corresponding entry in $V$.
 
@@ -470,292 +226,49 @@ that takes a validated \textsc{Cir} artifact and produces a \textsc{Cvn}. The tr
 
 \textbf{Phase 3: Summary translation.} For each function referenced by a \textsf{call} statement that has a summary in $\Sigma$ but no body in $F$, generate a single atomic transition. The transition reads no input from resource places (reads have no effect). For each resource in the $\mathit{writes}$ set, the output arc carries an update that sets the variable to $\top$.
 
-\subsubsection{Translation Rules}
-
 Table~\ref{tab:translation-rules} defines the translation of each \textsc{Cir} operation into \textsc{Cvn} structure. The notation uses the following conventions. $\mathit{cp}(f, s)$ denotes the control place for statement $s$ in function $f$. $\mathit{rp}(r)$ denotes the resource place for resource $r$. $\mathit{wp}(s)$ denotes the wait place for wait statement $s$. An arrow $\to$ separates input arcs (consumed tokens and guards) from output arcs (produced tokens and updates). The subscript after the arrow indicates the transition kind.
 
 \begin{table*}[t]
-\caption{Translation rules from \textsc{Cir} to \textsc{Cvn} (complete).
-Each row shows the \textsc{Cir} pattern and the generated \textsc{Cvn}
-structure. Notation: $\mathit{cp}(f,s)$ = control place,
-$\mathit{rp}(r)$ = resource place, $\mathit{wp}(s)$ = wait place,
-$\mathit{ra}(s)$ = reacquire place.}
+\caption{Translation Rules from \textsc{Cir} to \textsc{Cvn}.}
 \label{tab:translation-rules}
 \centering\footnotesize
-\begin{tabular}{@{}p{5.6cm}p{11cm}@{}}
+\begin{tabular}{@{}p{5.8cm}p{11.2cm}@{}}
 \toprule
-\textbf{\textsc{Cir} statement} & \textbf{\textsc{Cvn} transitions and arcs} \\
+\textbf{\textsc{Cir} Statement} & \textbf{Generated \textsc{Cvn} Transitions and Arcs} \\
+\midrule
+% --- Mutex ---
+$(\mathit{sid}, \textsf{lock}(m), \textsf{next}(\mathit{sid}'))$ & One transition [Lock]: $\mathit{cp}(f, \mathit{sid}), \mathit{rp}(m) \to \mathit{cp}(f, \mathit{sid}')$. \\
+$(\mathit{sid}, \textsf{drop}(m), \textsf{next}(\mathit{sid}'))$ & One transition [Unlock]: $\mathit{cp}(f, \mathit{sid}) \to \mathit{cp}(f, \mathit{sid}'), \mathit{rp}(m)$. \\
+
+% --- RwLock ---
+$(\mathit{sid}, \textsf{write\_lock}(r), \dots)$ & One transition [Lock]: $\mathit{cp}(f, \mathit{sid}), \mathit{rp}(r) \text{ (weight } N) \to \mathit{cp}(f, \mathit{sid}')$. \\
+
+% --- Condvar ---
+\midrule
+\multicolumn{2}{l}{\textbf{Condvar Operations} (Mutex $m$, site $s$, counter $nw_{cv}$, and per-site flag $na_s$)} \\
+$(\mathit{sid}, \textsf{wait}(\mathit{cv}, m), \textsf{next}(\mathit{sid}'))$ & 
+\textit{WaitEnter:} $\mathit{cp}(f, \mathit{sid}) \to \mathit{wp}(\mathit{sid}), \mathit{rp}(m)$ with $nw_{cv}{+\!+}, na_{\mathit{sid}} \gets \mathsf{false}$. \\
+& \textit{Wake1 (Notify):} $\mathit{wp}(\mathit{sid}), \mathit{rp}(\mathit{cv}) \to \mathit{ra}(\mathit{sid})$ with $nw_{cv}{-\!-}$. \\
+& \textit{WakeA (NotifyAll):} $\mathit{wp}(\mathit{sid})$ with guard $na_{\mathit{sid}} \to \mathit{ra}(\mathit{sid})$ with $nw_{cv}{-\!-}, na_{\mathit{sid}} \gets \mathsf{false}$. \\
+& \textit{Reacquire:} $\mathit{ra}(\mathit{sid}), \mathit{rp}(m) \to \mathit{cp}(f, \mathit{sid}')$. \\
+\midrule
+$(\mathit{sid}, \textsf{notify\_one}(\mathit{cv}), \dots)$ & 
+\textit{NotifySuccess:} $\mathit{cp}(f, \mathit{sid})$ with guard $nw_{cv} > 0 \to \mathit{cp}(f, \mathit{sid}'), \mathit{rp}(\mathit{cv})$. \\
+& \textit{NotifyLost:} $\mathit{cp}(f, \mathit{sid})$ with guard $nw_{cv} = 0 \to \mathit{cp}(f, \mathit{sid}')$. \\
 \midrule
 
-% ── Lock / Unlock ────────────────────────────────────
-$(\mathit{sid},\; \textsf{lock}(m),\; \textsf{next}(\mathit{sid}'))$
-  & One transition $t$ [Lock]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1 and
-    $\mathit{rp}(m)$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1. \\[4pt]
+% --- Control Flow ---
+$(\mathit{sid}, \textsf{read}(x), \textsf{branch}(\beta, s_t, s_f))$ & 
+$t_{\top} [\text{BranchT}]: \mathit{cp}(f, \mathit{sid})$ with guard $\beta \to \mathit{cp}(f, s_t)$. \\
+& $t_{\bot} [\text{BranchF}]: \mathit{cp}(f, \mathit{sid})$ with guard $\neg\beta \to \mathit{cp}(f, s_f)$. \\
 
-$(\mathit{sid},\; \textsf{drop}(m),\; \textsf{next}(\mathit{sid}'))$
-  & One transition $t$ [Unlock]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1 and
-    $\mathit{rp}(m)$ weight 1. \\[4pt]
-
-% ── RwLock ───────────────────────────────────────────
-$(\mathit{sid},\; \textsf{read\_lock}(r),\; \textsf{next}(\mathit{sid}'))$
-  & One transition $t$ [ReadLock]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1 and
-    $\mathit{rp}(r)$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1. \\[4pt]
-
-$(\mathit{sid},\; \textsf{write\_lock}(r),\; \textsf{next}(\mathit{sid}'))$
-  & One transition $t$ [Lock]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1 and
-    $\mathit{rp}(r)$ weight $N$;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1.
-    Consumes all $N$ tokens, blocking all readers and writers. \\[4pt]
-
-$(\mathit{sid},\; \textsf{drop}(r),\; \textsf{next}(\mathit{sid}'))$
-  \emph{after} \textsf{read\_lock}
-  & One transition $t$ [ReadUnlock]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1 and
-    $\mathit{rp}(r)$ weight 1. \\[4pt]
-
-$(\mathit{sid},\; \textsf{drop}(r),\; \textsf{next}(\mathit{sid}'))$
-  \emph{after} \textsf{write\_lock}
-  & One transition $t$ [Unlock]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1 and
-    $\mathit{rp}(r)$ weight $N$. \\[4pt]
-
-% ── Semaphore ────────────────────────────────────────
-$(\mathit{sid},\; \textsf{acquire}(r),\; \textsf{next}(\mathit{sid}'))$
-  & One transition $t$ [Acquire]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1 and
-    $\mathit{rp}(r)$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1. \\[4pt]
-
-$(\mathit{sid},\; \textsf{release}(r),\; \textsf{next}(\mathit{sid}'))$
-  & One transition $t$ [Release]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1 and
-    $\mathit{rp}(r)$ weight 1. \\[4pt]
-
-% ── Channel ──────────────────────────────────────────
-$(\mathit{sid},\; \textsf{send}(c),\; \textsf{next}(\mathit{sid}'))$
-  & One transition $t$ [Send]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1 and
-    $\mathit{rp}(c)$ weight 1. \\[4pt]
-
-$(\mathit{sid},\; \textsf{recv}(c),\; \textsf{next}(\mathit{sid}'))$
-  & One transition $t$ [Recv]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1 and
-    $\mathit{rp}(c)$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1. \\[4pt]
-
-% ── Variable read (sequential) ───────────────────────
-$(\mathit{sid},\; \textsf{read}(x),\; \textsf{next}(\mathit{sid}'))$
-  & One transition $t$ [VarRead]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1.
-    No guard, no update. \\[4pt]
-
-% ── Variable read + branch ───────────────────────────
-$(\mathit{sid},\; \textsf{read}(x),\; \textsf{branch}(\beta,
-  \mathit{sid}_t, \mathit{sid}_f))$
-  & Two transitions sharing input from $\mathit{cp}(f,\mathit{sid})$
-    weight 1.
-    $t_{\top}$ [BranchTrue]: guard $\beta$, output to
-    $\mathit{cp}(f,\mathit{sid}_t)$.
-    $t_{\bot}$ [BranchFalse]: guard $\neg\beta$, output to
-    $\mathit{cp}(f,\mathit{sid}_f)$. \\[4pt]
-
-% ── Variable write ───────────────────────────────────
-$(\mathit{sid},\; \textsf{write}(x, v),\; \textsf{next}(\mathit{sid}'))$
-  & One transition $t$ [VarWrite]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1,
-    update $V[x] \leftarrow v$. \\[4pt]
-
-% ── Atomic ops ───────────────────────────────────────
-$(\mathit{sid},\; \textsf{load}(x),\; \textsf{next}(\mathit{sid}'))$
-  & One transition $t$ [AtomicLoad]: same structure as
-    \textsf{read}. \\[4pt]
-
-$(\mathit{sid},\; \textsf{store}(x, v),\; \textsf{next}(\mathit{sid}'))$
-  & One transition $t$ [AtomicStore]: same structure as
-    \textsf{write}, update $V[x] \leftarrow v$. \\[4pt]
-
-$(\mathit{sid},\; \textsf{cas}(x, e, n),\;
-  \textsf{next}(\mathit{sid}'))$
-  & Two transitions sharing input from $\mathit{cp}(f,\mathit{sid})$.
-    $t_s$ [CasSuccess]: guard $V[x] = e$, output to
-    $\mathit{cp}(f,\mathit{sid}')$, update $V[x] \leftarrow n$.
-    $t_f$ [CasFailure]: guard $V[x] \neq e$, output to
-    $\mathit{cp}(f,\mathit{sid}')$, no update. \\[4pt]
-
-% ── Condvar wait ─────────────────────────────────────
-% \multicolumn{2}{@{}l}{\textbf{Condvar operations} (cv has
-%   paired mutex $m$; wait sites of cv are $\{w_1, \ldots, w_k\}$)} \\[4pt]
-
-$(\mathit{sid},\; \textsf{wait}(\mathit{cv}, m),\;
-  \textsf{next}(\mathit{sid}'))$
-  & Four transitions.
-    \newline
-    $t_{\mathit{enter}}$ [CondvarWaitEnter]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1;
-    output to $\mathit{wp}(\mathit{sid})$ weight 1 and
-    $\mathit{rp}(m)$ weight 1;
-    update $\mathit{nw}_{\mathit{cv}} \leftarrow
-    \mathit{nw}_{\mathit{cv}} + 1$,\;
-    $\mathit{na}_{\mathit{sid}} \leftarrow \mathsf{false}$.
-    \newline
-    $t_{\mathit{wake1}}$ [CondvarWakeByNotify]:
-    input from $\mathit{wp}(\mathit{sid})$ weight 1 and
-    $\mathit{rp}(\mathit{cv})$ weight 1;
-    output to $\mathit{ra}(\mathit{sid})$ weight 1;
-    update $\mathit{nw}_{\mathit{cv}} \leftarrow
-    \mathit{nw}_{\mathit{cv}} - 1$.
-    \newline
-    $t_{\mathit{wakeA}}$ [CondvarWakeByNotifyAll]:
-    input from $\mathit{wp}(\mathit{sid})$ weight 1;
-    guard $\mathit{na}_{\mathit{sid}} = \mathsf{true}$;
-    output to $\mathit{ra}(\mathit{sid})$ weight 1;
-    update $\mathit{nw}_{\mathit{cv}} \leftarrow
-    \mathit{nw}_{\mathit{cv}} - 1$,\;
-    $\mathit{na}_{\mathit{sid}} \leftarrow \mathsf{false}$.
-    \newline
-    $t_{\mathit{reacq}}$ [CondvarReacquire]:
-    input from $\mathit{ra}(\mathit{sid})$ weight 1 and
-    $\mathit{rp}(m)$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1. \\[4pt]
-
-% ── Condvar notify_one ───────────────────────────────
-$(\mathit{sid}_n,\; \textsf{notify\_one}(\mathit{cv}),\;
-  \textsf{next}(\mathit{sid}_n'))$
-  & Two transitions.
-    \newline
-    $t_{\mathit{notify}}$ [CondvarNotify]:
-    input from $\mathit{cp}(f,\mathit{sid}_n)$ weight 1;
-    guard $\mathit{nw}_{\mathit{cv}} > 0$;
-    output to $\mathit{cp}(f,\mathit{sid}_n')$ weight 1 and
-    $\mathit{rp}(\mathit{cv})$ weight 1.
-    \newline
-    $t_{\mathit{lost}}$ [CondvarNotifyLost]:
-    input from $\mathit{cp}(f,\mathit{sid}_n)$ weight 1;
-    guard $\mathit{nw}_{\mathit{cv}} = 0$;
-    output to $\mathit{cp}(f,\mathit{sid}_n')$ weight 1.
-    Annotated as SignalLoss detection point. \\[4pt]
-
-% ── Condvar notify_all ───────────────────────────────
-$(\mathit{sid}_n,\; \textsf{notify\_all}(\mathit{cv}),\;
-  \textsf{next}(\mathit{sid}_n'))$
-  with wait sites $\{w_1, \ldots, w_k\}$
-  & Two transitions.
-    \newline
-    $t_{\mathit{notifyAll}}$ [CondvarNotifyAll]:
-    input from $\mathit{cp}(f,\mathit{sid}_n)$ weight 1;
-    guard $\mathit{nw}_{\mathit{cv}} > 0$;
-    output to $\mathit{cp}(f,\mathit{sid}_n')$ weight 1;
-    update $\mathit{na}_{w_1} \leftarrow \mathsf{true},\;
-    \ldots,\; \mathit{na}_{w_k} \leftarrow \mathsf{true}$.
-    \newline
-    $t_{\mathit{allLost}}$ [CondvarNotifyAllLost]:
-    input from $\mathit{cp}(f,\mathit{sid}_n)$ weight 1;
-    guard $\mathit{nw}_{\mathit{cv}} = 0$;
-    output to $\mathit{cp}(f,\mathit{sid}_n')$ weight 1.
-    Annotated as SignalLoss detection point. \\[4pt]
-
-% ── Spawn / Join ─────────────────────────────────────
-$(\mathit{sid},\; \textsf{spawn}(g),\;
-  \textsf{next}(\mathit{sid}'))$
-  & One transition $t$ [Spawn]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1 and
-    $\mathit{cp}(g,\mathit{sid}_0^g)$ weight 1. \\[4pt]
-
-$(\mathit{sid},\; \textsf{join}(g),\;
-  \textsf{next}(\mathit{sid}'))$
-  & One transition $t$ [Join]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1 and
-    $\mathit{cp}(g,\mathit{ret})$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1. \\[4pt]
-
-% ── Call ─────────────────────────────────────────────
-$(\mathit{sid},\; \textsf{call}(g),\;
-  \textsf{next}(\mathit{sid}'))$
-  where $g$ has body
-  & Call transition: $\mathit{cp}(f,\mathit{sid}) \to
-    \mathit{cp}(g,\mathit{sid}_0^g)$.
-    Return transition: $\mathit{cp}(g,\mathit{ret}) \to
-    \mathit{cp}(f,\mathit{sid}')$. \\[4pt]
-
-$(\mathit{sid},\; \textsf{call}(g),\;
-  \textsf{next}(\mathit{sid}'))$
-  where $g$ has summary only
-  & One transition $t$ [Call]:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1;
-    output to $\mathit{cp}(f,\mathit{sid}')$ weight 1.
-    For each $x \in \Sigma(g).\mathit{writes}$:
-    update $V[x] \leftarrow \top$. \\[4pt]
-
-% ── Return ───────────────────────────────────────────
-$(\mathit{sid},\; \textsf{return},\; \textsf{done})$
-  & One transition $t$:
-    input from $\mathit{cp}(f,\mathit{sid})$ weight 1;
-    output to $\mathit{cp}(f,\mathit{ret})$ weight 1. \\[4pt]
-
-% ── Switch ───────────────────────────────────────────
-$(\mathit{sid},\; \textsf{read}(x),\;
-  \textsf{switch}(x, [(v_1,s_1), \ldots, (v_k,s_k)]))$
-  & $k$ transitions sharing input from $\mathit{cp}(f,\mathit{sid})$.
-    Transition $t_i$ [Switch]: guard $V[x] = v_i$, output to
-    $\mathit{cp}(f,s_i)$. \\
+% --- Concurrency ---
+$(\mathit{sid}, \textsf{spawn}(g), \textsf{next}(\mathit{sid}'))$ & One transition [Spawn]: $\mathit{cp}(f, \mathit{sid}) \to \mathit{cp}(f, \mathit{sid}'), \mathit{cp}(g, \mathit{sid}_0^g)$. \\
+$(\mathit{sid}, \textsf{join}(g), \textsf{next}(\mathit{sid}'))$ & One transition [Join]: $\mathit{cp}(f, \mathit{sid}), \mathit{cp}(g, \mathit{ret}) \to \mathit{cp}(f, \mathit{sid}')$. \\
 
 \bottomrule
 \end{tabular}
 \end{table*}
-
-\subsubsection{Design Constraints}
-
-The translation obeys four constraints.
-
-\begin{enumerate}[leftmargin=1.4em]
-\item \textbf{Faithful 1:1 mapping.} Every \textsc{Cir} statement produces at least one \textsc{Cvn} transition. No statements are merged, eliminated, or optimized.
-
-\item \textbf{Protection is not translated.} The protection mapping $G$ is used only for \textsc{Cir} static checking. It does not produce any places, transitions, or arcs in the \textsc{Cvn}.
-
-\item \textbf{Mode is not translated.} The \textsf{Sync}/\textsf{Async} mode of a resource does not affect the \textsc{Cvn} structure. Both modes produce the same places and transitions.
-
-\item \textbf{Read with sequential transfer preserves anchors.} A $\textsf{read}$ followed by $\textsf{next}$ generates a pass-through transition with no guard and no update. This transition exists solely to maintain the anchor mapping: every \textsc{Cir} statement must correspond to at least one \textsc{Cvn} transition so that counterexamples can reference the statement.
-\end{enumerate}
-
-\subsubsection{Translation Error Taxonomy}
-
-Table~\ref{tab:trans-errors} lists the translation error categories with prefix T.
-
-\begin{table}[t]
-\caption{Translation error categories.}
-\label{tab:trans-errors}
-\centering\footnotesize
-\begin{tabular}{@{}llp{3.2cm}@{}}
-\toprule
-\textbf{Code} & \textbf{Category} & \textbf{Examples} \\
-\midrule
-T0xx & Input errors
-  & \textsc{Cir} fails static check \\
-T1xx & Resource errors
-  & Unknown resource kind \\
-T2xx & Control flow
-  & Dangling transfer target \\
-T3xx & Consistency
-  & Incomplete anchor mapping \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsubsection{Translation Example}
 
 Figure~\ref{fig:translation-example} illustrates the translation of the \texttt{notifier} function from the running example in Figure~\ref{fig:running-cir}. The function has five statements. The translation produces five control places, four transitions, and arcs connecting them. The \textsf{lock} transition at $\mathit{sid}$ \texttt{n1} consumes a token from $\mathit{rp}(\texttt{m0})$, modeling mutex acquisition. The \textsf{drop} transition at $\mathit{sid}$ \texttt{n4} returns the token, modeling mutex release. The \textsf{write} transition at $\mathit{sid}$ \texttt{n3} carries an update $V[\texttt{ready}] \leftarrow \mathsf{true}$.
 
@@ -803,4 +316,6 @@ Transitions:
 \caption{Translation of the \texttt{notifier} function.}
 \label{fig:translation-example}
 \end{figure}
+
+The reachable state space is finite under two conditions: (1) every place $p \in P$ is $k$-bounded, which is guaranteed by the one-safe property of $P_c$ and the fixed resource counts in $P_r$; and (2) the value domain $\mathit{Val}$ is finite. Since $\top$ is absorbing and base types are bounded, the \textsc{Cvn} analysis is guaranteed to terminate.
 
