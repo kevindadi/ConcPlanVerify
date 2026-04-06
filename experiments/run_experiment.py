@@ -157,10 +157,10 @@ Rules:
 Output ONLY the JSON, no explanation."""
 
 REPAIR_SYSTEM_PROMPT = """\
-你是一个并发系统修复专家。你会收到一个包含并发 bug 的 CIR JSON，\
-以及由模型检验工具检测到的 bug 报告。\
-请根据报告中的修复建议修复 CIR，输出修复后的完整 CIR JSON。\
-只输出 JSON，不要添加任何解释文本。"""
+你是一个并发系统修复专家.你会收到一个包含并发 bug 的 CIR JSON,\
+以及由模型检验工具检测到的 bug 报告.\
+请根据报告中的修复建议修复 CIR,输出修复后的完整 CIR JSON.\
+只输出 JSON,不要添加任何解释文本."""
 
 
 def call_llm(

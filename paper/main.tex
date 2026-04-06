@@ -13,6 +13,16 @@
 \usepackage{booktabs}
 \usepackage{listings}
 \usepackage{xcolor}
+
+\lstdefinelanguage{rust}{
+  keywords={fn, let, mut, while, if, else, return, true, false, in, break, continue,
+    Arc, Mutex, Condvar},
+  sensitive=true,
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]",
+  morestring=[b]',
+}
 \usepackage{enumitem}
 \usepackage{subcaption}
 \usepackage{multirow}
@@ -56,11 +66,10 @@ and Petri-Net Verification for Concurrent Programs}
 }
 
 
-% ══════════════════════════════════════════════════════════════
-%  ABSTRACT
-% ══════════════════════════════════════════════════════════════
 \begin{abstract}
-\input{sections/abstract}
+% 不直接从源码中恢复并发资源身份,而是让 LLM 先生成一个面向验证的并发模型,再用形式化方法做穷举验证,并把反例回灌给修复环节.
+Source-level verification of concurrent programs is difficult because shared-resource identity and protection relations are often implicit and entangled with aliasing, ownership, and API-specific idioms. Rather than attempting to recover these facts precisely from source code, we study a generate--verify--repair architecture in which a large language model (LLM) synthesizes a verification-oriented concurrency model from a natural-language requirement or system specification. The first formalism, the Concurrency Intermediate Representation (\textsc{Cir}), is a statement-level, alias-free model in which shared resources are globally named, protection relations are explicit, and each statement carries a stable identifier. The second formalism, the Concurrency Verification Net (\textsc{Cvn}), is a weighted place/transition Petri net with a finite global store and three-valued guards for data-dependent branching. A validated \textsc{Cir} artifact is translated mechanically to \textsc{Cvn}, explored exhaustively, and any counterexample is mapped back to statement identifiers to guide targeted repair. To reject repairs that remove bugs by silently deleting intended behavior, acceptance additionally requires reachability of user-stated business goals. We formalize both representations, prove translation-correspondence results, define a two-layer checking architecture with 61 static rules and 5 bug predicates, and evaluate the pipeline on 9 representative bounded-concurrency patterns. The results show that the approach can detect seeded bugs, support iterative repair, and use goal reachability to catch bug-free but semantically incomplete repairs.
+
 \end{abstract}
 
 \keywords{concurrency verification, Petri nets, large language models,

@@ -1,15 +1,15 @@
 \section{Formal Properties}
 \label{sec:properties}
 
-% 本节给出翻译与分析层面的形式保证，证明思路主要依赖对每类 CIR 操作做分类讨论。
+% 本节给出翻译与分析层面的形式保证,证明思路主要依赖对每类 CIR 操作做分类讨论.
 This section states the formal guarantees of the translation and analysis. Full proofs proceed by case analysis on \textsc{Cir} operations and are provided in the appendix.
 
 % ─────────────────────────────────────────────────────────────
-% 先定义 CIR 配置、编码函数，以及 CIR 执行和 CVN 触发之间的模拟关系。
+% 先定义 CIR 配置、编码函数,以及 CIR 执行和 CVN 触发之间的模拟关系.
 \subsection{Encoding and Simulation}
 \label{subsec:encoding-simulation}
 
-% CIR configuration 描述某一时刻线程位置、资源可用数量、waiter 信息和变量存储。
+% CIR configuration 描述某一时刻线程位置、资源可用数量、waiter 信息和变量存储.
 \begin{definition}[\textsc{Cir} configuration]
 \label{def:cir-config}
 A \textsc{Cir} configuration is a tuple
@@ -18,7 +18,7 @@ where $\mathit{pc}$ maps each thread to its current statement,
 $L$ records the available count of each synchronization resource and each condvar notification token, $W$ records waiters at each wait site, $\mathit{NW}$ records the total waiter count per condvar, $\mathit{NA}$ records the notify-all flag per wait site, and $V$ is the variable store.
 \end{definition}
 
-% 编码函数把 CIR 状态映射为 CVN 的 marking 与变量存储，是后续对应性证明的桥梁。
+% 编码函数把 CIR 状态映射为 CVN 的 marking 与变量存储,是后续对应性证明的桥梁.
 \begin{definition}[Encoding]
 \label{def:encoding}
 The encoding $\mathsf{enc}(C) = (M, V')$ maps each thread's
@@ -26,14 +26,14 @@ position to a token in the corresponding control, wait, or
 reacquire place; each resource count to the corresponding resource place; and extends $V$ with the condvar auxiliary variables $\mathit{nw}_{\mathit{cv}}$ and $\mathit{na}_{w_i}$.
 \end{definition}
 
-% 前向模拟说明每一步 CIR 执行都能在 CVN 中找到对应的触发。
+% 前向模拟说明每一步 CIR 执行都能在 CVN 中找到对应的触发.
 \begin{theorem}[Forward simulation]
 \label{thm:forward}
 For every \textsc{Cir} step $C \xrightarrow{o} C'$, there exists a \textsc{Cvn} transition $t$ such that
 $\mathsf{enc}(C) \xrightarrow{t} \mathsf{enc}(C')$.
 \end{theorem}
 
-% 证明思路是对 CIR 操作分类讨论，逐条对照翻译规则表。
+% 证明思路是对 CIR 操作分类讨论,逐条对照翻译规则表.
 \begin{proof}[Proof sketch]
 By case analysis on $o$. Each \textsc{Cir} operation has a
 corresponding \textsc{Cvn} transition by construction of the
@@ -43,13 +43,13 @@ condition of the \textsc{Cvn} transition. The postcondition maps to the firing e
 four sub-steps, each matching one of the four generated transitions.
 \end{proof}
 
-% 反向模拟只在变量都具体、没有 unknown 的情况下成立；这也反映了论文对 over-approximation 的边界。
+% 反向模拟只在变量都具体、没有 unknown 的情况下成立;这也反映了论文对 over-approximation 的边界.
 \begin{theorem}[Backward simulation under concrete valuation]
 \label{thm:backward}
 If all variables have concrete values (no $\top$), then for every enabled \textsc{Cvn} transition $t$ at $\mathsf{enc}(C)$, there exists a corresponding \textsc{Cir} step.
 \end{theorem}
 
-% 核心理由是这时 guard 不会产生 unknown，所以启用条件可以与 CIR 前置条件一一对应。
+% 核心理由是这时 guard 不会产生 unknown,所以启用条件可以与 CIR 前置条件一一对应.
 \begin{proof}[Proof sketch]
 When all variables are concrete, guards evaluate to
 $\mathsf{true}$ or $\mathsf{false}$, never $\mathsf{unknown}$.
@@ -59,11 +59,11 @@ The condvar auxiliary variables ($\mathit{nw}$, $\mathit{na}$) are always concre
 \end{proof}
 
 % ─────────────────────────────────────────────────────────────
-% 接下来讨论更直接与 bug 检测相关的对应性和可靠性。
+% 接下来讨论更直接与 bug 检测相关的对应性和可靠性.
 \subsection{Correspondence and Soundness}
 \label{subsec:soundness}
 
-% deadlock correspondence 表示在具体赋值条件下，CIR 死锁与 CVN 死锁是等价的。
+% deadlock correspondence 表示在具体赋值条件下,CIR 死锁与 CVN 死锁是等价的.
 \begin{theorem}[Deadlock correspondence]
 \label{thm:deadlock-corr}
 Under concrete valuation, a \textsc{Cir} configuration $C$ is a
@@ -71,11 +71,11 @@ deadlock if and only if $\mathsf{enc}(C)$ is a deadlock in the
 \textsc{Cvn}.
 \end{theorem}
 
-% 这里补充 unknown 存在时的边界：CIR 死锁一定能映到 CVN 死锁，但反过来不一定。
+% 这里补充 unknown 存在时的边界:CIR 死锁一定能映到 CVN 死锁,但反过来不一定.
 This follows directly from Theorems~\ref{thm:forward}
 and~\ref{thm:backward}: the enabled sets coincide, so both sides agree on whether the set is empty. Under $\top$-valued variables, the correspondence is one-directional: a \textsc{Cir} deadlock implies a \textsc{Cvn} deadlock, but not vice versa.
 
-% signal loss 的命题更强，是一个双向精确对应。
+% signal loss 的命题更强,是一个双向精确对应.
 \begin{proposition}[Signal loss precision]
 \label{prop:signal-loss}
 A notification at $\mathit{sid}_n$ causes a signal loss in a
@@ -83,14 +83,14 @@ A notification at $\mathit{sid}_n$ causes a signal loss in a
 $t_{\mathit{lost}}$ transition fires in the \textsc{Cvn}.
 \end{proposition}
 
-% 作者认为 condvar 的 waiter 计数始终是具体值，因此这类检测没有误报也没有漏报。
+% 作者认为 condvar 的 waiter 计数始终是具体值,因此这类检测没有误报也没有漏报.
 This follows from the encoding: $V[\mathit{nw}_{\mathit{cv}}] =
 \mathit{NW}(\mathit{cv})$ is always concrete, so the guard
 $\mathit{nw}_{\mathit{cv}} = 0$ evaluates correctly in both
 directions. Signal loss detection has no false positives and no
 false negatives.
 
-% 总的 soundness 定理保证：如果 CIR 中确实能到达 bug 配置，那么 CVN 搜索一定能发现对应 bug。
+% 总的 soundness 定理保证:如果 CIR 中确实能到达 bug 配置,那么 CVN 搜索一定能发现对应 bug.
 \begin{theorem}[Soundness]
 \label{thm:soundness}
 If a \textsc{Cir} execution can reach a bug configuration, the
@@ -98,7 +98,7 @@ If a \textsc{Cir} execution can reach a bug configuration, the
 state.
 \end{theorem}
 
-% 证明思路是利用前向模拟与 over-approximation 的保守性，说明不会遗漏真实错误。
+% 证明思路是利用前向模拟与 over-approximation 的保守性,说明不会遗漏真实错误.
 \begin{proof}[Proof sketch]
 By Theorem~\ref{thm:forward}, every \textsc{Cir} trace has a
 corresponding \textsc{Cvn} firing sequence. The $\mathsf{unknown}$ mechanism only adds enabled transitions; it never removes transitions that would be enabled under
@@ -106,6 +106,6 @@ concrete evaluation. The bug predicates are defined over
 \textsc{Cvn} states and are preserved by the encoding. The finite state space guarantees that the search terminates and visits all reachable states.
 \end{proof}
 
-% 最后强调 soundness 不等于 completeness；因为 unknown 分支会引入过近似状态，所以仍可能出现误报。
+% 最后强调 soundness 不等于 completeness;因为 unknown 分支会引入过近似状态,所以仍可能出现误报.
 The converse does not hold: the \textsc{Cvn} may report false
 positives in states reachable only through $\mathsf{unknown}$-enabled branches. For fully modeled programs, all variables remain concrete and no false positives arise.
