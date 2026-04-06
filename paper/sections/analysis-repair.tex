@@ -71,7 +71,11 @@ Let $\pi = \langle t_1, t_2, \dots, t_n \rangle$ be a sequence of transitions fr
 \end{definition}
 
 % 最终的结构化反例由 bug 类型、锚定轨迹、状态差异和修复模板组成.
-The resulting structured counterexample $\mathcal{C}$ is a four-tuple $(\kappa, \pi_{\mu}, \Delta, \mathcal{S})$, where $\Delta$ is a \textit{State Delta} describing resource possession (e.g., $m_1$ is held by Thread A) and $\mathcal{S}$ is a repair strategy template from Table~\ref{tab:repair-templates}.
+The resulting structured counterexample $\mathcal{C}$ is a four-tuple
+$(\kappa, \pi_{\mu}, \Delta, \mathcal{S})$. Here, $\Delta$ is a
+\textit{State Delta} describing resource possession, such as $m_1$
+being held by Thread~A. The component $\mathcal{S}$ is a repair
+strategy template from Table~\ref{tab:repair-templates}.
 
 % 下面把前面提到的三层修复策略具体落成一个 goal-aware 的迭代算法.
 \subsection{The Tiered Repair Loop}
@@ -171,6 +175,7 @@ UNREACHABLE GOAL: G1
         operation exists on a reachable path.
 \end{lstlisting}
 \caption{Goal violation feedback after bug-free verification.}
+\Description{A structured goal-violation report. It states that no concurrency bugs remain, names the unreachable goal G1, repeats its description, identifies the missing condition V[ready] = true, and suggests ensuring that a reachable write operation sets ready to true.}
 \label{fig:goal-violation}
 \end{figure}
 
@@ -213,4 +218,11 @@ $\textsf{Recv}$ on empty channel with no potential $\textsf{Senders}$. &
 \end{table*}
 
 % 这里举 deadlock 为例说明,实际发给 LLM 的修复提示会把模板和具体 sid、资源名结合起来.
-When a counterexample $\mathcal{C}$ is generated, the system instantiates these templates with concrete metadata. For a \textbf{Deadlock}, the prompt does not merely say ``fix the order''; it specifies: \textit{``Deadlock detected between \texttt{sid\_12} and \texttt{sid\_45}. Resources involved: $\{m_{std}, m_{net}\}$. Suggested fix: acquire $m_{std}$ before $m_{net}$ in both Function $A$ and $B$.''} This high-fidelity feedback minimizes the LLM's search space for a valid patch.
+When a counterexample $\mathcal{C}$ is generated, the system
+instantiates these templates with concrete metadata. For a
+\textbf{Deadlock}, the prompt does not merely say ``fix the order.'' It
+can instead say: ``Deadlock detected between \texttt{sid\_12} and
+\texttt{sid\_45}. Resources involved: $\{m_{std}, m_{net}\}$. Suggested
+fix: acquire $m_{std}$ before $m_{net}$ in both Function $A$ and
+$B$.'' This high-fidelity feedback minimizes the LLM's search space for
+a valid patch.

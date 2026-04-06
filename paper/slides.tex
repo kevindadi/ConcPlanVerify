@@ -1,0 +1,301 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\title[CIR+CVN]{CIR+CVN: Bridging LLM Semantic Understanding and Petri-Net Verification for Concurrent Programs}
+\author{Anonymous Author(s)}
+\institute{Anonymous Institution}
+\date{\today}
+
+\newcommand{\Cir}{\textsc{Cir}}
+\newcommand{\Cvn}{\textsc{Cvn}}
+
+\lstdefinelanguage{rust}{
+  keywords={fn, let, mut, while, if, else, return, true, false, Arc, Mutex, Condvar},
+  sensitive=true,
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]",
+}
+
+\lstset{
+  basicstyle=\ttfamily\tiny,
+  keywordstyle=\bfseries,
+  commentstyle=\color{gray},
+  breaklines=true,
+  showstringspaces=false,
+  columns=flexible,
+  keepspaces=true
+}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Problem Setting}
+  \begin{itemize}
+    \item Concurrency bugs arise from thread interleavings rather than a single local control path.
+    \item Dynamic tools expose concrete failing schedules but cannot rule out unexplored interleavings.
+    \item Source-level static verification must first recover shared-resource identity and protection relations.
+    \item In realistic systems, that recovery is entangled with aliasing, ownership, heap indirection, and API idioms.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Why Source-Level Verification Is Hard}
+  \begin{itemize}
+    \item Lock-order analysis, protocol checking, and protection checking all depend on a reliable notion of resource identity.
+    \item In Rust-like code, a verifier may need to track a mutex or condvar through allocation, cloning, borrowing, and closure capture.
+    \item The alias-resolution step often dominates cost and precision before the verifier can even reason about interleavings.
+  \end{itemize}
+  \vspace{0.4em}
+  \textbf{Paper stance:} we do \emph{not} claim to solve source-level alias analysis. We reformulate the problem so the formal back-end no longer depends on it.
+\end{frame}
+
+\begin{frame}{Key Idea: Model-First Verification}
+  \begin{block}{Core reformulation}
+    Ask an LLM to synthesize an explicit concurrency model from the specification, then apply formal verification to that model.
+  \end{block}
+  \begin{itemize}
+    \item Step 1: generate an alias-free concurrency artifact with globally named resources.
+    \item Step 2: statically validate the artifact.
+    \item Step 3: translate it mechanically into a Petri-net-based verification model.
+    \item Step 4: exhaustively explore bounded interleavings.
+    \item Step 5: map counterexamples back to statement identifiers for targeted repair.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Two Core Formalisms}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{\Cir}
+        Concurrency Intermediate Representation
+      \end{block}
+      \begin{itemize}
+        \item Statement-level concurrency model
+        \item Alias-free, globally named resources
+        \item Explicit protection mapping
+        \item Stable statement IDs for diagnostics
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{\Cvn}
+        Concurrency Verification Net
+      \end{block}
+      \begin{itemize}
+        \item Weighted P/T Petri net
+        \item Finite global variable store
+        \item Three-valued guards for branching
+        \item Exhaustive bounded state-space analysis
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Running Example}
+  \begin{columns}[T]
+    \begin{column}{0.49\textwidth}
+      \textbf{Rust bug}
+\begin{lstlisting}[language=rust]
+fn worker(shared: Arc<(Mutex<bool>, Condvar)>) {
+  let (m, cv) = &*shared;
+  let mut g = m.lock().unwrap();
+  while !*g {
+    g = cv.wait(g).unwrap();
+  }
+}
+
+fn notifier(shared: Arc<(Mutex<bool>, Condvar)>) {
+  let (m, cv) = &*shared;
+  let mut g = m.lock().unwrap();
+  cv.notify_one(); // bug
+  *g = true;       // too late
+}
+\end{lstlisting}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \textbf{Generated \Cir}
+\begin{lstlisting}
+resources:
+  m0:    { kind: Mutex }
+  cv0:   { kind: Condvar, paired_with: m0 }
+  ready: { kind: Var, init: false }
+protection:
+  ready: [m0]
+worker:
+  - { sid: w1, op: {lock: m0} }
+  - { sid: w2, op: {read: ready} }
+  - { sid: w3, op: {wait: {cv: cv0, mutex: m0}} }
+notifier:
+  - { sid: n1, op: {lock: m0} }
+  - { sid: n2, op: {notify_one: cv0} }
+  - { sid: n3, op: {write: {var: ready, val: true}} }
+\end{lstlisting}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Pipeline Overview}
+  \begin{center}
+    \includegraphics[width=0.88\textwidth]{figures/graphviz.png}
+  \end{center}
+  \vspace{-0.4em}
+  \begin{itemize}
+    \item The loop is generate, statically check, translate, analyze, repair.
+    \item Repairs are accepted only if they are bug-free \emph{and} preserve business goals.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Two-Layer Verification and Repair}
+  \begin{table}
+    \centering
+    \footnotesize
+    \begin{tabular}{@{}lll@{}}
+      \toprule
+      Bug Type & Detected By & Repair Strategy \\
+      \midrule
+      Missing drop & \Cir\ checker & Auto-fix \\
+      Undefined resource & \Cir\ checker & LLM re-synthesis \\
+      Spawn/join mismatch & \Cir\ checker & LLM re-synthesis \\
+      Deadlock & \Cvn\ search & Counterexample-guided repair \\
+      Signal loss & \Cvn\ search & Counterexample-guided repair \\
+      Starvation & \Cvn\ search & Counterexample-guided repair \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+  \begin{itemize}
+    \item Layer 1 filters malformed artifacts before formal analysis.
+    \item Layer 2 targets deep interleaving bugs after the model is structurally valid.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Bug Detection and Goal-Aware Repair}
+  \begin{itemize}
+    \item Bug predicates include deadlock, signal loss, livelock, starvation, and channel block.
+    \item Counterexamples are projected back to \Cir\ statement IDs through the anchor map $\mu$.
+    \item The repair loop does not accept a model just because it is bug-free.
+    \item It additionally checks whether all user-stated business goals are reachable in the bug-free \Cvn.
+  \end{itemize}
+  \begin{block}{Why goals matter}
+    A repair can remove the bug by deleting required behavior. Goal reachability catches bug-free but semantically incomplete repairs.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Formal Results}
+  \begin{itemize}
+    \item Mechanical translation from \Cir\ to \Cvn.
+    \item Forward simulation from \Cir\ executions to \Cvn\ executions.
+    \item Backward simulation under concrete valuations.
+    \item Deadlock correspondence and signal-loss precision results.
+    \item Soundness result for the verification layer.
+  \end{itemize}
+  \vspace{0.4em}
+  \textbf{Interpretation:} the theory supports the verification model, but the trust boundary remains at the generated \Cir, not arbitrary source code.
+\end{frame}
+
+\begin{frame}{Evaluation Setup}
+  \begin{itemize}
+    \item 9 bounded-concurrency patterns in total
+    \item 6 buggy patterns, 3 bug-free baselines
+    \item 5 LLMs across strong, frontier, and mini tiers
+    \item Up to 5 rounds for generation and 5 rounds for repair
+    \item Wall-clock evaluation on Apple M4 Pro / 24 GB RAM
+  \end{itemize}
+  \begin{block}{Research questions}
+    RQ1: valid \Cir\ generation. \quad
+    RQ2: detection, repair, and goal preservation. \quad
+    RQ3: translation implementation correctness. \quad
+    RQ4: source--\Cir\ trust boundary.
+  \end{block}
+\end{frame}
+
+\begin{frame}{RQ1: \Cir\ Generation}
+  \begin{table}
+    \centering
+    \footnotesize
+    \begin{tabular}{@{}lcc@{}}
+      \toprule
+      Model & Success Rate & Avg. Rounds \\
+      \midrule
+      GPT-4o & 9/9 & 1.3 \\
+      Claude 4 Sonnet & 9/9 & 1.1 \\
+      DeepSeek-V3 & 9/9 & 1.6 \\
+      Gemini 1.5 & 9/9 & 1.9 \\
+      GPT-4o-mini & 8/9 & 2.4 \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+  \begin{itemize}
+    \item Stronger models usually produce valid \Cir\ in 1--2 rounds.
+    \item Complex multi-condvar and RwLock patterns are the hardest cases.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{RQ2: Detection and Repair}
+  \begin{columns}[T]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Detection}
+        \begin{itemize}
+          \item All 6 seeded bugs detected
+          \item 3 baselines verified with no false positives
+          \item Analysis finishes in under 20 ms
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Repair}
+        \begin{itemize}
+          \item GPT-4o, Claude 4: 6/6 bug-free repairs
+          \item DeepSeek-V3, Gemini 1.5: 6/6 with more rounds
+          \item GPT-4o-mini: 4/6
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{0.4em}
+  \begin{itemize}
+    \item Frontier models need about 1.2--1.5 rounds on average.
+    \item Intermediate regressions are mostly shallow structural errors and are caught by Layer 1.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Goal Reachability Matters}
+  \begin{itemize}
+    \item The paper explicitly separates \emph{bug-freedom} from \emph{semantic completeness}.
+    \item Some repairs pass static checking and bug detection, yet silently remove required behavior.
+    \item Goal reachability is the final acceptance gate that prevents these false successes.
+  \end{itemize}
+  \begin{block}{Key message}
+    The most distinctive systems contribution is not only \Cir\ + \Cvn, but the goal-aware acceptance criterion in the repair loop.
+  \end{block}
+\end{frame}
+
+\begin{frame}{Limitations and Trust Boundary}
+  \begin{itemize}
+    \item The verified object is the generated \Cir, not the original source program.
+    \item The approach assumes bounded concurrency and finite-state abstraction.
+    \item The evaluation uses representative patterns rather than large real-world systems.
+    \item Source-to-\Cir\ conformance remains future work.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Takeaways}
+  \begin{itemize}
+    \item The paper proposes a model-first formulation of concurrency verification.
+    \item LLMs are used for intent recovery and repair, not for exhaustive verification.
+    \item \Cir\ removes aliasing from the formal layer by construction.
+    \item \Cvn\ enables explicit state-space analysis over bounded interleavings.
+    \item Goal reachability is essential to reject bug-free but semantically incomplete repairs.
+  \end{itemize}
+\end{frame}
+
+\end{document}

@@ -28,12 +28,21 @@ the formal verification engine. In this sense, the contribution is not an ``LLM-
 
 \paragraph{Source-model extraction and conformance checking.}
 % 最后这一段对应本文的 trust boundary,指出源码到模型的一致性检查是互补方向,而不是本文当前已经解决的问题.
-Another closely related line of work extracts formal models---such as automata, state machines, and Petri nets---from source code, binaries, or execution traces, and studies translation validation or conformance between code and model. This line is highly relevant to the trust boundary of our architecture. In the present work, that boundary is placed at the \textsc{Cir} level: we verify
-the generated model rather than prove general source-to-\textsc{Cir} equivalence. Source-level extraction and conformance checking are therefore complementary to our method rather than substitutes for it. An independent extractor that recovers a concurrency model from
-generated code could serve as an additional validation layer for source--\textsc{Cir} consistency, which we regard as an important direction for future work.
+Another closely related line of work extracts formal models, such as
+automata, state machines, and Petri nets, from source code, binaries,
+or execution traces. It then studies translation validation or
+conformance between code and model. This line is highly relevant to the
+trust boundary of our architecture. In the present work, that boundary
+is placed at the \textsc{Cir} level: we verify the generated model
+rather than prove general source-to-\textsc{Cir} equivalence.
+Source-level extraction and conformance checking are therefore
+complementary to our method rather than substitutes for it. An
+independent extractor that recovers a concurrency model from generated
+code could serve as an additional validation layer for
+source--\textsc{Cir} consistency, which we regard as an important
+direction for future work.
 
 % 收束相关工作定位:本文试图站在“源码直接分析”和“手工建模后验证”之间的中间地带.
 In summary, prior work typically chooses one of two extremes: either reason directly from source code and bear the cost of aliasing and language-specific analysis, or manually construct a formal model and verify that model exhaustively. Our work aims at the middle ground: use an LLM to recover synchronization intent and generate a compact,
 alias-free concurrency model, then verify that model formally and feed structured counterexamples back into the same semantic loop.
-
 

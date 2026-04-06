@@ -27,6 +27,7 @@ cv.notify_one();   // BUG: notify before flag update
 }
 \end{lstlisting}
 \caption{A condition-variable signal-loss bug in Rust.}
+\Description{A Rust example with two functions. The worker locks a mutex and waits on a condition variable until a shared boolean becomes true. The notifier locks the same mutex, calls notify\_one on the condition variable, and only then writes the boolean flag, illustrating a lost wake-up bug.}
 \label{fig:running-rust}
 \end{figure}
 
@@ -68,6 +69,7 @@ body:
 - { sid: n3, op: {write: {var: ready, val: true}}, ... }
 \end{lstlisting}
 \caption{\textsc{Cir} for the running example, featuring global naming and explicit protection.}
+\Description{A CIR snippet for the running example. It declares a mutex m0, a condition variable cv0 paired with m0, and a boolean variable ready protected by m0. The worker function locks m0, reads ready, and waits on cv0. The notifier locks m0, notifies cv0, and writes ready to true.}
 \label{fig:running-cir}
 \end{figure}
 
@@ -83,4 +85,3 @@ The \textsc{Cir} is translated into a \textsc{Cvn}, which explores all interleav
 
 % 作者强调反例不是模糊描述,而是锚定到具体 sid;这样 LLM 可以局部修改错误语句,而不是重写整个程序.
 Crucially, the resulting counterexample is structured and anchored to specific statement IDs (\texttt{sid}). This allows the LLM to perform a targeted repair (e.g., swapping \texttt{n2} and \texttt{n3}) rather than a blind rewrite. This synergy exploits a fundamental division of labor: the LLM provides the semantic intuition to resolve resource identities, while the formal engine provides the exhaustive coverage required to expose edge-case interleavings.
-

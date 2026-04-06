@@ -135,6 +135,7 @@ goals:
       cp(worker, w6): 1
 \end{lstlisting}
 \caption{Business goals for the running example.}
+\Description{A goals block with two business goals. The first requires both worker and notifier to reach their return control places, the mutex resource place to be free, and the variable ready to be true. The second requires the worker to reach its completion state.}
 \label{fig:goals-example}
 \end{figure}
 
@@ -197,9 +198,15 @@ Value expressions:
     \mathit{BinOp}(\mathit{Expr}, \oplus, \mathit{Expr})
 \]
 
-Boolean expressions:$ \mathit{BoolExpr} ::= \textsf{True} \;\mid\; \mathit{Cmp}(\mathit{Expr}, \mathit{cmp}, \mathit{Expr}) \;\mid\;
-    \mathit{And}(\mathit{BoolExpr}, \mathit{BoolExpr}) \;\mid\;
-    \mathit{Not}(\mathit{BoolExpr})$
+Boolean expressions:
+\[
+  \begin{aligned}
+    \mathit{BoolExpr} ::= {} & \textsf{True}
+      \;\mid\; \mathit{Cmp}(\mathit{Expr}, \mathit{cmp}, \mathit{Expr}) \\
+    & \;\mid\; \mathit{And}(\mathit{BoolExpr}, \mathit{BoolExpr})
+      \;\mid\; \mathit{Not}(\mathit{BoolExpr})
+  \end{aligned}
+\]
 
 % 这里定义三值 guard 的求值规则:真、假、未知.
 \begin{definition}[Guard evaluation]
@@ -349,6 +356,7 @@ Transitions:
     anchor: {n5}
 \end{verbatim}
 \caption{Translation of the \texttt{notifier} function.}
+\Description{A textual net sketch for the notifier function. It lists control places for notifier statements n1 through n5 and a return place, plus the shared mutex place rp(m0). It then lists transitions for lock, notify, variable write, unlock, and return, each anchored to the corresponding statement identifier.}
 \label{fig:translation-example}
 \end{figure}
 
