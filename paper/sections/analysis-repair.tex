@@ -1,120 +1,68 @@
 % !TeX root = ../main.tex
 \section{Analysis and Repair}
 \label{sec:analysis-repair}
-% 本节描述了如何分析 Cvn,以及如何将分析结果转化为 LLM 可操作的修复指导.分析算法本身是标准的.本文的贡献在于建立了 Cvn 状态与基于 Cir 的反例之间的联系,以及利用这种联系的结构化修复循环.
-% 本节关注两个问题:一是怎么在 CVN 上找 bug,二是怎么把形式化诊断结果变成 LLM 能据此修复的输入.
-This section describes how the \textsc{Cvn} is analyzed and how analysis results are transformed into actionable repair guidance for the LLM. The analysis algorithms themselves are standard \cite{Godefroid1997VeriSoft,Flanagan2005DPOR,Musuvathi2008FairStateless,Esparza2008Unfoldings}. The contribution lies in the connection between \textsc{Cvn} states and \textsc{Cir}-anchored counterexamples, and in the structured repair loop that exploits this connection.
 
-% 这里补充说明搜索语义:如果 guard 里出现 unknown,就把真分支和假分支都纳入搜索.
-The analysis engine performs an exhaustive reachability search to identify safety and liveness violations. Given the potential for $\top$ values in $V$, the search accounts for non-deterministic branching: if $\mathit{eval}(g, V) = \mathsf{unknown}$, both the true and false transitions are explored.
+% 这节要把重点放在“分析结果如何转成可修复诊断”，而不是把 reachability 本身当作创新点。
+This section explains how \textsc{Cvn} analysis results are converted into repair-oriented feedback for the LLM. The underlying reachability and SCC analyses are standard \cite{Godefroid1997VeriSoft,Flanagan2005DPOR,Musuvathi2008FairStateless,Esparza2008Unfoldings}. The main contribution here is the design of a diagnostic interface between the verifier and the LLM: what information is extracted from a bug state, why that information is necessary for repair, and how it is assembled into a prompt that supports local revision rather than whole-model regeneration.
 
-% 算法 1 是状态空间遍历与 bug 收集的伪代码,先做可达性搜索,再做 SCC 分析以识别活性类错误.
-\begin{algorithm}
-\caption{CVN Reachability and Bug Detection}
-\label{alg:search}
-\begin{algorithmic}[1]
-\Require \textsc{Cvn} $\mathcal{N}$ with initial state $s_0 = (I_m, I_v)$
-\Ensure Reachable set $\mathcal{R}$, Violation set $\mathcal{B}$
-\State $\mathcal{R} \gets \{s_0\}$, $\mathcal{B} \gets \emptyset$, $\mathit{Open} \gets \text{Stack}\{s_0\}$, $\mathit{Edges} \gets \emptyset$
-\While{$\mathit{Open} \neq \emptyset$}
-    \State $s = (M, V) \gets \mathit{Open}.\text{pop}()$
-    \State $\text{Enabled} \gets \{t \in T \mid \text{CheckWeights}(M, t) \wedge \mathit{eval}(g, V) \neq \mathsf{false}\}$
-    
-    \If{$\neg \mathsf{terminal}(s) \wedge \text{Enabled} = \emptyset$}
-        \State $\mathcal{B} \gets \mathcal{B} \cup \{ (s, \text{Deadlock}) \}$
-    \EndIf
-
-    \ForAll{$t \in \text{Enabled}$}
-        \If{$\text{isNotify}(t) \wedge \text{WaiterCount}(s, t) = 0$}
-            \State $\mathcal{B} \gets \mathcal{B} \cup \{ (s, \text{SignalLoss}) \}$
-        \EndIf
-        
-        \State $s' = (M', V') \gets \mathsf{fire}(t, s)$
-        \State $\mathit{Edges} \gets \mathit{Edges} \cup \{(s, t, s')\}$
-        
-        \If{$s' \notin \mathcal{R}$}
-            \State $\mathcal{R} \gets \mathcal{R} \cup \{s'\}$
-            \State $\mathit{Open}.\text{push}(s')$
-        \EndIf
-    \EndFor
-\EndWhile
-\State $\mathcal{B} \gets \mathcal{B} \cup \mathsf{AnalyzeSCC}(\mathcal{R}, \mathit{Edges})$ 
-\State \Return $(\mathcal{R}, \mathcal{B})$
-\end{algorithmic}
-\end{algorithm}
-
-% 接下来显式定义论文关心的五类并发错误谓词.
-\subsection{Bug Detection Patterns}
+\subsection{Reachability-Based Bug Detection}
 \label{subsec:bug-patterns}
 
-% 这里把各种 bug 都翻译成 reachability graph 上的判定条件.
-We define five categories of concurrency violations as predicates over the reachability graph:
+% 先交代分析引擎的最基本语义：unknown guard 两边都要探索，因此整体是保守过近似。
+Given a translated \textsc{Cvn}, the verifier performs exhaustive reachability analysis from the initial state. If a guard evaluates to $\mathsf{unknown}$ under the current valuation, both outgoing possibilities are explored. The resulting search is therefore a conservative over-approximation: it never suppresses a behavior that would be possible under a concrete execution, though it may introduce spurious paths when unknown values remain.
 
+% 这里简要列出 bug 类别，但不过多渲染“检测算法本身”，因为这不是本文最想卖的点。
+We detect five categories of violations as predicates over the reachable state graph:
 \begin{itemize}[leftmargin=1.5em]
-    \item \textbf{Deadlock ($\kappa_{dl}$):} A non-terminal state $s$ where $\text{Enabled}(s) = \emptyset$.
-    \item \textbf{Signal Loss ($\kappa_{sl}$):} A \textsf{Notify} transition fires when no tokens exist in the corresponding wait places $P_w$, causing the signal to be permanently lost.
-    \item \textbf{Livelock ($\kappa_{ll}$):} A set of states forming a strongly connected component (SCC) where no state is terminal and no progress is made towards a return place.
-    \item \textbf{Starvation ($\kappa_{st}$):} A thread's control token remains in $P_c$ within an SCC while other transitions fire, indicating a lack of fairness in resource acquisition.
-    \item \textbf{Channel Block ($\kappa_{cb}$):} A deadlock specifically involving a \textsf{Recv} transition waiting for a token from an empty channel place that can no longer be produced.
+    \item \emph{Deadlock ($\kappa_{dl}$):} a non-terminal state with no enabled transition.
+    \item \emph{Signal loss ($\kappa_{sl}$):} a notification transition fires when the corresponding waiter count is zero.
+    \item \emph{Livelock ($\kappa_{ll}$):} a non-terminal SCC that permits infinite internal cycling without progress to return places.
+    \item \emph{Starvation ($\kappa_{st}$):} an SCC in which one thread remains perpetually blocked from progress while other threads continue to move.
+    \item \emph{Channel block ($\kappa_{cb}$):} a deadlock involving a receive transition whose required channel token can no longer be produced.
 \end{itemize}
 
-% ─────────────────────────────────────────────────────────────
-% 找到 bug 后,还需要把抽象执行轨迹映射回 CIR 的 sid,才能支持“定点修复”.
-\subsection{Structured Counterexample Generation}
+% 重点转向下一步：检测到 bug 并不够，真正困难的是怎么把 bug state 变成 LLM 能用的修复上下文。
+These predicates are sufficient for classification, but classification alone is not enough for repair. A label such as ``deadlock'' or ``signal loss'' does not tell the LLM where the execution got stuck, which statements created the bad state, or which local rewrite is least likely to damage unrelated behavior. The repair problem therefore begins after detection, not before it.
+
+\subsection{Repair-Oriented Diagnostics}
 \label{subsec:counterexample}
 
-% 这段说明反例不只是一个 bug 标签,还包括可回溯的诊断轨迹.
-When a bug is detected, the engine reconstructs a \textit{Diagnostic Trace} $\mathcal{T}$ to facilitate LLM repair.
+% 先明确说“不要把原始 marking 直接扔给 LLM”，而是要做结构化提炼。
+When a violation is found, the verifier does not return the raw reachable-state graph or a full marking dump. Those objects are faithful to the net, but they are poorly matched to the needs of a repair model. Instead, the verifier constructs a compact diagnostic payload that preserves the information needed for repair while discarding low-level noise.
 
-% Anchored trace 就是把 transition 序列投影到对应的 CIR 语句编号上.
-\begin{definition}[Anchored Trace]
-Let $\pi = \langle t_1, t_2, \dots, t_n \rangle$ be a sequence of transitions from $s_0$ to a violation state. An anchored trace $\pi_{\mu}$ is the projection $\langle \mu(t_1), \mu(t_2), \dots, \mu(t_n) \rangle$, mapping each transition to its corresponding \textsc{Cir} $\mathsf{sid}$.
+% 给出正式定义，把本文需要的诊断字段系统化。
+\begin{definition}[Repair-oriented diagnostic]
+A repair-oriented diagnostic is a tuple
+\[
+\mathcal{D} = (\kappa,\; \pi_{\mu},\; \Sigma_{\mathit{state}},\; \Sigma_{\mathit{wait}},\; \Lambda,\; \Gamma_{\mathit{ctx}},\; H)
+\]
+where $\kappa$ is the bug kind, $\pi_{\mu}$ is an anchored witness trace, $\Sigma_{\mathit{state}}$ is a marking-derived state summary, $\Sigma_{\mathit{wait}}$ is a wait/ownership summary, $\Lambda$ is the relevant \textsc{Cir} slice, $\Gamma_{\mathit{ctx}}$ is the set of preservation constraints, and $H$ is a bug-specific repair hint.
 \end{definition}
 
-% 最终的结构化反例由 bug 类型、锚定轨迹、状态差异和修复模板组成.
-The resulting structured counterexample $\mathcal{C}$ is a four-tuple
-$(\kappa, \pi_{\mu}, \Delta, \mathcal{S})$. Here, $\Delta$ is a
-\textit{State Delta} describing resource possession, such as $m_1$
-being held by Thread~A. The component $\mathcal{S}$ is a repair
-strategy template from Table~\ref{tab:repair-templates}.
+% 逐项解释这些字段为什么需要，强调 marking 和 sequence 都是必要但不能原样给。
+Each field serves a different purpose.
+\begin{itemize}[leftmargin=1.5em]
+    \item \emph{Bug kind $\kappa$.} This determines the high-level repair mode. Deadlock, signal loss, and starvation call for different kinds of edits.
+    \item \emph{Anchored witness trace $\pi_{\mu}$.} This is the sequence of \textsc{Cir} statement identifiers encountered on a witness path to the bug state. It localizes the execution history in terms the LLM can edit.
+    \item \emph{State summary $\Sigma_{\mathit{state}}$.} This is a compact rendering of the final bug state: which thread is currently at which \textsc{Cir} statement, which resource counts are available, and whether the system is globally blocked or still moving.
+    \item \emph{Wait/ownership summary $\Sigma_{\mathit{wait}}$.} This extracts the relations that matter most for repair: which thread holds which resource, which thread is waiting for which resource or condition, and which wait-count predicates triggered the bug classification.
+    \item \emph{Relevant \textsc{Cir} slice $\Lambda$.} This is a bounded local window around the implicated statement identifiers. It reduces the search space by telling the LLM which part of the artifact should be edited.
+    \item \emph{Preservation constraints $\Gamma_{\mathit{ctx}}$.} These specify what must remain true after repair: preserve resource names, preserve thread structure, and ultimately preserve business goals.
+    \item \emph{Repair hint $H$.} This is a bug-specific hint produced by the verifier, such as ``enforce a consistent lock order'' or ``update the predicate before notification.''
+\end{itemize}
 
-% 下面把前面提到的三层修复策略具体落成一个 goal-aware 的迭代算法.
-\subsection{The Tiered Repair Loop}
+% 强调 marking 本身必需，但 raw marking 不是最佳提示；LLM 更需要从 marking 派生出来的结构化摘要。
+The marking is indispensable because it records the exact program state represented by the net. However, the raw marking is not the best prompt format. What the LLM actually needs is the structured interpretation of that marking: the blocked control locations, the held resources, the waiting relationships, and the specific predicate that made the bug visible. The witness sequence is equally important because it explains not only \emph{where} the system is stuck, but also \emph{how it got there}. Together, the witness and the state summary provide both causality and locality.
+
+% 给一个 signal loss 的具体说明，帮助读者理解 diagnostic 到底长什么样。
+For the running example, a signal-loss diagnostic would report that the witness trace reaches \texttt{n2} before the worker reaches \texttt{w3}, that the waiter count for \texttt{cv0} is zero at notification time, and that the relevant editable slice contains \texttt{n2} and \texttt{n3}. This is much more actionable than merely stating that a lost wake-up exists somewhere in the model.
+
+\subsection{The Goal-Aware Repair Loop}
 \label{subsec:repair-loop-final}
 
-% 重点不是每轮都调用 LLM,而是先看能不能自动修,再看是静态层问题还是逻辑层问题.
-The repair process operationalizes the \textbf{Tiered Repair Strategy} defined in Section~\ref{subsec:repair-tier}. By categorizing errors into three tiers, the system minimizes expensive LLM invocations for trivial fixes while providing high-fidelity context for complex concurrency logic.
+% 修复循环在逻辑上分三层，但顺序很重要：先静态正确，再并发 bug-free，最后 goals reachable。
+The repair loop operationalizes the hierarchy introduced in Section~\ref{subsec:repair-tier}. Trivial Layer-1 problems are fixed deterministically when possible. More substantial Layer-1 problems trigger localized regeneration. Layer-2 bugs trigger logic-driven repair using the diagnostic payload above. The crucial ordering choice is that goal checking happens only after the bug search reports no remaining concurrency violation. Otherwise, an unreachable goal might simply reflect a deadlocked execution rather than a semantically incomplete repair.
 
-% \begin{algorithm}[H]
-% \caption{Tiered Generate-Verify-Repair Loop}
-% \label{alg:repair-tiered}
-% \begin{algorithmic}[1]
-% \Require Source specification $\Psi$, Max iterations $K$
-% \Ensure Verified \textsc{Cir} $\mathcal{I}$ or Failure Log
-% \State $\mathcal{I} \gets \text{LLM.Generate}(\Psi)$
-% \For{$round = 1$ \textbf{to} $K$}
-%     \State $\mathcal{E}_{L1} \gets \text{StaticCheck}(\mathcal{I})$ \Comment{Layer 1 Static Analysis}
-    
-%     \If{$\mathcal{E}_{L1} \neq \emptyset$}
-%         \If{$\text{isAutoFixable}(\mathcal{E}_{L1})$}
-%             \State $\mathcal{I} \gets \text{ApplyDeterministicFix}(\mathcal{I}, \mathcal{E}_{L1})$ \Comment{\textbf{Tier 1: Auto-fix}}
-%         \Else
-%             \State $\mathcal{I} \gets \text{LLM.LocalResynthesis}(\mathcal{I}, \mathcal{E}_{L1})$ \Comment{\textbf{Tier 2: Semantic Re-gen}}
-%         \EndIf
-%         \State \textbf{continue}
-%     \EndIf
-    
-%     \State $(\mathcal{R}, \mathcal{B}) \gets \text{Verify}(\text{Translate}(\mathcal{I}))$ \Comment{Layer 2 Model Checking}
-%     \If{$\mathcal{B} = \emptyset$} \Return $\mathcal{I}$ \Comment{Verification Success}
-%     \EndIf
-    
-%     \State $\mathcal{C} \gets \text{GenCounterexample}(\mathcal{B})$
-%     \State $\mathcal{I} \gets \text{LLM.TargetedRepair}(\mathcal{I}, \mathcal{C})$ \Comment{\textbf{Tier 3: Logic-Driven Repair}}
-% \EndFor
-% \State \Return Failure
-% \end{algorithmic}
-% \end{algorithm}
-% 算法 2 给出完整闭环:先修静态错误,再修并发 bug,最后在 bug-free 的前提下检查 goal reachability.
 \begin{algorithm}[t]
 \caption{Goal-Aware Generate-Verify-Repair Loop}
 \label{alg:repair-goal}
@@ -126,42 +74,31 @@ The repair process operationalizes the \textbf{Tiered Repair Strategy} defined i
 \For{$round = 1$ \textbf{to} $K$}
     \State $\mathcal{E}_{L1} \gets \text{StaticCheck}(\mathcal{I})$
     \If{$\mathcal{E}_{L1} \neq \emptyset$}
-        \State Apply Tier-1 or Tier-2 fix;\;
+        \State Apply Tier-1 or Tier-2 repair;\;
           \textbf{continue}
     \EndIf
     \State $\mathcal{N} \gets \text{Translate}(\mathcal{I})$
-    \State $(\mathcal{R},\; \mathcal{B}) \gets
-      \text{Analyze}(\mathcal{N})$
-      \Comment{Bug detection}
+    \State $(\mathcal{R},\; \mathcal{B}) \gets \text{Analyze}(\mathcal{N})$
     \If{$\mathcal{B} \neq \emptyset$}
-        \State $\mathcal{I} \gets \text{LLM.Repair}(\mathcal{I},\;
-          \text{GenCounterexample}(\mathcal{B}))$
+        \State $\mathcal{D} \gets \text{GenDiagnostic}(\mathcal{B}, \mathcal{R})$
+        \State $\mathcal{I} \gets \text{LLM.Repair}(\mathcal{I}, \mathcal{D})$
         \State \textbf{continue}
-        \Comment{Fix bugs first}
     \EndIf
-    \Comment{--- Bug-free: now check goals ---}
     \State $\mathcal{U} \gets
-      \{\gamma \in \Gamma \mid \nexists\, s \in \mathcal{R}:\;
-        s \models \gamma\}$
+      \{\gamma \in \Gamma \mid \nexists\, s \in \mathcal{R}: s \models \gamma\}$
     \If{$\mathcal{U} = \emptyset$}
         \Return $\mathcal{I}$
-        \Comment{Bug-free $\wedge$ all goals reachable}
     \EndIf
-    \State $\mathcal{I} \gets \text{LLM.Repair}(\mathcal{I},\;
-      \text{GenGoalViolation}(\mathcal{U}))$
+    \State $\mathcal{I} \gets \text{LLM.Repair}(\mathcal{I}, \text{GenGoalViolation}(\mathcal{U}))$
 \EndFor
 \State \Return Failure
 \end{algorithmic}
 \end{algorithm}
 
-% 这里强调检查顺序很关键,goal 只能在 bug-free 之后检查,否则无法区分“路径被 bug 卡住”还是“语义被修坏了”.
-The key design choice is the ordering of checks. Goal reachability is evaluated \emph{only after} the \textsc{Cvn} analysis reports no bugs (Line~8--10). This avoids conflating two distinct failure modes: a goal may be unreachable because a deadlock blocks the path (a bug problem, not a goal problem), or because a repair
-removed a necessary operation (a goal problem). By checking goals only in the bug-free state, every goal violation is attributable to a semantic deficiency in the \textsc{Cir} itself, not to an unresolved concurrency bug.
+% bug-free 之后再查 goals，这一点要单独讲清楚，因为这是 acceptance criterion 的关键。
+This ordering gives every feedback round a single semantic target. If a bug is present, the LLM is asked to remove the bug without yet reasoning about goal reachability. If no bug is present but a goal is unreachable, the LLM is asked to restore missing behavior without being distracted by concurrency faults that have already been resolved.
 
-% 当某个目标不可达时,系统会给出结构化的目标违例反馈,而不是笼统说“结果不对”.
-When a goal $\gamma$ is unreachable, the engine generates a goal violation report:
-
-% 这个示例展示 goal violation 提示里会包含哪个目标失败、缺少什么状态以及一个面向修复的 hint.
+% goal violation 反馈保留，因为它很好地说明“bug-free 还不够”。
 \begin{figure}[t]
 \begin{lstlisting}[basicstyle=\small\ttfamily, frame=single]
 === Goal Violation (Round 3) ===
@@ -180,50 +117,79 @@ UNREACHABLE GOAL: G1
 \label{fig:goal-violation}
 \end{figure}
 
-% 最后把 bug 类别与建议修复策略做一个模板化映射,减少 LLM 自己搜索修复空间的负担.
-\subsection{Repair Strategy Templates}
+\subsection{Prompt Templates for Logic-Driven Repair}
 \label{subsec:repair-templates}
 
-% 表中每种 bug 都对应一个比较稳定的修复方向,例如统一锁顺序、while 守护 wait、减少锁持有时间等.
-The effectiveness of the LLM-driven repair depends on the precision of the semantic hints provided in the prompt. Table~\ref{tab:repair-templates} defines the mapping from formal bug categories $\kappa$ to structural repair strategies $\mathcal{S}$.
+% 用 prompt template 代替原先那张“bug kind -> strategy”的表，因为真正重要的是给 LLM 什么字段、字段为什么必要。
+Table~\ref{tab:repair-templates} summarizes the prompt template used for logic-driven repair. The key design principle is that every field should either reduce the search space or protect intended behavior.
 
-\begin{table*}
-\caption{Formal Bug Categories and Corresponding Repair Strategies.}
+\begin{table*}[t]
+\caption{Prompt template for \textsc{Cir} repair from a \textsc{Cvn} diagnostic.}
 \label{tab:repair-templates}
 \centering\small
-\begin{tabular}{@{}lp{5.2cm}p{5.8cm}@{}}
+\begin{tabular}{@{}p{3.0cm}p{4.7cm}p{7.2cm}@{}}
 \toprule
-\textbf{Bug Kind ($\kappa$)} & \textbf{Formal Symptom} & \textbf{Repair Strategy ($\mathcal{S}$)} \\
+\textbf{Prompt field} & \textbf{Instantiated from} & \textbf{Why it is needed} \\
 \midrule
-\textbf{Deadlock} & 
-Cycle in Resource-Wait Graph (RWG). & 
-\textbf{Lock Ordering:} Enforce a strict global acquisition order (e.g., $m_1 < m_2$) for all involved mutexes. \\
+Bug kind & Bug predicate $\kappa$ & Selects the repair mode: deadlock, signal loss, starvation, livelock, or channel block require different structural edits. \\
 \addlinespace[3pt]
-\textbf{Signal Loss} & 
-$\textsf{Notify}$ fires while $\textsf{Waiters} = \emptyset$. & 
-\textbf{Predicate Guarding:} Wrap \textsf{wait} in a \texttt{while} loop; ensure the condition is updated \textit{before} notification. \\
+Witness trace (\texttt{sid}) & Anchored trace $\pi_{\mu}$ & Localizes the causal path to the bug state using editable statement identifiers rather than low-level transition names. \\
 \addlinespace[3pt]
-\textbf{Livelock} & 
-Infinite non-terminal SCC with no state progress. & 
-\textbf{Deterministic Progress:} Introduce a backoff mechanism or a state-based coordination flag to break the cycle. \\
+Bug-state summary & Marking-derived $\Sigma_{\mathit{state}}$ & Tells the LLM where execution is currently stuck: current statement per thread, blocked/non-blocked status, and critical variable values. \\
 \addlinespace[3pt]
-\textbf{Starvation} & 
-Persistent token residence in $P_c$ within an SCC. & 
-\textbf{Fairness Injection:} Reduce lock granularity or switch to a fair semaphore/queue to prevent thread exclusion. \\
+Held resources & Ownership component of $\Sigma_{\mathit{wait}}$ & Explains which locks, channels, or semaphores are currently preventing progress. \\
 \addlinespace[3pt]
-\textbf{Channel Block} & 
-$\textsf{Recv}$ on empty channel with no potential $\textsf{Senders}$. & 
-\textbf{Async Buffering:} Ensure sender-receiver parity or use non-blocking \textsf{try\_recv} with a fallback path. \\
+Waiting relations & Waiting component of $\Sigma_{\mathit{wait}}$ & Makes the dependency structure explicit: who is waiting for what, and which predicate triggered the diagnosis. \\
+\addlinespace[3pt]
+Relevant \textsc{Cir} slice & Local window $\Lambda$ & Restricts editing to a small region around implicated statements and reduces unintended rewrites elsewhere. \\
+\addlinespace[3pt]
+Preservation constraints & $\Gamma_{\mathit{ctx}}$ & Prevents over-repair by requiring resource names, thread roles, and business goals to remain valid. \\
+\addlinespace[3pt]
+Repair hint & Heuristic $H$ & Provides a stable direction without forcing a single patch, e.g., reorder locks, update predicate before notify, shorten critical section. \\
+\addlinespace[3pt]
+Output contract & Verifier-defined schema & Forces the model to return only the revised \textsc{Cir} fragment or statement list, keeping the loop local and machine-checkable. \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
-% 这里举 deadlock 为例说明,实际发给 LLM 的修复提示会把模板和具体 sid、资源名结合起来.
-When a counterexample $\mathcal{C}$ is generated, the system
-instantiates these templates with concrete metadata. For a
-\textbf{Deadlock}, the prompt does not merely say ``fix the order.'' It
-can instead say: ``Deadlock detected between \texttt{sid\_12} and
-\texttt{sid\_45}. Resources involved: $\{m_{std}, m_{net}\}$. Suggested
-fix: acquire $m_{std}$ before $m_{net}$ in both Function $A$ and
-$B$.'' This high-fidelity feedback minimizes the LLM's search space for
-a valid patch.
+% 给一个具体提示词骨架，展示论文不是只说“给一些错误信息”，而是有一套明确的组织格式。
+\begin{figure}[t]
+\begin{lstlisting}[basicstyle=\small\ttfamily, frame=single]
+Repair task: revise the CIR locally.
+
+Bug kind: SignalLoss
+Witness trace (sid): n1 -> n2 -> w1 -> w2 -> w3
+
+Bug-state summary:
+- notifier has executed sid n2
+- worker has not yet entered wait sid w3
+- waiter_count(cv0) = 0 at notification
+
+Relevant resources:
+- mutex m0
+- condvar cv0
+- protected variable ready
+
+Relevant CIR slice:
+- n1: lock(m0)
+- n2: notify_one(cv0)
+- n3: write(ready, true)
+
+Preserve:
+- existing resource names and thread structure
+- business goals
+- static-check validity
+
+Suggested repair direction:
+- ensure predicate update happens before notification
+
+Output:
+- only the revised CIR statements for this slice
+\end{lstlisting}
+\caption{Prompt skeleton for logic-driven \textsc{Cir} repair.}
+\Description{A structured repair prompt. It includes the bug kind, witness sid trace, bug-state summary, relevant resources, local CIR slice, preservation constraints, a suggested repair direction, and an output contract requesting only the revised CIR slice.}
+\label{fig:repair-prompt}
+\end{figure}
+
+% 这里点出 prompt 设计的核心：不是把所有分析结果都给 LLM，而是给“最少但足够”的诊断信息。
+The prompt is intentionally compact. It does not serialize the full reachability graph, the full net, or every intermediate marking. Instead, it gives the minimum stateful evidence needed for a local repair: what failed, how the execution reached the failure, what the system looks like at the failure point, and what must be preserved while repairing it. This is the interface that allows a local formal analyzer and a token-bounded LLM to work together effectively.

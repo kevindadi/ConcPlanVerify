@@ -311,55 +311,5 @@ $(\mathit{sid}, \textsf{join}(g), \textsf{next}(\mathit{sid}'))$ & One transitio
 \end{tabular}
 \end{table*}
 
-% 这里用 running example 中的 notifier 函数举例,具体展示翻译结果长什么样.
-Figure~\ref{fig:translation-example} illustrates the translation of the \texttt{notifier} function from the running example in Figure~\ref{fig:running-cir}. The function has five statements. The translation produces five control places, four transitions, and arcs connecting them. The \textsf{lock} transition at $\mathit{sid}$ \texttt{n1} consumes a token from $\mathit{rp}(\texttt{m0})$, modeling mutex acquisition. The \textsf{drop} transition at $\mathit{sid}$ \texttt{n4} returns the token, modeling mutex release. The \textsf{write} transition at $\mathit{sid}$ \texttt{n3} carries an update $V[\texttt{ready}] \leftarrow \mathsf{true}$.
-
-% 这份文本示意图帮助理解 control place、resource place 与 transition 的对应关系.
-\begin{figure}[t]
-\centering
-\small
-\begin{verbatim}
-Places:
-  cp(notifier, n1)  cp(notifier, n2)
-  cp(notifier, n3)  cp(notifier, n4)
-  cp(notifier, n5)  cp(notifier, ret)
-  rp(m0)  [shared with other functions]
-
-Transitions:
-  t_n1 [Lock]:
-    in:  cp(notifier,n1) x1, rp(m0) x1
-    out: cp(notifier,n2) x1
-    anchor: {n1}
-
-  t_n2 [CondvarNotify]:
-    in:  cp(notifier,n2) x1, wp(w3) x1
-    out: cp(notifier,n3) x1
-    anchor: {n2}
-    (Fires only if a waiter exists at w3.
-     If wp(w3) is empty, notification is lost
-     and a separate no-waiter transition
-     advances control.)
-
-  t_n3 [VarWrite]:
-    in:  cp(notifier,n3) x1
-    out: cp(notifier,n4) x1
-    update: V[ready] <- true
-    anchor: {n3}
-
-  t_n4 [Unlock]:
-    in:  cp(notifier,n4) x1
-    out: cp(notifier,n5) x1, rp(m0) x1
-    anchor: {n4}
-
-  t_n5 [Return]:
-    in:  cp(notifier,n5) x1
-    out: cp(notifier,ret) x1
-    anchor: {n5}
-\end{verbatim}
-\caption{Translation of the \texttt{notifier} function.}
-\Description{A textual net sketch for the notifier function. It lists control places for notifier statements n1 through n5 and a return place, plus the shared mutex place rp(m0). It then lists transitions for lock, notify, variable write, unlock, and return, each anchored to the corresponding statement identifier.}
-\label{fig:translation-example}
-\end{figure}
-
 % 最后说明为什么状态空间是有限的,因此 CVN 分析一定终止.
 The reachable state space is finite under two conditions: (1) every place $p \in P$ is $k$-bounded, which is guaranteed by the one-safe property of $P_c$ and the fixed resource counts in $P_r$; and (2) the value domain $\mathit{Val}$ is finite. Since $\top$ is absorbing and base types are bounded, the \textsc{Cvn} analysis is guaranteed to terminate.

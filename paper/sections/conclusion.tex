@@ -3,7 +3,7 @@
 \label{sec:conclusion}
 
 % 结论先回收全文主线:把并发验证从源码级 alias 困境中抽出来,转向显式、无别名的 CIR,再映射到 CVN 做形式验证.
-This paper presented a generate--verify--repair architecture that shifts concurrency reasoning from error-prone source-level alias analysis to an explicit, alias-free intermediate representation, \textsc{Cir}. By capturing synchronization intent---including shared-resource identities and protection relations---\textsc{Cir} enables a deterministic mapping to \textsc{Cvn}, a weighted P/T Petri net with three-valued logic.
+This paper presented a generate--verify--repair architecture that shifts concurrency reasoning from error-prone source-level alias analysis to an explicit, alias-free intermediate representation, \textsc{Cir}. By capturing synchronization intent---including shared-resource identities and protection relations---\textsc{Cir} enables a deterministic mapping to \textsc{Cvn}, a weighted P/T Petri net with three-valued logic. The current prototype is evaluated on Rust examples, but the underlying \textsc{Cir}/\textsc{Cvn} abstractions are defined over synchronization structure rather than Rust-specific syntax.
 
 % 然后再次强调最终接受条件不是只有 bug-free,还必须满足 goal reachability;这是本文一个重要区别点.
 The acceptance criterion for a verified \textsc{Cir} is the
@@ -12,9 +12,9 @@ that block progress, and semantic regressions that silently remove essential beh
 
 \paragraph{Future work.}
 % 未来工作 1 是补上源码与 CIR 的一致性验证,强化端到端保证.
-\textbf{Source--CIR conformance.} An independent extractor that recovers a concurrency skeleton from generated source code and checks structural conformance against the verified \textsc{Cir} would strengthen the end-to-end guarantee.
+\emph{Source--CIR conformance.} An independent extractor that recovers a concurrency skeleton from generated source code and checks structural conformance against the verified \textsc{Cir} would strengthen the end-to-end guarantee.
 % 未来工作 2 是支持弱内存语义相关的并发错误.
-\textbf{Weak-memory semantics.} Extending the \textsc{Cvn} with fence operations would enable detection of bugs that depend on relaxed atomics.
+\emph{Weak-memory semantics.} Extending the \textsc{Cvn} with fence operations would enable detection of bugs that depend on relaxed atomics.
 % 未来工作 3 是把现在的“状态可达目标”推广到更强的“路径次序目标”.
-\textbf{Path-sensitive goals.} The current goals check state
+\emph{Path-sensitive goals.} The current goals check state
 reachability. Extending to ordering goals (``$x$ must be written before $y$ is read'') would require path-based analysis over the state graph, a natural next step given the existing infrastructure.

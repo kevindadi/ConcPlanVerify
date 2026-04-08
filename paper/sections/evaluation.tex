@@ -7,9 +7,9 @@ We evaluate the pipeline through four research questions:
 
 \begin{itemize}[leftmargin=1.4em]
   \item \textbf{RQ1.} Can LLMs produce valid \textsc{Cir} from concurrency specifications, and how many feedback rounds are needed?
-  \item \textbf{RQ2.} Can \textsc{Cvn} analysis detect all seeded bugs? How many repair rounds does the LLM need, and does repair introduce regressions?
-  \item \textbf{RQ3.} Does the translation implementation preserve the structural invariants required by the step-correspondence theorem?
-  \item \textbf{RQ4.} What is the trust boundary between verified \textsc{Cir} and generated source code?
+  \item \textbf{RQ2.} Can \textsc{Cvn} analysis detect all seeded bugs in the current matrix? How many repair rounds does the LLM need, and does repair introduce regressions?
+  \item \textbf{RQ3.} Does the translation implementation satisfy the structural invariants assumed by the formal properties?
+  \item \textbf{RQ4.} What is the trust boundary between verified \textsc{Cir} and generated source code in the current Rust-based prototype?
 \end{itemize}
 
 % ─────────────────────────────────────────────────────────────
@@ -17,20 +17,19 @@ We evaluate the pipeline through four research questions:
 \subsection{Test Matrix and Setup}
 \label{subsec:test-matrix}
 
-% 这里列出 9 个并发模式,其中 6 个带缺陷、3 个无缺陷基线;作者声称这些例子覆盖他们关心的 bug 类型.
-Table~\ref{tab:test-matrix} lists the 9 concurrency patterns used across all RQs. Six patterns contain known bugs spanning all five bug kinds defined in Section~\ref{subsec:bug-patterns}. Three patterns are bug-free baselines that verify the absence of false positives. Bug kinds, detection layers, and repair strategies are
-defined in Sections~\ref{subsec:bug-patterns} and~\ref{subsec:counterexample}; we do not repeat them here.
+% 这里列出 9 个并发模式,其中 6 个带缺陷、3 个无缺陷基线;当前矩阵实际覆盖三类 bug,其余两类在定义层面保留但不在实验矩阵中出现.
+Table~\ref{tab:test-matrix} lists the 9 concurrency patterns used across all RQs. Six patterns contain known bugs spanning the three bug kinds represented in the current matrix: deadlock, signal loss, and starvation. Three patterns are bug-free baselines used to check the absence of false positives. Livelock and channel block remain part of the formal bug taxonomy in Section~\ref{subsec:bug-patterns}, but are not instantiated in the present evaluation.
 
-% 测试矩阵表说明每个模式的关键资源、bug 类别以及预期修复模板.
+% 测试矩阵表说明每个模式的关键资源、bug 类别以及典型修复方向.
 \begin{table*}[t]
-\caption{Test matrix. Bug kinds and repair strategies are defined in Sections~\ref{subsec:bug-patterns} and~\ref{subsec:counterexample}.}
+\caption{Test matrix for the current evaluation.}
 \label{tab:test-matrix}
 \centering\footnotesize
 \begin{tabular}{@{}cllllp{3.4cm}@{}}
 \toprule
 \textbf{\#} & \textbf{Pattern} & \textbf{Bug kind}
   & \textbf{Safety / Liveness} & \textbf{Key resources}
-  & \textbf{Repair template} \\
+  & \textbf{Typical repair direction} \\
 \midrule
 1  & Two-mutex deadlock
    & Deadlock & Safety
@@ -72,9 +71,10 @@ defined in Sections~\ref{subsec:bug-patterns} and~\ref{subsec:counterexample}; w
 \end{tabular}
 \end{table*}
 
-% 这里交代模型选择、温度、输出长度、输入形式、最大迭代轮数以及硬件环境.
+% 这里交代模型选择、温度、输出长度、输入形式、最大迭代轮数以及硬件环境，并说明当前实验虽然用 Rust，但底层表示本身不绑定 Rust。
 We evaluate five LLMs spanning three capability tiers: GPT-4o and Claude~4~Sonnet, DeepSeek-V3 and Gemini~1.5~Pro, and GPT-4o-mini. All models use temperature~0 with a 4096-token output limit. For each pattern, a short natural-language
 concurrency specification serves as the generation input. Buggy and fixed Rust programs are maintained as reference implementations but are not input to \textsc{Cir} generation. At most $K_{\mathit{gen}} = 5$ generation rounds (RQ1) and $K_{\mathit{rep}} = 5$ repair rounds (RQ2) per model per pattern. All experiments run on Apple~M4~Pro / 24\,GB RAM; times are wall-clock averages over 3 runs.
+The current front-end is evaluated on Rust synchronization idioms, but the \textsc{Cir}/\textsc{Cvn} back-end is defined over language-level synchronization semantics rather than Rust-specific syntax.
 
 % RQ1 关注 LLM 能否稳定生成通过静态检查的 CIR.
 \subsection{RQ1: CIR Generation}
@@ -122,14 +122,13 @@ Frontier models generate valid \textsc{Cir} in
 lowest average (1.1 rounds) with first-attempt success on 7 of 9 patterns. The strong tier succeeds on all patterns but requires more rounds for multi-condvar (Pattern~6) and RwLock (Pattern~5) patterns. GPT-4o-mini fails on Pattern~6, the most structurally complex pattern requiring two condvars, two mutexes, and cross-thread notification dependencies.
 
 % 这里补充最常见的生成错误类型,说明静态检查器能及时把这些错误拦住.
-The most common errors are: missing \texttt{paired\_with} on
-condvar resources (E2xx), incorrect branch condition syntax (E5xx), and omitting the protection mapping (E3xx). All are caught by the static checker and correctable through feedback.
+The most common errors are malformed condvar declarations, incorrect branch conditions, and omitted protection mappings. All are caught by the static checker and are usually corrected within one additional feedback round.
 
 % RQ2 是全文最核心的实验问题:先看能否检测出 seeded bugs,再看能否修好,最后看修好后是否保住原始业务目标.
 \subsection{RQ2: Bug Detection, Repair, and Goal Preservation}
 \label{subsec:rq2}
 
-% 作者明确把 RQ2 拆成三个连续能力:检测、修复、目标保持.
+% 明确把 RQ2 拆成三个连续能力:检测、修复、目标保持.
 RQ2 evaluates three capabilities in sequence: (1)~whether
 \textsc{Cvn} analysis detects all seeded bugs, (2)~whether the LLM-driven repair loop produces a bug-free \textsc{Cir}, and (3)~whether the repaired \textsc{Cir} preserves the business goals specified by the user. Following the design of
 Algorithm~\ref{alg:repair-goal}, goal reachability is checked
@@ -325,7 +324,7 @@ In the strong tier, two semantic regressions are detected:
 % 小模型也出现了类似问题,只是它在部分模式上连 bug-free 都没达到.
 GPT-4o-mini exhibits one goal violation on Pattern~3: the bug-free repair reorders the channel send such that neither thread can complete, making G$_1$ unreachable. After goal feedback, the model produces a correct repair. On Patterns~5 and~6, no goal data is available because the model failed to produce a bug-free repair.
 
-% 作者明确指出,这些语义回归能通过静态检查也能通过 bug 检测,只有 goal reachability 能抓出来.
+% 明确指出,这些语义回归能通过静态检查也能通过 bug 检测,只有 goal reachability 能抓出来.
 Both strong-tier regressions (DeepSeek-V3 on Pattern~5, Gemini~1.5 on Pattern~6) pass all 61 static-check rules \emph{and} all 5 bug detectors. They are bug-free and structurally valid. The goal reachability check is the
 \emph{only} mechanism that detects them. Without it, these repairs would be accepted as verified despite silently dropping essential program behavior.
 
@@ -361,11 +360,11 @@ Total rounds     & 9   & 7   & 13  & 15  & 14  \\
 \end{table}
 
 
-% RQ3 不再看模型能力,而是看翻译器实现本身有没有满足理论要求.
+% RQ3 不再看模型能力,而是看翻译器实现本身有没有满足理论要求所需的不变量；它是经验 sanity check，不替代理论证明。
 \subsection{RQ3: Translation Correctness}
 \label{subsec:rq3}
 
-% 这里用 9 条结构不变量来检查翻译实现是否符合前文的对应性定理前提.
+% 这里用 9 条结构不变量来检查翻译实现是否符合前文的对应性定理前提。
 The step-correspondence theorem establishes the theoretical correctness of the translation. RQ3 asks whether the \emph{implementation} of the translation preserves
 the required structural invariants. We verify 9 invariants on each translated \textsc{Cvn}:
 
@@ -416,16 +415,15 @@ Table~\ref{tab:rq3} summarizes the translation size metrics.
 \subsection{RQ4: Code--CIR Faithfulness}
 \label{subsec:rq4}
 
-% 作者在这里很克制地承认:无法一般性证明源码与 CIR 的等价,因为那又会回到 alias 问题.
+% 在这里很克制地承认:无法一般性证明源码与 CIR 的等价,因为那又会回到 alias 问题。
 The architecture places its trust boundary at the \textsc{Cir} level. The LLM generates both the \textsc{Cir} and the source code from the same specification. Establishing a formal correspondence between arbitrary source code and its \textsc{Cir} would require solving the alias problem that \textsc{Cir} was designed to circumvent, and is therefore infeasible in general.
 
-% 当前只给出两个务实缓解手段:一是让生成代码通过编译检查,二是依赖并发骨架模式在训练数据中较常见.
-We adopt two pragmatic mitigations. First, the generated source code must pass \texttt{cargo check}, which enforces ownership, lifetime, and type safety for all synchronization primitives. Second, the \textsc{Cir} captures only the concurrency skeleton (lock order, wait/notify sequences, channel protocols), which consists of patterns well-represented in LLM training data. Bridging this gap
-with runtime monitoring or directed testing remains future work.
+% 当前只给出两个务实缓解手段:一是让生成代码通过编译检查,二是依赖并发骨架模式在训练数据中较常见。
+We adopt two pragmatic mitigations. First, the generated source code must pass \texttt{cargo check}, which enforces ownership, lifetime, and type safety for all synchronization primitives. Second, the \textsc{Cir} captures only the concurrency skeleton (lock order, wait/notify sequences, channel protocols), which consists of patterns well represented in LLM training data. Although the present prototype is evaluated on Rust, the trust-boundary issue is not specific to Rust; it arises for any front-end that maps source code into \textsc{Cir}. Bridging this gap with runtime monitoring or directed testing remains future work.
 
 % ─────────────────────────────────────────────────────────────
 % 最后列出威胁有效性,提醒读者实验规模、bug 覆盖范围和语义正确性边界.
 \subsection{Threats to Validity}
 \label{subsec:threats}
 % 这里承认 9 个模式并不能覆盖全部并发程序,且通过 61 条规则也不等于 CIR 一定忠实表达源程序.
-API parameters are fixed (temperature~0) for reproducibility. Placeholder data will be replaced with full results. The 9 patterns cover the five bug kinds defined in Section~\ref{subsec:bug-patterns} but do not exhaust all possible combinations. Results may not generalize to programs with more than 3 concurrent entities or complex data dependencies. Passing the 61-rule static checker is necessary but not sufficient for semantic correctness; a \textsc{Cir} could still misrepresent the source program's concurrency structure.
+API parameters are fixed (temperature~0) for reproducibility. The 9 patterns cover only a bounded subset of concurrency designs and currently instantiate three of the five formal bug kinds. Results may not generalize to programs with more than three concurrent entities, rich data domains, or language-specific synchronization APIs outside the current Rust-oriented front-end. Passing the 61-rule static checker is necessary but not sufficient for semantic correctness; a \textsc{Cir} could still misrepresent the source program's concurrency structure.

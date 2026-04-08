@@ -2,8 +2,8 @@
 \section{Formal Properties}
 \label{sec:properties}
 
-% 本节给出翻译与分析层面的形式保证,证明思路主要依赖对每类 CIR 操作做分类讨论.
-This section states the formal guarantees of the translation and analysis. Full proofs proceed by case analysis on \textsc{Cir} operations and are provided in the appendix.
+% 本节保留 theorem-level 的主张：翻译正确性、检测可靠性，以及诊断字段和 bug state 的对应关系。它们不应被实验 RQ 替代。
+This section states the theorem-level guarantees of the translation and analysis. The goal is to justify two kinds of claims: first, that the translation from \textsc{Cir} to \textsc{Cvn} preserves the concurrency behavior relevant to verification; second, that the bug reports and repair diagnostics extracted from \textsc{Cvn} states are sound with respect to the encoded \textsc{Cir} behavior. These statements are complementary to the experimental RQs rather than replaced by them. Full proofs proceed by case analysis on \textsc{Cir} operations and are provided in the appendix.
 
 % ─────────────────────────────────────────────────────────────
 % 先定义 CIR 配置、编码函数,以及 CIR 执行和 CVN 触发之间的模拟关系.
@@ -60,8 +60,8 @@ The condvar auxiliary variables ($\mathit{nw}$, $\mathit{na}$) are always concre
 \end{proof}
 
 % ─────────────────────────────────────────────────────────────
-% 接下来讨论更直接与 bug 检测相关的对应性和可靠性.
-\subsection{Correspondence and Soundness}
+% 接下来讨论更直接与 bug 检测和诊断提取相关的可靠性边界。
+\subsection{Bug Detection Soundness and Precision Boundaries}
 \label{subsec:soundness}
 
 % deadlock correspondence 表示在具体赋值条件下,CIR 死锁与 CVN 死锁是等价的.
@@ -84,12 +84,36 @@ A notification at $\mathit{sid}_n$ causes a signal loss in a
 $t_{\mathit{lost}}$ transition fires in the \textsc{Cvn}.
 \end{proposition}
 
-% 作者认为 condvar 的 waiter 计数始终是具体值,因此这类检测没有误报也没有漏报.
+% 认为 condvar 的 waiter 计数始终是具体值,因此这类检测没有误报也没有漏报.
 This follows from the encoding: $V[\mathit{nw}_{\mathit{cv}}] =
 \mathit{NW}(\mathit{cv})$ is always concrete, so the guard
 $\mathit{nw}_{\mathit{cv}} = 0$ evaluates correctly in both
 directions. Signal loss detection has no false positives and no
 false negatives.
+
+% 新增一条与 repair payload 直接相关的性质：从 bug state 导出的 ownership/wait summary 是忠实的，不是启发式猜测。
+\begin{proposition}[Diagnostic faithfulness]
+\label{prop:diagnostic}
+Let $s = (M, V)$ be a reported \textsc{Cvn} bug state, and let
+$(\Sigma_{\mathit{state}}, \Sigma_{\mathit{wait}})$ be the
+state summary and wait/ownership summary extracted from $s$ by
+the reporting procedure. Then these summaries are exact
+decodings of the control, resource, and wait information present
+in $(M, V)$ under the \textsc{Cir}-to-\textsc{Cvn} encoding.
+\end{proposition}
+
+% 说明这些诊断字段为什么可信：它们不是额外推断，而是从 marking 与变量存储直接读出来的。
+\begin{proof}[Proof sketch]
+Each thread position is represented by a token in a unique
+control, wait, or reacquire place; each resource count is
+represented by the corresponding resource place; each condvar
+waiter count and notify-all flag is represented in the extended
+valuation. The reporting procedure does not infer new facts
+beyond these structures. It merely projects $(M, V)$ into a
+compact human-readable form. Hence the reported ownership,
+waiting, and blocked-position summaries are faithful to the bug
+state from which they are extracted.
+\end{proof}
 
 % 总的 soundness 定理保证:如果 CIR 中确实能到达 bug 配置,那么 CVN 搜索一定能发现对应 bug.
 \begin{theorem}[Soundness]
@@ -107,6 +131,6 @@ concrete evaluation. The bug predicates are defined over
 \textsc{Cvn} states and are preserved by the encoding. The finite state space guarantees that the search terminates and visits all reachable states.
 \end{proof}
 
-% 最后强调 soundness 不等于 completeness;因为 unknown 分支会引入过近似状态,所以仍可能出现误报.
+% 最后强调 soundness 不等于 completeness;因为 unknown 分支会引入过近似状态,所以仍可能出现误报。
 The converse does not hold: the \textsc{Cvn} may report false
 positives in states reachable only through $\mathsf{unknown}$-enabled branches. For fully modeled programs, all variables remain concrete and no false positives arise.
