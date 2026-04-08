@@ -35,17 +35,17 @@ cv.notify_one();   // BUG: notify before flag update
 \label{subsec:static-barriers}
 
 % 这一段拆解传统静态分析的三重难点:共享资源身份识别、保护关系恢复、以及对所有线程交错的穷举推理.
-Detecting this bug through traditional static analysis requires the simultaneous resolution of three interdependent challenges: identity of shared resources, implicit protection invariants, and non-deterministic interleaving. First, establishing the \textbf{identity of shared resources} requires proving that separate threads operate on the exact same synchronization primitives. In Rust, this necessitates tracing values through heap allocation, \texttt{Arc} cloning, and closure capture. Such pointer-aliasing problems frequently lead to a compromise between precision and scalability, often resulting in either \emph{false positives} due to over-approximation or \emph{false negatives} from under-approximation. 
+Detecting this bug through traditional static analysis requires the simultaneous resolution of three interdependent challenges: identity of shared resources, implicit protection invariants, and non-deterministic interleaving \cite{Engler2003RacerX,Pratikakis2006Locksmith,Naik2006StaticRaceJava}. First, establishing the \textbf{identity of shared resources} requires proving that separate threads operate on the exact same synchronization primitives. In Rust, this necessitates tracing values through heap allocation, \texttt{Arc} cloning, and closure capture. Such pointer-aliasing problems frequently lead to a compromise between precision and scalability, often resulting in either \emph{false positives} due to over-approximation or \emph{false negatives} from under-approximation. 
 
 % 进一步强调即便 alias 与保护关系都恢复出来,还得做调度层面的穷举;因此作者想把问题从语言实现细节中抽离出来.
-Beyond the aliasing hurdle, implicit protection invariants such as the logical guarding of a boolean flag by a specific mutex are typically buried within implementation patterns rather than being explicitly declared. Traditional tools are often tightly coupled to specific language semantics, such as Rust’s \texttt{MutexGuard}, which restricts their generalizability across different memory models or languages. Even if these resource identities and invariants are successfully inferred, the analyzer must still perform an exhaustive interleaving analysis to expose the specific schedule where a notification is lost. Existing static analyzers frequently struggle at the initial stages of this pipeline. By shifting the focus from language-specific implementation artifacts to a language-agnostic abstraction of concurrent logic, we decouple the verification of synchronization patterns from the inherent complexities of pointer aliasing and source-level syntax.
+Beyond the aliasing hurdle, implicit protection invariants such as the logical guarding of a boolean flag by a specific mutex are typically buried within implementation patterns rather than being explicitly declared \cite{Flanagan2003Atomicity,Boyapati2002Ownership}. Traditional tools are often tightly coupled to specific language semantics, such as Rust’s \texttt{MutexGuard}, which restricts their generalizability across different memory models or languages. Even if these resource identities and invariants are successfully inferred, the analyzer must still perform an exhaustive interleaving analysis to expose the specific schedule where a notification is lost \cite{Flanagan2005DPOR,Musuvathi2008FairStateless}. Existing static analyzers frequently struggle at the initial stages of this pipeline. By shifting the focus from language-specific implementation artifacts to a language-agnostic abstraction of concurrent logic, we decouple the verification of synchronization patterns from the inherent complexities of pointer aliasing and source-level syntax.
 
 % 这里引出 CIR:不再在实现层面“猜”共享对象,而是在设计层面直接声明共享资源、保护关系和控制流.
 \subsection{Bypassing Aliasing via \textsc{Cir} Abstraction}
 \label{subsec:cir-abstraction}
 
 % 作者希望用 LLM 基于程序意图合成一个无别名的 CIR,从而把难题从 alias recovery 变成直接验证.
-The \textsc{Cir} in Figure~\ref{fig:running-cir} reframes the problem by shifting from implementation level inference to design level specification. Our architecture leverages an LLM to synthesize this alias-free representation from the program intent.
+The \textsc{Cir} in Figure~\ref{fig:running-cir} reframes the problem by shifting from implementation level inference to design level specification. Our architecture leverages an LLM to synthesize this alias-free representation from the program intent \cite{Chen2021CodeLLMs,Fan2023RepairFromLLMs,Xia2023APRLLMs}.
 
 % 这里展示该例子的 CIR 版本.全局命名和 protection 显式声明,是后续验证与修复锚定的关键.
 \begin{figure}[h]
@@ -81,7 +81,7 @@ In \textsc{Cir}, shared identities are established by construction through globa
 \label{subsec:closing-loop}
 
 % 这里用该例子解释 CVN 如何发现“通知发生时 waiter 尚未进入等待点”的具体错误条件.
-The \textsc{Cir} is translated into a \textsc{Cvn}, which explores all interleavings. The formal engine identifies that if the transition at \texttt{n2} fires while the worker has not reached the wait place at \texttt{w3}, a signal loss occurs.
+The \textsc{Cir} is translated into a \textsc{Cvn}, which explores all interleavings \cite{Murata1989PetriNets,Holzmann1997SPIN,Esparza2008Unfoldings}. The formal engine identifies that if the transition at \texttt{n2} fires while the worker has not reached the wait place at \texttt{w3}, a signal loss occurs.
 
 % 作者强调反例不是模糊描述,而是锚定到具体 sid;这样 LLM 可以局部修改错误语句,而不是重写整个程序.
 Crucially, the resulting counterexample is structured and anchored to specific statement IDs (\texttt{sid}). This allows the LLM to perform a targeted repair (e.g., swapping \texttt{n2} and \texttt{n3}) rather than a blind rewrite. This synergy exploits a fundamental division of labor: the LLM provides the semantic intuition to resolve resource identities, while the formal engine provides the exhaustive coverage required to expose edge-case interleavings.

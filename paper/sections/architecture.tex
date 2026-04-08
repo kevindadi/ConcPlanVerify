@@ -32,7 +32,7 @@ automatically. Complex errors are reported back to the LLM for re-generation.
 \textsc{Cvn} transition, and no optimization or merging is performed. The translator also establishes an anchor mapping from \textsc{Cvn} transitions back to \textsc{Cir} statement identifiers.
 
 % 第四阶段才是真正的并发 bug 搜索,依靠状态空间穷举而不是 LLM 的直觉推理.
-\textbf{Stage 4: State-space analysis.} The analysis engine explores the \textsc{Cvn} reachability graph. It checks for deadlocks (non-terminal states with no enabled transition), signal losses (notification with no waiter), starvation and livelock (cycles in strongly connected components), and channel blocking. The search is exhaustive within the bounded state space.
+\textbf{Stage 4: State-space analysis.} The analysis engine explores the \textsc{Cvn} reachability graph \cite{Holzmann1997SPIN,Flanagan2005DPOR,Musuvathi2008FairStateless,Esparza2008Unfoldings}. It checks for deadlocks (non-terminal states with no enabled transition), signal losses (notification with no waiter), starvation and livelock (cycles in strongly connected components), and channel blocking. The search is exhaustive within the bounded state space.
 
 % 第五阶段把形式化发现的 bug 转成 LLM 可消费的修复提示,形成闭环迭代.
 \textbf{Stage 5: Repair.} If a bug is found, the engine produces a structured counterexample anchored to \textsc{Cir} statement identifiers. This counterexample is formatted into a repair prompt and sent to the LLM. The LLM generates a corrected \textsc{Cir}, which re-enters the pipeline at Stage~2. The loop repeats for at most $K$ rounds.
@@ -91,4 +91,3 @@ Channel-mutex cross-deadlock  & CVN search & LLM \\
 \bottomrule
 \end{tabular}
 \end{table}
-

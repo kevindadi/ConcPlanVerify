@@ -2,7 +2,7 @@
 \label{sec:analysis-repair}
 % 本节描述了如何分析 Cvn,以及如何将分析结果转化为 LLM 可操作的修复指导.分析算法本身是标准的.本文的贡献在于建立了 Cvn 状态与基于 Cir 的反例之间的联系,以及利用这种联系的结构化修复循环.
 % 本节关注两个问题:一是怎么在 CVN 上找 bug,二是怎么把形式化诊断结果变成 LLM 能据此修复的输入.
-This section describes how the \textsc{Cvn} is analyzed and how analysis results are transformed into actionable repair guidance for the LLM. The analysis algorithms themselves are standard. The contribution lies in the connection between \textsc{Cvn} states and \textsc{Cir}-anchored counterexamples, and in the structured repair loop that exploits this connection.
+This section describes how the \textsc{Cvn} is analyzed and how analysis results are transformed into actionable repair guidance for the LLM. The analysis algorithms themselves are standard \cite{Godefroid1997VeriSoft,Flanagan2005DPOR,Musuvathi2008FairStateless,Esparza2008Unfoldings}. The contribution lies in the connection between \textsc{Cvn} states and \textsc{Cir}-anchored counterexamples, and in the structured repair loop that exploits this connection.
 
 % 这里补充说明搜索语义:如果 guard 里出现 unknown,就把真分支和假分支都纳入搜索.
 The analysis engine performs an exhaustive reachability search to identify safety and liveness violations. Given the potential for $\top$ values in $V$, the search accounts for non-deterministic branching: if $\mathit{eval}(g, V) = \mathsf{unknown}$, both the true and false transitions are explored.
