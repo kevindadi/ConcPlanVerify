@@ -24,7 +24,7 @@ Our \textsc{Cvn} differs in its intended use: resource identity is resolved befo
 This design trades generality for a simpler and more analyzable model targeted to bounded concurrency patterns.
 
 \paragraph{LLMs for program analysis, verification, and repair.}
-% 这一段说明本文并不是“LLM 自己验证并发”,而是把 LLM 用在意图恢复和修复两个环节,把穷举搜索交给形式后端.
+% 这一段说明本文并不是"LLM 自己验证并发”,而是把 LLM 用在意图恢复和修复两个环节,把穷举搜索交给形式后端.
 Recent work has explored LLMs for bug finding, invariant inference, test generation, static-analysis assistance, and automated program repair \cite{Chen2021CodeLLMs,Fan2023RepairFromLLMs,Xia2023APRLLMs,Bouzenia2025RepairAgent,Li2025ContextAwarePrompting}. 
 These methods exploit the fact that LLMs can recognize common implementation idioms and infer likely developer intent from code or natural-language specifications. 
 However, LLMs alone do not provide exhaustive reasoning about the combinatorial space of thread interleavings. 
@@ -44,6 +44,6 @@ code could serve as an additional validation layer for
 source--\textsc{Cir} consistency, which we regard as an important
 direction for future work.
 
-% 收束相关工作定位:本文试图站在“源码直接分析”和“手工建模后验证”之间的中间地带.
+% 收束相关工作定位:本文试图站在"源码直接分析”和"手工建模后验证”之间的中间地带.
 In summary, prior work typically chooses one of two extremes: either reason directly from source code and bear the cost of aliasing and language-specific analysis, or manually construct a formal model and verify that model exhaustively. Our work aims at the middle ground: use an LLM to recover synchronization intent and generate a compact,
 alias-free concurrency model, then verify that model formally and feed structured counterexamples back into the same semantic loop.

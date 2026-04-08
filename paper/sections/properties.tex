@@ -2,7 +2,7 @@
 \section{Formal Properties}
 \label{sec:properties}
 
-% 本节保留 theorem-level 的主张：翻译正确性、检测可靠性，以及诊断字段和 bug state 的对应关系。它们不应被实验 RQ 替代。
+% 本节保留 theorem-level 的主张:翻译正确性、检测可靠性,以及诊断字段和 bug state 的对应关系.它们不应被实验 RQ 替代.
 This section states the theorem-level guarantees of the translation and analysis. The goal is to justify two kinds of claims: first, that the translation from \textsc{Cir} to \textsc{Cvn} preserves the concurrency behavior relevant to verification; second, that the bug reports and repair diagnostics extracted from \textsc{Cvn} states are sound with respect to the encoded \textsc{Cir} behavior. These statements are complementary to the experimental RQs rather than replaced by them. Full proofs proceed by case analysis on \textsc{Cir} operations and are provided in the appendix.
 
 % ─────────────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ The condvar auxiliary variables ($\mathit{nw}$, $\mathit{na}$) are always concre
 \end{proof}
 
 % ─────────────────────────────────────────────────────────────
-% 接下来讨论更直接与 bug 检测和诊断提取相关的可靠性边界。
+% 接下来讨论更直接与 bug 检测和诊断提取相关的可靠性边界.
 \subsection{Bug Detection Soundness and Precision Boundaries}
 \label{subsec:soundness}
 
@@ -91,7 +91,7 @@ $\mathit{nw}_{\mathit{cv}} = 0$ evaluates correctly in both
 directions. Signal loss detection has no false positives and no
 false negatives.
 
-% 新增一条与 repair payload 直接相关的性质：从 bug state 导出的 ownership/wait summary 是忠实的，不是启发式猜测。
+% 新增一条与 repair payload 直接相关的性质:从 bug state 导出的 ownership/wait summary 是忠实的,不是启发式猜测.
 \begin{proposition}[Diagnostic faithfulness]
 \label{prop:diagnostic}
 Let $s = (M, V)$ be a reported \textsc{Cvn} bug state, and let
@@ -102,7 +102,7 @@ decodings of the control, resource, and wait information present
 in $(M, V)$ under the \textsc{Cir}-to-\textsc{Cvn} encoding.
 \end{proposition}
 
-% 说明这些诊断字段为什么可信：它们不是额外推断，而是从 marking 与变量存储直接读出来的。
+% 说明这些诊断字段为什么可信:它们不是额外推断,而是从 marking 与变量存储直接读出来的.
 \begin{proof}[Proof sketch]
 Each thread position is represented by a token in a unique
 control, wait, or reacquire place; each resource count is
@@ -131,6 +131,6 @@ concrete evaluation. The bug predicates are defined over
 \textsc{Cvn} states and are preserved by the encoding. The finite state space guarantees that the search terminates and visits all reachable states.
 \end{proof}
 
-% 最后强调 soundness 不等于 completeness;因为 unknown 分支会引入过近似状态,所以仍可能出现误报。
+% 最后强调 soundness 不等于 completeness;因为 unknown 分支会引入过近似状态,所以仍可能出现误报.
 The converse does not hold: the \textsc{Cvn} may report false
 positives in states reachable only through $\mathsf{unknown}$-enabled branches. For fully modeled programs, all variables remain concrete and no false positives arise.

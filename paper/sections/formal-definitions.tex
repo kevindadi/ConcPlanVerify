@@ -98,7 +98,7 @@ E8xx & Function summary & Summary conflicts with body \\
 \end{tabular}
 \end{table}
 
-% 这里引入“业务目标”概念,用来表达系统不仅要没 bug,还要真正完成用户期待的行为.
+% 这里引入"业务目标”概念,用来表达系统不仅要没 bug,还要真正完成用户期待的行为.
 \begin{definition}[Business goal]
 \label{def:business-goal}
 A business goal is a pair $\gamma = (\mathit{M}_\gamma,\; \mathit{V}_\gamma)$ where $\mathit{M}_\gamma : P \rightharpoonup \mathbb{N}_0$ is a partial marking specifying the required token counts for a subset
@@ -110,7 +110,7 @@ $\forall x \in \mathit{dom}(\mathit{V}_\gamma):
 V(x) = \mathit{V}_\gamma(x)$.
 \end{definition}
 
-% 这一段解释为什么单靠 bug-free 不够:修复可能通过删除必要动作来“消灭 bug”;因此最终接受条件还要求业务目标可达.
+% 这一段解释为什么单靠 bug-free 不够:修复可能通过删除必要动作来"消灭 bug”;因此最终接受条件还要求业务目标可达.
 Business goals capture what the program is \emph{supposed to
 achieve}, not merely what it should avoid. A buggy program may fail to reach its goals precisely because a deadlock or signal loss blocks the execution path. Conversely, a repair that eliminates all concurrency bugs may still fail to reach a goal if it inadvertently removes a critical operation. The acceptance criterion for a verified \textsc{Cir} is therefore the conjunction of two conditions: (1)~no concurrency bug is detected, and (2)~every business goal is reachable. Goal reachability is checked only after the bug-freedom condition is established, because bugs themselves can block goal reachability.
 
@@ -215,7 +215,7 @@ Boolean expressions:
 A guard $g$ is a $\mathit{BoolExpr}$. Given a variable store $V$, the evaluation $\mathit{eval}(g, V)$ returns one of three results: $\{true, false, \mathsf{unknown}(\top) \}$. When any operand of a comparison is $\top$, the comparison evaluates to $\mathsf{unknown}$. The conjunction $\mathsf{unknown} \wedge \mathsf{false}$ evaluates to $\mathsf{false}$. The conjunction $\mathsf{unknown} \wedge \mathsf{true}$ evaluates to $\mathsf{unknown}$.
 \end{definition}
 
-% 这一段解释 unknown 的语义是“保守过近似”:遇到未知分支时两边都探索,从而保证不漏掉可能的错误,但可能引入额外状态.
+% 这一段解释 unknown 的语义是"保守过近似”:遇到未知分支时两边都探索,从而保证不漏掉可能的错误,但可能引入额外状态.
 The evaluation semantics for $\mathsf{unknown}$ is an over-approximation. When a guard evaluates to $\mathsf{unknown}$, the transition is treated as enabled. If the guard arises from a branch statement, both the true-branch and the false-branch transitions are enabled simultaneously. The state-space search explores both paths. This ensures that no reachable state is missed at the cost of potentially exploring infeasible states. Guards are semantically meaningful only on transitions generated from \textsf{branch} and \textsf{switch} statements. All other transitions have guard $\textsf{True}$.
 
 % 这里定义 transition 什么时候可触发、触发后 marking 和变量存储怎么变化.

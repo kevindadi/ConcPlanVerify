@@ -2,13 +2,13 @@
 \section{System Architecture}
 \label{sec:architecture}
 
-% 本节只讲系统分工，不抢 formal definitions 和 analysis/repair 的内容。
+% 本节只讲系统分工,不抢 formal definitions 和 analysis/repair 的内容.
 This section presents the overall system architecture. The aim is to make the information flow and the repair hierarchy explicit before the paper turns to the formal definitions and the detailed repair mechanism.
 
 \subsection{Pipeline Overview}
 \label{subsec:pipeline-overview}
 
-% 图展示完整闭环，从规格到 CIR，到 CVN，到局部修复。
+% 图展示完整闭环,从规格到 CIR,到 CVN,到局部修复.
 Figure~\ref{fig:pipeline} summarizes the end-to-end pipeline.
 
 \begin{figure}
@@ -19,7 +19,7 @@ Figure~\ref{fig:pipeline} summarizes the end-to-end pipeline.
 \label{fig:pipeline}
 \end{figure}
 
-% 每个阶段用简明语言讲清职责，尽量不用黑体强调。
+% 每个阶段用简明语言讲清职责,尽量不用黑体强调.
 \emph{Stage 1: \textsc{Cir} generation.}
 An LLM reads a natural-language requirement or system specification and produces a \textsc{Cir} artifact. The current prototype is evaluated on Rust examples, but the output language of this stage is \textsc{Cir}, not Rust syntax. The LLM is asked to recover the intended shared resources, protection mappings, and statement-level control flow rather than to emit an executable program.
 
@@ -39,7 +39,7 @@ If analysis finds a bug, the verifier does not return a raw net or a raw marking
 \label{subsec:two-layer}
 \label{subsec:repair-tier}
 
-% 这一小节把“两个验证层 + 三类修复响应”合在一起讲，因为它们本来就是一套联动机制。
+% 这一小节把"两个验证层 + 三类修复响应”合在一起讲,因为它们本来就是一套联动机制.
 The core architectural idea is a two-layer verification hierarchy coupled with three repair responses. The two verification layers separate model quality from concurrency behavior. The repair tiers determine how much intervention is needed once a problem is found.
 
 \emph{Layer 1: \textsc{Cir} well-formedness checking.}
@@ -57,7 +57,7 @@ If Layer~1 reports a more substantial structural problem, the verifier sends the
 \emph{Tier 3: logic-driven repair.}
 If Layer~2 finds a concurrency violation, the verifier constructs a structured diagnostic from the bug witness and asks the LLM to revise the affected synchronization logic. This is the most expensive repair tier and also the one that carries the main methodological novelty of the paper.
 
-% 表格保留，但把内容收束成“谁发现什么、怎么修”。
+% 表格保留,但把内容收束成"谁发现什么、怎么修”.
 Table~\ref{tab:two-layer} summarizes this division of responsibilities.
 
 \begin{table}[t]
@@ -81,5 +81,5 @@ Channel-mutex cross-deadlock  & Layer 2 (\textsc{Cvn}) & Tier 3 LLM repair \\
 \end{tabular}
 \end{table}
 
-% 最后点明分层收益：把生成质量、并发验证和语义修复拆开，可以减少 prompt 开销并让诊断更稳定。
+% 最后点明分层收益:把生成质量、并发验证和语义修复拆开,可以减少 prompt 开销并让诊断更稳定.
 This hierarchy serves two purposes. First, it prevents expensive Layer~2 analysis from being wasted on malformed artifacts that should have been rejected much earlier. Second, it ensures that the LLM receives feedback at the right level of abstraction: structural feedback when the model is malformed, execution-grounded feedback when the concurrency logic is wrong, and goal-violation feedback only after bug-freedom has been established.

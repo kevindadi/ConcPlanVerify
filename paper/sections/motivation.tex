@@ -2,13 +2,13 @@
 \section{Motivation}
 \label{sec:motivation}
 
-% 本节不再重复引言里对静态分析困难的长篇铺垫，而是用一个小例子直接说明：代码层太细，网层太低，CIR 正好位于中间。
+% 本节不再重复引言里对静态分析困难的长篇铺垫,而是用一个小例子直接说明:代码层太细,网层太低,CIR 正好位于中间.
 This section illustrates the motivation of the pipeline through a small lost wake-up example. The example highlights why raw source code is a poor object for direct concurrency reasoning, why a Petri-net-style verification model is attractive for exhaustive analysis, and why an intermediate representation such as \textsc{Cir} is needed between the two.
 
 \subsection{A Lost Wake-up Example}
 \label{subsec:running-example}
 
-% 例子本身是一个典型的 condvar 顺序错误：notify 发生在谓词更新之前，因此 waiter 可能永远收不到有效信号。
+% 例子本身是一个典型的 condvar 顺序错误:notify 发生在谓词更新之前,因此 waiter 可能永远收不到有效信号.
 Figure~\ref{fig:running-rust} shows a simple Rust program with a lost wake-up bug. The worker thread waits on a condition variable until the shared flag \texttt{ready} becomes true. The notifier thread acquires the same mutex, calls \texttt{notify\_one}, and only then writes \texttt{ready := true}. If the notification occurs before the worker has entered the wait state, the signal is lost and the worker can block forever. The program compiles cleanly because the defect is not a type or ownership violation; it is a concurrency-ordering bug.
 
 \begin{figure}
@@ -33,7 +33,7 @@ cv.notify_one();   // BUG: notify before flag update
 \label{fig:running-rust}
 \end{figure}
 
-% CIR 把代码里的指针、Arc、借用这些实现细节抹掉，只保留并发意图：共享资源是谁、谁保护谁、控制流如何走。
+% CIR 把代码里的指针、Arc、借用这些实现细节抹掉,只保留并发意图:共享资源是谁、谁保护谁、控制流如何走.
 Figure~\ref{fig:running-cir} shows the same example in \textsc{Cir}. The purpose of this abstraction is not to preserve all source-level detail, but to preserve exactly the information that matters for concurrency reasoning: which resources are shared, which lock protects which variable, where threads wait and notify, and which statement identifier should be blamed if the design goes wrong. The explicit global names \texttt{m0}, \texttt{cv0}, and \texttt{ready} eliminate alias reconstruction. The explicit protection declaration makes the intended locking discipline visible. The \texttt{sid} values create stable anchors for diagnosis and repair.
 
 \begin{figure}
@@ -61,7 +61,7 @@ body:
 \label{fig:running-cir}
 \end{figure}
 
-% 小网模型是本节的关键：它说明可达性分析很容易表达这个 bug，而问题不在后端难不难，而在如何把前端代码转换成合适模型。
+% 小网模型是本节的关键:它说明可达性分析很容易表达这个 bug,而问题不在后端难不难,而在如何把前端代码转换成合适模型.
 The validated \textsc{Cir} is translated locally into a \textsc{Cvn}. Figure~\ref{fig:translation-example} sketches the fragment generated for the \texttt{notifier} function. The important point is not the exact notation, but the fact that the bug becomes easy to express as a reachability question. The notify action has a normal branch that wakes a waiter and a lost-signal branch that advances control when the waiter count is zero. A local reachability analysis over this net can quickly produce a witness in which the transition anchored at \texttt{n2} fires before the worker reaches the waiting point anchored at \texttt{w3}. In other words, once the model is in the right form, the bug is easy for the formal engine to find.
 
 \begin{figure}[t]
@@ -103,8 +103,8 @@ Transitions:
 \label{fig:translation-example}
 \end{figure}
 
-% 这一段把故事真正落到“为什么需要 CIR”：代码太细，网太低，LLM 适合推理并发意图，不适合做可达性穷举；CIR 恰好把两者接起来。
+% 这一段把故事真正落到"为什么需要 CIR”:代码太细,网太低,LLM 适合推理并发意图,不适合做可达性穷举;CIR 恰好把两者接起来.
 The challenge, then, is not that Petri-net-style reachability is inadequate; it is that neither end of the pipeline is a good primary interface for the LLM. Raw Rust code contains aliasing, ownership, API idioms, and representation detail that obscure the intended concurrency structure \cite{Engler2003RacerX,Pratikakis2006Locksmith,Naik2006StaticRaceJava,Flanagan2003Atomicity,Boyapati2002Ownership}. A raw verification net sits at the opposite extreme: it is ideal for local exhaustive analysis \cite{Murata1989PetriNets,Holzmann1997SPIN,Esparza2008Unfoldings}, but too low-level and too verbose to serve as the main object of semantic reasoning and iterative repair. \textsc{Cir} occupies the middle ground. It is short enough for the LLM to reason about directly, explicit enough to make concurrency intent visible, and structured enough to be translated mechanically into a verification model.
 
-% 最后点出 token 与本地分析的分工：LLM 只看短小的 CIR 和结构化反馈；CVN 的翻译与搜索都在本地完成，不消耗上下文窗口。
+% 最后点出 token 与本地分析的分工:LLM 只看短小的 CIR 和结构化反馈;CVN 的翻译与搜索都在本地完成,不消耗上下文窗口.
 This division of labor is especially important for iterative repair. The LLM need not spend tokens simulating state-space search or traversing a full net. Instead, the local verifier translates \textsc{Cir} to \textsc{Cvn}, performs reachability analysis off-prompt, and returns a compact diagnostic package: bug kind, witness trace, statement identifiers, and a marking-derived summary of who holds which resource and who is waiting for what. The LLM then revises only the relevant \textsc{Cir} slice. This is the motivation for the overall design: use the LLM where semantic intent matters most, use the Petri-net back-end where exhaustive interleaving analysis matters most, and place \textsc{Cir} in the middle as the shared object that keeps both sides concise and analyzable.
