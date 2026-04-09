@@ -165,10 +165,10 @@ A Concurrency Verification Net is a 6-tuple $\mathcal{N} = ( P,\; T,\; A_{\mathr
 A \textsc{Cvn} state is a pair $S = (M, V)$ where $M: P \to \mathbb{N}_0$ is a marking and $V: \mathit{Var} \to \mathit{Val}$ is a valuation. The initial state is $S_0 = (I_m, I_v)$, where $I_m$ assigns initial token counts according to Table~\ref{tab:init-tokens} and $I_v$ assigns initial values to each variable. The pair $(\mathcal{N}, S_0)$ fully determines the reachable state space.
 \end{definition}
 
-\begin{remark}[Anchor mapping]
-\label{rem:anchor}
-Each transition is anchored to exactly one source statement. The mapping $\mu$ is total for transitions generated from \textsc{Cir} statements. For compound operations such as \textsf{condvar wait}, which generates multiple transitions (WaitEnter, Wake1, WakeA, Reacquire), each transition is anchored to the originating \textsf{wait} statement's $\mathit{sid}$. Auxiliary transitions generated from summaries have no source statement and are excluded from witness traces; for these, $\mu$ maps to a distinguished sentinel $\mathit{sid}_{\bot}$.
-\end{remark}
+% \begin{remark}[Anchor mapping]
+% \label{rem:anchor}
+% Each transition is anchored to exactly one source statement. The mapping $\mu$ is total for transitions generated from \textsc{Cir} statements. For compound operations such as \textsf{condvar wait}, which generates multiple transitions (WaitEnter, Wake1, WakeA, Reacquire), each transition is anchored to the originating \textsf{wait} statement's $\mathit{sid}$. Auxiliary transitions generated from summaries have no source statement and are excluded from witness traces; for these, $\mu$ maps to a distinguished sentinel $\mathit{sid}_{\bot}$.
+% \end{remark}
 
 % 这段解释 control place、resource place、return place、wait place 等建模元素各自代表什么.
 There is one control place $\mathit{cp}(f, \mathit{sid})$ for each statement in each function. A token in $\mathit{cp}(f, \mathit{sid})$ means that a thread is at statement $\mathit{sid}$ in function $f$. Each function also has a return place $\mathit{cp}(f, \mathit{ret})$ that receives a token when the function returns. There is one resource place $\mathit{rp}(r)$ for each synchronization primitive. The initial token count depends on the resource kind in Table~\ref{tab:init-tokens}. \textsf{Var} and \textsf{Atomic} resources do not have resource places; their state is stored in the valuation $V$. Each condition variable $\mathit{cv}$ with associated wait sites $\{w_1, \ldots, w_k\}$ introduces the following \textsc{Cvn} elements:
