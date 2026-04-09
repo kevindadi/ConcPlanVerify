@@ -3,7 +3,7 @@
 \label{sec:analysis-repair}
 
 % 这节要把重点放在"分析结果如何转成可修复诊断”,而不是把 reachability 本身当作创新点.
-This section explains how \textsc{Cvn} analysis results are converted into repair-oriented feedback for the LLM. The underlying reachability and SCC analyses are standard \cite{Godefroid1997VeriSoft,Flanagan2005DPOR,Musuvathi2008FairStateless,Esparza2008Unfoldings}. The main contribution here is the design of a diagnostic interface between the verifier and the LLM: what information is extracted from a bug state, why that information is necessary for repair, and how it is assembled into a prompt that supports local revision rather than whole-model regeneration.
+\textsc{Cvn} analysis results are converted into repair-oriented feedback for the LLM. The underlying reachability and SCC analyses are standard \cite{Godefroid1997VeriSoft,Flanagan2005DPOR,Musuvathi2008FairStateless,Esparza2008Unfoldings}. The methodological content of this section is the diagnostic interface between the verifier and the LLM: the information extracted from a bug state, the repair role of each field, and the prompt assembly procedure that supports local revision rather than whole-model regeneration.
 
 \subsection{Reachability-Based Bug Detection}
 \label{subsec:bug-patterns}
@@ -129,7 +129,7 @@ Table~\ref{tab:repair-templates} summarizes the prompt template used for logic-d
 \centering\small
 \begin{tabular}{@{}p{3.0cm}p{4.7cm}p{7.2cm}@{}}
 \toprule
-\textbf{Prompt field} & \textbf{Instantiated from} & \textbf{Why it is needed} \\
+\textbf{Prompt field} & \textbf{Instantiated from} & \textbf{Repair role} \\
 \midrule
 Bug kind & Bug predicate $\kappa$ & Selects the repair mode: deadlock, signal loss, starvation, livelock, or channel block require different structural edits. \\
 \addlinespace[3pt]

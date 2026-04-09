@@ -2,8 +2,8 @@
 \section{System Architecture}
 \label{sec:architecture}
 
-% 本节只讲系统分工,不抢 formal definitions 和 analysis/repair 的内容.
-This section presents the overall system architecture. The aim is to make the information flow and the repair hierarchy explicit before the paper turns to the formal definitions and the detailed repair mechanism.
+% 开头直接陈述架构组成和信息流，不使用“本节将介绍什么”这类讲稿式引导。
+The architecture consists of an LLM-driven \textsc{Cir} generation stage, a deterministic validation layer, a mechanical translation stage, and a local verification-and-repair loop. The resulting pipeline traces information flow from natural-language specification to accepted \textsc{Cir} artifact while separating model-quality checking from concurrency-behavior analysis.
 
 \subsection{Pipeline Overview}
 \label{subsec:pipeline-overview}
@@ -40,13 +40,13 @@ If analysis finds a bug, the verifier does not return a raw net or a raw marking
 \label{subsec:repair-tier}
 
 % 这一小节把"两个验证层 + 三类修复响应”合在一起讲,因为它们本来就是一套联动机制.
-The core architectural idea is a two-layer verification hierarchy coupled with three repair responses. The two verification layers separate model quality from concurrency behavior. The repair tiers determine how much intervention is needed once a problem is found.
+A two-layer verification hierarchy is coupled with three repair responses. The verification layers separate model quality from concurrency behavior. The repair tiers determine how much intervention is needed once a problem is found.
 
 \emph{Layer 1: \textsc{Cir} well-formedness checking.}
 This layer targets generation artifacts. Since \textsc{Cir} is produced by an LLM, it may contain shallow structural or semantic inconsistencies even when the intended design is clear. Layer~1 serves as a deterministic filter that checks whether the artifact is internally coherent and ready for formal analysis.
 
 \emph{Layer 2: \textsc{Cvn} state-space analysis.}
-This layer assumes that the \textsc{Cir} is already well formed and asks a different question: does the modeled concurrency logic admit a bad reachable behavior? The bugs found here are interleaving-dependent and therefore require exhaustive analysis rather than local pattern recognition.
+This layer assumes that the \textsc{Cir} is already well formed and considers whether the modeled concurrency logic admits a bad reachable behavior. The bugs found here are interleaving-dependent and therefore require exhaustive analysis rather than local pattern recognition.
 
 \emph{Tier 1: deterministic auto-fix.}
 If Layer~1 reports a trivial, local, and unambiguous issue, the checker repairs it directly using pre-defined rewrites. This avoids spending LLM rounds on mechanical corrections.
@@ -55,7 +55,7 @@ If Layer~1 reports a trivial, local, and unambiguous issue, the checker repairs 
 If Layer~1 reports a more substantial structural problem, the verifier sends the diagnostic back to the LLM for a localized regeneration of the affected \textsc{Cir} fragment.
 
 \emph{Tier 3: logic-driven repair.}
-If Layer~2 finds a concurrency violation, the verifier constructs a structured diagnostic from the bug witness and asks the LLM to revise the affected synchronization logic. This is the most expensive repair tier and also the one that carries the main methodological novelty of the paper.
+If Layer~2 finds a concurrency violation, the verifier constructs a structured diagnostic from the bug witness and asks the LLM to revise the affected synchronization logic. This is the most expensive repair tier and the one that carries the main methodological novelty of the paper.
 
 % 表格保留,但把内容收束成"谁发现什么、怎么修”.
 Table~\ref{tab:two-layer} summarizes this division of responsibilities.
