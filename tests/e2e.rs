@@ -93,12 +93,12 @@ fn run_buggy_test(dir_name: &str) {
         let cir_json = serde_json::to_string_pretty(&buggy).unwrap();
         let prompt = cir2cvn::repair::render::render_repair_prompt(report, &cir_json);
         assert!(
-            prompt.contains("## 原始 CIR"),
+            prompt.contains("## Current CIR"),
             "[{dir_name}] prompt missing CIR section"
         );
         assert!(
-            prompt.contains("## 修复指导"),
-            "[{dir_name}] prompt missing repair guidance"
+            prompt.contains("## Repair Strategy") || prompt.contains("Repair Strategy"),
+            "[{dir_name}] prompt missing repair strategy"
         );
     } else {
         assert!(

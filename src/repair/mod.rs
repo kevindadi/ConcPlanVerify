@@ -66,7 +66,7 @@ fn classify_counterexample(net: &CvnNet, cx: &Counterexample) -> BugReport {
     let involved_resources = extract_involved_resources(net, &blocked);
     let involved_functions = extract_involved_functions(net, &blocked);
     let final_marking_summary = format_marking(net, &cx.final_state.marking);
-    let repair_hint = Some(suggestion::suggestion_for(&kind));
+    let repair_hint = suggestion::suggestion_for(&kind);
 
     BugReport {
         kind,

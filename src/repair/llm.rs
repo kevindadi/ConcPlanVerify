@@ -91,7 +91,7 @@ impl RepairSession {
             // Layer 1: post-translation static checks
             let static_warnings = crate::validate::check_translation(&net);
             if !static_warnings.is_empty() {
-                log::warn!(
+                eprintln!(
                     "Round {round}: {} static check warnings: {}",
                     static_warnings.len(),
                     static_warnings.join("; ")
@@ -169,7 +169,6 @@ fn check_business_goals(
 ) -> Vec<String> {
     use cvn::analysis::goal::{check_goals, json_to_val, CvnGoal};
     use cvn::model::PlaceId;
-    use std::collections::BTreeMap;
 
     if program.goals.is_empty() {
         return Vec::new();
@@ -179,7 +178,7 @@ fn check_business_goals(
         .goals
         .iter()
         .map(|g| {
-            let marking: BTreeMap<PlaceId, u32> = g
+            let marking: std::collections::BTreeMap<PlaceId, u32> = g
                 .marking
                 .iter()
                 .map(|(k, &v)| (PlaceId(k.clone()), v))

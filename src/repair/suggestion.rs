@@ -1,9 +1,16 @@
 use super::report::BugKind;
 
-/// Generate a template-based repair suggestion from the detected bug kind.
-pub fn suggestion_for(kind: &BugKind) -> String {
+/// Generate an instance-specific repair hint from the detected bug's concrete data.
+///
+/// This produces a short, actionable hint that references the specific resources
+/// and functions involved. The general repair strategy and CIR examples are
+/// provided by the per-bug-type templates in `templates/*.md`.
+pub fn suggestion_for(kind: &BugKind) -> Option<String> {
     match kind {
         BugKind::Deadlock { participants } => {
+            if participants.is_empty() {
+                return None;
+            }
             let mut resources: Vec<&str> = participants
                 .iter()
                 .flat_map(|p| {
@@ -12,46 +19,40 @@ pub fn suggestion_for(kind: &BugKind) -> String {
                         .map(String::as_str)
                         .chain(std::iter::once(p.waiting_for.as_str()))
                 })
+                .filter(|s| !s.is_empty())
                 .collect();
             resources.sort();
             resources.dedup();
-            let ordered = resources.join(" → ");
+            let ordered = resources.join(" -> ");
 
             let changes: Vec<String> = participants
                 .iter()
                 .map(|p| {
                     format!(
-                        "函数 {} 中调整 {} 的获取顺序",
+                        "In function `{}`: reorder lock acquisition of `{}`",
                         p.function, p.waiting_for
                     )
                 })
                 .collect();
 
-            format!(
-                "所有函数应按统一顺序获取锁.\n\
-                 建议顺序: {ordered}\n\
-                 具体修改: {}",
-                changes.join("; ")
-            )
+            Some(format!(
+                "Enforce uniform lock ordering: {ordered}\n{}",
+                changes.join("\n")
+            ))
         }
         BugKind::SignalLoss {
             notifier_tid,
             waiter_tid,
-        } => {
-            format!(
-                "通知者 ({notifier_tid}) 可能在等待者 ({waiter_tid}) 之前执行 notify.\n\
-                 修复方案: 在 wait 前用 while 循环检查条件变量.\n\
-                 确保即使 notify 已经发生,等待者也能通过条件检查直接跳过 wait."
-            )
-        }
+        } => Some(format!(
+            "Notifier ({notifier_tid}) may execute notify before waiter ({waiter_tid}) enters wait. \
+             Add a while-loop checking the predicate variable before wait."
+        )),
         BugKind::ChannelBlock {
             blocked_op,
             channel,
-        } => {
-            format!(
-                "Channel {channel} 的 {blocked_op} 操作可能永远阻塞.\n\
-                 修复方案: 确保 send/recv 配对,不要在持有锁时执行可能阻塞的 channel 操作."
-            )
-        }
+        } => Some(format!(
+            "Channel `{channel}` {blocked_op} is blocked. \
+             Move the {blocked_op} operation outside any held mutex."
+        )),
     }
 }

@@ -1,7 +1,13 @@
 use std::fmt::Write;
 
 use super::report::{BugKind, BugReport, DeadlockParticipant};
-use super::suggestion::suggestion_for;
+
+const TEMPLATE_DEADLOCK: &str = include_str!("templates/deadlock.md");
+const TEMPLATE_SIGNAL_LOSS: &str = include_str!("templates/signal_loss.md");
+const TEMPLATE_CHANNEL_BLOCK: &str = include_str!("templates/channel_block.md");
+// These will be used when Livelock/Starvation BugKind variants are added.
+const _TEMPLATE_LIVELOCK: &str = include_str!("templates/livelock.md");
+const _TEMPLATE_STARVATION: &str = include_str!("templates/starvation.md");
 
 /// Render a bug report as human-readable text (also suitable as LLM input).
 pub fn render_text(report: &BugReport) -> String {
@@ -10,50 +16,187 @@ pub fn render_text(report: &BugReport) -> String {
     write_header(&mut out, report);
     write_trace(&mut out, report);
     write_bug_details(&mut out, report);
-    write_suggestion(&mut out, report);
+
+    if let Some(hint) = &report.repair_hint {
+        writeln!(out, "SUGGESTION: {hint}").unwrap();
+    }
 
     out
 }
 
-/// Render a full LLM repair prompt containing the original CIR, the bug
-/// report, and repair instructions.
+/// Render a full LLM repair prompt following the paper's Table 4 structure:
+/// Bug kind, Witness trace, Bug-state summary, Held resources,
+/// Waiting relations, CIR slice, Preservation constraints,
+/// Repair strategy (per-bug template), Current CIR, Output contract.
 pub fn render_repair_prompt(report: &BugReport, original_cir_json: &str) -> String {
     let mut out = String::new();
 
-    writeln!(out, "# 并发 Bug 修复请求").unwrap();
-    writeln!(out).unwrap();
-    writeln!(out, "## 原始 CIR").unwrap();
-    writeln!(out).unwrap();
-    writeln!(out, "```json").unwrap();
-    writeln!(out, "{original_cir_json}").unwrap();
-    writeln!(out, "```").unwrap();
-    writeln!(out).unwrap();
-    writeln!(out, "## 检测到的 Bug").unwrap();
-    writeln!(out).unwrap();
-    write!(out, "{}", render_text(report)).unwrap();
-    writeln!(out).unwrap();
-    writeln!(out, "## 修复指导").unwrap();
-    writeln!(out).unwrap();
-    writeln!(out, "### Bug 类型:{}", report.kind.name()).unwrap();
-    writeln!(out).unwrap();
-    writeln!(out, "{}", suggestion_for(&report.kind)).unwrap();
-    writeln!(out).unwrap();
-    write_repair_constraints(&mut out);
-    write_common_patterns(&mut out);
-    writeln!(out, "## 输出要求").unwrap();
-    writeln!(out).unwrap();
+    writeln!(out, "# Concurrency Bug Repair Request\n").unwrap();
+
+    // 1. Bug kind
+    writeln!(out, "## Bug Kind\n").unwrap();
+    writeln!(out, "{}\n", report.kind.name()).unwrap();
+
+    // 2. Witness trace (sid)
+    write_witness_trace(&mut out, report);
+
+    // 3 + 4 + 5. Bug-state summary, Held resources, Waiting relations
+    write_state_summary(&mut out, report);
+
+    // 6. Relevant CIR slice (Lambda)
+    write_cir_slice(&mut out, report);
+
+    // 7. Preservation constraints (Gamma_ctx)
+    write_preservation(&mut out, report);
+
+    // 8. Repair strategy (per-bug-type template with examples)
+    write_repair_template(&mut out, report);
+
+    // 9. Current CIR (full JSON)
+    writeln!(out, "## Current CIR\n").unwrap();
+    writeln!(out, "```json\n{original_cir_json}\n```\n").unwrap();
+
+    // Output contract
+    writeln!(out, "## Output\n").unwrap();
     writeln!(
         out,
-        "请输出修复后的**完整 CIR JSON**,不要省略任何函数或资源定义."
+        "Output the complete revised CIR JSON. Do not omit any function or resource."
     )
     .unwrap();
 
     out
 }
 
+// ── Section renderers ────────────────────────────────────────────
+
 fn write_header(out: &mut String, report: &BugReport) {
-    writeln!(out, "BUG: {}", report.summary).unwrap();
+    writeln!(out, "BUG: {}\n", report.summary).unwrap();
+}
+
+fn write_witness_trace(out: &mut String, report: &BugReport) {
+    if report.trace.is_empty() {
+        return;
+    }
+    writeln!(out, "## Witness Trace\n").unwrap();
+    let sids: Vec<String> = report
+        .trace
+        .iter()
+        .map(|step| {
+            if step.anchor_sids.is_empty() {
+                step.transition_id.clone()
+            } else {
+                step.anchor_sids.join(", ")
+            }
+        })
+        .collect();
+    writeln!(out, "{}\n", sids.join(" -> ")).unwrap();
+
+    writeln!(out, "Detailed steps:\n").unwrap();
+    for (i, step) in report.trace.iter().enumerate() {
+        writeln!(out, "  {}. {}", i + 1, step.description).unwrap();
+    }
     writeln!(out).unwrap();
+}
+
+fn write_state_summary(out: &mut String, report: &BugReport) {
+    writeln!(out, "## Bug-State Summary\n").unwrap();
+
+    match &report.kind {
+        BugKind::Deadlock { participants } => {
+            for p in participants {
+                write_participant_state(out, p);
+            }
+        }
+        BugKind::SignalLoss {
+            notifier_tid,
+            waiter_tid,
+        } => {
+            writeln!(out, "- Notifier ({notifier_tid}) executed notify before waiter entered wait").unwrap();
+            writeln!(out, "- Waiter blocked at: {waiter_tid}").unwrap();
+            writeln!(out, "- The notification was lost because waiter_count = 0 at notification time").unwrap();
+        }
+        BugKind::ChannelBlock {
+            blocked_op,
+            channel,
+        } => {
+            writeln!(out, "- Channel `{channel}`: `{blocked_op}` operation is permanently blocked").unwrap();
+            writeln!(out, "- No matching counterpart can execute because of lock contention or missing pair").unwrap();
+        }
+    }
+
+    if !report.final_marking_summary.is_empty() {
+        writeln!(out, "\nFinal state: {}\n", report.final_marking_summary).unwrap();
+    }
+
+    // Involved resources and functions
+    if !report.involved_resources.is_empty() {
+        writeln!(
+            out,
+            "Involved resources: {}\n",
+            report.involved_resources.join(", ")
+        )
+        .unwrap();
+    }
+    if !report.involved_functions.is_empty() {
+        writeln!(
+            out,
+            "Involved functions: {}\n",
+            report.involved_functions.join(", ")
+        )
+        .unwrap();
+    }
+}
+
+fn write_participant_state(out: &mut String, p: &DeadlockParticipant) {
+    let holding = if p.holding.is_empty() {
+        "(none)".to_string()
+    } else {
+        format!("[{}]", p.holding.join(", "))
+    };
+    writeln!(
+        out,
+        "- `{}` at {}: holding {holding}, waiting for `{}`",
+        p.function, p.blocked_at_sid, p.waiting_for
+    )
+    .unwrap();
+}
+
+fn write_cir_slice(out: &mut String, report: &BugReport) {
+    if report.cir_slice.is_empty() {
+        return;
+    }
+    writeln!(out, "## Relevant CIR Slice\n").unwrap();
+    for entry in &report.cir_slice {
+        writeln!(out, "- {}.{}: {}", entry.function, entry.sid, entry.op).unwrap();
+    }
+    writeln!(out).unwrap();
+}
+
+fn write_preservation(out: &mut String, report: &BugReport) {
+    if report.preservation_constraints.is_empty() {
+        return;
+    }
+    writeln!(out, "## Preservation Constraints\n").unwrap();
+    for c in &report.preservation_constraints {
+        writeln!(out, "- {c}").unwrap();
+    }
+    writeln!(out).unwrap();
+}
+
+fn write_repair_template(out: &mut String, report: &BugReport) {
+    let template = match &report.kind {
+        BugKind::Deadlock { .. } => TEMPLATE_DEADLOCK,
+        BugKind::SignalLoss { .. } => TEMPLATE_SIGNAL_LOSS,
+        BugKind::ChannelBlock { .. } => TEMPLATE_CHANNEL_BLOCK,
+    };
+
+    writeln!(out, "{template}\n").unwrap();
+
+    // Append the instance-specific repair hint if available
+    if let Some(hint) = &report.repair_hint {
+        writeln!(out, "### Instance-Specific Hint\n").unwrap();
+        writeln!(out, "{hint}\n").unwrap();
+    }
 }
 
 fn write_trace(out: &mut String, report: &BugReport) {
@@ -111,56 +254,8 @@ fn write_participant(out: &mut String, p: &DeadlockParticipant) {
     };
     writeln!(
         out,
-        "  {}: 持有 {holding}, 等待 {} (blocked at {})",
+        "  {}: holding {holding}, waiting for {} (blocked at {})",
         p.function, p.waiting_for, p.blocked_at_sid
     )
     .unwrap();
-}
-
-fn write_suggestion(out: &mut String, report: &BugReport) {
-    writeln!(out, "SUGGESTION: {}", suggestion_for(&report.kind)).unwrap();
-}
-
-fn write_repair_constraints(out: &mut String) {
-    writeln!(out, "### 修复约束").unwrap();
-    writeln!(out).unwrap();
-    writeln!(out, "1. **最小修改原则**:只修改导致 bug 的函数,不要重写整个程序").unwrap();
-    writeln!(out, "2. **保持 sid 格式**:使用 \"s\" + 数字,函数内唯一").unwrap();
-    writeln!(
-        out,
-        "3. **保持资源不变**:不要新增或删除资源定义,除非修复方案确实需要"
-    )
-    .unwrap();
-    writeln!(out, "4. **transfer 显式跳转**:每条 next 必须带目标 sid").unwrap();
-    writeln!(out, "5. **锁配对**:每个 lock 必须有对应的 drop").unwrap();
-    writeln!(
-        out,
-        "6. **Condvar 惯用法**:wait 前用 while 循环检查条件变量"
-    )
-    .unwrap();
-    writeln!(out).unwrap();
-}
-
-fn write_common_patterns(out: &mut String) {
-    writeln!(out, "### 常见修复模式").unwrap();
-    writeln!(out).unwrap();
-
-    writeln!(out, "#### 死锁 → 统一锁顺序").unwrap();
-    writeln!(out).unwrap();
-    writeln!(
-        out,
-        "所有函数按相同顺序获取锁.例如全局约定 mtx_a → mtx_b → mtx_c."
-    )
-    .unwrap();
-    writeln!(out).unwrap();
-
-    writeln!(out, "#### 信号丢失 → while 循环保护 wait").unwrap();
-    writeln!(out).unwrap();
-    writeln!(out, "先读条件变量,true 则跳过 wait;false 则 wait 后回到条件检查.").unwrap();
-    writeln!(out).unwrap();
-
-    writeln!(out, "#### Channel + Mutex 死锁 → 不在持锁时做阻塞操作").unwrap();
-    writeln!(out).unwrap();
-    writeln!(out, "将 recv/send 移到 lock/drop 之外.").unwrap();
-    writeln!(out).unwrap();
 }
