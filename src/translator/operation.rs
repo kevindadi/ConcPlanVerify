@@ -1,5 +1,3 @@
-use cir::ast::{Function, Op, Statement, Transfer};
-use cvn::model::{BoolExpr, CmpOp, Expr, TransitionKind, Val, VarUpdate};
 use super::condvar;
 use super::context::{LockKind, ResKind, TranslateContext, cp_id, na_var_name, rp_id, tid};
 use super::control_flow::{
@@ -8,12 +6,11 @@ use super::control_flow::{
 };
 use super::expr_parser::parse_expr;
 use crate::error::TranslateError;
+use cir::ast::{Function, Op, Statement, Transfer};
+use cvn::model::{BoolExpr, CmpOp, Expr, TransitionKind, Val, VarUpdate};
 
 /// Phase 2: Translate all function bodies.
-pub(crate) fn translate_functions(
-    ctx: &mut TranslateContext,
-    functions: &[Function],
-) {
+pub(crate) fn translate_functions(ctx: &mut TranslateContext, functions: &[Function]) {
     // Pre-scan: collect condvar wait-sites and mark post-wait locks.
     for func in functions {
         prescan_condvar_waits(ctx, &func.name, &func.body);
@@ -196,10 +193,8 @@ fn translate_lock(
     let (weight, kind, suffix) = match res_kind {
         Some(ResKind::Semaphore { .. }) => (1, TransitionKind::Acquire, "acquire"),
         Some(ResKind::RwLock) => {
-            ctx.lock_tracker.insert(
-                (fn_name.to_string(), resource.to_string()),
-                LockKind::Write,
-            );
+            ctx.lock_tracker
+                .insert((fn_name.to_string(), resource.to_string()), LockKind::Write);
             (ctx.rwlock_n, TransitionKind::Lock, "lock")
         }
         _ => (1, TransitionKind::Lock, "lock"),
@@ -223,10 +218,8 @@ fn translate_rw_read_lock(
     resource: &str,
     input_cp: &str,
 ) {
-    ctx.lock_tracker.insert(
-        (fn_name.to_string(), resource.to_string()),
-        LockKind::Read,
-    );
+    ctx.lock_tracker
+        .insert((fn_name.to_string(), resource.to_string()), LockKind::Read);
     let plan = plan_transfer(ctx, fn_name, &stmt.sid, &stmt.transfer);
     if let TransferPlan::Next { target_cp } = plan {
         let t_id = tid(fn_name, &stmt.sid, "read_lock");
@@ -627,12 +620,7 @@ fn translate_call(
 
 // ── return ──────────────────────────────────────────────────────────────
 
-fn translate_nop(
-    ctx: &mut TranslateContext,
-    fn_name: &str,
-    stmt: &Statement,
-    input_cp: &str,
-) {
+fn translate_nop(ctx: &mut TranslateContext, fn_name: &str, stmt: &Statement, input_cp: &str) {
     let plan = plan_transfer(ctx, fn_name, &stmt.sid, &stmt.transfer);
 
     match plan {
