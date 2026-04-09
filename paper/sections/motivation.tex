@@ -2,7 +2,7 @@
 \section{Motivation}
 \label{sec:motivation}
 
-% 一个简单的唤醒丢失示例用来引出本文的问题和方法。源代码层面的问题在于并发意图被实现细节掩盖；方法层面的应对是先构造 Cir，再将其翻译为局部 Cvn 片段进行穷举分析。
+% 一个简单的唤醒丢失示例介绍了问题背景和方法.在源代码层面,并发意图被实现细节所掩盖,因此难以直接分析.该方法通过引入 Cir 作为中间模型来解决这一问题,然后将验证后的工件转换为本地 Cvn 片段以进行详尽分析.
 A small lost wake-up example introduces both the problem setting and the method. At the source level, concurrency intent is obscured by implementation detail and is therefore difficult to analyze directly. The method addresses this mismatch by introducing \textsc{Cir} as an intermediate model and then translating the validated artifact into a local \textsc{Cvn} fragment for exhaustive analysis.
 
 \subsection{A Lost Wake-up Example}
@@ -33,7 +33,7 @@ cv.notify_one();   // BUG: notify before flag update
 \label{fig:running-rust}
 \end{figure}
 
-% 图~\ref{fig:running-cir} 展示了 Cir 中的相同示例。该抽象保留了并发推理的关键信息：哪些资源是共享的，哪个锁保护哪个变量，线程在哪里等待和通知，以及如果设计出现问题应该归咎于哪个语句标识符。显式全局名称 \texttt{m0}、\texttt{cv0} 和 \texttt{ready} 消除了别名重构。显式保护声明使预期的锁定机制清晰可见。\texttt{sid} 值创建了用于诊断和修复的稳定锚点。
+% 图~\ref{fig:running-cir} 展示了 Cir 中的相同示例.该抽象保留了并发推理的关键信息:哪些资源是共享的,哪个锁保护哪个变量,线程在哪里等待和通知,以及如果设计出现问题应该归咎于哪个语句标识符.显式全局名称 \texttt{m0}、\texttt{cv0} 和 \texttt{ready} 消除了别名重构.显式保护声明使预期的锁定机制清晰可见.\texttt{sid} 值创建了用于诊断和修复的稳定锚点.
 Figure~\ref{fig:running-cir} shows the same example in \textsc{Cir}. The abstraction preserves exactly the information that matters for concurrency reasoning: which resources are shared, which lock protects which variable, where threads wait and notify, and which statement identifier should be blamed if the design goes wrong. The explicit global names \texttt{m0}, \texttt{cv0}, and \texttt{ready} eliminate alias reconstruction. The explicit protection declaration makes the intended locking discipline visible. The \texttt{sid} values create stable anchors for diagnosis and repair.
 
 \begin{figure}

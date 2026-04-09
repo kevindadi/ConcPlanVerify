@@ -2,7 +2,7 @@
 \section{System Architecture}
 \label{sec:architecture}
 
-% 开头直接陈述架构组成和信息流，不使用“本节将介绍什么”这类讲稿式引导。
+% 该架构由LLM驱动的Cir生成阶段、确定性验证层、机械翻译阶段和本地验证修复循环组成.由此产生的流水线追踪从自然语言规范到可接受的Cir工件的信息流,同时将模型质量检查与并发行为分析分离.
 The architecture consists of an LLM-driven \textsc{Cir} generation stage, a deterministic validation layer, a mechanical translation stage, and a local verification-and-repair loop. The resulting pipeline traces information flow from natural-language specification to accepted \textsc{Cir} artifact while separating model-quality checking from concurrency-behavior analysis.
 
 \subsection{Pipeline Overview}
@@ -19,19 +19,23 @@ Figure~\ref{fig:pipeline} summarizes the end-to-end pipeline.
 \label{fig:pipeline}
 \end{figure}
 
-% 每个阶段用简明语言讲清职责,尽量不用黑体强调.
+% Step1: LLM 读取自然语言需求或系统规范,并生成 Cir 工件.当前原型使用 Rust 示例进行评估,但此阶段的输出语言是 Cir,而非 Rust 语法.LLM 的任务是恢复预期的共享资源、保护映射和语句级控制流,而不是生成可执行程序.
 \emph{Stage 1: \textsc{Cir} generation.}
 An LLM reads a natural-language requirement or system specification and produces a \textsc{Cir} artifact. The current prototype is evaluated on Rust examples, but the output language of this stage is \textsc{Cir}, not Rust syntax. The LLM is asked to recover the intended shared resources, protection mappings, and statement-level control flow rather than to emit an executable program.
 
+% Step2: 确定性检查器会根据分为 9 个类别的 61 条格式良好性规则来验证生成的 \textsc{Cir}.此阶段可以及早发现格式错误的工件:缺少字段、未定义的资源、不兼容的操作、损坏的 spawn/join 结构以及保护映射错误.
 \emph{Stage 2: \textsc{Cir} static checking.}
 A deterministic checker validates the generated \textsc{Cir} against 61 well-formedness rules organized in 9 categories. This stage catches malformed artifacts early: missing fields, undefined resources, incompatible operations, broken spawn/join structure, and protection-mapping errors.
 
+% Step3: 机械翻译器将验证后的 Cir 转换为 Cvn 模型.翻译是直接的:每个 Cir 语句产生至少一个锚定变迁,不进行优化或变迁合并.这使得后续的正确性论证简单,并保留诊断可追踪性.
 \emph{Stage 3: Translation to \textsc{Cvn}.}
 A stateless translator converts the validated \textsc{Cir} into a \textsc{Cvn}. The translation is intentionally direct: each \textsc{Cir} statement gives rise to at least one anchored transition, and no optimization or transition merging is performed. This keeps the later correctness argument simple and preserves diagnostic traceability.
 
+% Step4: 本地状态空间分析通过穷举可达性和基于 SCC 的检查来执行.此阶段不消耗 LLM 提示预算.其角色是找到在显式足够的验证模型中存在的 bug 见证,该模型足够紧凑,可以保持有界.
 \emph{Stage 4: Local state-space analysis.}
 The \textsc{Cvn} is analyzed locally through exhaustive reachability and SCC-based checks \cite{Holzmann1997SPIN,Flanagan2005DPOR,Musuvathi2008FairStateless,Esparza2008Unfoldings}. This stage does not consume LLM prompt budget. Its role is to find bug witnesses in a verification model that is explicit enough for formal reasoning but compact enough to remain bounded.
 
+% Step5: 结构化修复反馈.如果分析发现 bug,验证器不会返回原始网或原始标记转储.相反,它打包一个与 Cir 语句标识符锚定的修复导向诊断,并将其紧凑的报告发送回 LLM.修正后的 Cir 然后重新进入管道第 2 阶段.如果没有发现 bug,则使用相同的可达状态集来检查业务目标可达性,然后进行接受.
 \emph{Stage 5: Structured repair feedback.}
 If analysis finds a bug, the verifier does not return a raw net or a raw marking dump. Instead, it packages a repair-oriented diagnostic anchored to \textsc{Cir} statement identifiers and sends that compact report back to the LLM. The corrected \textsc{Cir} then re-enters the pipeline at Stage~2. If no bug is found, the same reachable state set is reused to check business-goal reachability before acceptance.
 
@@ -39,7 +43,7 @@ If analysis finds a bug, the verifier does not return a raw net or a raw marking
 \label{subsec:two-layer}
 \label{subsec:repair-tier}
 
-% 这一小节把"两个验证层 + 三类修复响应”合在一起讲,因为它们本来就是一套联动机制.
+% 两层验证体系与三层修复响应机制相结合.验证层将模型质量与并发行为区分开来.修复层则决定在发现问题后需要采取何种程度的干预措施.
 A two-layer verification hierarchy is coupled with three repair responses. The verification layers separate model quality from concurrency behavior. The repair tiers determine how much intervention is needed once a problem is found.
 
 \emph{Layer 1: \textsc{Cir} well-formedness checking.}
@@ -57,7 +61,7 @@ If Layer~1 reports a more substantial structural problem, the verifier sends the
 \emph{Tier 3: logic-driven repair.}
 If Layer~2 finds a concurrency violation, the verifier constructs a structured diagnostic from the bug witness and asks the LLM to revise the affected synchronization logic. This is the most expensive repair tier and the one that carries the main methodological novelty of the paper.
 
-% 表格保留,但把内容收束成"谁发现什么、怎么修”.
+% 表格保留,但把内容收束成"谁发现什么、怎么修".
 Table~\ref{tab:two-layer} summarizes this division of responsibilities.
 
 \begin{table}[t]
@@ -81,5 +85,5 @@ Channel-mutex cross-deadlock  & Layer 2 (\textsc{Cvn}) & Tier 3 LLM repair \\
 \end{tabular}
 \end{table}
 
-% 最后点明分层收益:把生成质量、并发验证和语义修复拆开,可以减少 prompt 开销并让诊断更稳定.
+% 这种层级结构有两个目的.首先,它可以避免将耗费大量资源的二层分析浪费在那些本应更早被拒绝的畸形工件上.其次,它可以确保层级模型管理在合适的抽象层级上接收反馈:当模型畸形时提供结构性反馈,当并发逻辑错误时提供基于执行的反馈,只有在确认模型无缺陷后才提供目标违背反馈.
 This hierarchy serves two purposes. First, it prevents expensive Layer~2 analysis from being wasted on malformed artifacts that should have been rejected much earlier. Second, it ensures that the LLM receives feedback at the right level of abstraction: structural feedback when the model is malformed, execution-grounded feedback when the concurrency logic is wrong, and goal-violation feedback only after bug-freedom has been established.
