@@ -9,13 +9,13 @@ Three core formalisms underlie the method: \textsc{Cir}, \textsc{Cvn}, and the t
 
 \begin{definition}[Function and Statement]
 \label{def:statement}
-A function definition is a triple $(f, k, B)$ where $f$ is the name, $k \in \{ \textsf{normal}, \textsf{async}, \textsf{closure} \}$ is the kind, and $B$ is a body consisting of statements. A statement $s$ is a triple $(\mathit{sid},\; \mathit{op},\; \mathit{transfer})$, where $\mathit{sid}$ is a unique identifier; $\mathit{op}$ is an operation from Table~\ref{tab:cir-ops}; and $\mathit{transfer} \in \{ \textsf{next}(s'), \textsf{branch}(\beta, s_t, s_f), \\ \textsf{switch}(x, \dots), \textsf{return} \}$ defines the successor logic.
+A function definition is a triple $(f, k, B)$ where $f$ is the name, $k \in \{ \textsf{normal}, \textsf{async}, \textsf{closure} \}$ is the kind, and $B$ is a body consisting of statements. A statement $s$ is a triple $(\mathit{sid},\; \mathit{op},\; \mathit{transfer})$, where $\mathit{sid}$ is a unique identifier; $\mathit{op}$ is an operation from Table~\ref{tab:cir-ops} or the distinguished no-operation $\textsf{nop}$; and $\mathit{transfer} \in \{ \textsf{next}(s'), \textsf{branch}(\beta, s_t, s_f), \textsf{switch}(x, \dots), \textsf{return} \}$ defines the successor logic. The operation and transfer are orthogonal: $\mathit{op}$ specifies the resource or concurrency action, while $\mathit{transfer}$ specifies the control-flow successor.
 \end{definition}
 
 % 这里定义一个完整 CIR 工件由哪些部分组成:资源表、保护映射、函数集合、摘要和入口函数.
 \begin{definition}[\textsc{Cir} artifact]
 \label{def:cir}
-A \textsc{Cir} artifact is a 5-tuple $\mathcal{I} = ( R,\; G,\; F,\; \Sigma,\; e )$, where $R$ is a finite resource table mapping names to kinds and configurations; $G: \mathit{VarName} \rightharpoonup \mathcal{P}(\mathit{LockName})$ is a protection mapping; $F$ is a finite set of function definitions $(f, k, B)$; $\Sigma$ is a partial function-summary map for external calls; and $e \in F$ is the designated entry function.
+A \textsc{Cir} artifact is a 6-tuple $\mathcal{I} = ( R,\; G,\; F,\; \Sigma,\; e,\; \Gamma )$, where $R$ is a finite resource table mapping names to kinds and configurations; $G: \mathit{VarName} \rightharpoonup \mathcal{P}(\mathit{LockName})$ is a protection mapping; $F$ is a finite set of function definitions $(f, k, B)$; $\Sigma$ is a partial function-summary map for external calls; $e \in F$ is the designated entry function; and $\Gamma$ is a finite set of CIR business goals (Definition~\ref{def:cir-goal}).
 \end{definition}
 
 % 这一段强调 CIR 的建模边界:资源名全局唯一,禁止指针/堆/别名;同时保护映射只服务静态检查,不直接翻译成 CVN 结构.
@@ -56,9 +56,8 @@ Every resource in $R$ has a unique global name. We strictly forbid pointers, hea
   & function (async task) \\
   & \textsf{call}
   & function \\
-  & \textsf{return}
-  & --- \\
 \bottomrule
+\multicolumn{3}{@{}l}{\scriptsize Note: \textsf{return} is a transfer, not an operation.} \\
 \end{tabular}
 \end{table}
 
@@ -68,7 +67,7 @@ The summary map $\Sigma$ provides summaries only for functions whose bodies are 
   \Sigma(f) = (\mathit{reads},\; \mathit{writes},\;
     \mathit{calls},\; \mathit{has\_concurrency})
 \]
-where $\mathit{reads}$ and $\mathit{writes}$ are sets of resource names, $\mathit{calls}$ is a set of callee names, and $\mathit{has\_concurrency}$ is a boolean. Fully modeled functions do not have summaries.
+where $\mathit{reads}$ and $\mathit{writes}$ are sets of resource names, $\mathit{calls}$ is a set of callee names, and $\mathit{has\_concurrency}$ is a boolean. Fully modeled functions do not have summaries. The $\mathit{reads}$, $\mathit{calls}$, and $\mathit{has\_concurrency}$ fields serve the static checker (e.g., detecting recursive concurrency or unprotected access through transitive calls) but do not participate in the \textsc{Cvn} translation. Only $\mathit{writes}$ affects \textsc{Cvn} semantics: Phase~3 of the translation generates $\top$-updates for written variables.
 
 % 这里说明 CIR 还有一套 61 条静态规则,用来过滤结构错误、类型错误、锁安全问题等.
 The static checker enforces 61 well-formedness rules organized in 9 categories with prefix E. Table~\ref{tab:cir-errors} summarizes the categories.
@@ -96,15 +95,20 @@ E8xx & Function summary & Summary conflicts with body \\
 \end{table}
 
 % 这里引入"业务目标”概念,用来表达系统不仅要没 bug,还要真正完成用户期待的行为.
-\begin{definition}[Business goal]
-\label{def:business-goal}
-A business goal is a pair $\gamma = (\mathit{M}_\gamma,\; \mathit{V}_\gamma)$ where $\mathit{M}_\gamma : P \rightharpoonup \mathbb{N}_0$ is a partial marking specifying the required token counts for a subset
-of places, and $\mathit{V}_\gamma : \mathit{VarName}
-\rightharpoonup \mathit{Val}$ is a partial valuation specifying the required values for a subset of variables. A \textsc{Cvn} state $(M, V)$ \emph{satisfies} $\gamma$, written $(M, V) \models \gamma$, iff
-$\forall p \in \mathit{dom}(\mathit{M}_\gamma):
-M(p) \geq \mathit{M}_\gamma(p)$ and
-$\forall x \in \mathit{dom}(\mathit{V}_\gamma):
-V(x) = \mathit{V}_\gamma(x)$.
+\begin{definition}[\textsc{Cir} business goal]
+\label{def:cir-goal}
+A \textsc{Cir} business goal is a pair $\gamma^{\mathrm{cir}} = (C_\gamma,\; V_\gamma)$, where $C_\gamma$ is a set of completion and availability requirements of two forms: $(f,\; \textsf{completed})$ requires function $f$ to have returned, and $(r,\; \textsf{available})$ requires resource $r$ to be in its initial (free) state. $V_\gamma : \mathit{VarName} \rightharpoonup \mathit{Val}$ specifies required variable values. Goals are expressed entirely in \textsc{Cir} vocabulary and do not reference \textsc{Cvn} places.
+\end{definition}
+
+\begin{definition}[Goal interpretation]
+\label{def:goal-interp}
+Given a \textsc{Cir} goal $\gamma^{\mathrm{cir}} = (C_\gamma, V_\gamma)$ and a \textsc{Cvn} $\mathcal{N}$ produced by $\mathit{translate}(\mathcal{I})$, the interpretation $\llbracket \gamma^{\mathrm{cir}} \rrbracket_{\mathcal{N}}$ yields a \textsc{Cvn} goal $\gamma = (\mathit{M}_\gamma, \mathit{V}_\gamma)$ where $\mathit{M}_\gamma : P \rightharpoonup \mathbb{N}_0$ and $\mathit{V}_\gamma : \mathit{VarName} \rightharpoonup \mathit{Val}$:
+\begin{itemize}
+  \item $(f, \textsf{completed}) \in C_\gamma$ maps to $\mathit{M}_\gamma(\mathit{cp}(f, \mathit{ret})) \geq 1$,
+  \item $(r, \textsf{available}) \in C_\gamma$ maps to $\mathit{M}_\gamma(\mathit{rp}(r)) \geq I_m(\mathit{rp}(r))$,
+  \item variable requirements pass through unchanged.
+\end{itemize}
+A \textsc{Cvn} state $(M, V)$ \emph{satisfies} $\gamma$, written $(M, V) \models \gamma$, iff $\forall p \in \mathit{dom}(\mathit{M}_\gamma): M(p) \geq \mathit{M}_\gamma(p)$ and $\forall x \in \mathit{dom}(\mathit{V}_\gamma): V(x) = \mathit{V}_\gamma(x)$.
 \end{definition}
 
 % 这一段解释为什么单靠 bug-free 不够:修复可能通过删除必要动作来"消灭 bug”;因此最终接受条件还要求业务目标可达.
@@ -126,19 +130,20 @@ goals:
   - id: G1
     desc: "Both threads complete, lock released,
            ready flag set"
-    marking:
-      cp(worker, ret): 1
-      cp(notifier, ret): 1
-      rp(m0): 1
+    completion:
+      - [worker, completed]
+      - [notifier, completed]
+    availability:
+      - [m0, available]
     variables:
       ready: true
   - id: G2
     desc: "Worker reaches completion state"
-    marking:
-      cp(worker, w6): 1
+    completion:
+      - [worker, completed]
 \end{lstlisting}
-\caption{Business goals for the running example.}
-\Description{A goals block with two business goals. The first requires both worker and notifier to reach their return control places, the mutex resource place to be free, and the variable ready to be true. The second requires the worker to reach its completion state.}
+\caption{Business goals for the running example, expressed in \textsc{Cir} vocabulary. The interpretation function (Definition~\ref{def:goal-interp}) maps $(\mathit{worker}, \textsf{completed})$ to $\mathit{cp}(\mathit{worker}, \mathit{ret}) \geq 1$ and $(\mathit{m0}, \textsf{available})$ to $\mathit{rp}(\mathit{m0}) \geq 1$ in the \textsc{Cvn}.}
+\Description{A goals block with two CIR-level business goals using completion and availability requirements instead of direct CVN place references.}
 \label{fig:goals-example}
 \end{figure}
 
@@ -150,14 +155,30 @@ goals:
 A \textsc{Cvn} is a weighted Place/Transition Petri net augmented with a global variable store and three-valued guard evaluation. 
 
 % 这里正式给出 CVN 的 8 元组定义.
-\begin{definition}[\textsc{Cvn}]
+\begin{definition}[\textsc{Cvn} (static net)]
 \label{def:cvn}
-A Concurrency Verification Net is an 8-tuple $\mathcal{N} = ( P,\; T,\; A_{\mathrm{in}},\; A_{\mathrm{out}},\; V,\; I_m,\; I_v,\; \mu )$, where $P = P_c \uplus P_r \uplus P_w$ is a finite set of places partitioned into control, resource, and wait places; $T$ is a finite set of transitions; $A_{\mathrm{in}} \subseteq P \times T$ is a set of weighted input arcs, each carrying an optional guard $g$; $A_{\mathrm{out}} \subseteq T \times P$ is a set of weighted output arcs, each carrying an optional variable update $u$; $V : \mathit{VarName} \to \mathit{Val}$ is the global variable store; $I_m$ and $I_v$ are initial markings and valuations; and $\mu: T \rightharpoonup \mathit{SID}^+$ is the anchor mapping.
+A Concurrency Verification Net is a 6-tuple $\mathcal{N} = ( P,\; T,\; A_{\mathrm{in}},\; A_{\mathrm{out}},\; \mathit{Var},\; \mu )$, where $P = P_c \uplus P_r \uplus P_w$ is a finite set of places partitioned into control, resource, and wait places; $T$ is a finite set of transitions; $A_{\mathrm{in}} \subseteq P \times T$ is a set of weighted input arcs, each carrying an optional guard $g$; $A_{\mathrm{out}} \subseteq T \times P$ is a set of weighted output arcs, each carrying an optional variable update $u$; $\mathit{Var}$ is a finite set of variable names; and $\mu: T \to \mathit{SID}$ is the anchor mapping (see Remark~\ref{rem:anchor}).
 \end{definition}
 
+\begin{definition}[\textsc{Cvn} state]
+\label{def:cvn-state}
+A \textsc{Cvn} state is a pair $S = (M, V)$ where $M: P \to \mathbb{N}_0$ is a marking and $V: \mathit{Var} \to \mathit{Val}$ is a valuation. The initial state is $S_0 = (I_m, I_v)$, where $I_m$ assigns initial token counts according to Table~\ref{tab:init-tokens} and $I_v$ assigns initial values to each variable. The pair $(\mathcal{N}, S_0)$ fully determines the reachable state space.
+\end{definition}
+
+\begin{remark}[Anchor mapping]
+\label{rem:anchor}
+Each transition is anchored to exactly one source statement. The mapping $\mu$ is total for transitions generated from \textsc{Cir} statements. For compound operations such as \textsf{condvar wait}, which generates multiple transitions (WaitEnter, Wake1, WakeA, Reacquire), each transition is anchored to the originating \textsf{wait} statement's $\mathit{sid}$. Auxiliary transitions generated from summaries have no source statement and are excluded from witness traces; for these, $\mu$ maps to a distinguished sentinel $\mathit{sid}_{\bot}$.
+\end{remark}
+
 % 这段解释 control place、resource place、return place、wait place 等建模元素各自代表什么.
-There is one control place $\mathit{cp}(f, \mathit{sid})$ for each statement in each function. A token in $\mathit{cp}(f, \mathit{sid})$ means that a thread is at statement $\mathit{sid}$ in function $f$. Each function also has a return place $\mathit{cp}(f, \mathit{ret})$ that receives a token when the function returns. There is one resource place $\mathit{rp}(r)$ for each synchronization primitive. The initial token count depends on the resource kind in Table~\ref{tab:init-tokens}. \textsf{Var} and \textsf{Atomic} resources do not have resource places. Their state is stored in the variable store $V$. Each condition variable $\mathit{cv}$ with associated wait sites $\{w_1, \ldots, w_k\}$ introduces the following \textsc{Cvn}
-elements.
+There is one control place $\mathit{cp}(f, \mathit{sid})$ for each statement in each function. A token in $\mathit{cp}(f, \mathit{sid})$ means that a thread is at statement $\mathit{sid}$ in function $f$. Each function also has a return place $\mathit{cp}(f, \mathit{ret})$ that receives a token when the function returns. There is one resource place $\mathit{rp}(r)$ for each synchronization primitive. The initial token count depends on the resource kind in Table~\ref{tab:init-tokens}. \textsf{Var} and \textsf{Atomic} resources do not have resource places; their state is stored in the valuation $V$. Each condition variable $\mathit{cv}$ with associated wait sites $\{w_1, \ldots, w_k\}$ introduces the following \textsc{Cvn} elements:
+\begin{itemize}
+  \item a signal place $\mathit{rp}(\mathit{cv}) \in P_r$ with initial token count 0,
+  \item a wait place $\mathit{wp}(\mathit{sid}_i) \in P_w$ for each wait site $i \in \{1, \ldots, k\}$,
+  \item a reacquire place $\mathit{ra}(\mathit{sid}_i) \in P_w$ for each wait site,
+  \item a waiter-count variable $nw_{cv} \in \mathit{Var}$ with initial value 0,
+  \item a per-site notify-all flag $na_{\mathit{sid}_i} \in \mathit{Var}$ with initial value $\mathsf{false}$.
+\end{itemize}
 
 % 资源 place 的初始 token 数量由资源类型决定.
 \begin{table}[t]
@@ -172,13 +193,13 @@ elements.
 \textsf{RwLock}         & $N$ (total concurrent entities) \\
 \textsf{Semaphore}$(n)$ & $n$ \\
 \textsf{Channel}           & 0 \\
+\textsf{Condvar}           & 0 (signal place $\mathit{rp}(\mathit{cv})$) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-% 每个 wait 语句会产生一个 wait place,用于表示线程在该等待点阻塞.
-A wait place $\mathit{wp}(\mathit{sid})$ for each \textsf{wait} statement in the \textsc{Cir}. A token in $\mathit{wp}(\mathit{sid})$ means that
-a thread is blocked at that wait site.
+% wait place 和 reacquire place 已在上方 condvar 描述中定义.
+A token in $\mathit{wp}(\mathit{sid})$ means that a thread is blocked at that wait site; a token in $\mathit{ra}(\mathit{sid})$ means that a thread has been woken and is waiting to reacquire the associated mutex.
 
 
 % 这里定义变量值域,允许具体值也允许一个吸收性的 unknown 值 $\top$.
@@ -190,6 +211,11 @@ The value domain is
 \]
 where $\tau$ ranges over the base types (\textsf{Bool}, \textsf{Int}, \textsf{Float}, \textsf{String}, \textsf{Enum}). The element $\top$ (unknown) is absorbing with respect to expression evaluation: any arithmetic operation or comparison that receives $\top$ as an operand produces $\top$ or $\mathsf{unknown}$ respectively. A variable-update arc that carries a literal expression replaces the current value unconditionally, including overwriting $\top$ with a concrete value. The absorbing property therefore guarantees that derived values cannot spontaneously become concrete, but explicit writes can restore concreteness.
 \end{definition}
+
+\begin{assumption}[Bounded value domain]
+\label{asmp:bounded-val}
+For analysis purposes, each base type $\tau$ is interpreted over a finite set: $\textsf{Bool} = \{\mathsf{true}, \mathsf{false}\}$; $\textsf{Int}$ and $\textsf{Float}$ are abstracted to $\{\top\}$ unless a literal appears in the \textsc{Cir}, in which case only the occurring literals and $\top$ are tracked; $\textsf{String}$ and $\textsf{Enum}$ are similarly restricted to occurring literals plus $\top$.
+\end{assumption}
 
 % 下面给出值表达式与布尔表达式的语法,用于后续 guard 求值.
 Expressions over the value domain come in two forms.
@@ -221,11 +247,24 @@ A guard $g$ is a $\mathit{BoolExpr}$. Given a variable store $V$, the evaluation
 % 这一段解释 unknown 的语义是"保守过近似”:遇到未知分支时两边都探索,从而保证不漏掉可能的错误,但可能引入额外状态.
 The evaluation semantics for $\mathsf{unknown}$ is an over-approximation. When a guard evaluates to $\mathsf{unknown}$, the transition is treated as enabled. If the guard arises from a branch statement, both the true-branch and the false-branch transitions are enabled simultaneously. The state-space search explores both paths. This ensures that no reachable state is missed at the cost of potentially exploring infeasible states. Guards are semantically meaningful only on transitions generated from \textsf{branch} and \textsf{switch} statements. All other transitions have guard $\textsf{True}$.
 
+% 显式定义弧辅助函数.
+\begin{definition}[Arc annotation functions]
+\label{def:arc-functions}
+For an input arc $a = (p, t) \in A_{\mathrm{in}}$: $w_{\mathrm{in}}(a)$ denotes the weight (default 1), and $g(a)$ denotes the guard ($\textsf{True}$ if absent). For an output arc $a = (t, p) \in A_{\mathrm{out}}$: $w_{\mathrm{out}}(a)$ denotes the weight (default 1), and $u(a)$ denotes the variable update ($\bot$ if absent). Shorthand: $w_{\mathrm{in}}(p,t) = w_{\mathrm{in}}((p,t))$, $w_{\mathrm{out}}(t,p) = w_{\mathrm{out}}((t,p))$.
+
+The composite guard and update set of a transition are:
+\[
+  \mathit{guard}(t) = \bigwedge_{a \in A_{\mathrm{in}}(t)} g(a), \qquad
+  \mathit{Updates}(t) = \{ u(a) \mid a \in A_{\mathrm{out}}(t),\; u(a) \neq \bot \}.
+\]
+The function $\mathit{apply}(\mathit{Updates}(t), V)$ returns the valuation obtained by sequentially applying the updates in $\mathit{Updates}(t)$ to $V$.
+\end{definition}
+
 % 这里定义 transition 什么时候可触发、触发后 marking 和变量存储怎么变化.
 \begin{definition}[Enabling and Firing]
 \label{def:enabling_firing}
-A transition $t \in T$ is enabled at state $(M, V)$ iff (1) $\forall (p, t) \in A_{\mathrm{in}}: M(p) \geq w(p, t)$, and (2) $\mathit{eval}(g, V) \neq \mathsf{false}$. 
-Upon firing, the successor marking $M'(p) = M(p) - w_{\mathrm{in}} + w_{\mathrm{out}}$, and the successor valuation $V'$ is updated by $u \in \mathit{Updates}(t)$. If multiple transitions are enabled (e.g., a branch with $\mathsf{unknown}$ guard), the search explores all resulting interleavings.
+A transition $t \in T$ is \emph{enabled} at state $S = (M, V)$ iff (1) $\forall (p, t) \in A_{\mathrm{in}}: M(p) \geq w_{\mathrm{in}}(p, t)$, and (2) $\mathit{eval}(\mathit{guard}(t), V) \neq \mathsf{false}$.
+Upon firing, the successor state $S' = (M', V')$ is defined by $M'(p) = M(p) - w_{\mathrm{in}}(p, t) + w_{\mathrm{out}}(t, p)$ for each $p \in P$, and $V' = \mathit{apply}(\mathit{Updates}(t), V)$. If multiple transitions are enabled (e.g., a branch with $\mathsf{unknown}$ guard), the search explores all resulting interleavings.
 \end{definition}
 
 % transition kind 主要服务调试和可视化,不改变语义.
@@ -258,7 +297,7 @@ Control     & Sequential, Return \\
 \subsection{CIR to CVN Translation}
 \label{subsec:translation}
 % 翻译器是纯函数、确定性的,并分三步执行.
-The translator is a pure function $\mathit{translate} : \textsc{Cir} \to \textsc{Cvn}$ that takes a validated \textsc{Cir} artifact and produces a \textsc{Cvn}. The translator is stateless and deterministic. It proceeds in three phases.
+Let $\textsc{Cir}_v$ denote the subset of \textsc{Cir} artifacts that pass all 61 static-checking rules ($\mathcal{E}_{L1} = \emptyset$). The translator is a pure, total function $\mathit{translate} : \textsc{Cir}_v \to \textsc{Cvn}$ that takes a validated \textsc{Cir} artifact and produces a \textsc{Cvn}. The static checker guarantees that every operation in $F$ belongs to the supported set in Table~\ref{tab:cir-ops} and that every resource reference is well-typed, ensuring that the translation rules in Table~\ref{tab:translation-rules} cover all reachable operations. The translator is stateless and deterministic. It proceeds in three phases.
 
 % 第一步扫描资源,建立资源 place 和变量初值.
 \textbf{Phase 1: Resource scanning.} For each synchronization primitive in $R$, generate a resource place $\mathit{rp}(r)$ and set its initial token count according to Table~\ref{tab:init-tokens}. Compute the RwLock concurrency parameter $N$ as the total number of concurrent entities (threads and async tasks). For each \textsf{Var} and \textsf{Atomic} resource, initialize the corresponding entry in $V$.
@@ -301,6 +340,10 @@ $(\mathit{sid}, \textsf{notify\_one}(\mathit{cv}), \dots)$ &
 \textit{NotifySuccess:} $\mathit{cp}(f, \mathit{sid})$ with guard $nw_{cv} > 0 \to \mathit{cp}(f, \mathit{sid}'), \mathit{rp}(\mathit{cv})$. \\
 & \textit{NotifyLost:} $\mathit{cp}(f, \mathit{sid})$ with guard $nw_{cv} = 0 \to \mathit{cp}(f, \mathit{sid}')$. \\
 \midrule
+$(\mathit{sid}, \textsf{notify\_all}(\mathit{cv}), \dots)$ & 
+\textit{NotifyAllSuccess:} $\mathit{cp}(f, \mathit{sid})$ with guard $nw_{cv} > 0 \to \mathit{cp}(f, \mathit{sid}')$ with $na_{w_i} := \mathsf{true}$ for all wait sites $w_i$ of $\mathit{cv}$. \\
+& \textit{NotifyAllLost:} $\mathit{cp}(f, \mathit{sid})$ with guard $nw_{cv} = 0 \to \mathit{cp}(f, \mathit{sid}')$. \\
+\midrule
 
 % --- Control Flow ---
 $(\mathit{sid}, \textsf{read}(x), \textsf{branch}(\beta, s_t, s_f))$ & 
@@ -312,8 +355,9 @@ $(\mathit{sid}, \textsf{spawn}(g), \textsf{next}(\mathit{sid}'))$ & One transiti
 $(\mathit{sid}, \textsf{join}(g), \textsf{next}(\mathit{sid}'))$ & One transition [Join]: $\mathit{cp}(f, \mathit{sid}), \mathit{cp}(g, \mathit{ret}) \to \mathit{cp}(f, \mathit{sid}')$. \\
 
 \bottomrule
+\multicolumn{2}{@{}l}{\scriptsize Operations not listed (\textsf{spawn\_async}, \textsf{await}, \textsf{call} with body) use structurally identical rules differing only in the transition kind tag.} \\
 \end{tabular}
 \end{table*}
 
 % 最后说明为什么状态空间是有限的,因此 CVN 分析一定终止.
-The reachable state space is finite under two conditions: (1) every place $p \in P$ is $k$-bounded, which is guaranteed by the one-safe property of $P_c$ and the fixed resource counts in $P_r$; and (2) the value domain $\mathit{Val}$ is finite. Since $\top$ is absorbing and base types are bounded, the \textsc{Cvn} analysis is guaranteed to terminate.
+Under Assumption~\ref{asmp:bounded-val}, the reachable state space is finite: (1) every place $p \in P$ is $k$-bounded, which is guaranteed by the one-safe property of $P_c$ and the fixed resource counts in $P_r$; and (2) the value domain $\mathit{Val}$ is finite because each variable ranges over at most the set of literals appearing in the \textsc{Cir} plus $\top$. The \textsc{Cvn} analysis is therefore guaranteed to terminate.

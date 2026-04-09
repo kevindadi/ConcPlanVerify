@@ -16,10 +16,12 @@ We detect five categories of violations as predicates over the reachable state g
 \begin{itemize}[leftmargin=1.5em]
     \item \emph{Deadlock ($\kappa_{dl}$):} a non-terminal state with no enabled transition. Detected directly during state-space search: every state with an empty enabled set and at least one non-return control token is a deadlock.
     \item \emph{Signal loss ($\kappa_{sl}$):} a notification transition fires when the corresponding waiter count is zero. Detected by the explicit \textsc{NotifyLost} transition generated during translation: the guard $nw_{cv} = 0$ evaluates to true, causing the lost-signal branch to fire. Since $nw_{cv}$ is always a concrete integer, this detection has no false positives and no false negatives.
-    \item \emph{Channel block ($\kappa_{cb}$):} a deadlock in which a blocked transition requires a token from a channel resource place that can no longer be produced. Detected as a special case of deadlock: the classifier inspects the resource type of each blocked input arc and reports a channel block when the missing token belongs to a channel place.
-    \item \emph{Livelock ($\kappa_{ll}$):} a non-terminal SCC in the reachability graph that permits infinite internal cycling without progress to return places. Detected by computing the strongly connected components of the reachability graph and checking whether any non-trivial SCC contains no state in which all control tokens reside in return places.
-    \item \emph{Starvation ($\kappa_{st}$):} an SCC in which one thread remains perpetually blocked from progress while other threads continue to move. Detected by checking whether any thread's control-place token remains unchanged across all states within a non-trivial SCC, while at least one other thread's token changes.
+    \item \emph{Channel block ($\kappa_{cb}$):} a \emph{heuristic refinement} of the deadlock predicate. A deadlock state is reclassified as a channel block when a blocked transition requires a token from a channel resource place. The classifier inspects the resource type of each blocked input arc and reports a channel block when the missing token belongs to a channel place. This heuristic may misclassify a deadlock that coincidentally involves a channel but is caused by lock contention. Formal soundness therefore reduces to the underlying deadlock predicate $\kappa_{dl}$.
+    \item \emph{Livelock ($\kappa_{ll}$):} under the assumption of \emph{fair scheduling} (every persistently enabled transition eventually fires), a non-terminal SCC in the reachability graph that permits infinite internal cycling without progress to return places. Detected by computing the strongly connected components of the reachability graph and checking whether any non-trivial SCC contains no state in which all control tokens reside in return places.
+    \item \emph{Starvation ($\kappa_{st}$):} under fair scheduling, an SCC in which one thread remains perpetually blocked from progress while other threads continue to move. Detected by checking whether any thread's control-place token remains unchanged across all states within a non-trivial SCC, while at least one other thread's token changes.
 \end{itemize}
+
+Without an explicit fairness assumption, livelock and starvation are best understood as heuristic classifications that flag suspicious non-progress patterns. The formal soundness guarantee of the system covers deadlock and signal loss; livelock and starvation detection is sound relative to the fairness assumption stated above. Channel block soundness reduces to the underlying deadlock predicate.
 
 % 重点转向下一步:检测到 bug 并不够,真正困难的是怎么把 bug state 变成 LLM 能用的修复上下文.
 These predicates are sufficient for classification, but classification alone is not enough for repair. A label such as ``deadlock'' or ``signal loss'' does not tell the LLM where the execution got stuck, which statements created the bad state, or which local rewrite is least likely to damage unrelated behavior. The repair problem therefore begins after detection, not before it.
@@ -36,15 +38,15 @@ A repair-oriented diagnostic is a tuple
 \[
 \mathcal{D} = (\kappa,\; \pi_{\mu},\; \Sigma_{\mathit{state}},\; \Sigma_{\mathit{wait}},\; \Lambda,\; \Gamma_{\mathit{ctx}},\; H)
 \]
-where $\kappa$ is the bug kind, $\pi_{\mu}$ is an anchored witness trace, $\Sigma_{\mathit{state}}$ is a marking-derived state summary, $\Sigma_{\mathit{wait}}$ is a wait/ownership summary, $\Lambda$ is the relevant \textsc{Cir} slice, $\Gamma_{\mathit{ctx}}$ is the set of preservation constraints, and $H$ is a bug-specific repair hint.
+where $\kappa$ is the bug kind, $\pi_{\mu}$ is a bug witness, $\Sigma_{\mathit{state}}$ is a marking-derived state summary, $\Sigma_{\mathit{wait}}$ is a wait/ownership summary, $\Lambda$ is the relevant \textsc{Cir} slice, $\Gamma_{\mathit{ctx}}$ is the set of preservation constraints, and $H$ is a bug-specific repair hint.
 \end{definition}
 
 % 逐项解释这些字段为什么需要,强调 marking 和 sequence 都是必要但不能原样给.
 Each field serves a different purpose.
 \begin{itemize}[leftmargin=1.5em]
     \item \emph{Bug kind $\kappa$.} This determines the high-level repair mode. Deadlock, signal loss, and starvation call for different kinds of edits.
-    \item \emph{Anchored witness trace $\pi_{\mu}$.} This is the sequence of \textsc{Cir} statement identifiers encountered on a witness path to the bug state. It localizes the execution history in terms the LLM can edit.
-    \item \emph{State summary $\Sigma_{\mathit{state}}$.} This is a compact rendering of the final bug state: which thread is currently at which \textsc{Cir} statement, which resource counts are available, and whether the system is globally blocked or still moving.
+    \item \emph{Bug witness $\pi_{\mu}$.} For deadlock and signal loss, this is a finite firing sequence ending in the bug state, expressed as a sequence of \textsc{Cir} statement identifiers. For livelock and starvation, it is a finite prefix reaching the SCC entry plus a description of the SCC structure (participating states and transitions). In both cases, $\pi_{\mu}$ localizes the execution history in terms the LLM can edit.
+    \item \emph{State summary $\Sigma_{\mathit{state}}$.} For single-state bugs (deadlock, signal loss, channel block), this is a compact rendering of the final bug state: which thread is at which \textsc{Cir} statement, which resource counts are available, and whether the system is globally blocked. For SCC-based bugs (livelock, starvation), $\Sigma_{\mathit{state}}$ summarizes the SCC rather than a single state: it reports the set of control locations visited within the SCC and identifies the stuck or starved thread.
     \item \emph{Wait/ownership summary $\Sigma_{\mathit{wait}}$.} This extracts the relations that matter most for repair: which thread holds which resource, which thread is waiting for which resource or condition, and which wait-count predicates triggered the bug classification.
     \item \emph{Relevant \textsc{Cir} slice $\Lambda$.} This is a bounded local window around the implicated statement identifiers. It reduces the search space by telling the LLM which part of the artifact should be edited.
     \item \emph{Preservation constraints $\Gamma_{\mathit{ctx}}$.} These specify what must remain true after repair: preserve resource names, preserve thread structure, and ultimately preserve business goals.
@@ -55,7 +57,7 @@ Each field serves a different purpose.
 The marking is indispensable because it records the exact program state represented by the net. However, the raw marking is not the best prompt format. What the LLM actually needs is the structured interpretation of that marking: the blocked control locations, the held resources, the waiting relationships, and the specific predicate that made the bug visible. The witness sequence is equally important because it explains not only \emph{where} the system is stuck, but also \emph{how it got there}. Together, the witness and the state summary provide both causality and locality.
 
 % 给一个 signal loss 的具体说明,帮助读者理解 diagnostic 到底长什么样.
-For the running example, a signal-loss diagnostic would report that the witness trace reaches \texttt{n2} before the worker reaches \texttt{w3}, that the waiter count for \texttt{cv0} is zero at notification time, and that the relevant editable slice contains \texttt{n2} and \texttt{n3}. This is much more actionable than merely stating that a lost wake-up exists somewhere in the model.
+For the running example, a signal-loss diagnostic would report that the bug witness reaches \texttt{n2} before the worker reaches \texttt{w3}, that the waiter count for \texttt{cv0} is zero at notification time, and that the relevant editable slice contains \texttt{n2} and \texttt{n3}. This is much more actionable than merely stating that a lost wake-up exists somewhere in the model.
 
 \subsection{The Goal-Aware Repair Loop}
 \label{subsec:repair-loop-final}
@@ -80,7 +82,9 @@ The repair loop operationalizes the hierarchy introduced in Section~\ref{subsec:
     \State $\mathcal{N} \gets \text{Translate}(\mathcal{I})$
     \State $(\mathcal{R},\; \mathcal{B}) \gets \text{Analyze}(\mathcal{N})$
     \If{$\mathcal{B} \neq \emptyset$}
-        \State $\mathcal{D} \gets \text{GenDiagnostic}(\mathcal{B}, \mathcal{R})$
+        \State $b^{*} \gets \text{SelectBug}(\mathcal{B})$
+          \Comment{priority + shortest witness}
+        \State $\mathcal{D} \gets \text{GenDiagnostic}(b^{*}, \mathcal{R})$
         \State $\mathcal{I} \gets \text{LLM.Repair}(\mathcal{I}, \mathcal{D})$
         \State \textbf{continue}
     \EndIf
@@ -94,6 +98,8 @@ The repair loop operationalizes the hierarchy introduced in Section~\ref{subsec:
 \State \Return Failure
 \end{algorithmic}
 \end{algorithm}
+
+When multiple bugs are detected ($|\mathcal{B}| > 1$), $\text{SelectBug}$ selects a single bug in priority order: deadlock $>$ signal loss $>$ channel block $>$ livelock $>$ starvation. Within the same category, the bug with the shortest witness is preferred. This deterministic selection policy ensures reproducibility across repair rounds and avoids overwhelming the LLM with multiple simultaneous repair targets.
 
 % bug-free 之后再查 goals,这一点要单独讲清楚,因为这是 acceptance criterion 的关键.
 This ordering gives every feedback round a single semantic target. If a bug is present, the LLM is asked to remove the bug without yet reasoning about goal reachability. If no bug is present but a goal is unreachable, the LLM is asked to restore missing behavior without being distracted by concurrency faults that have already been resolved.
