@@ -25,14 +25,21 @@ use std::fmt::Write;
 /// is classified into a more specific `BugKind` by inspecting the net
 /// structure and final state.
 pub fn analyze(
-    _program: &cir::ast::Program,
+    program: &cir::ast::Program,
     net: &CvnNet,
     result: &AnalysisResult,
 ) -> Vec<BugReport> {
+    let preservation = build_preservation_constraints(program);
+
     result
         .deadlocks
         .iter()
-        .map(|cx| classify_counterexample(net, cx))
+        .map(|cx| {
+            let mut report = classify_counterexample(net, cx);
+            report.cir_slice = extract_cir_slice(program, &report.trace);
+            report.preservation_constraints = preservation.clone();
+            report
+        })
         .collect()
 }
 
@@ -49,6 +56,8 @@ fn classify_counterexample(net: &CvnNet, cx: &Counterexample) -> BugReport {
 
     let (kind, summary) = if has_wait_place || has_signal_loss_trace {
         classify_signal_loss(net, cx, &blocked)
+    } else if let Some(channel_block) = classify_channel_block(net, &blocked) {
+        channel_block
     } else {
         classify_deadlock(net, cx, &blocked)
     };
@@ -57,6 +66,7 @@ fn classify_counterexample(net: &CvnNet, cx: &Counterexample) -> BugReport {
     let involved_resources = extract_involved_resources(net, &blocked);
     let involved_functions = extract_involved_functions(net, &blocked);
     let final_marking_summary = format_marking(net, &cx.final_state.marking);
+    let repair_hint = Some(suggestion::suggestion_for(&kind));
 
     BugReport {
         kind,
@@ -65,6 +75,9 @@ fn classify_counterexample(net: &CvnNet, cx: &Counterexample) -> BugReport {
         summary,
         involved_resources,
         involved_functions,
+        cir_slice: Vec::new(),
+        preservation_constraints: Vec::new(),
+        repair_hint,
     }
 }
 
@@ -126,6 +139,55 @@ fn classify_signal_loss(
         waiter_tid,
     };
     (kind, summary)
+}
+
+/// Check if a deadlock is actually a channel block: a blocked transition
+/// requires tokens from a channel resource place.
+fn classify_channel_block(
+    net: &CvnNet,
+    blocked: &[PlaceId],
+) -> Option<(BugKind, String)> {
+    let place_consumers = build_place_to_consumers(net);
+
+    for pid in blocked {
+        let Some(consumers) = place_consumers.get(pid) else {
+            continue;
+        };
+
+        for tid in consumers {
+            for input_arc in net.input_arcs(tid) {
+                if let Some(place) = net.place(&input_arc.place) {
+                    if let PlaceKind::Resource {
+                        res_name,
+                        resource_type: cvn::model::ResourceType::Channel,
+                    } = &place.kind
+                    {
+                        let kind_label = net
+                            .transition(tid)
+                            .map(|t| match t.kind {
+                                cvn::model::TransitionKind::Send => "send",
+                                cvn::model::TransitionKind::Recv => "recv",
+                                _ => "recv",
+                            })
+                            .unwrap_or("recv");
+
+                        let summary = format!(
+                            "Channel block: {kind_label} on channel {res_name} has no matching counterpart"
+                        );
+                        return Some((
+                            BugKind::ChannelBlock {
+                                blocked_op: kind_label.to_string(),
+                                channel: res_name.clone(),
+                            },
+                            summary,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    None
 }
 
 fn classify_deadlock(
@@ -298,6 +360,7 @@ fn format_step_description(
         TK::Recv => "recv",
         TK::VarRead => "var_read",
         TK::VarWrite => "var_write",
+        TK::AtomicLoad => "atomic_load",
         TK::AtomicStore => "atomic_store",
         TK::BranchTrue => "branch_true",
         TK::BranchFalse => "branch_false",
@@ -399,4 +462,55 @@ fn format_marking(net: &CvnNet, marking: &cvn::model::Marking) -> String {
     let mut out = String::new();
     write!(out, "{{{}}}", parts.join(", ")).unwrap();
     out
+}
+
+/// Extract CIR statements relevant to the bug trace (Lambda in the diagnostic tuple).
+fn extract_cir_slice(
+    program: &cir::ast::Program,
+    trace: &[report::EnrichedFiringStep],
+) -> Vec<report::CirSliceEntry> {
+    let trace_sids: HashSet<String> = trace
+        .iter()
+        .flat_map(|step| step.anchor_sids.iter().cloned())
+        .collect();
+
+    let mut entries = Vec::new();
+    for func in &program.functions {
+        for stmt in &func.body {
+            if trace_sids.contains(&stmt.sid) {
+                entries.push(report::CirSliceEntry {
+                    sid: stmt.sid.clone(),
+                    op: format!("{:?}", stmt.op),
+                    function: func.name.clone(),
+                });
+            }
+        }
+    }
+    entries
+}
+
+/// Build preservation constraints from the CIR program (Gamma_ctx).
+fn build_preservation_constraints(program: &cir::ast::Program) -> Vec<String> {
+    let mut constraints = Vec::new();
+
+    for res in &program.resources {
+        constraints.push(format!(
+            "Resource '{}' (kind={}, type={}) must remain in the artifact",
+            res.name, res.kind, res.res_type
+        ));
+    }
+
+    for prot in &program.protection {
+        constraints.push(format!(
+            "Variable '{}' must remain protected by '{}'",
+            prot.var, prot.lock
+        ));
+    }
+
+    for goal in &program.goals {
+        let desc = goal.desc.as_deref().unwrap_or(&goal.id);
+        constraints.push(format!("Business goal '{}' must remain achievable", desc));
+    }
+
+    constraints
 }

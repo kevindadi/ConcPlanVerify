@@ -63,11 +63,14 @@ impl RepairSession {
 
     /// Run the full repair loop on a buggy CIR program.
     ///
-    /// 1. Translate buggy CIR to CVN
-    /// 2. Run state space exploration
-    /// 3. If bugs found, render repair prompt and send to LLM
-    /// 4. Parse LLM response as CIR JSON
-    /// 5. Translate and verify — if clean, return Fixed; otherwise repeat
+    /// The loop implements Algorithm 1 from the paper:
+    /// 1. Parse CIR JSON
+    /// 2. Run post-translation static checks
+    /// 3. Translate CIR to CVN
+    /// 4. Run state-space exploration and bug detection
+    /// 5. Check business goal reachability (if bug-free)
+    /// 6. If bugs found or goals unreachable, render prompt and query LLM
+    /// 7. Parse response, repeat up to max_rounds
     pub async fn repair_loop(
         &self,
         buggy_cir: &cir::ast::Program,
@@ -85,6 +88,17 @@ impl RepairSession {
                     RepairError::TranslateError(msgs.join("; "))
                 })?;
 
+            // Layer 1: post-translation static checks
+            let static_warnings = crate::validate::check_translation(&net);
+            if !static_warnings.is_empty() {
+                log::warn!(
+                    "Round {round}: {} static check warnings: {}",
+                    static_warnings.len(),
+                    static_warnings.join("; ")
+                );
+            }
+
+            // Layer 2: state-space exploration + bug detection
             let config = cvn::analysis::AnalysisConfig::default();
             let result = cvn::analysis::explore(&net, &config)
                 .map_err(|e| RepairError::TranslateError(e.to_string()))?;
@@ -92,10 +106,34 @@ impl RepairSession {
             let reports = crate::repair::analyze(&program, &net, &result);
 
             if reports.is_empty() {
-                return Ok(RepairOutcome::Fixed {
-                    fixed_cir_json: current_json,
-                    rounds: round,
-                });
+                // Layer 3: goal reachability check (only when bug-free)
+                let goal_failures = check_business_goals(&program, &net, &result);
+                if goal_failures.is_empty() {
+                    return Ok(RepairOutcome::Fixed {
+                        fixed_cir_json: current_json,
+                        rounds: round,
+                    });
+                }
+
+                let goal_prompt = format!(
+                    "CIR is bug-free but the following business goals are unreachable:\n{}\n\
+                     Please fix the CIR so that these goals become reachable.\n\
+                     Current CIR:\n```json\n{}\n```",
+                    goal_failures.join("\n"),
+                    current_json,
+                );
+
+                let response = self
+                    .client
+                    .chat(vec![
+                        uni_llm::Message::system(SYSTEM_PROMPT),
+                        uni_llm::Message::user(&goal_prompt),
+                    ])
+                    .await
+                    .map_err(|e| RepairError::LlmError(e.to_string()))?;
+
+                current_json = extract_json_from_response(&response.content);
+                continue;
             }
 
             let report = &reports[0];
@@ -120,11 +158,62 @@ impl RepairSession {
     }
 }
 
-const SYSTEM_PROMPT: &str = "\
-你是一个并发系统修复专家.你会收到一个包含并发 bug 的 CIR (Concurrency Intermediate Representation) JSON,\
-以及由模型检验工具检测到的 bug 报告.\
-请根据报告中的修复建议修复 CIR,输出修复后的完整 CIR JSON.\
-只输出 JSON,不要添加任何解释文本.";
+const SYSTEM_PROMPT: &str = include_str!("cir_schema_prompt.md");
+
+/// Check business goals against the reachability graph and return
+/// descriptions of unreachable goals.
+fn check_business_goals(
+    program: &cir::ast::Program,
+    net: &cvn::net::CvnNet,
+    result: &cvn::analysis::AnalysisResult,
+) -> Vec<String> {
+    use cvn::analysis::goal::{check_goals, json_to_val, CvnGoal};
+    use cvn::model::PlaceId;
+    use std::collections::BTreeMap;
+
+    if program.goals.is_empty() {
+        return Vec::new();
+    }
+
+    let cvn_goals: Vec<CvnGoal> = program
+        .goals
+        .iter()
+        .map(|g| {
+            let marking: BTreeMap<PlaceId, u32> = g
+                .marking
+                .iter()
+                .map(|(k, &v)| (PlaceId(k.clone()), v))
+                .collect();
+
+            let variables = g
+                .variables
+                .iter()
+                .map(|(k, v)| (k.clone(), json_to_val(v)))
+                .collect();
+
+            CvnGoal {
+                id: g.id.clone(),
+                desc: g.desc.clone(),
+                marking,
+                variables,
+            }
+        })
+        .collect();
+
+    let results = check_goals(&result.reachability_graph, &cvn_goals);
+
+    results
+        .iter()
+        .filter(|r| !r.reachable)
+        .map(|r| {
+            let goal = program.goals.iter().find(|g| g.id == r.goal_id);
+            let desc = goal
+                .and_then(|g| g.desc.as_deref())
+                .unwrap_or(&r.goal_id);
+            format!("- Goal '{}' ({}): unreachable", r.goal_id, desc)
+        })
+        .collect()
+}
 
 /// Extract JSON content from an LLM response, handling markdown code blocks.
 fn extract_json_from_response(response: &str) -> String {

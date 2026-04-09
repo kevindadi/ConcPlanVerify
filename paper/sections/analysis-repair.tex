@@ -12,13 +12,13 @@
 Given a translated \textsc{Cvn}, the verifier performs exhaustive reachability analysis from the initial state. If a guard evaluates to $\mathsf{unknown}$ under the current valuation, both outgoing possibilities are explored. The resulting search is therefore a conservative over-approximation: it never suppresses a behavior that would be possible under a concrete execution, though it may introduce spurious paths when unknown values remain.
 
 % 这里简要列出 bug 类别,但不过多渲染"检测算法本身”,因为这不是本文最想卖的点.
-We detect five categories of violations as predicates over the reachable state graph:
+We detect five categories of violations as predicates over the reachable state graph. The first three are detected by exhaustive reachability analysis. The last two require SCC (strongly connected component) analysis over the same reachability graph.
 \begin{itemize}[leftmargin=1.5em]
-    \item \emph{Deadlock ($\kappa_{dl}$):} a non-terminal state with no enabled transition.
-    \item \emph{Signal loss ($\kappa_{sl}$):} a notification transition fires when the corresponding waiter count is zero.
-    \item \emph{Livelock ($\kappa_{ll}$):} a non-terminal SCC that permits infinite internal cycling without progress to return places.
-    \item \emph{Starvation ($\kappa_{st}$):} an SCC in which one thread remains perpetually blocked from progress while other threads continue to move.
-    \item \emph{Channel block ($\kappa_{cb}$):} a deadlock involving a receive transition whose required channel token can no longer be produced.
+    \item \emph{Deadlock ($\kappa_{dl}$):} a non-terminal state with no enabled transition. Detected directly during state-space search: every state with an empty enabled set and at least one non-return control token is a deadlock.
+    \item \emph{Signal loss ($\kappa_{sl}$):} a notification transition fires when the corresponding waiter count is zero. Detected by the explicit \textsc{NotifyLost} transition generated during translation: the guard $nw_{cv} = 0$ evaluates to true, causing the lost-signal branch to fire. Since $nw_{cv}$ is always a concrete integer, this detection has no false positives and no false negatives.
+    \item \emph{Channel block ($\kappa_{cb}$):} a deadlock in which a blocked transition requires a token from a channel resource place that can no longer be produced. Detected as a special case of deadlock: the classifier inspects the resource type of each blocked input arc and reports a channel block when the missing token belongs to a channel place.
+    \item \emph{Livelock ($\kappa_{ll}$):} a non-terminal SCC in the reachability graph that permits infinite internal cycling without progress to return places. Detected by computing the strongly connected components of the reachability graph and checking whether any non-trivial SCC contains no state in which all control tokens reside in return places.
+    \item \emph{Starvation ($\kappa_{st}$):} an SCC in which one thread remains perpetually blocked from progress while other threads continue to move. Detected by checking whether any thread's control-place token remains unchanged across all states within a non-trivial SCC, while at least one other thread's token changes.
 \end{itemize}
 
 % 重点转向下一步:检测到 bug 并不够,真正困难的是怎么把 bug state 变成 LLM 能用的修复上下文.
@@ -147,7 +147,7 @@ Preservation constraints & $\Gamma_{\mathit{ctx}}$ & Prevents over-repair by req
 \addlinespace[3pt]
 Repair hint & Heuristic $H$ & Provides a stable direction without forcing a single patch, e.g., reorder locks, update predicate before notify, shorten critical section. \\
 \addlinespace[3pt]
-Output contract & Verifier-defined schema & Forces the model to return only the revised \textsc{Cir} fragment or statement list, keeping the loop local and machine-checkable. \\
+Output contract & Verifier-defined schema & Forces the model to return a complete revised \textsc{Cir} artifact that preserves the existing schema, keeping the loop machine-checkable. \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -184,10 +184,10 @@ Suggested repair direction:
 - ensure predicate update happens before notification
 
 Output:
-- only the revised CIR statements for this slice
+- the complete revised CIR artifact
 \end{lstlisting}
 \caption{Prompt skeleton for logic-driven \textsc{Cir} repair.}
-\Description{A structured repair prompt. It includes the bug kind, witness sid trace, bug-state summary, relevant resources, local CIR slice, preservation constraints, a suggested repair direction, and an output contract requesting only the revised CIR slice.}
+\Description{A structured repair prompt. It includes the bug kind, witness sid trace, bug-state summary, relevant resources, local CIR slice, preservation constraints, a suggested repair direction, and an output contract requesting the complete revised CIR artifact.}
 \label{fig:repair-prompt}
 \end{figure}
 

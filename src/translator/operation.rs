@@ -294,13 +294,20 @@ fn translate_read(
 
     let plan = plan_transfer(ctx, fn_name, &stmt.sid, &stmt.transfer);
 
+    let is_atomic = matches!(res_kind, Some(ResKind::Atomic { .. }));
+    let (kind, suffix) = if is_atomic {
+        (TransitionKind::AtomicLoad, "atomic_load")
+    } else {
+        (TransitionKind::VarRead, "var_read")
+    };
+
     match plan {
         TransferPlan::Next { target_cp } => {
-            let t_id = tid(fn_name, &stmt.sid, "var_read");
+            let t_id = tid(fn_name, &stmt.sid, suffix);
             emit_simple_transition(
                 ctx,
                 &t_id,
-                TransitionKind::VarRead,
+                kind,
                 &[&stmt.sid],
                 input_cp,
                 &target_cp,
@@ -327,7 +334,6 @@ fn translate_read(
             );
         }
         TransferPlan::Switch { arms } => {
-            // Recover the switch variable from the CIR Transfer.
             let switch_var = match &stmt.transfer {
                 Transfer::Switch { var, .. } => var.as_str(),
                 _ => resource,
@@ -335,11 +341,11 @@ fn translate_read(
             emit_switch_transitions(ctx, &[&stmt.sid], input_cp, switch_var, &arms);
         }
         TransferPlan::Return { target_cp } => {
-            let t_id = tid(fn_name, &stmt.sid, "var_read");
+            let t_id = tid(fn_name, &stmt.sid, suffix);
             emit_simple_transition(
                 ctx,
                 &t_id,
-                TransitionKind::VarRead,
+                kind,
                 &[&stmt.sid],
                 input_cp,
                 &target_cp,

@@ -2,17 +2,14 @@
 \section{Formal Definitions}
 \label{sec:formal-defs}
 % 本节定义了三个核心形式:并发中间表示(\textsc{Cir})、并发验证网(\textsc{Cvn})以及从\textsc{Cir}到\textsc{Cvn}的转换.
-% 本节是全文的形式化核心,依次定义 CIR、CVN,以及两者之间的机械翻译规则.
 Three core formalisms underlie the method: \textsc{Cir}, \textsc{Cvn}, and the translation from \textsc{Cir} to \textsc{Cvn}.
 
-% 先定义 CIR,也就是 LLM 生成、形式后端消费的并发中间表示.
 \subsection{CIR: Concurrency Intermediate Representation}
 \label{subsec:cir-def}
 
-% 这里先给出最基本的语法单位:函数和语句,各条语句都有 sid、操作和控制流转移信息.
 \begin{definition}[Function and Statement]
 \label{def:statement}
-A function definition is a triple $(f, k, B)$ where $f$ is the name, $k \in \{ \textsf{normal}, \textsf{async}, \textsf{closure} \}$ is the kind, and $B$ is a body consisting of statements. A statement $s$ is a triple $(\mathit{sid},\; \mathit{op},\; \mathit{transfer})$, where $\mathit{sid}$ is a unique identifier; $\mathit{op}$ is an operation from Table~\ref{tab:cir-ops}; and $\mathit{transfer} \in \{ \textsf{next}(s'), \textsf{branch}(\beta, s_t, s_f), \\ \textsf{switch}(x, \dots), \textsf{done} \}$ defines the successor logic.
+A function definition is a triple $(f, k, B)$ where $f$ is the name, $k \in \{ \textsf{normal}, \textsf{async}, \textsf{closure} \}$ is the kind, and $B$ is a body consisting of statements. A statement $s$ is a triple $(\mathit{sid},\; \mathit{op},\; \mathit{transfer})$, where $\mathit{sid}$ is a unique identifier; $\mathit{op}$ is an operation from Table~\ref{tab:cir-ops}; and $\mathit{transfer} \in \{ \textsf{next}(s'), \textsf{branch}(\beta, s_t, s_f), \\ \textsf{switch}(x, \dots), \textsf{return} \}$ defines the successor logic.
 \end{definition}
 
 % 这里定义一个完整 CIR 工件由哪些部分组成:资源表、保护映射、函数集合、摘要和入口函数.
@@ -114,8 +111,13 @@ V(x) = \mathit{V}_\gamma(x)$.
 Business goals capture what the program is \emph{supposed to
 achieve}, not merely what it should avoid. A buggy program may fail to reach its goals precisely because a deadlock or signal loss blocks the execution path. Conversely, a repair that eliminates all concurrency bugs may still fail to reach a goal if it inadvertently removes a critical operation. The acceptance criterion for a verified \textsc{Cir} is therefore the conjunction of two conditions: (1)~no concurrency bug is detected, and (2)~every business goal is reachable. Goal reachability is checked only after the bug-freedom condition is established, because bugs themselves can block goal reachability.
 
-% 这里把 goal reachability 与线性逻辑中的资源可推导性联系起来,说明其理论解释.
-This check corresponds to the resource-consumption perspective of linear logic: each \textsc{Cvn} transition is a linear implication $A_1 \otimes \cdots \otimes A_k \rightarrow B_1 \otimes \cdots \otimes B_m$ that consumes and produces resources. The business goal asks whether the target resource configuration is derivable from the initial resources. The \textsc{Cvn} reachability search answers this question exhaustively.
+% 解释为什么使用存在性检查而非普遍性检查,以及 goal 的来源.
+The reachability check uses an existential criterion: a goal is satisfied if at least one reachable state meets the constraints. A universal criterion requiring all terminal states to satisfy the goal would be too strict, because concurrent programs naturally admit multiple valid terminal configurations. The existential criterion answers the question ``is the program still capable of achieving its intended outcome,'' which is the condition needed to prevent semantic regressions during repair.
+
+Business goals can be specified in two ways. The user can state them explicitly as part of the natural-language specification. Alternatively, the LLM can derive them automatically when generating the \textsc{Cir} artifact, treating the goals as a contract between the generated model and the intended behavior. In either case, the goals become part of the \textsc{Cir} artifact and travel through the entire verification pipeline.
+
+% 这里把 goal reachability 与资源可推导性联系起来,说明其直觉解释.
+Intuitively, this check can be understood through a resource-consumption perspective: each \textsc{Cvn} transition consumes and produces tokens, and the business goal asks whether the target token configuration is derivable from the initial configuration through some sequence of firings. The \textsc{Cvn} reachability search answers this question exhaustively.
 
 % 示例展示业务目标在 CIR/CVN 层面的写法.
 \begin{figure}[t]
@@ -150,7 +152,7 @@ A \textsc{Cvn} is a weighted Place/Transition Petri net augmented with a global 
 % 这里正式给出 CVN 的 8 元组定义.
 \begin{definition}[\textsc{Cvn}]
 \label{def:cvn}
-A Concurrency Verification Net is an 8-tuple $\mathcal{N} = ( P,\; T,\; A_{\mathrm{in}},\; A_{\mathrm{out}},\; V,\; I_m,\; I_v,\; \mu )$, where $P = P_c \uplus P_r \uplus P_w$ is a finite set of places partitioned into control, resource, and wait places; $T$ is a finite set of transitions; $A_{\mathrm{in}} \subseteq P \times T$ and $A_{\mathrm{out}} \subseteq T \times P$ are sets of weighted arcs potentially annotated with guards $g$ or updates $u$; $V : \mathit{VarName} \to \mathit{Val}$ is the global variable store; $I_m$ and $I_v$ are initial markings and valuations; and $\mu: T \rightharpoonup \mathit{SID}^+$ is the anchor mapping.
+A Concurrency Verification Net is an 8-tuple $\mathcal{N} = ( P,\; T,\; A_{\mathrm{in}},\; A_{\mathrm{out}},\; V,\; I_m,\; I_v,\; \mu )$, where $P = P_c \uplus P_r \uplus P_w$ is a finite set of places partitioned into control, resource, and wait places; $T$ is a finite set of transitions; $A_{\mathrm{in}} \subseteq P \times T$ is a set of weighted input arcs, each carrying an optional guard $g$; $A_{\mathrm{out}} \subseteq T \times P$ is a set of weighted output arcs, each carrying an optional variable update $u$; $V : \mathit{VarName} \to \mathit{Val}$ is the global variable store; $I_m$ and $I_v$ are initial markings and valuations; and $\mu: T \rightharpoonup \mathit{SID}^+$ is the anchor mapping.
 \end{definition}
 
 % 这段解释 control place、resource place、return place、wait place 等建模元素各自代表什么.
@@ -169,7 +171,7 @@ elements.
 \textsf{Mutex}          & 1 \\
 \textsf{RwLock}         & $N$ (total concurrent entities) \\
 \textsf{Semaphore}$(n)$ & $n$ \\
-\textsf{Channel}(c)        & $c$ \\
+\textsf{Channel}           & 0 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -186,7 +188,7 @@ The value domain is
 \[
   \mathit{Val} = \mathit{Concrete}(\tau) \;\cup\; \{ \top \}
 \]
-where $\tau$ ranges over the base types (\textsf{Bool}, \textsf{Int}, \textsf{Float}, \textsf{String}, \textsf{Enum}). The element $\top$ (unknown) is an absorbing element: once a variable takes the value $\top$, no operation can restore it to a concrete value.
+where $\tau$ ranges over the base types (\textsf{Bool}, \textsf{Int}, \textsf{Float}, \textsf{String}, \textsf{Enum}). The element $\top$ (unknown) is absorbing with respect to expression evaluation: any arithmetic operation or comparison that receives $\top$ as an operand produces $\top$ or $\mathsf{unknown}$ respectively. A variable-update arc that carries a literal expression replaces the current value unconditionally, including overwriting $\top$ with a concrete value. The absorbing property therefore guarantees that derived values cannot spontaneously become concrete, but explicit writes can restore concreteness.
 \end{definition}
 
 % 下面给出值表达式与布尔表达式的语法,用于后续 guard 求值.
@@ -205,14 +207,15 @@ Boolean expressions:
     \mathit{BoolExpr} ::= {} & \textsf{True}
       \;\mid\; \mathit{Cmp}(\mathit{Expr}, \mathit{cmp}, \mathit{Expr}) \\
     & \;\mid\; \mathit{And}(\mathit{BoolExpr}, \mathit{BoolExpr})
-      \;\mid\; \mathit{Not}(\mathit{BoolExpr})
+      \;\mid\; \mathit{Or}(\mathit{BoolExpr}, \mathit{BoolExpr}) \\
+    & \;\mid\; \mathit{Not}(\mathit{BoolExpr})
   \end{aligned}
 \]
 
 % 这里定义三值 guard 的求值规则:真、假、未知.
 \begin{definition}[Guard evaluation]
 \label{def:guard-eval}
-A guard $g$ is a $\mathit{BoolExpr}$. Given a variable store $V$, the evaluation $\mathit{eval}(g, V)$ returns one of three results: $\{true, false, \mathsf{unknown}(\top) \}$. When any operand of a comparison is $\top$, the comparison evaluates to $\mathsf{unknown}$. The conjunction $\mathsf{unknown} \wedge \mathsf{false}$ evaluates to $\mathsf{false}$. The conjunction $\mathsf{unknown} \wedge \mathsf{true}$ evaluates to $\mathsf{unknown}$.
+A guard $g$ is a $\mathit{BoolExpr}$. Given a variable store $V$, the evaluation $\mathit{eval}(g, V)$ returns one of three results: $\{true, false, \mathsf{unknown}(\top) \}$. When any operand of a comparison is $\top$, the comparison evaluates to $\mathsf{unknown}$. The conjunction $\mathsf{unknown} \wedge \mathsf{false}$ evaluates to $\mathsf{false}$. The conjunction $\mathsf{unknown} \wedge \mathsf{true}$ evaluates to $\mathsf{unknown}$. The disjunction $\mathsf{unknown} \vee \mathsf{true}$ evaluates to $\mathsf{true}$. The disjunction $\mathsf{unknown} \vee \mathsf{false}$ evaluates to $\mathsf{unknown}$.
 \end{definition}
 
 % 这一段解释 unknown 的语义是"保守过近似”:遇到未知分支时两边都探索,从而保证不漏掉可能的错误,但可能引入额外状态.
@@ -245,7 +248,8 @@ Branch      & BranchTrue, BranchFalse, Switch \\
 CAS         & CasSuccess, CasFailure \\
 Concurrency & Spawn, Join \\
 Call        & Call \\
-Condvar     & Wait, Notify, NotifyAll, Reacquire \\
+Condvar     & Wait, Notify, NotifyAll, NotifyLost, Reacquire \\
+Control     & Sequential, Return \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -288,9 +292,9 @@ $(\mathit{sid}, \textsf{write\_lock}(r), \dots)$ & One transition [Lock]: $\math
 \midrule
 \multicolumn{2}{l}{\textbf{Condvar Operations} (Mutex $m$, site $s$, counter $nw_{cv}$, and per-site flag $na_s$)} \\
 $(\mathit{sid}, \textsf{wait}(\mathit{cv}, m), \textsf{next}(\mathit{sid}'))$ & 
-\textit{WaitEnter:} $\mathit{cp}(f, \mathit{sid}) \to \mathit{wp}(\mathit{sid}), \mathit{rp}(m)$ with $nw_{cv}{+\!+}, na_{\mathit{sid}} \gets \mathsf{false}$. \\
-& \textit{Wake1 (Notify):} $\mathit{wp}(\mathit{sid}), \mathit{rp}(\mathit{cv}) \to \mathit{ra}(\mathit{sid})$ with $nw_{cv}{-\!-}$. \\
-& \textit{WakeA (NotifyAll):} $\mathit{wp}(\mathit{sid})$ with guard $na_{\mathit{sid}} \to \mathit{ra}(\mathit{sid})$ with $nw_{cv}{-\!-}, na_{\mathit{sid}} \gets \mathsf{false}$. \\
+\textit{WaitEnter:} $\mathit{cp}(f, \mathit{sid}) \to \mathit{wp}(\mathit{sid}), \mathit{rp}(m)$ with $nw_{cv} := nw_{cv} + 1,\; na_{\mathit{sid}} := \mathsf{false}$. \\
+& \textit{Wake1 (Notify):} $\mathit{wp}(\mathit{sid}), \mathit{rp}(\mathit{cv}) \to \mathit{ra}(\mathit{sid})$ with $nw_{cv} := nw_{cv} - 1$. \\
+& \textit{WakeA (NotifyAll):} $\mathit{wp}(\mathit{sid})$ with guard $na_{\mathit{sid}} \to \mathit{ra}(\mathit{sid})$ with $nw_{cv} := nw_{cv} - 1,\; na_{\mathit{sid}} := \mathsf{false}$. \\
 & \textit{Reacquire:} $\mathit{ra}(\mathit{sid}), \mathit{rp}(m) \to \mathit{cp}(f, \mathit{sid}')$. \\
 \midrule
 $(\mathit{sid}, \textsf{notify\_one}(\mathit{cv}), \dots)$ & 

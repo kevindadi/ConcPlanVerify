@@ -63,13 +63,16 @@ pub struct EnrichedFiringStep {
 }
 
 /// A complete bug report combining CVN analysis with CIR-level semantics.
+///
+/// Corresponds to the diagnostic tuple D = (kappa, pi_mu, Sigma_state,
+/// Sigma_wait, Lambda, Gamma_ctx, H) from the paper.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BugReport {
-    /// Classification of the bug.
+    /// Classification of the bug (kappa).
     pub kind: BugKind,
-    /// Firing sequence leading to the bug.
+    /// Firing sequence leading to the bug (pi_mu).
     pub trace: Vec<EnrichedFiringStep>,
-    /// Human-readable summary of the final state marking.
+    /// Human-readable summary of the final state marking (Sigma_state).
     pub final_marking_summary: String,
     /// One-line summary of the bug.
     pub summary: String,
@@ -77,4 +80,21 @@ pub struct BugReport {
     pub involved_resources: Vec<String>,
     /// CIR function names involved in the bug.
     pub involved_functions: Vec<String>,
+    /// CIR statements relevant to the bug (Lambda).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cir_slice: Vec<CirSliceEntry>,
+    /// Preservation constraints: resource/protection/goal invariants (Gamma_ctx).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub preservation_constraints: Vec<String>,
+    /// Heuristic repair hint (H).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repair_hint: Option<String>,
+}
+
+/// A CIR statement entry in the bug report's CIR slice (Lambda).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CirSliceEntry {
+    pub sid: String,
+    pub op: String,
+    pub function: String,
 }
