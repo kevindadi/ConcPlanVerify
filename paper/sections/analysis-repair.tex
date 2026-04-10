@@ -31,49 +31,16 @@ whose detection is sound and complete within the model, and \emph{structural war
 
 \subsubsection{Structural Warnings}
 
-The \textsc{Cvn} explores all possible transition interleavings
-non-deterministically but does not model dynamic scheduling
-policies (priorities, time slices, work stealing).
-Consequently, it can identify \emph{structural vulnerabilities}---
-interleavings under which progress fails---but cannot determine
-whether a concrete scheduler would produce such interleavings.
-The following two properties are therefore reported as warnings
-rather than definitive bugs.
+The \textsc{Cvn} explores all possible transition interleavings no-deterministically but does not model dynamic scheduling policies. Consequently, it can identify \emph{structural vulnerabilities}---interleavings under which progress fails---but cannot determine whether a concrete scheduler would produce such interleavings. The following LiveLock is therefore reported as warnings rather than definitive bugs. A non-trivial SCC in the reachability graph in which no state has all control tokens in return places. The existence of such an SCC means that there is \emph{some} infinite interleaving in which the system cycles without completing. Under a fair scheduler, such an SCC would constitute a genuine livelock. Under an unfair but realistic scheduler, the cycle may never be entered.
 
-\begin{itemize}[leftmargin=1.5em]
-  \item \emph{Livelock\/ $(\kappa_{ll})$.}\;
-    A non-trivial SCC in the reachability graph in which no state
-    has all control tokens in return places.
-    The existence of such an SCC means that there is \emph{some}
-    infinite interleaving in which the system cycles without
-    completing.
-    Under a fair scheduler---one that eventually fires every
-    persistently enabled transition---such an SCC would constitute
-    a genuine livelock.
-    Under an unfair but realistic scheduler, the cycle may never
-    be entered.
-
-  \item \emph{Starvation\/ $(\kappa_{st})$.}\;
-    A non-trivial SCC in which some thread's control-place token
-    remains unchanged across all member states while at least one
-    other thread's token changes.
-    This means there exists an interleaving in which the
-    identified thread makes no progress indefinitely.
-    As with livelock, the warning is contingent on scheduling:
-    a priority-based scheduler might never produce the flagged
-    interleaving, while a round-robin scheduler might.
-\end{itemize}
-
+% 这些警告的价值在于其逆否命题：如果可达性图中不存在此类 SCC，则程序在任何可能的调度器下都不会出现活锁问题。这种结构性保证是与调度无关的模型所能提供的最强保证。当发出警告时，诊断信息会将其报告为潜在漏洞，并包含 SCC 结构，以便 LLM 或开发人员可以评估标记的交错是否合理。
 \noindent
-The value of these warnings lies in their contrapositive: if no such SCC exists in the reachability graph, the program is immune to livelock or starvation \emph{under every possible scheduler}. This structural guarantee is the strongest that a
-scheduling-agnostic model can provide. When a warning is issued, the diagnostic reports it as a potential vulnerability and includes the SCC structure so that the LLM or the developer can assess whether the flagged interleaving is realistic.
+The value of these warnings lies in their contrapositive: if no such SCC exists in the reachability graph, the program is immune to livelock \emph{under every possible scheduler}. This structural guarantee is the strongest that a scheduling-agnostic model can provide. When a warning is issued, the diagnostic reports it as a potential vulnerability and includes the SCC structure so that the LLM or the developer can assess whether the flagged interleaving is realistic.
 
 % 综上所述：死锁、信号丢失和信道阻塞在 Cvn 模型中是可靠且完备的。活锁和饥饿在公平调度假设下是可靠的，否则则作为结构性警告。在建模的 Cir 中，系统绝不会悄无声息地遗漏死锁或信号丢失；但相对于特定的实际调度器，它可能会高估活锁或饥饿的发生概率。
 \begin{remark}[Scope of soundness]
 \label{rem:soundness-scope}
-To summarize: deadlock, signal loss, and channel block are \emph{sound and complete within the \textsc{Cvn} model}.
-Livelock and starvation are \emph{sound under a fair-scheduling assumption} and serve as \emph{structural warnings} otherwise.
-The system never silently misses a deadlock or signal loss in the modeled \textsc{Cir}; it may over-report livelock or starvation relative to a specific real-world scheduler.
+To summarize: deadlock, signal loss, and channel block are \emph{sound and complete within the \textsc{Cvn} model}. Livelock is \emph{sound under a fair-scheduling assumption} and serves as \emph{structural warnings} otherwise. The system never silently misses a deadlock or signal loss in the modeled \textsc{Cir}; it may over-report livelock relative to a specific real-world scheduler.
 \end{remark}
 
 
@@ -81,8 +48,7 @@ The system never silently misses a deadlock or signal loss in the modeled \texts
 \label{subsec:counterexample}
 
 % 当发现违规时，验证器构建紧凑的诊断负载，而不是返回原始状态图或完整的标记转储。
-When a violation is found, the verifier constructs a compact diagnostic payload rather than returning the raw state graph or a
-full marking dump.
+When a violation is found, the verifier constructs a compact diagnostic payload rather than returning the raw state graph or a full marking dump.
 
 \begin{definition}[Repair-oriented diagnostic]
 \label{def:diagnostic}
@@ -160,9 +126,7 @@ Algorithm~\ref{alg:repair-goal} gives the pseudocode.
 \end{algorithmic}
 \end{algorithm}
 
-$\text{Analyze}$ returns the pair $(\mathcal{R},\mathcal{B})$ where $\mathcal{R}$ is the set of reachable \textsc{Cvn} states
-and $\mathcal{B}$ is the set of detected violations, each tagged with its kind~$\kappa$ and a raw witness. $\text{BuildDiag}$ assembles the diagnostic tuple from a single selected bug, the reachable-state set, and the current \textsc{Cir} artifact.
-$\text{BuildGoalDiag}$ produces an analogous diagnostic for unreachable goals, reporting the missing conditions and suggesting which operations may need to be added to a reachable path.
+$\text{Analyze}$ returns the pair $(\mathcal{R},\mathcal{B})$ where $\mathcal{R}$ is the set of reachable \textsc{Cvn} states and $\mathcal{B}$ is the set of detected violations, each tagged with its kind~$\kappa$ and a raw witness. $\text{BuildDiag}$ assembles the diagnostic tuple from a single selected bug, the reachable-state set, and the current \textsc{Cir} artifact. $\text{BuildGoalDiag}$ produces an analogous diagnostic for unreachable goals, reporting the missing conditions and suggesting which operations may need to be added to a reachable path.
 
 When $|\mathcal{B}|>1$, $\text{SelectBug}$ picks a single bug in priority order: $\kappa_{dl}>\kappa_{sl}>\kappa_{cb}>\kappa_{ll}>\kappa_{st}$. Within the same category the bug with the shortest witness is preferred. This deterministic policy ensures reproducibility and avoids overwhelming the LLM with multiple simultaneous targets.
 
@@ -214,45 +178,35 @@ Bug kind
 \addlinespace[3pt]
 Witness trace
   & $\pi_{\mu}$
-  & Localises the causal path to the bug state in
-    editable $\mathit{sid}$s. \\
+  & Localises the causal path to the bug state in editable $\mathit{sid}$s. \\
 \addlinespace[3pt]
 Bug-state summary
   & $\Sigma_{\mathit{state}}$
-  & Reports where execution is stuck: current
-    $\mathit{sid}$ per thread, blocked status,
-    critical variable values. \\
+  & Reports where execution is stuck: current $\mathit{sid}$ per thread, blocked status, critical variable values. \\
 \addlinespace[3pt]
 Held resources
   & $\Sigma_{\mathit{wait}}$ (ownership)
-  & Lists locks, channels, or semaphores currently
-    preventing progress. \\
+  & Lists locks, channels, or semaphores currently preventing progress. \\
 \addlinespace[3pt]
 Waiting relations
   & $\Sigma_{\mathit{wait}}$ (waits)
-  & Makes the dependency structure explicit: who waits
-    for what, and which predicate triggered the
-    diagnosis. \\
+  & Makes the dependency structure explicit: who waits for what, and which predicate triggered the diagnosis. \\
 \addlinespace[3pt]
 Relevant \textsc{Cir} slice
   & $\Lambda$
-  & Restricts editing to a small region around
-    implicated statements. \\
+  & Restricts editing to a small region around implicated statements. \\
 \addlinespace[3pt]
 Preservation constraints
   & $\Gamma_{\mathit{ctx}}$
-  & Prevents over-repair: resource names, thread
-    structure, and business goals must survive. \\
+  & Prevents over-repair: resource names, thread structure, and business goals must survive. \\
 \addlinespace[3pt]
 Repair hint
   & $H$
-  & Provides direction without forcing a single
-    patch. \\
+  & Provides direction without forcing a single patch. \\
 \addlinespace[3pt]
 Output contract
   & Verifier schema
-  & Forces return of a complete revised \textsc{Cir},
-    keeping the loop machine-checkable. \\
+  & Forces return of a complete revised \textsc{Cir}, keeping the loop machine-checkable. \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -291,5 +245,4 @@ Output: the complete revised CIR artifact
 \label{fig:repair-prompt}
 \end{figure}
 
-The prompt is intentionally compact. It serialises neither the full reachability graph nor every intermediate marking, but provides the minimum evidence needed for a local repair: what failed, how the execution reached the failure, what the system looks like at the failure point, and what must be preserved. This is the interface that allows a bounded formal analyser and a
-token-limited LLM to collaborate within a single feedback round.
+The prompt is intentionally compact. It serialises neither the full reachability graph nor every intermediate marking, but provides the minimum evidence needed for a local repair: what failed, how the execution reached the failure, what the system looks like at the failure point, and what must be preserved. This is the interface that allows a bounded formal analyser and a token-limited LLM to collaborate within a single feedback round.
