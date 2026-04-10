@@ -1,9 +1,9 @@
 ---
 name: CIR-to-CVN Translator
-overview: 在 cpn-guide-llm 仓库根目录实现 cir2cvn 翻译器，将 CIR 中间表示翻译为 CVN（Coloured Verification Net）用于并发程序验证。翻译器分三个阶段执行：资源扫描、函数体翻译、FnSummary 翻译。
+overview: 在 cpn-guide-llm 仓库根目录实现 cir2cvn 翻译器,将 CIR 中间表示翻译为 CVN(Coloured Verification Net)用于并发程序验证.翻译器分三个阶段执行:资源扫描、函数体翻译、FnSummary 翻译.
 todos:
   - id: scaffold
-    content: 项目脚手架：Cargo.toml、模块声明文件 (lib.rs, translator/mod.rs)、目录结构
+    content: 项目脚手架:Cargo.toml、模块声明文件 (lib.rs, translator/mod.rs)、目录结构
     status: completed
   - id: error
     content: "error.rs: TranslateError 枚举 (T0xx-T3xx)"
@@ -15,7 +15,7 @@ todos:
     content: "translator/context.rs: TranslateContext 结构体 + builder 封装方法 + 命名工具函数"
     status: completed
   - id: resource
-    content: "translator/resource.rs: 阶段 1 资源扫描（Mutex/RwLock/Semaphore/Channel/Condvar → P_r + marking；Var/Atomic → V）"
+    content: "translator/resource.rs: 阶段 1 资源扫描(Mutex/RwLock/Semaphore/Channel/Condvar → P_r + marking;Var/Atomic → V)"
     status: completed
   - id: control-flow
     content: "translator/control_flow.rs: Transfer 翻译 (next/branch/switch/return) + guard 互补生成"
@@ -33,10 +33,10 @@ todos:
     content: "translator/mod.rs: 三阶段编排 + 输入校验 (T0xx) + 最终 builder.build_with_anchor_check()"
     status: completed
   - id: validate
-    content: "validate.rs: 可选的翻译后语义保持检查（控制流连通性、资源守恒等）"
+    content: "validate.rs: 可选的翻译后语义保持检查(控制流连通性、资源守恒等)"
     status: completed
   - id: tests
-    content: "tests/: 三类测试用例 + fixture JSON 文件 + 集成测试（使用 cir/examples/ 已有 JSON）"
+    content: "tests/: 三类测试用例 + fixture JSON 文件 + 集成测试(使用 cir/examples/ 已有 JSON)"
     status: completed
   - id: docs
     content: "doc/: architecture.md, translation_rules.md, examples.md, error_codes.md"
@@ -50,14 +50,14 @@ isProject: false
 
 ### 实际 API 与 spec 差异
 
-- CIR crate 名为 `ceir`（非 `cir`），无 features。Cargo.toml 中使用 `cir = { package = "ceir", path = "./cir" }`
-- `PlaceId` 是 `String` newtype（非枚举），语义由 `PlaceKind::Control / Resource / Wait` 表示
-- CIR `Branch.cond` 是字符串（如 `"count > 0"`），`Op::ResOp.args` 是 `Vec<String>`（如 `"count + 1"`）。需实现**表达式解析器**将字符串转为 CVN `BoolExpr` / `Expr`
-- CVN `CvnNetBuilder` 使用 consuming-self builder pattern，在 `TranslateContext` 中通过 `std::mem::take` 操作
+- CIR crate 名为 `ceir`(非 `cir`),无 features.Cargo.toml 中使用 `cir = { package = "ceir", path = "./cir" }`
+- `PlaceId` 是 `String` newtype(非枚举),语义由 `PlaceKind::Control / Resource / Wait` 表示
+- CIR `Branch.cond` 是字符串(如 `"count > 0"`),`Op::ResOp.args` 是 `Vec<String>`(如 `"count + 1"`).需实现**表达式解析器**将字符串转为 CVN `BoolExpr` / `Expr`
+- CVN `CvnNetBuilder` 使用 consuming-self builder pattern,在 `TranslateContext` 中通过 `std::mem::take` 操作
 
-### Condvar wait-after-lock 处理（方案 B）
+### Condvar wait-after-lock 处理(方案 B)
 
-`t_cv_reacquire` 输出到 wait 的 transfer 目标（如 s4）。若 s4 是对同一 mutex 的 lock，则将其翻译为 `Sequential`（不消耗 `rp(mtx)`），因为锁已由 reacquire 获取。翻译器在处理 wait 时将 `(fn_name, resume_sid, mutex_name)` 记录到 context 的 `post_wait_locks` 集合中，翻译 lock 操作时检查该集合。
+`t_cv_reacquire` 输出到 wait 的 transfer 目标(如 s4).若 s4 是对同一 mutex 的 lock,则将其翻译为 `Sequential`(不消耗 `rp(mtx)`),因为锁已由 reacquire 获取.翻译器在处理 wait 时将 `(fn_name, resume_sid, mutex_name)` 记录到 context 的 `post_wait_locks` 集合中,翻译 lock 操作时检查该集合.
 
 ---
 
@@ -83,9 +83,9 @@ src/
 
 ## 阶段详解
 
-### 阶段 1：资源扫描 (`[resource.rs](src/translator/resource.rs)`)
+### 阶段 1:资源扫描 (`[resource.rs](src/translator/resource.rs)`)
 
-扫描 `Program.resources`，对每种资源类型：
+扫描 `Program.resources`,对每种资源类型:
 
 | 资源类型  | CVN 生成                                                                             | 初始 marking | V                       |
 | --------- | ------------------------------------------------------------------------------------ | ------------ | ----------------------- |
@@ -93,20 +93,20 @@ src/
 | RwLock    | `add_resource_place("rp_rw", "rw", ResourceType::RwLock{max_readers: N})`, token=N   | rp_rw: N     | -                       |
 | Semaphore | `add_resource_place("rp_sem", "sem", ResourceType::Semaphore{count: c})`, token=c    | rp_sem: c    | -                       |
 | Channel   | `add_resource_place("rp_ch", "ch", ResourceType::Channel)`, token=0                  | rp_ch: 0     | -                       |
-| Condvar   | `add_resource_place("rp_cv", "cv", ResourceType::Condvar)` -- 仅注册，不产生 marking | -            | -                       |
+| Condvar   | `add_resource_place("rp_cv", "cv", ResourceType::Condvar)` -- 仅注册,不产生 marking | -            | -                       |
 | Var       | 无库所                                                                               | -            | `name: Val::from(init)` |
 | Atomic    | 无库所                                                                               | -            | `name: Val::from(init)` |
 
-**RwLock N 计算**：扫描所有函数体中 `Op::Spawn / Op::SpawnAsync` 的目标函数名，去重计数 + 1（entry）。
+**RwLock N 计算**:扫描所有函数体中 `Op::Spawn / Op::SpawnAsync` 的目标函数名,去重计数 + 1(entry).
 
-### 阶段 2：函数体翻译 (`[operation.rs](src/translator/operation.rs)` + `[control_flow.rs](src/translator/control_flow.rs)`)
+### 阶段 2:函数体翻译 (`[operation.rs](src/translator/operation.rs)` + `[control_flow.rs](src/translator/control_flow.rs)`)
 
-逐函数逐语句处理。对每个 `Statement { sid, op, transfer }`：
+逐函数逐语句处理.对每个 `Statement { sid, op, transfer }`:
 
-1. 生成控制库所 `cp_{fn_name}_{sid}`（首次遇到时）
+1. 生成控制库所 `cp_{fn_name}_{sid}`(首次遇到时)
 2. 根据 `op` + `transfer` 组合生成变迁和弧
 
-**核心翻译逻辑** (在 `operation.rs` 中)：
+**核心翻译逻辑** (在 `operation.rs` 中):
 
 ```rust
 fn translate_statement(ctx: &mut TranslateContext, fn_name: &str, stmt: &Statement) {
@@ -122,22 +122,22 @@ fn translate_statement(ctx: &mut TranslateContext, fn_name: &str, stmt: &Stateme
 }
 ```
 
-`**res_op` 分派 (action 字段决定)：
+`**res_op` 分派 (action 字段决定):
 
-- `lock` → 检查 `post_wait_locks` 集合，若匹配则生成 Sequential；否则正常 Lock 变迁
-- `drop` → Unlock 变迁（RwLock 需查 `lock_tracker` 确定 weight=N 或 1）
-- `read` → 与 transfer 合并：next→Sequential, branch→BranchTrue/False, switch→Switch 组
+- `lock` → 检查 `post_wait_locks` 集合,若匹配则生成 Sequential;否则正常 Lock 变迁
+- `drop` → Unlock 变迁(RwLock 需查 `lock_tracker` 确定 weight=N 或 1)
+- `read` → 与 transfer 合并:next→Sequential, branch→BranchTrue/False, switch→Switch 组
 - `write` → VarWrite 变迁 + output arc update
 - `send` / `recv` → Send/Recv 变迁
 - `acquire` / `release` → 同 lock/drop
 - `load` → 同 read
-- `store` → 同 write（但操作 Atomic）
+- `store` → 同 write(但操作 Atomic)
 - `cas` → CasSuccess + CasFailure 双变迁
 - `wait` / `notify` / `notify_all` → 委托给 `condvar.rs`
 
-### 阶段 3：FnSummary 翻译 (`[fn_summary.rs](src/translator/fn_summary.rs)`)
+### 阶段 3:FnSummary 翻译 (`[fn_summary.rs](src/translator/fn_summary.rs)`)
 
-对每个 `FnSummary`，在调用点生成一个 `Call` 变迁：
+对每个 `FnSummary`,在调用点生成一个 `Call` 变迁:
 
 - `A_in`: `(cp(caller, s), w=1, True)`
 - `A_out`: `(cp(caller, s_next), w=1, { writes中每个变量: Lit(Unknown) })`
@@ -172,7 +172,7 @@ pub(crate) struct TranslateContext {
 
 ### 表达式解析器 (`[expr_parser.rs](src/translator/expr_parser.rs)`)
 
-解析 CIR 中的字符串表达式：
+解析 CIR 中的字符串表达式:
 
 ```
 cond_string  = expr cmp_op expr          → BoolExpr::Cmp
@@ -184,7 +184,7 @@ literal = integer | "true" | "false" | quoted_string | enum_variant
 var_ref = identifier
 ```
 
-实现为简单的 token 分割 + 模式匹配（非完整递归下降，因为 CIR 表达式结构简单平坦）。
+实现为简单的 token 分割 + 模式匹配(非完整递归下降,因为 CIR 表达式结构简单平坦).
 
 ---
 
@@ -250,11 +250,11 @@ tests/
 └── fixtures/                       # CIR JSON 测试输入
 ```
 
-每个测试用例：构造/加载 CirProgram → 调用 `translate()` → 断言库所数/变迁数/弧权重/guard/marking/V。
+每个测试用例:构造/加载 CirProgram → 调用 `translate()` → 断言库所数/变迁数/弧权重/guard/marking/V.
 
 ### 使用 cir/examples/ 已有 JSON
 
-翻译 `producer_consumer.json`、`state_machine.json`、`complex_rwlock.json`、`with_summary.json` 作为集成测试。
+翻译 `producer_consumer.json`、`state_machine.json`、`complex_rwlock.json`、`with_summary.json` 作为集成测试.
 
 ---
 
@@ -263,8 +263,8 @@ tests/
 ```
 doc/
 ├── architecture.md          # 三阶段流程图 + 模块职责
-├── translation_rules.md     # 完整翻译规则表（从 spec 第三节）
-├── examples.md              # 翻译示例集（从 spec 第四节）
+├── translation_rules.md     # 完整翻译规则表(从 spec 第三节)
+├── examples.md              # 翻译示例集(从 spec 第四节)
 ├── error_codes.md           # T0xx-T3xx 错误码列表
 ├── cir_spec.md              # symlink → ../cir/doc/ (若存在)
 └── cvn_spec.md              # symlink → ../cvn/doc/ (若存在)
@@ -274,4 +274,4 @@ doc/
 
 ## 实施顺序
 
-按依赖关系分步：先基础设施，再核心翻译逻辑（从简单到复杂），最后测试和文档。每步完成后编译检查。
+按依赖关系分步:先基础设施,再核心翻译逻辑(从简单到复杂),最后测试和文档.每步完成后编译检查.

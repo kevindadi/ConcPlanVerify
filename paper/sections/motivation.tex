@@ -1,110 +1,106 @@
 % !TeX root = ../main.tex
 \section{Motivation}
 \label{sec:motivation}
+% 条件变量示例介绍了问题设置,并说明了管道如何检测错误并指导修复.
+A condition-variable example introduces the problem setting and illustrates how the pipeline detects bugs and guides repair.
 
-% 一个简单的唤醒丢失示例介绍了问题背景和方法.在源代码层面,并发意图被实现细节所掩盖,因此难以直接分析.该方法通过引入 Cir 作为中间模型来解决这一问题,然后将验证后的工件转换为本地 Cvn 片段以进行详尽分析.
-A small lost wake-up example introduces both the problem setting and the method. At the source level, concurrency intent is obscured by implementation detail and is therefore difficult to analyze directly. The method addresses this mismatch by introducing \textsc{Cir} as an intermediate model and then translating the validated artifact into a local \textsc{Cvn} fragment for exhaustive analysis.
-
-\subsection{A Lost Wake-up Example}
+% ─────────────────────────────────────────────────────
+\subsection{A Signal-Loss Example}
 \label{subsec:running-example}
 
-% 图~\ref{fig:running-rust}展示了一个简单的Rust程序,其中包含一个丢失唤醒信号的bug.工作线程会等待一个条件变量,直到共享标志\texttt{ready}变为true.通知线程获取了同一个互斥锁,调用\texttt{notify\_one},然后才写入\texttt{ready := true}.如果通知发生在工作线程进入等待状态之前,则信号丢失,工作线程可能会无限期阻塞.程序可以编译通过,因为该缺陷并非类型或所有权错误,而是并发顺序错误.
-Figure~\ref{fig:running-rust} shows a simple Rust program with a lost wake-up bug. The worker thread waits on a condition variable until the shared flag \texttt{ready} becomes true. The notifier thread acquires the same mutex, calls \texttt{notify\_one}, and only then writes \texttt{ready := true}. If the notification occurs before the worker has entered the wait state, the signal is lost and the worker can block forever. The program compiles cleanly because the defect is not a type or ownership violation; it is a concurrency-ordering bug.
-
-\begin{figure}
-\begin{lstlisting}[language=rust, basicstyle=\small\ttfamily, frame=single]
-fn worker(shared: Arc<(Mutex<bool>, Condvar)>) {
-let (m, cv) = &*shared;
-let mut g = m.lock().unwrap();
-while !*g {
-g = cv.wait(g).unwrap();
-}
-}
-
-fn notifier(shared: Arc<(Mutex<bool>, Condvar)>) {
-let (m, cv) = &*shared;
-let mut g = m.lock().unwrap();
-cv.notify_one();   // BUG: notify before flag update
-*g = true;         // too late
-}
-\end{lstlisting}
-\caption{A condition-variable signal-loss bug in Rust.}
-\Description{A Rust example with two functions. The worker locks a mutex and waits on a condition variable until a shared boolean becomes true. The notifier locks the same mutex, calls notify\_one on the condition variable, and only then writes the boolean flag, illustrating a lost wake-up bug.}
-\label{fig:running-rust}
-\end{figure}
-
-% 图~\ref{fig:running-cir} 展示了 Cir 中的相同示例.该抽象保留了并发推理的关键信息:哪些资源是共享的,哪个锁保护哪个变量,线程在哪里等待和通知,以及如果设计出现问题应该归咎于哪个语句标识符.显式全局名称 \texttt{m0}、\texttt{cv0} 和 \texttt{ready} 消除了别名重构.显式保护声明使预期的锁定机制清晰可见.\texttt{sid} 值创建了用于诊断和修复的稳定锚点.
-Figure~\ref{fig:running-cir} shows the same example in \textsc{Cir}. The abstraction preserves exactly the information that matters for concurrency reasoning: which resources are shared, which lock protects which variable, where threads wait and notify, and which statement identifier should be blamed if the design goes wrong. The explicit global names \texttt{m0}, \texttt{cv0}, and \texttt{ready} eliminate alias reconstruction. The explicit protection declaration makes the intended locking discipline visible. The \texttt{sid} values create stable anchors for diagnosis and repair.
-
-\begin{figure}
-\begin{lstlisting}[basicstyle=\small\ttfamily, frame=single]
-resources:
-m0:    { kind: Mutex, mode: Sync }
-cv0:   { kind: Condvar, paired_with: m0 }
-ready: { kind: Var, type: Bool, init: false }
-protection:
-ready: [m0]
-functions:
-worker:
-body:
-- { sid: w1, op: {lock: m0}, transfer: {next: w2} }
-- { sid: w2, op: {read: ready}, transfer: {branch: {...}} }
-- { sid: w3, op: {wait: {cv: cv0, mutex: m0}}, ... }
-notifier:
-body:
-- { sid: n1, op: {lock: m0}, ... }
-- { sid: n2, op: {notify_one: cv0}, transfer: {next: n3} }
-- { sid: n3, op: {write: {var: ready, val: true}}, ... }
-\end{lstlisting}
-\caption{\textsc{Cir} for the running example, featuring global naming and explicit protection.}
-\Description{A CIR snippet for the running example. It declares a mutex m0, a condition variable cv0 paired with m0, and a boolean variable ready protected by m0. The worker function locks m0, reads ready, and waits on cv0. The notifier locks m0, notifies cv0, and writes ready to true.}
-\label{fig:running-cir}
-\end{figure}
-
-% 经过验证的 \textsc{Cir} 在本地被转换为 \textsc{Cvn}.图~\ref{fig:translation-example} 描绘了为 \texttt{notifier} 函数生成的片段.重点不在于具体的符号,而在于该错误很容易被表达为一个可达性问题.通知操作包含一个正常分支,用于唤醒等待者;以及一个丢失信号分支,当等待者数量为零时,该分支会推进控制权.对该网络进行本地可达性分析可以快速生成一个见证,其中锚定在 \texttt{n2} 的转换在工作节点到达锚定在 \texttt{w3} 的等待点之前触发.换句话说,一旦模型形式正确,形式化引擎就很容易找到该错误.
-The validated \textsc{Cir} is translated locally into a \textsc{Cvn}. Figure~\ref{fig:translation-example} sketches the fragment generated for the \texttt{notifier} function. The bug is naturally expressed as a reachability question. The notify action has a normal branch that wakes a waiter and a lost-signal branch that advances control when the waiter count is zero. A local reachability analysis over this net can quickly produce a witness in which the transition anchored at \texttt{n2} fires before the worker reaches the waiting point anchored at \texttt{w3}. Once the model is in the right form, the formal engine can identify the error with little ambiguity.
+% 图~\ref{fig:example-a} 展示了一个存在信号丢失 bug 的 Rust 程序.工作进程在没有循环的情况下调用了 `wait` 函数;通知器在设置标志之前调用了 `notify\_one` 函数.这两个操作都位于同一个临界区内.如果通知器先获取了锁,则在没有等待者的情况下触发信号,导致信号丢失;工作进程随后进入 `wait` 循环并无限期阻塞,因为不会收到第二个通知.
+Figure~\ref{fig:example-a} shows a Rust program with a signal-loss bug. The worker calls \texttt{wait} without a surrounding loop; the notifier calls \texttt{notify\_one} before setting the flag. Both operations reside in the same critical section. If the notifier acquires the lock first, the signal fires with no waiter present and is lost; the worker then enters \texttt{wait} and blocks indefinitely because no second notification will arrive.
 
 \begin{figure}[t]
-\centering
-\small
-\begin{verbatim}
-Places:
-  cp(notifier, n1)  cp(notifier, n2)
-  cp(notifier, n3)  cp(notifier, n4)
-  cp(notifier, n5)  cp(notifier, ret)
-  rp(m0)  [shared with worker]
-
-Transitions:
-  t_n1 [Lock]:
-    in:  cp(notifier,n1) x1, rp(m0) x1
-    out: cp(notifier,n2) x1
-    anchor: {n1}
-
-  t_n2_ok [NotifySuccess]:
-    in:  cp(notifier,n2) x1
-    guard: waiter_count(cv0) > 0
-    out: cp(notifier,n3) x1, rp(cv0) x1
-    anchor: {n2}
-
-  t_n2_lost [NotifyLost]:
-    in:  cp(notifier,n2) x1
-    guard: waiter_count(cv0) = 0
-    out: cp(notifier,n3) x1
-    anchor: {n2}
-
-  t_n3 [VarWrite]:
-    in:  cp(notifier,n3) x1
-    out: cp(notifier,n4) x1
-    update: V[ready] <- true
-    anchor: {n3}
-\end{verbatim}
-\caption{A local \textsc{Cvn} sketch for the \texttt{notifier} fragment.}
-\Description{A textual net sketch for the notifier fragment. It lists control places for notifier statements n1 through n5 and the shared mutex place rp(m0). It then shows a lock transition, two notify branches distinguished by waiter-count guards, and a variable-write transition anchored to n3.}
-\label{fig:translation-example}
+\begin{lstlisting}[language=rust]
+fn worker(shared: Arc<(Mutex<bool>, Condvar)>) {
+    let (m, cv) = &*shared;
+    let g = m.lock().unwrap();
+    let _g = cv.wait(g).unwrap(); // BUG: bare wait
+}
+fn notifier(shared: Arc<(Mutex<bool>, Condvar)>) {
+    let (m, cv) = &*shared;
+    let mut g = m.lock().unwrap();
+    cv.notify_one();   // notify before write
+    *g = true;
+}
+\end{lstlisting}
+\caption{Signal-loss bug: bare wait without a loop guard.}
+\label{fig:example-a}
 \end{figure}
 
-% 因此,挑战不在于Petri网式可达性不足,而在于管道的两端都不是LLM的理想主要接口.原始Rust代码包含别名、所有权、API惯用法和表示细节,这些都掩盖了预期的并发结构[参考文献:Engler2003RacerX, Pratikakis2006Locksmith, Naik2006StaticRaceJava, Flanagan2003Atomicity, Boyapati2002Ownership].原始验证网则处于另一个极端:它非常适合局部穷举分析[参考文献:Murata1989PetriNets, Holzmann1997SPIN, Esparza2008Unfoldings],但对于语义推理和迭代修复而言,它过于底层且过于冗长.Cir则处于中间位置.它足够短,LLM 可以直接进行推理;足够明确,可以显示并发意图;结构足够清晰,可以机械地转换为验证模型.
-The difficulty therefore does not lie in Petri-net-style reachability itself. Rather, neither end of the pipeline is a good primary interface for the LLM. Raw Rust code contains aliasing, ownership, API idioms, and representation detail that obscure the intended concurrency structure \cite{Engler2003RacerX,Pratikakis2006Locksmith,Naik2006StaticRaceJava,Flanagan2003Atomicity,Boyapati2002Ownership}. A raw verification Petri net sits at the opposite extreme: it is ideal for local exhaustive analysis \cite{Murata1989PetriNets,Holzmann1997SPIN,Esparza2008Unfoldings}, but too low-level and too verbose to serve as the main object of semantic reasoning and iterative repair. \textsc{Cir} occupies the middle ground. It is short enough for the LLM to reason about directly, explicit enough to make concurrency intent visible, and structured enough to be translated mechanically into a verification model.
+% 图~\ref{fig:cir-a} 显示了相应的 \textsc{Cir} 工件——它并非从源代码中提取,而是由 LLM 根据自然语言规范生成.别名分析是不必要的:\texttt{m0}、\texttt{cv0} 和 \texttt{ready} 是唯一的全局名称;声明 \texttt{protection:\ready:\[m0]} 明确地定义了保护关系;并且每个语句都带有一个稳定的 $\mathsf{sid}$,该 id 可在修复迭代中锚定诊断信息.
+Figure~\ref{fig:cir-a} shows the corresponding \textsc{Cir} artifact---not extracted from source code, but produced by an LLM from a natural-language specification. Alias analysis is unnecessary: \texttt{m0}, \texttt{cv0}, and \texttt{ready} are unique global names; the declaration \texttt{protection:\ ready:\ [m0]} makes the guarding relation explicit; and every statement carries a stable $\mathsf{sid}$ that anchors diagnostics across repair iterations.
 
-% 这种分工对于迭代修复尤为重要.LLM 无需消耗令牌来模拟状态空间搜索或遍历整个网络.相反,本地验证器将 Cir 转换为 Cvn,执行非提示可达性分析,并返回一个简洁的诊断包:错误类型、见证跟踪、语句标识符,以及基于标记的资源持有者和等待者摘要.然后,LLM 仅修改相关的 Cir 切片.这就是整体设计的动机:在语义意图至关重要的地方使用 LLM,在详尽交错分析至关重要的地方使用 Petri 网后端,并将 Cir 置于中间作为共享对象,以保持双方的简洁性和可分析性.
-This division of labor is especially important for iterative repair. The LLM need not spend tokens simulating state-space search or traversing a full net. Instead, the local verifier translates \textsc{Cir} to \textsc{Cvn}, performs reachability analysis off-prompt, and returns a compact diagnostic package: bug kind, witness trace, statement identifiers, and a marking-derived summary of who holds which resource and who is waiting for what. The LLM then revises only the relevant \textsc{Cir} slice. The overall design therefore places the LLM where semantic intent matters most, places the Petri-net back-end where exhaustive interleaving analysis matters most, and uses \textsc{Cir} as the shared object that keeps both sides concise and analyzable.
+\begin{figure}[t]
+\begin{lstlisting}[basicstyle=\small\ttfamily, frame=single]
+resources:
+  m0:    { kind: Mutex }
+  cv0:   { kind: Condvar, paired_with: m0 }
+  ready: { kind: Var, type: Bool, init: false }
+protection:  ready: [m0]
+threads:
+  worker:
+    body:
+    - { sid: w1, op: lock(m0),        next: w2 }
+    - { sid: w2, op: wait(cv0, m0),   next: w3 }
+    - { sid: w3, op: unlock(m0) }
+  notifier:
+    body:
+    - { sid: n1, op: lock(m0),            next: n2 }
+    - { sid: n2, op: notify_one(cv0),     next: n3 }
+    - { sid: n3, op: write(ready, true),  next: n4 }
+    - { sid: n4, op: unlock(m0) }
+\end{lstlisting}
+\caption{\textsc{Cir} for the signal-loss example.}
+\label{fig:cir-a}
+\end{figure}
+
+% ─────────────────────────────────────────────────────
+\subsection{Bug Detection and Repair Guidance}
+\label{subsec:repair-demo}
+
+% Cir 工件被机械地转换为 Cvn,并进行详尽的探索.验证器检测到信号丢失错误,并生成如图 1 所示的结构化修复报告.该报告识别错误类型,将根本原因锚定到特定的 sid 值,总结最终状态,并提供具体的修复建议——所有这些都以 Cir 构造而非 Petri 网内部结构来表达.
+The \textsc{Cir} artifact is translated mechanically into a \textsc{Cvn} and explored exhaustively. The verifier detects the signal-loss bug and emits the structured repair report shown in Figure~\ref{fig:repair-report}. The report identifies the bug kind, anchors the root cause to specific $\mathsf{sid}$ values, summarizes the end-state, and provides a concrete repair suggestion---all expressed in terms of \textsc{Cir} constructs rather than Petri-net internals.
+
+\begin{figure}[t]
+\begin{lstlisting}[basicstyle=\small\ttfamily, frame=single]
+bug_kind:  signal_loss
+blame:     [n2, w2]
+end_state:
+  V[cv0_worker]: waiting
+  V[ready]:      true
+  held:          {}
+  waiting:       [worker]
+trace:     [n1, n2(lost), n3, n4, w1, w2(blocked)]
+diagnosis:
+  notify_one at sid=n2 fires when no thread is
+  waiting on cv0; worker enters bare wait at
+  sid=w2 with no loop guard and no future
+  notification.
+repair_suggestion:
+  Insert read(ready) with branch before w2;
+  add back-edge from post-wakeup to the condition
+  check, forming a while(!ready) loop around
+  wait(cv0, m0).
+goal_check:
+  critical_outcome: "worker exits synchronization"
+  status: UNREACHABLE in current artifact
+  note: bare wait at w2 depends on notification
+        that may never arrive.
+\end{lstlisting}
+\caption{Structured repair report for the signal-loss example.}
+\label{fig:repair-report}
+\end{figure}
+
+% 本报告有三个方面值得关注.首先,$\textbf{blame anchors} $\mathsf{sid}{=}n2$ 和 $\mathsf{sid}{=}w2$ 明确地告诉 LLM 要修改哪些语句,从而避免重新生成整个工件.其次,修复建议以结构化的 Cir 编辑(插入一个读取分支节点,添加一个回溯边)的形式表达,LLM 可以直接应用.第三,目标检查验证了指定的关键结果——即工作进程最终退出同步点——在修复后是否可行;通过删除行为(例如,移除 `\texttt{notify\_one}`)来实现安全性的修复方案会因行为不完整而被拒绝.
+Three aspects of this report merit attention. First, the \emph{blame anchors} $\mathsf{sid}{=}n2$ and $\mathsf{sid}{=}w2$ tell the LLM exactly which statements to modify, avoiding regeneration of the entire artifact. Second, the \emph{repair suggestion} is expressed as a structural \textsc{Cir} edit (insert a read-and-branch node, add a back-edge), which the LLM can apply directly. Third, the \emph{goal check} verifies that the designated critical outcome is reachable after repair; a fix that achieves safety by deleting behavior (e.g., removing \texttt{notify\_one}) is rejected as behaviorally incomplete.
+
+% 同一条流水线处理其他反模式,但诊断结果各不相同.例如,如果工作进程使用 `if` 而不是 `while`,但通知器使用了正确的先写后通知顺序,则验证器会报告一个"虚假唤醒违规”:非确定性唤醒(POSIX 和 Rust 语义允许这种唤醒)会导致工作进程在未重新检查谓词的情况下退出 `if` 代码块.此时,问题锚点会转移到 `if` 分支和唤醒后的代码点,修复建议变为"通过添加回溯边将 `if` 替换为 `while`”.目标检查确认工作进程仍然可以到达满足谓词的同步后代码.
+The same pipeline handles other anti-patterns with different diagnostics. For instance, if the worker uses \texttt{if} instead of \texttt{while} but the notifier uses the correct write-before-notify order, the verifier reports a \emph{spurious-wakeup violation}: a
+non-deterministic wakeup causes the worker to exit the \texttt{if} block without re-checking the predicate. The blame anchors shift to the \texttt{if} branch and the post-wakeup point, and the repair suggestion becomes replace \texttt{if} with \texttt{while} by adding a back-edge. The goal check confirms that the worker can still reach the post-synchronization code with the predicate satisfied.
+
+\medskip
+\noindent
+% 总而言之,\textsc{Cir} 通过全局命名消除别名重建;\textsc{Cvn} 通过穷举探索检测错误;而带有目标可达性检查的 $\mathsf{sid}$ 锚定报告指导有针对性的、语义完整的修复.
+In summary, \textsc{Cir} eliminates alias reconstruction through global naming; \textsc{Cvn} detects bugs through exhaustive exploration; and $\mathsf{sid}$-anchored reports with goal-reachability checks guide targeted, semantically complete repairs.

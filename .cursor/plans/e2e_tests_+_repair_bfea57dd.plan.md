@@ -1,36 +1,36 @@
 ---
 name: E2E Tests + Repair
-overview: 实现端到端验证测试基础设施（测试 1-6）和反例报告/LLM 修复 prompt 生成模块 (src/repair/)，添加 uni-llm submodule 作为 LLM 访问基础设施（feature-gated），使完整流程 CIR -> translate -> explore -> BugReport -> LLM prompt 可工作。
+overview: 实现端到端验证测试基础设施(测试 1-6)和反例报告/LLM 修复 prompt 生成模块 (src/repair/),添加 uni-llm submodule 作为 LLM 访问基础设施(feature-gated),使完整流程 CIR -> translate -> explore -> BugReport -> LLM prompt 可工作.
 todos:
   - id: uni-llm-submodule
-    content: 添加 uni-llm 为 git submodule + Cargo.toml optional 依赖（llm feature gate）
+    content: 添加 uni-llm 为 git submodule + Cargo.toml optional 依赖(llm feature gate)
     status: completed
   - id: cir-nop
-    content: CIR 添加 Op::Nop：ast.rs 序列化/反序列化 + translator operation.rs 处理
+    content: CIR 添加 Op::Nop:ast.rs 序列化/反序列化 + translator operation.rs 处理
     status: completed
   - id: repair-report
-    content: 创建 src/repair/report.rs：BugKind, BugReport, DeadlockParticipant, EnrichedFiringStep 数据结构
+    content: 创建 src/repair/report.rs:BugKind, BugReport, DeadlockParticipant, EnrichedFiringStep 数据结构
     status: completed
   - id: repair-suggestion
-    content: 创建 src/repair/suggestion.rs：suggestion_for(BugKind) 模板化建议
+    content: 创建 src/repair/suggestion.rs:suggestion_for(BugKind) 模板化建议
     status: completed
   - id: repair-render
-    content: 创建 src/repair/render.rs：BugReport -> 文本报告 + LLM 修复 prompt
+    content: 创建 src/repair/render.rs:BugReport -> 文本报告 + LLM 修复 prompt
     status: completed
   - id: repair-analyze
-    content: 创建 src/repair/mod.rs：analyze() 函数将 CVN Counterexample 转换为 BugReport
+    content: 创建 src/repair/mod.rs:analyze() 函数将 CVN Counterexample 转换为 BugReport
     status: completed
   - id: repair-llm
-    content: 创建 src/repair/llm.rs：#[cfg(feature = "llm")] RepairSession 封装 uni-llm 调用（无 key 时编译通过但不跑）
+    content: 创建 src/repair/llm.rs:#[cfg(feature = "llm")] RepairSession 封装 uni-llm 调用(无 key 时编译通过但不跑)
     status: completed
   - id: e2e-fixtures
-    content: 创建 tests/e2e/ 下 6 组测试 fixture JSON（修正格式）
+    content: 创建 tests/e2e/ 下 6 组测试 fixture JSON(修正格式)
     status: completed
   - id: e2e-tests
-    content: 创建 tests/e2e.rs 端到端测试：buggy 检测 bug + fixed 验证修复 + 文本渲染验证
+    content: 创建 tests/e2e.rs 端到端测试:buggy 检测 bug + fixed 验证修复 + 文本渲染验证
     status: completed
   - id: verify
-    content: 运行全部测试确保通过，检查 lint
+    content: 运行全部测试确保通过,检查 lint
     status: completed
 isProject: false
 ---
@@ -39,10 +39,10 @@ isProject: false
 
 ## 现状
 
-- **CVN analysis** 已有：BFS/DFS 状态空间搜索、死锁检测、反例 trace 生成（`cvn/src/analysis/`）
-- **cir2cvn 翻译器** 已有：完整 CIR -> CVN 翻译，含所有资源类型支持
-- **缺失**：CIR `Op::Nop` 支持、反例报告格式化、LLM 修复 prompt 生成、端到端测试、LLM 访问基础设施
-- CVN 的 `PropertyViolation::Liveness` / `SignalLoss` 仅类型占位，无实现（本轮不涉及）
+- **CVN analysis** 已有:BFS/DFS 状态空间搜索、死锁检测、反例 trace 生成(`cvn/src/analysis/`)
+- **cir2cvn 翻译器** 已有:完整 CIR -> CVN 翻译,含所有资源类型支持
+- **缺失**:CIR `Op::Nop` 支持、反例报告格式化、LLM 修复 prompt 生成、端到端测试、LLM 访问基础设施
+- CVN 的 `PropertyViolation::Liveness` / `SignalLoss` 仅类型占位,无实现(本轮不涉及)
 
 ## 零、uni-llm submodule 集成
 
@@ -52,7 +52,7 @@ isProject: false
 git submodule add https://github.com/kevindadi/uni-llm.git uni-llm
 ```
 
-产生的 `.gitmodules`（追加一项）：
+产生的 `.gitmodules`(追加一项):
 
 ```ini
 [submodule "uni-llm"]
@@ -62,7 +62,7 @@ git submodule add https://github.com/kevindadi/uni-llm.git uni-llm
 
 ### Cargo.toml 变更
 
-在 [Cargo.toml](Cargo.toml) 中将 `uni-llm` 作为 **optional 依赖** 并引入 `llm` feature：
+在 [Cargo.toml](Cargo.toml) 中将 `uni-llm` 作为 **optional 依赖** 并引入 `llm` feature:
 
 ```toml
 [features]
@@ -79,9 +79,9 @@ tokio = { version = "1", features = ["full"], optional = true }
 - `cargo build --features llm` 时才编译 LLM 调用代码
 - `cargo test` 默认不触发 LLM 相关代码
 
-### repair::llm 模块（feature-gated）
+### repair::llm 模块(feature-gated)
 
-在 `src/repair/llm.rs` 中，用 `#[cfg(feature = "llm")]` 门控：
+在 `src/repair/llm.rs` 中,用 `#[cfg(feature = "llm")]` 门控:
 
 ```rust
 #[cfg(feature = "llm")]
@@ -94,7 +94,7 @@ pub struct RepairSession {
 impl RepairSession {
     pub async fn new(config_path: &str, max_rounds: usize) -> Result<Self, ...> { ... }
 
-    /// 完整修复闭环：buggy CIR -> 检测 -> prompt LLM -> 拿回 fixed CIR -> 再验证
+    /// 完整修复闭环:buggy CIR -> 检测 -> prompt LLM -> 拿回 fixed CIR -> 再验证
     pub async fn repair_loop(
         &self,
         buggy_cir: &cir::ast::Program,
@@ -102,20 +102,20 @@ impl RepairSession {
 }
 ```
 
-本轮实现：写好 struct 和方法签名 + TODO 注释，**不需要 API key 即可编译通过**。实际 LLM 调用逻辑后续填充。
+本轮实现:写好 struct 和方法签名 + TODO 注释,**不需要 API key 即可编译通过**.实际 LLM 调用逻辑后续填充.
 
 ## CIR JSON 格式修正
 
-用户 spec 中的 JSON 与实际 CIR 格式有几处差异，创建 fixture 时需修正：
+用户 spec 中的 JSON 与实际 CIR 格式有几处差异,创建 fixture 时需修正:
 
-- **resources 必须有 `"kind"` 字段**：Mutex/RwLock/Semaphore/Channel 用 `"sync"`，Var/Atomic 用 `"var"`
-- **branch 条件是字符串**，不是数组：`"ready == true"` 而非 `["ready", "==", true]`
-- **CAS args 是字符串**：`"false"`, `"true"` 而非 `false`, `true`
-- `**"nop"` op CIR 不支持，需先添加（仅 test 8 fixed 用到，本轮 scope 外，但最好现在加上）
+- **resources 必须有 `"kind"` 字段**:Mutex/RwLock/Semaphore/Channel 用 `"sync"`,Var/Atomic 用 `"var"`
+- **branch 条件是字符串**,不是数组:`"ready == true"` 而非 `["ready", "==", true]`
+- **CAS args 是字符串**:`"false"`, `"true"` 而非 `false`, `true`
+- `**"nop"` op CIR 不支持,需先添加(仅 test 8 fixed 用到,本轮 scope 外,但最好现在加上)
 
 ## 一、CIR 新增 Op::Nop
 
-在 [cir/src/ast.rs](cir/src/ast.rs) 中：
+在 [cir/src/ast.rs](cir/src/ast.rs) 中:
 
 - `Op` 枚举添加 `Nop` 变体
 - 序列化为 `"nop"` 字符串
@@ -175,22 +175,22 @@ pub fn analyze(
 ) -> Vec<BugReport>
 ```
 
-对每个 CVN `Counterexample`：
+对每个 CVN `Counterexample`:
 
-1. **分类 BugKind**：
+1. **分类 BugKind**:
 
-- 如果 `final_state` 中有 wait place 有 token -> `SignalLoss`（waiter 被阻塞在 condvar wait）
+- 如果 `final_state` 中有 wait place 有 token -> `SignalLoss`(waiter 被阻塞在 condvar wait)
 - 否则 -> `Deadlock`
 
-1. **Deadlock 参与者分析**：
+1. **Deadlock 参与者分析**:
 
 - 调用 `blocked_places(net, &cx.final_state)` 获取被阻塞的 control places
-- 对每个 blocked place，查找其所属函数（从 `PlaceKind::Control { fn_name, sid }`）
-- 查找该 place 的出边 transitions，获取其输入弧中的 resource places
+- 对每个 blocked place,查找其所属函数(从 `PlaceKind::Control { fn_name, sid }`)
+- 查找该 place 的出边 transitions,获取其输入弧中的 resource places
 - resource place 无 token -> 该函数在等待此资源
-- 反向查找：哪些函数的 control place 有 token 且该函数曾消耗过该 resource（resource place 的 token 在谁手上）
+- 反向查找:哪些函数的 control place 有 token 且该函数曾消耗过该 resource(resource place 的 token 在谁手上)
 
-1. **Trace 丰富**：遍历 CVN `FiringStep`，添加 `TransitionKind`、`anchor_sids`、人类描述
+1. **Trace 丰富**:遍历 CVN `FiringStep`,添加 `TransitionKind`、`anchor_sids`、人类描述
 
 ### render.rs 输出格式
 
@@ -208,11 +208,11 @@ DEADLOCK:
 SUGGESTION: ...
 ```
 
-LLM 修复 prompt 模板按用户 spec 第十一节的格式组装。
+LLM 修复 prompt 模板按用户 spec 第十一节的格式组装.
 
 ### suggestion.rs
 
-按 `BugKind` 返回模板化修复建议（已在 spec 中定义）。
+按 `BugKind` 返回模板化修复建议(已在 spec 中定义).
 
 ## 三、端到端测试
 
@@ -238,7 +238,7 @@ tests/e2e/
 }
 ```
 
-### 测试流程（`tests/e2e.rs`）
+### 测试流程(`tests/e2e.rs`)
 
 ```rust
 fn run_e2e(dir: &str) {
@@ -277,7 +277,7 @@ fn run_e2e(dir: &str) {
 
 ## 四、公共 API 扩展
 
-在 [src/lib.rs](src/lib.rs) 中暴露 `pub mod repair`。
+在 [src/lib.rs](src/lib.rs) 中暴露 `pub mod repair`.
 
 ## 依赖关系
 
@@ -299,6 +299,6 @@ flowchart LR
     end
 ```
 
-- `repair::report` / `render` / `suggestion`：纯同步代码，默认编译
-- `repair::llm`：`#[cfg(feature = "llm")]`，依赖 uni-llm + tokio，需显式启用
-- 端到端测试：只测 report/render，不测 LLM 调用
+- `repair::report` / `render` / `suggestion`:纯同步代码,默认编译
+- `repair::llm`:`#[cfg(feature = "llm")]`,依赖 uni-llm + tokio,需显式启用
+- 端到端测试:只测 report/render,不测 LLM 调用
