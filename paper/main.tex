@@ -110,4 +110,220 @@ alias analysis, intermediate representation, deadlock detection}
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{refs}
 
+
+\appendix
+\section{Reference Tables}
+\label{app:tables}
+
+\begin{table}[h]
+\caption{\textsc{Cir} error categories (61 rules total).}
+\label{tab:cir-errors}
+\centering\footnotesize
+\begin{tabular}{@{}llp{4.0cm}@{}}
+\toprule
+\textbf{Code} & \textbf{Category} & \textbf{Examples} \\
+\midrule
+E0xx & Structural      & Missing fields, invalid format \\
+E1xx & Name resolution & Undefined resource, duplicate name \\
+E2xx & Type            & Non-boolean branch condition \\
+E3xx & Resource compat.& \textsf{lock} on non-lock, unprotected access \\
+E4xx & Concurrency     & \textsf{spawn} without \textsf{join} \\
+E5xx & Lock safety     & Missing \textsf{drop}, double lock \\
+E6xx & Control flow    & Unreachable statement, missing \textsf{return} \\
+E7xx & Protection map  & \textsf{Atomic} in protection map \\
+E8xx & Function summary& Summary conflicts with body \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table*}[t]
+\caption{Translation from \textsc{Cir} to \textsc{Cvn}.
+  Notation: $\mathit{cp}(f,s)$ = control place;
+  $\mathit{rp}(r)$ = resource place;
+  $\mathit{wp}(s)$, $\mathit{ra}(s)$ = wait / reacquire places.
+  ``$\to$'' separates inputs from outputs.
+  Operations not listed (\textsf{read}, \textsf{load},
+  \textsf{nop}, \textsf{call} with body,
+  \textsf{spawn\_async}, \textsf{await})
+  generate a single Sequential transition
+  $\mathit{cp}(f,\mathit{sid})\to\mathit{cp}(f,\mathit{sid}')$
+  with no resource interaction.}
+\label{tab:translation-rules}
+\centering\footnotesize
+\begin{tabular}{@{}p{5.4cm}p{11.6cm}@{}}
+\toprule
+\textbf{\textsc{Cir} Statement} &
+\textbf{Generated \textsc{Cvn} Transitions} \\
+
+% --- Mutex / Semaphore ---
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Mutex / Semaphore}} \\
+$(\mathit{sid},\textsf{lock}(m),\textsf{next}(\mathit{sid}'))$
+  \newline
+$(\mathit{sid},\textsf{acquire}(s),\textsf{next}(\mathit{sid}'))$
+& One transition [Lock\,/\,Acquire]:
+  $\mathit{cp}(f,\mathit{sid}),\;\mathit{rp}(r)
+   \;\to\;\mathit{cp}(f,\mathit{sid}')$. \\
+$(\mathit{sid},\textsf{drop}(m),\textsf{next}(\mathit{sid}'))$
+  \newline
+$(\mathit{sid},\textsf{release}(s),\textsf{next}(\mathit{sid}'))$
+& One transition [Unlock\,/\,Release]:
+  $\mathit{cp}(f,\mathit{sid})
+   \;\to\;\mathit{cp}(f,\mathit{sid}'),\;\mathit{rp}(r)$. \\
+
+% --- RwLock ---
+\midrule
+\multicolumn{2}{@{}l}{\textbf{RwLock}
+  ($N$ = concurrent entity count)} \\
+$(\mathit{sid},\textsf{read\_lock}(r),\dots)$
+& One transition [ReadLock]:
+  $\mathit{cp}(f,\mathit{sid}),\;
+   \mathit{rp}(r)\text{ (wt.\,1)}
+   \;\to\;\mathit{cp}(f,\mathit{sid}')$. \\
+$(\mathit{sid},\textsf{write\_lock}(r),\dots)$
+& One transition [WriteLock]:
+  $\mathit{cp}(f,\mathit{sid}),\;
+   \mathit{rp}(r)\text{ (wt.\,}N\text{)}
+   \;\to\;\mathit{cp}(f,\mathit{sid}')$. \\
+$(\mathit{sid},\textsf{drop}(r),\dots)$
+& One transition [ReadUnlock\,/\,WriteUnlock]:
+  $\mathit{cp}(f,\mathit{sid})
+   \;\to\;\mathit{cp}(f,\mathit{sid}'),\;
+   \mathit{rp}(r)\text{ (wt.\,}w\text{)}$,
+  where $w=1$ after \textsf{read\_lock},
+  $w=N$ after \textsf{write\_lock}. \\
+
+% --- Channel ---
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Channel}} \\
+$(\mathit{sid},\textsf{send}(c),\dots)$
+& One transition [Send]:
+  $\mathit{cp}(f,\mathit{sid})
+   \;\to\;\mathit{cp}(f,\mathit{sid}'),\;\mathit{rp}(c)$. \\
+$(\mathit{sid},\textsf{recv}(c),\dots)$
+& One transition [Recv]:
+  $\mathit{cp}(f,\mathit{sid}),\;\mathit{rp}(c)
+   \;\to\;\mathit{cp}(f,\mathit{sid}')$. \\
+
+% --- Data ---
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Variable \& Atomic}} \\
+$(\mathit{sid},\textsf{write}(x,e),\dots)$
+  \newline
+$(\mathit{sid},\textsf{store}(x,e),\dots)$
+& One transition [VarWrite\,/\,AtomicStore]:
+  $\mathit{cp}(f,\mathit{sid})
+   \;\to\;\mathit{cp}(f,\mathit{sid}')$
+  with $U:\;x:=e$. \\
+$(\mathit{sid},\textsf{cas}(x,\mathit{exp},\mathit{new}),
+  \textsf{branch}(\_,s_t,s_f))$
+& \emph{CasSuccess}:
+  $\mathit{cp}(f,\mathit{sid})$
+  with guard $x=\mathit{exp}$
+  $\;\to\;\mathit{cp}(f,s_t)$
+  with $U:\;x:=\mathit{new}$. \newline
+  \emph{CasFailure}:
+  $\mathit{cp}(f,\mathit{sid})$
+  with guard $x\neq\mathit{exp}$
+  $\;\to\;\mathit{cp}(f,s_f)$. \\
+
+% --- Condvar ---
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Condvar}
+  (mutex $m$, counter $nw_{\mathit{cv}}$,
+   per-site flag $na_s$,
+   signal place $\mathit{rp}(\mathit{cv})$)} \\
+$(\mathit{sid},\textsf{wait}(\mathit{cv},m),
+  \textsf{next}(\mathit{sid}'))$
+& \emph{WaitEnter}:
+  $\mathit{cp}(f,\mathit{sid})
+   \;\to\;\mathit{wp}(\mathit{sid}),\;\mathit{rp}(m)$
+  with $U:\;nw_{\mathit{cv}}\!:=\!nw_{\mathit{cv}}+1,\;
+  na_{\mathit{sid}}\!:=\!\mathsf{false}$. \newline
+  \emph{Wake1}:
+  $\mathit{wp}(\mathit{sid}),\;\mathit{rp}(\mathit{cv})
+   \;\to\;\mathit{ra}(\mathit{sid})$
+  with $U:\;nw_{\mathit{cv}}\!:=\!nw_{\mathit{cv}}-1$. \newline
+  \emph{WakeA}:
+  $\mathit{wp}(\mathit{sid})$
+  with guard $na_{\mathit{sid}}=\mathsf{true}$
+  $\;\to\;\mathit{ra}(\mathit{sid})$
+  with $U:\;nw_{\mathit{cv}}\!:=\!nw_{\mathit{cv}}-1,\;
+  na_{\mathit{sid}}\!:=\!\mathsf{false}$. \newline
+  \emph{Reacquire}:
+  $\mathit{ra}(\mathit{sid}),\;\mathit{rp}(m)
+   \;\to\;\mathit{cp}(f,\mathit{sid}')$. \\
+\midrule
+$(\mathit{sid},\textsf{notify\_one}(\mathit{cv}),\dots)$
+& \emph{NotifySuccess}:
+  $\mathit{cp}(f,\mathit{sid})$
+  with guard $nw_{\mathit{cv}}>0$
+  $\;\to\;\mathit{cp}(f,\mathit{sid}'),\;
+  \mathit{rp}(\mathit{cv})$. \newline
+  \emph{NotifyLost}:
+  $\mathit{cp}(f,\mathit{sid})$
+  with guard $nw_{\mathit{cv}}=0$
+  $\;\to\;\mathit{cp}(f,\mathit{sid}')$. \\
+\midrule
+$(\mathit{sid},\textsf{notify\_all}(\mathit{cv}),\dots)$
+& \emph{NotifyAllSuccess}:
+  $\mathit{cp}(f,\mathit{sid})$
+  with guard $nw_{\mathit{cv}}>0$
+  $\;\to\;\mathit{cp}(f,\mathit{sid}')$
+  with $U:\;na_{w_i}\!:=\!\mathsf{true}$
+  for every wait site $w_i$ of $\mathit{cv}$. \newline
+  \emph{NotifyAllLost}:
+  $\mathit{cp}(f,\mathit{sid})$
+  with guard $nw_{\mathit{cv}}=0$
+  $\;\to\;\mathit{cp}(f,\mathit{sid}')$. \\
+
+% --- Control Flow ---
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Control Flow}} \\
+$(\mathit{sid},\mathit{op},
+  \textsf{branch}(\beta,s_t,s_f))$
+& \emph{BranchTrue}:
+  $\mathit{cp}(f,\mathit{sid})$
+  with guard $\beta$
+  $\;\to\;\mathit{cp}(f,s_t)$. \newline
+  \emph{BranchFalse}:
+  $\mathit{cp}(f,\mathit{sid})$
+  with guard $\neg\beta$
+  $\;\to\;\mathit{cp}(f,s_f)$. \\
+$(\mathit{sid},\mathit{op},
+  \textsf{switch}(x,\langle v_i\!\to\!s_i\rangle,s_d))$
+& One transition per arm:
+  $\mathit{cp}(f,\mathit{sid})$
+  with guard $x=v_i$
+  $\;\to\;\mathit{cp}(f,s_i)$. \newline
+  Default:
+  $\mathit{cp}(f,\mathit{sid})$
+  with guard $\bigwedge_i(x\neq v_i)$
+  $\;\to\;\mathit{cp}(f,s_d)$. \\
+
+% --- Concurrency ---
+\midrule
+\multicolumn{2}{@{}l}{\textbf{Concurrency}} \\
+$(\mathit{sid},\textsf{spawn}(g),
+  \textsf{next}(\mathit{sid}'))$
+& One transition [Spawn]:
+  $\mathit{cp}(f,\mathit{sid})
+   \;\to\;\mathit{cp}(f,\mathit{sid}'),\;
+   \mathit{cp}(g,\mathit{sid}^{0}_{g})$. \\
+$(\mathit{sid},\textsf{join}(g),
+  \textsf{next}(\mathit{sid}'))$
+& One transition [Join]:
+  $\mathit{cp}(f,\mathit{sid}),\;
+   \mathit{cp}(g,\mathit{ret})
+   \;\to\;\mathit{cp}(f,\mathit{sid}')$. \\
+$(\mathit{sid},\_,\textsf{return})$
+& One transition [Return]:
+  $\mathit{cp}(f,\mathit{sid})
+   \;\to\;\mathit{cp}(f,\mathit{ret})$. \\
+
+\bottomrule
+\end{tabular}
+\end{table*}
+
+
 \end{document}
