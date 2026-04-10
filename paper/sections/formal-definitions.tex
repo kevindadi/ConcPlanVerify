@@ -24,7 +24,7 @@ A \emph{statement} is a triple $s=(\mathit{sid},\;\mathit{op},\;\mathit{transfer
     where $\beta\in\mathit{BoolExpr}$ (Definition~\ref{def:expressions}). The operation and transfer are orthogonal: $\mathit{op}$ specifies the resource or concurrency action; $\mathit{transfer}$ specifies the successor.
 \end{definition}
 
-% $\mathit{SID}$ 表示语句标识符的集合.每个函数 $(f,k,B)$ 都有一个特殊的入口标识符 $\mathit{sid}^{0}_{f}$（$B$ 中第一个语句的 $\mathit{sid}$）和一个特殊的返回标识符 $\mathit{ret}_{f}\notin\{\mathit{sid}\mid(\mathit{sid},\_,\_)\in B\}$.当没有歧义时，我们省略函数下标，直接写 $\mathit{sid}^{0}$ 和 $\mathit{ret}$.哨兵标识符 $\mathit{sid}_{\bot}$ 保留给由函数摘要生成的合成转换.
+% $\mathit{SID}$ 表示语句标识符的集合.每个函数 $(f,k,B)$ 都有一个特殊的入口标识符 $\mathit{sid}^{0}_{f}$($B$ 中第一个语句的 $\mathit{sid}$)和一个特殊的返回标识符 $\mathit{ret}_{f}\notin\{\mathit{sid}\mid(\mathit{sid},\_,\_)\in B\}$.当没有歧义时,我们省略函数下标,直接写 $\mathit{sid}^{0}$ 和 $\mathit{ret}$.哨兵标识符 $\mathit{sid}_{\bot}$ 保留给由函数摘要生成的合成转换.
 $\mathit{SID}$ denotes the universe of statement identifiers. Every function $(f,k,B)$ has a distinguished \emph{entry identifier} $\mathit{sid}^{0}_{f}$ (the $\mathit{sid}$ of the first statement in $B$) and a distinguished \emph{return identifier} $\mathit{ret}_{f}\notin\{\mathit{sid}\mid(\mathit{sid},\_,\_)\in B\}$. When unambiguous we write $\mathit{sid}^{0}$ and $\mathit{ret}$ without the function subscript. The sentinel $\mathit{sid}_{\bot}$ is reserved for synthetic transitions generated from function summaries.
 
 \begin{definition}[\textsc{Cir} artifact]
@@ -33,7 +33,7 @@ A \textsc{Cir} artifact is a 6-tuple
 $\mathcal{I}=(R,\;G,\;F,\;\Sigma,\;e,\;\Gamma)$, where $R$ is a finite resource table mapping names to kinds and configurations, $G:\mathit{VarName}\rightharpoonup\mathcal{P}(\mathit{LockName})$ is a protection mapping, $F$ is a finite set of function definitions $(f,k,B)$, $\Sigma$ is a partial function-summary map for external calls, $e\in F$ is the designated entry function, and $\Gamma$ is a finite set of \textsc{Cir} business goals in Definition~\ref{def:cir-goal}.
 \end{definition}
 
-% $R$ 中的每个资源都有一个唯一的全局名称.指针、堆间接寻址和别名均被严格禁止；函数必须直接通过名称引用资源.保护映射~$G$ 仅用于静态检查，不会生成 \textsc{Cvn} 结构.
+% $R$ 中的每个资源都有一个唯一的全局名称.指针、堆间接寻址和别名均被严格禁止;函数必须直接通过名称引用资源.保护映射~$G$ 仅用于静态检查,不会生成 \textsc{Cvn} 结构.
 Every resource in $R$ has a unique global name. Pointers, heap indirection, and aliasing are strictly forbidden; functions reference resources directly by name. The protection mapping~$G$ is used exclusively for static checking and does not produce \textsc{Cvn} structures.
 
 \begin{table}[t]
@@ -74,7 +74,7 @@ Every resource in $R$ has a unique global name. Pointers, heap indirection, and 
 \end{tabular}
 \end{table}
 
-% 摘要映射表 Σ 为每个函数提供摘要，这些函数的函数体未在 F 中建模.摘要是一个元组 Σ(f)=(reads, writes, calls, has_concurrency)，其中 reads 和 writes 是资源名称的集合，calls 是被调用者名称的集合，has_concurrency 是一个布尔值.只有 writes 字段会影响 Cvn 转换；其余字段供静态检查器使用.静态检查器强制执行 61 条格式良好性规则，这些规则分为 9 个类别（代码 \texttt{E0xx}--\texttt{E8xx}），涵盖结构完整性、名称解析、类型兼容性、资源配对、锁安全、控制流、保护映射和函数摘要一致性.完整目录请参见 \S\ref{sec:analysis-repair}.
+% 摘要映射表 Σ 为每个函数提供摘要,这些函数的函数体未在 F 中建模.摘要是一个元组 Σ(f)=(reads, writes, calls, has_concurrency),其中 reads 和 writes 是资源名称的集合,calls 是被调用者名称的集合,has_concurrency 是一个布尔值.只有 writes 字段会影响 Cvn 转换;其余字段供静态检查器使用.静态检查器强制执行 61 条格式良好性规则,这些规则分为 9 个类别(代码 \texttt{E0xx}--\texttt{E8xx}),涵盖结构完整性、名称解析、类型兼容性、资源配对、锁安全、控制流、保护映射和函数摘要一致性.完整目录请参见 \S\ref{sec:analysis-repair}.
 The summary map~$\Sigma$ provides a summary for each function whose body is not modeled in~$F$. A summary is a tuple $\Sigma(f)=(\mathit{reads},\mathit{writes},\mathit{calls},\mathit{has\_concurrency})$, where $\mathit{reads}$ and $\mathit{writes}$ are sets of resource names, $\mathit{calls}$ is a set of callee names, and $\mathit{has\_concurrency}$ is a boolean. Only the $\mathit{writes}$ field affects the \textsc{Cvn} translation; the remaining fields serve the static checker. The static checker enforces 61 well-formedness rules organized in 9~categories (codes \texttt{E0xx}--\texttt{E8xx}) covering structural integrity, name resolution, type compatibility, resource pairing, lock safety, control flow, protection mapping, and function-summary consistency. The full catalogue appears in Table~\ref{tab:cir-errors} (Appendix~\ref{app:tables}).
 
 \begin{definition}[\textsc{Cir} business goal]
@@ -107,7 +107,7 @@ goals:
 \label{fig:goals-example}
 \end{figure}
 
-% 业务目标描述的是程序应该实现的目标,而不仅仅是它应该避免的问题。一个存在缺陷的程序可能无法实现其目标，因为死锁或信号丢失会阻塞执行路径。反之，即使修复消除了所有并发缺陷，如果无意中移除了关键操作，也可能无法实现目标。因此，已验证的 Cir 的验收标准是以下两个条件的合取：(1) 未检测到并发缺陷，且 (2) 每个业务目标均可达标。只有在确认程序无缺陷后才会检查目标的可达性，因为缺陷本身可能会阻塞目标的可达性。目标可以通过两种方式指定：用户可以将其作为自然语言规范的一部分显式声明，或者 LLM 可以在生成 Cir 工件时自动推导出目标。无论哪种方式，目标都会成为 I 的一部分，并贯穿整个流程。
+% 业务目标描述的是程序应该实现的目标,而不仅仅是它应该避免的问题。一个存在缺陷的程序可能无法实现其目标,因为死锁或信号丢失会阻塞执行路径。反之,即使修复消除了所有并发缺陷,如果无意中移除了关键操作,也可能无法实现目标。因此,已验证的 Cir 的验收标准是以下两个条件的合取:(1) 未检测到并发缺陷,且 (2) 每个业务目标均可达标。只有在确认程序无缺陷后才会检查目标的可达性,因为缺陷本身可能会阻塞目标的可达性。目标可以通过两种方式指定:用户可以将其作为自然语言规范的一部分显式声明,或者 LLM 可以在生成 Cir 工件时自动推导出目标。无论哪种方式,目标都会成为 I 的一部分,并贯穿整个流程。
 Business goals capture what the program is \emph{supposed to achieve}, not merely what it should avoid. A buggy program may fail to reach its goals because a deadlock or signal loss blocks the execution path. Conversely, a repair that eliminates all concurrency bugs may still fail to reach a goal if it inadvertently removes a critical operation. The acceptance criterion for a verified \textsc{Cir} is therefore the conjunction: (1)~no concurrency bug is detected, and (2)~every business goal is reachable. Goal reachability is checked only after bug-freedom is established, because bugs themselves can block reachability. Goals can be specified in two ways. The user can state them explicitly as part of the natural-language specification, or the LLM can derive them automatically when generating the \textsc{Cir} artifact. In either case the goals become part of~$\mathcal{I}$ and travel through the entire pipeline.
 
 

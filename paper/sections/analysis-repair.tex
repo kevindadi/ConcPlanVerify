@@ -2,7 +2,7 @@
 \section{Analysis and Repair}
 \label{sec:analysis-repair}
 
-% Cvn 分析结果被转换为面向 LLM 的修复反馈。底层可达性和 SCC 分析采用标准方法 [Godefroid1997VeriSoft,Flanagan2005DPOR, Musuvathi2008FairStateless,Esparza2008Unfoldings]。本节的贡献在于验证器和 LLM 之间的诊断接口：从缺陷状态中提取的信息、每个字段的修复作用，以及支持局部修订而非整个模型重新生成的提示汇编。
+% Cvn 分析结果被转换为面向 LLM 的修复反馈。底层可达性和 SCC 分析采用标准方法 [Godefroid1997VeriSoft,Flanagan2005DPOR, Musuvathi2008FairStateless,Esparza2008Unfoldings]。本节的贡献在于验证器和 LLM 之间的诊断接口:从缺陷状态中提取的信息、每个字段的修复作用,以及支持局部修订而非整个模型重新生成的提示汇编。
 \textsc{Cvn} analysis results are converted into repair-oriented feedback for the LLM\@. The underlying reachability and SCC analyses are standard \cite{Godefroid1997VeriSoft,Flanagan2005DPOR, Musuvathi2008FairStateless,Esparza2008Unfoldings}.
 The contribution of this section is the diagnostic interface between the verifier and the LLM: the information
 extracted from a bug state, the repair role of each field, and the prompt assembly that supports local revision rather than whole-model regeneration.
@@ -11,7 +11,7 @@ extracted from a bug state, the repair role of each field, and the prompt assemb
 \subsection{Reachability-Based Bug Detection}
 \label{subsec:bug-patterns}
 
-% 给定一个翻译后的 Cvn $(\mathcal{N},S_0)$，验证器从 $S_0$ 开始执行穷举状态空间探索。当一个守卫状态的计算结果为 $\mathsf{unknown}$ 时，两个后继分支都会被探索；因此，该搜索是一种保守的过近似，永远不会抑制任何可行的行为。我们区分两类属性：一是“确定性缺陷”，其检测在模型中是可靠且完整的；二是“结构性警告”，它标记出设计层面的漏洞，这些漏洞可能在具体的调度器下显现，也可能不会显现。
+% 给定一个翻译后的 Cvn $(\mathcal{N},S_0)$,验证器从 $S_0$ 开始执行穷举状态空间探索。当一个守卫状态的计算结果为 $\mathsf{unknown}$ 时,两个后继分支都会被探索;因此,该搜索是一种保守的过近似,永远不会抑制任何可行的行为。我们区分两类属性:一是"确定性缺陷”,其检测在模型中是可靠且完整的;二是"结构性警告”,它标记出设计层面的漏洞,这些漏洞可能在具体的调度器下显现,也可能不会显现。
 Given a translated \textsc{Cvn} $(\mathcal{N},S_0)$, the verifier performs exhaustive state-space exploration from~$S_0$. When a guard evaluates to~$\mathsf{unknown}$, both successor branches are explored; the search is therefore a conservative
 over-approximation that never suppresses a feasible behavior. We distinguish two classes of properties: \emph{definite bugs},
 whose detection is sound and complete within the model, and \emph{structural warnings}, which flag design-level vulnerabilities that may or may not manifest under a concrete scheduler.
@@ -33,11 +33,11 @@ whose detection is sound and complete within the model, and \emph{structural war
 
 The \textsc{Cvn} explores all possible transition interleavings no-deterministically but does not model dynamic scheduling policies. Consequently, it can identify \emph{structural vulnerabilities}---interleavings under which progress fails---but cannot determine whether a concrete scheduler would produce such interleavings. The following LiveLock is therefore reported as warnings rather than definitive bugs. A non-trivial SCC in the reachability graph in which no state has all control tokens in return places. The existence of such an SCC means that there is \emph{some} infinite interleaving in which the system cycles without completing. Under a fair scheduler, such an SCC would constitute a genuine livelock. Under an unfair but realistic scheduler, the cycle may never be entered.
 
-% 这些警告的价值在于其逆否命题：如果可达性图中不存在此类 SCC，则程序在任何可能的调度器下都不会出现活锁问题。这种结构性保证是与调度无关的模型所能提供的最强保证。当发出警告时，诊断信息会将其报告为潜在漏洞，并包含 SCC 结构，以便 LLM 或开发人员可以评估标记的交错是否合理。
+% 这些警告的价值在于其逆否命题:如果可达性图中不存在此类 SCC,则程序在任何可能的调度器下都不会出现活锁问题。这种结构性保证是与调度无关的模型所能提供的最强保证。当发出警告时,诊断信息会将其报告为潜在漏洞,并包含 SCC 结构,以便 LLM 或开发人员可以评估标记的交错是否合理。
 \noindent
 The value of these warnings lies in their contrapositive: if no such SCC exists in the reachability graph, the program is immune to livelock \emph{under every possible scheduler}. This structural guarantee is the strongest that a scheduling-agnostic model can provide. When a warning is issued, the diagnostic reports it as a potential vulnerability and includes the SCC structure so that the LLM or the developer can assess whether the flagged interleaving is realistic.
 
-% 综上所述：死锁、信号丢失和信道阻塞在 Cvn 模型中是可靠且完备的。活锁和饥饿在公平调度假设下是可靠的，否则则作为结构性警告。在建模的 Cir 中，系统绝不会悄无声息地遗漏死锁或信号丢失；但相对于特定的实际调度器，它可能会高估活锁或饥饿的发生概率。
+% 综上所述:死锁、信号丢失和信道阻塞在 Cvn 模型中是可靠且完备的。活锁和饥饿在公平调度假设下是可靠的,否则则作为结构性警告。在建模的 Cir 中,系统绝不会悄无声息地遗漏死锁或信号丢失;但相对于特定的实际调度器,它可能会高估活锁或饥饿的发生概率。
 \begin{remark}[Scope of soundness]
 \label{rem:soundness-scope}
 To summarize: deadlock, signal loss, and channel block are \emph{sound and complete within the \textsc{Cvn} model}. Livelock is \emph{sound under a fair-scheduling assumption} and serves as \emph{structural warnings} otherwise. The system never silently misses a deadlock or signal loss in the modeled \textsc{Cir}; it may over-report livelock relative to a specific real-world scheduler.
@@ -47,7 +47,7 @@ To summarize: deadlock, signal loss, and channel block are \emph{sound and compl
 \subsection{Repair-Oriented Diagnostics}
 \label{subsec:counterexample}
 
-% 当发现违规时，验证器构建紧凑的诊断负载，而不是返回原始状态图或完整的标记转储。
+% 当发现违规时,验证器构建紧凑的诊断负载,而不是返回原始状态图或完整的标记转储。
 When a violation is found, the verifier constructs a compact diagnostic payload rather than returning the raw state graph or a full marking dump.
 
 \begin{definition}[Repair-oriented diagnostic]
@@ -67,7 +67,7 @@ and $H$ is a bug-specific repair hint.
 \end{definition}
 
 Each field serves a distinct repair purpose.
-% 对于死锁、信号丢失和通道阻塞，$\pi_{\mu}$ 是一个以错误状态结束的有限触发序列。对于活锁和饥饿，它是一个到达 SCC 条目的有限前缀，外加 SCC 结构（参与状态和转换）的摘要。在这两种情况下，序列都以 \textsc{Cir} $\mathit{sid}$ 表示，而不是 \textsc{Cvn} 转换名称。对于单状态错误，它会报告哪个线程位于哪个 $\mathit{sid}$，哪些资源可用，以及系统是否全局阻塞。对于基于 SCC 的错误，它会总结 SCC 内访问的控制位置集合，并识别卡住或饥饿的线程。这会提取与修复最相关的关系：哪个线程持有哪个资源，哪个线程正在等待哪个资源或条件，以及哪个谓词触发了分类。 $\Lambda$ 是围绕相关 $\mathit{sid}$ 的有界窗口，用于限制 LLM 的编辑范围。$\Gamma_{\mathit{ctx}}$ 指定修复后必须保留的内容：资源名称、线程结构和业务目标（定义~\ref{def:cir-goal}）。此外，它还提供针对特定 bug 的建议，例如强制执行一致的锁定顺序或在发出通知前更新谓词。该提示提供方向，但不强制要求应用任何补丁。
+% 对于死锁、信号丢失和通道阻塞,$\pi_{\mu}$ 是一个以错误状态结束的有限触发序列。对于活锁和饥饿,它是一个到达 SCC 条目的有限前缀,外加 SCC 结构(参与状态和转换)的摘要。在这两种情况下,序列都以 \textsc{Cir} $\mathit{sid}$ 表示,而不是 \textsc{Cvn} 转换名称。对于单状态错误,它会报告哪个线程位于哪个 $\mathit{sid}$,哪些资源可用,以及系统是否全局阻塞。对于基于 SCC 的错误,它会总结 SCC 内访问的控制位置集合,并识别卡住或饥饿的线程。这会提取与修复最相关的关系:哪个线程持有哪个资源,哪个线程正在等待哪个资源或条件,以及哪个谓词触发了分类。 $\Lambda$ 是围绕相关 $\mathit{sid}$ 的有界窗口,用于限制 LLM 的编辑范围。$\Gamma_{\mathit{ctx}}$ 指定修复后必须保留的内容:资源名称、线程结构和业务目标(定义~\ref{def:cir-goal})。此外,它还提供针对特定 bug 的建议,例如强制执行一致的锁定顺序或在发出通知前更新谓词。该提示提供方向,但不强制要求应用任何补丁。
 For deadlock, signal loss, and channel block, $\pi_{\mu}$ is a finite firing sequence ending in the bug state. For livelock and starvation, it is a finite prefix reaching the SCC entry plus a summary of the SCC structure (participating states and transitions). In both cases the sequence is expressed in \textsc{Cir} $\mathit{sid}$s, not \textsc{Cvn} transition names. For single-state bugs, this reports which thread is at which $\mathit{sid}$, which resource counts are available, and whether
 the system is globally blocked. For SCC-based bugs, it summarises the set of control locations visited within the SCC and identifies the stuck or starved thread. This extracts the relations most relevant to repair: which thread holds which resource, which thread is waiting for which resource or condition, and which predicate triggered the classification. $\Lambda$ is a bounded window around the implicated $\mathit{sid}$s, restricting the LLM's editing scope. $\Gamma_{\mathit{ctx}}$ specifies what must survive the repair: resource names, thread structure, and business goals (Definition~\ref{def:cir-goal}). A bug-specific suggestion such as enforce a consistent lock order or update the predicate before notification. The hint provides direction without mandating a single patch.
 
