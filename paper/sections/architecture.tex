@@ -1,89 +1,146 @@
 % !TeX root = ../main.tex
+% Requires in main.tex preamble:
+%   \usepackage{tikz}
+%   \usetikzlibrary{arrows.meta, positioning}
+
 \section{System Architecture}
 \label{sec:architecture}
+% 该架构将流程分为五个阶段,包括两个验证层和三个修复层.第一层(第二阶段)通过确定性静态检查验证模型质量;第二层(第四阶段)通过穷举状态空间搜索分析并发行为;此外,还有一个专门的目标可达性检查(第五阶段)来防止行为丢失型修复.图~\ref{fig:pipeline}展示了完整的流程.
+The architecture organizes five stages into two verification layers and three repair tiers.
+Layer~1 (Stage~2) validates model quality through deterministic static checking; Layer~2 (Stage~4) analyzes concurrency behavior through exhaustive state-space search; and a dedicated
+goal-reachability check (Stage~5) guards against behavior-dropping repairs. Figure~\ref{fig:pipeline} shows the complete pipeline.
 
-% 该架构由LLM驱动的Cir生成阶段、确定性验证层、机械翻译阶段和本地验证修复循环组成.由此产生的流水线追踪从自然语言规范到可接受的Cir工件的信息流,同时将模型质量检查与并发行为分析分离.
-The architecture consists of an LLM-driven \textsc{Cir} generation stage, a deterministic validation layer, a mechanical translation stage, and a local verification-and-repair loop. The resulting pipeline traces information flow from natural-language specification to accepted \textsc{Cir} artifact while separating model-quality checking from concurrency-behavior analysis.
-
-\subsection{Pipeline Overview}
-\label{subsec:pipeline-overview}
-
-% 图展示完整闭环,从规格到 CIR,到 CVN,到局部修复.
-Figure~\ref{fig:pipeline} summarizes the end-to-end pipeline.
-
-\begin{figure}
+\begin{figure}[t]
 \centering
-\includegraphics[width=0.45\columnwidth]{figures/graphviz.png}
-\caption{The generate-verify-repair pipeline.}
-\Description{A five-stage pipeline. A natural-language specification is turned into a CIR artifact by an LLM. The CIR passes a static checker, is translated into a CVN model, and is explored by state-space analysis. If a bug is found, structured feedback is sent to the LLM for repair; otherwise goal reachability is checked before acceptance.}
+\begin{tikzpicture}[
+  box/.style={rectangle, draw, rounded corners=2pt, thick,
+    text width=3.4cm, minimum height=0.7cm, align=center,
+    font=\footnotesize},
+  acc/.style={box, fill=black!8},
+  node distance=0.8cm
+]
+
+% ── Nodes ──
+\node[box]               (s1) {Stage 1: \textsc{Cir} Generation};
+\node[box, below=of s1]  (s2) {Stage 2: Static Checking};
+\node[box, below=of s2]  (s3) {Stage 3: \textsc{Cir}$\;\to\;$\textsc{Cvn}};
+\node[box, below=of s3]  (s4) {Stage 4: State-Space Analysis};
+\node[box, below=of s4]  (s5) {Stage 5: Goal Reachability};
+\node[acc, below=of s5]  (ok) {Accepted};
+
+% ── Main flow ──
+\draw[->] (s1.south) -- (s2.north);
+\draw[->] (s2.south) -- (s3.north)
+  node[midway, right, font=\scriptsize] {pass};
+\draw[->] (s3.south) -- (s4.north);
+\draw[->] (s4.south) -- (s5.north)
+  node[midway, right, font=\scriptsize] {no bug};
+\draw[->] (s5.south) -- (ok.north)
+  node[midway, right, font=\scriptsize] {reachable};
+
+% ── Tier 1: auto-fix self-loop on Stage 2 ──
+\draw[->, dashed] ([yshift=2pt]s2.east)
+  .. controls +(0.7,0.35) and +(0.7,-0.35) ..
+  ([yshift=-2pt]s2.east);
+\node[font=\scriptsize] at ([xshift=10mm]s2.east) {Tier 1};
+
+% ── Tier 2: Stage 2 → Stage 1 (left) ──
+\draw[->, dashed] (s2.west) -- ++(-6mm,0) |- (s1.west);
+\node[font=\scriptsize, anchor=east]
+  at ([xshift=-6mm, yshift=4.5mm]s2.west) {Tier 2};
+
+% ── Tier 3: Stage 4 → Stage 1 (right, inner) ──
+\draw[->, dashed] (s4.east) -- ++(11mm,0)
+  |- ([yshift=-1mm]s1.east);
+\node[font=\scriptsize, anchor=west]
+  at ([xshift=11mm, yshift=5mm]s4.east) {Tier 3};
+
+% ── Goal fail: Stage 5 → Stage 1 (right, outer) ──
+\draw[->, dashed] (s5.east) -- ++(16mm,0)
+  |- ([yshift=1mm]s1.east);
+\node[font=\scriptsize, anchor=west]
+  at ([xshift=16mm, yshift=5mm]s5.east) {goal fail};
+
+\end{tikzpicture}
+\caption{The generate--verify--repair pipeline.
+  Solid arrows show the main flow; dashed arrows show
+  repair feedback loops.}
+\Description{A five-stage vertical pipeline.  Stage~1 generates
+  a CIR artifact via LLM.  Stage~2 performs static checking
+  (Layer~1) with a Tier-1 auto-fix self-loop and a Tier-2
+  feedback path to Stage~1.  Stage~3 translates CIR to CVN.
+  Stage~4 performs state-space analysis (Layer~2) with a Tier-3
+  feedback path to Stage~1.  Stage~5 checks goal reachability
+  with a failure feedback path to Stage~1.  The artifact is
+  accepted only after passing all stages.}
 \label{fig:pipeline}
 \end{figure}
+% ─────────────────────────────────────────────────────
+\subsection{Pipeline Stages}
+\label{subsec:pipeline-overview}
+% LLM 读取自然语言需求或系统规范,并生成一个 \textsc{Cir} 工件.LLM 的任务是恢复预期的共享资源、保护映射和语句级控制流,而不是生成可执行程序.
+\emph{Stage~1: \textsc{Cir} generation.}
+An LLM reads a natural-language requirement or system specification and produces a \textsc{Cir} artifact. The LLM is asked to recover the intended shared resources, protection mappings, and statement-level control flow rather than to emit an executable program.
 
-% Step1: LLM 读取自然语言需求或系统规范,并生成 Cir 工件.当前原型使用 Rust 示例进行评估,但此阶段的输出语言是 Cir,而非 Rust 语法.LLM 的任务是恢复预期的共享资源、保护映射和语句级控制流,而不是生成可执行程序.
-\emph{Stage 1: \textsc{Cir} generation.}
-An LLM reads a natural-language requirement or system specification and produces a \textsc{Cir} artifact. The current prototype is evaluated on Rust examples, but the output language of this stage is \textsc{Cir}, not Rust syntax. The LLM is asked to recover the intended shared resources, protection mappings, and statement-level control flow rather than to emit an executable program.
+% 确定性检查器根据分为 9 个类别的 61 条格式良好性规则来验证 \textsc{Cir}.此阶段可以及早发现格式错误的工件:缺少字段、未定义的资源、不兼容的操作、损坏的 spawn/join 结构以及保护映射错误.
+\emph{Stage~2: Static checking (Layer~1).}
+A deterministic checker validates the \textsc{Cir} against 61~well-formedness rules organized in 9~categories. This stage catches malformed artifacts early: missing fields, undefined resources, incompatible operations, broken spawn/join structure, and protection-mapping errors.
 
-% Step2: 确定性检查器会根据分为 9 个类别的 61 条格式良好性规则来验证生成的 \textsc{Cir}.此阶段可以及早发现格式错误的工件:缺少字段、未定义的资源、不兼容的操作、损坏的 spawn/join 结构以及保护映射错误.
-\emph{Stage 2: \textsc{Cir} static checking.}
-A deterministic checker validates the generated \textsc{Cir} against 61 well-formedness rules organized in 9 categories. This stage catches malformed artifacts early: missing fields, undefined resources, incompatible operations, broken spawn/join structure, and protection-mapping errors.
+% 无状态转换器将已验证的 Cir 语句转换为 Cvn 语句.每个 Cir 语句至少会产生一个锚定转换;不进行任何优化或转换合并.这既简化了正确性论证,又保留了诊断可追溯性.
+\emph{Stage~3: Translation to \textsc{Cvn}.}
+A stateless translator converts the validated \textsc{Cir} into a \textsc{Cvn}. Each \textsc{Cir} statement gives rise to at least one anchored transition; no optimization or transition merging is performed. This keeps the correctness argument simple and preserves diagnostic traceability.
 
-% Step3: 机械翻译器将验证后的 Cir 转换为 Cvn 模型.翻译是直接的:每个 Cir 语句产生至少一个锚定变迁,不进行优化或变迁合并.这使得后续的正确性论证简单,并保留诊断可追踪性.
-\emph{Stage 3: Translation to \textsc{Cvn}.}
-A stateless translator converts the validated \textsc{Cir} into a \textsc{Cvn}. The translation is intentionally direct: each \textsc{Cir} statement gives rise to at least one anchored transition, and no optimization or transition merging is performed. This keeps the later correctness argument simple and preserves diagnostic traceability.
+% 状态空间分析器通过穷举可达性和基于 SCC 的活性检查来探索 \textsc{Cvn}.此阶段完全离线运行,不消耗 LLM 预算.
+\emph{Stage~4: State-space analysis (Layer~2).}
+The \textsc{Cvn} is explored through exhaustive reachability and SCC-based liveness checks. This stage runs entirely off-prompt and does not consume LLM budget.
 
-% Step4: 本地状态空间分析通过穷举可达性和基于 SCC 的检查来执行.此阶段不消耗 LLM 提示预算.其角色是找到在显式足够的验证模型中存在的 bug 见证,该模型足够紧凑,可以保持有界.
-\emph{Stage 4: Local state-space analysis.}
-The \textsc{Cvn} is analyzed locally through exhaustive reachability and SCC-based checks \cite{Holzmann1997SPIN,Flanagan2005DPOR,Musuvathi2008FairStateless,Esparza2008Unfoldings}. This stage does not consume LLM prompt budget. Its role is to find bug witnesses in a verification model that is explicit enough for formal reasoning but compact enough to remain bounded.
+% 目标可达性检查器检查每个用户指定的关键结果是否在探索的状态空间中保持可达.只有当工件既没有并发违规又没有目标不可达时,它才会被接受.一种看似安全的修复,通过删除所需的行为来实现无 bug,在此阶段会被拒绝.
+\emph{Stage~5: Goal-reachability check.}
+If Stage~4 finds no concurrency violation, the verifier checks whether each user-designated critical outcome remains reachable in the explored state space. An artifact is accepted only if it is both violation-free and goal-reachable. An apparently safe repair that achieves bug-freedom by deleting required behavior is rejected at this stage. The loop iterates until the artifact passes all stages, or until a configurable iteration budget (default: 5~rounds) is exhausted, in which case the pipeline reports failure.
 
-% Step5: 结构化修复反馈.如果分析发现 bug,验证器不会返回原始网或原始标记转储.相反,它打包一个与 Cir 语句标识符锚定的修复导向诊断,并将其紧凑的报告发送回 LLM.修正后的 Cir 然后重新进入管道第 2 阶段.如果没有发现 bug,则使用相同的可达状态集来检查业务目标可达性,然后进行接受.
-\emph{Stage 5: Structured repair feedback.}
-If analysis finds a bug, the verifier does not return a raw net or a raw marking dump. Instead, it packages a repair-oriented diagnostic anchored to \textsc{Cir} statement identifiers and sends that compact report back to the LLM. The corrected \textsc{Cir} then re-enters the pipeline at Stage~2. If no bug is found, the same reachable state set is reused to check business-goal reachability before acceptance.
-
+% ─────────────────────────────────────────────────────
 \subsection{Verification and Repair Hierarchy}
-\label{subsec:two-layer}
 \label{subsec:repair-tier}
+% 两个验证层将模型质量与并发行为分开.三个修复层确定适当的响应.    
+The two verification layers separate model quality from concurrency behavior. Three repair tiers determine the appropriate response.
 
-% 两层验证体系与三层修复响应机制相结合.验证层将模型质量与并发行为区分开来.修复层则决定在发现问题后需要采取何种程度的干预措施.
-A two-layer verification hierarchy is coupled with three repair responses. The verification layers separate model quality from concurrency behavior. The repair tiers determine how much intervention is needed once a problem is found.
+% 第一层(Tier~1)在确定性检查器检测到非语义问题时,应用预定义的重写,而无需调用 LLM.
+\emph{Tier~1: deterministic auto-fix.}
+When Layer~1 detects a non-semantic issue: a missing \texttt{unlock} at function exit, a duplicate $\mathsf{sid}$, an omitted \texttt{transfer} field, or a similar mechanical defect, the checker applies a pre-defined rewrite directly without involving the LLM.
 
-\emph{Layer 1: \textsc{Cir} well-formedness checking.}
-This layer targets generation artifacts. Since \textsc{Cir} is produced by an LLM, it may contain shallow structural or semantic inconsistencies even when the intended design is clear. Layer~1 serves as a deterministic filter that checks whether the artifact is internally coherent and ready for formal analysis.
+% 第二层(Tier~2)在确定性检查器检测到语义结构问题时,将诊断信息发送到 LLM 以局部重新生成受影响的 \textsc{Cir} 片段.
+\emph{Tier~2: structural re-generation.}
+When Layer~1 detects a semantic structural problem such as an undefined resource, a broken spawn/join topology, or an inconsistent protection mapping, the diagnostic is sent to the LLM for localized regeneration of the affected \textsc{Cir} fragment.
 
-\emph{Layer 2: \textsc{Cvn} state-space analysis.}
-This layer assumes that the \textsc{Cir} is already well formed and considers whether the modeled concurrency logic admits a bad reachable behavior. The bugs found here are interleaving-dependent and therefore require exhaustive analysis rather than local pattern recognition.
-
-\emph{Tier 1: deterministic auto-fix.}
-If Layer~1 reports a trivial, local, and unambiguous issue, the checker repairs it directly using pre-defined rewrites. This avoids spending LLM rounds on mechanical corrections.
-
-\emph{Tier 2: semantic re-generation.}
-If Layer~1 reports a more substantial structural problem, the verifier sends the diagnostic back to the LLM for a localized regeneration of the affected \textsc{Cir} fragment.
-
-\emph{Tier 3: logic-driven repair.}
-If Layer~2 finds a concurrency violation, the verifier constructs a structured diagnostic from the bug witness and asks the LLM to revise the affected synchronization logic. This is the most expensive repair tier and the one that carries the main methodological novelty of the paper.
-
-% 表格保留,但把内容收束成"谁发现什么、怎么修".
-Table~\ref{tab:two-layer} summarizes this division of responsibilities.
+% 第三层(Tier~3)在状态空间分析器检测到并发违规时,从错误证据中构建结构化诊断,包括责任锚点、最终状态摘要和修复建议,并要求 LLM 修改受影响的同步逻辑.这是最昂贵的修复层,也是主要的方法论创新.
+\emph{Tier~3: logic-driven repair.}
+When Layer~2 finds a concurrency violation, the verifier constructs a structured diagnostic from the bug witness including blame anchors, end-state summary, and repair suggestion and asks the
+LLM to revise the affected synchronization logic. This is the most expensive repair tier and carries the main methodological novelty.
 
 \begin{table}[t]
 \caption{Verification and repair hierarchy.}
 \label{tab:two-layer}
 \centering\footnotesize
-\begin{tabular}{@{}lll@{}}
+\begin{tabular}{@{}p{2.8cm}ll@{}}
 \toprule
-\textbf{Issue} & \textbf{Detected by} & \textbf{Primary response} \\
+\textbf{Issue} & \textbf{Layer} & \textbf{Tier} \\
 \midrule
-Missing \texttt{drop}         & Layer 1 (\textsc{Cir}) & Tier 1 auto-fix \\
-Undefined resource            & Layer 1 (\textsc{Cir}) & Tier 2 LLM repair \\
-Spawn/join mismatch           & Layer 1 (\textsc{Cir}) & Tier 2 LLM repair \\
-Broken protection mapping     & Layer 1 (\textsc{Cir}) & Tier 2 LLM repair \\
-Two-lock deadlock             & Layer 2 (\textsc{Cvn}) & Tier 3 LLM repair \\
-Condvar signal loss           & Layer 2 (\textsc{Cvn}) & Tier 3 LLM repair \\
-Three-lock circular deadlock  & Layer 2 (\textsc{Cvn}) & Tier 3 LLM repair \\
-Writer starvation             & Layer 2 (\textsc{Cvn}) & Tier 3 LLM repair \\
-Channel-mutex cross-deadlock  & Layer 2 (\textsc{Cvn}) & Tier 3 LLM repair \\
+\multicolumn{3}{@{}l}{\textit{Structural (Layer~1)}} \\
+\quad Missing unlock/drop       & \textsc{Cir} & 1 (auto-fix) \\
+\quad Duplicate $\mathsf{sid}$  & \textsc{Cir} & 1 (auto-fix) \\
+\quad Undefined resource        & \textsc{Cir} & 2 (LLM) \\
+\quad Spawn/join mismatch       & \textsc{Cir} & 2 (LLM) \\
+\quad Protection inconsistency  & \textsc{Cir} & 2 (LLM) \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{Behavioral (Layer~2)}} \\
+\quad Deadlock                  & \textsc{Cvn} & 3 (LLM) \\
+\quad Signal loss               & \textsc{Cvn} & 3 (LLM) \\
+\quad Starvation                & \textsc{Cvn} & 3 (LLM) \\
+\quad Cross-primitive deadlock  & \textsc{Cvn} & 3 (LLM) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-% 这种层级结构有两个目的.首先,它可以避免将耗费大量资源的二层分析浪费在那些本应更早被拒绝的畸形工件上.其次,它可以确保层级模型管理在合适的抽象层级上接收反馈:当模型畸形时提供结构性反馈,当并发逻辑错误时提供基于执行的反馈,只有在确认模型无缺陷后才提供目标违背反馈.
-This hierarchy serves two purposes. First, it prevents expensive Layer~2 analysis from being wasted on malformed artifacts that should have been rejected much earlier. Second, it ensures that the LLM receives feedback at the right level of abstraction: structural feedback when the model is malformed, execution-grounded feedback when the concurrency logic is wrong, and goal-violation feedback only after bug-freedom has been established.
+% 这个层次结构有两个目的.首先,它防止昂贵的 Layer~2 分析浪费在应该被早期拒绝的格式错误的工件上.其次,它确保 LLM 在适当的抽象级别接收反馈:机械修正被静默应用,结构反馈在模型格式错误时提供,执行导向反馈在并发逻辑错误时提供,目标违反反馈仅在 bug-freedom 建立后提供.
+This hierarchy serves two purposes. First, it prevents expensive Layer~2 analysis from being wasted on malformed artifacts that should have been rejected earlier. Second, it ensures that the LLM receives feedback at the appropriate level of abstraction: mechanical corrections are applied silently, structural feedback is provided when the model is malformed, execution-grounded feedback is provided when the concurrency logic is wrong, and goal-violation feedback is provided
+only after bug-freedom has been established.
