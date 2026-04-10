@@ -14,6 +14,8 @@
 \usepackage{booktabs}
 \usepackage{listings}
 \usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
 
 \lstdefinelanguage{rust}{
   keywords={fn, let, mut, while, if, else, return, true, false, in, break, continue,
@@ -1156,12 +1158,12 @@ Table~\ref{tab:rq2b} records whether the expected bug kind is detected. For Patt
 
 Frontier models and Gemini~3~Pro achieve 6/6~fidelity: every generated \textsc{Cir} exhibits exactly the expected bug kind. Two types of fidelity failures appear in the lower tiers:
 
-\begin{itemize}[leftmargin=1.4em]\
-  \item \textbf{$\emptyset$ (no bug detected).}
+\begin{itemize}[leftmargin=1.4em]
+  \item $\emptyset$ (no bug detected).
     The LLM generates a concurrency structure that happens to be correct, eliminating the behavior the     specification was designed to contain. Qwen~3.5 on Pattern~5 generates both threads with the same lock order (\textsf{m0}$\to$\textsf{m1}), eliminating the lock-ordering conflict that constitutes the partial deadlock.
     DeepSeek-V3 on Pattern~4 generates identical lock acquisition orders for threads~B and~C (\textsf{m1}$\to$\textsf{m2}$\to$\textsf{m0}), breaking the circular dependency required for deadlock. DeepSeek-V3 on Pattern~5 similarly unifies lock orders. These cases are harmless for the end user that means the \textsc{Cir} is already correct, but the repair loop is never exercised for that model-pattern pair.
 
-  \item \textbf{--- (no valid \textsc{Cir}).}
+  \item \texttt{---} (no valid \textsc{Cir}).
     DeepSeek-V3 fails to produce a statically valid \textsc{Cir} for Pattern~6 within 5~rounds (Table~\ref{tab:rq2a}), so no fidelity check is possible.
 \end{itemize}
 

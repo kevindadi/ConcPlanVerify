@@ -239,14 +239,13 @@ Table~\ref{tab:rq2b} records whether the expected bug kind is detected. For Patt
    & 6/6 & 6/6 & 6/6 & 5/6 & 3/5 \\
 \bottomrule
 \multicolumn{8}{@{}l}{\footnotesize
-  $^\dagger$Structural warning via SCC analysis
-  (Section~\ref{subsec:bug-patterns}), not a definite bug.}
+  $^\dagger$Structural warning via SCC analysis, not a definite bug.}
 \end{tabular}
 \end{table*}
 
 Frontier models and Gemini~3~Pro achieve 6/6~fidelity: every generated \textsc{Cir} exhibits exactly the expected bug kind. Two types of fidelity failures appear in the lower tiers:
 
-\begin{itemize}[leftmargin=1.4em]\
+\begin{itemize}[leftmargin=1.4em]
   % LLM 生成的并发结构恰好是正确的,从而消除了规范原本设计的行为。Qwen~3.5 在模式 5 上生成的两个线程具有相同的锁顺序 (m0→m1),消除了构成部分死锁的锁顺序冲突。 DeepSeek-V3 在模式 4 上为线程 B 和 C 生成相同的锁获取顺序 (m1→m2→m0),打破了死锁所需的循环依赖。DeepSeek-V3 在模式 5 上也以类似的方式统一了锁顺序。这些情况对最终用户无害——Cir 本身已经是正确的——但这意味着对于该模型-模式对,修复循环永远不会被执行。
   \item \textbf{$\emptyset$ (no bug detected).}
     The LLM generates a concurrency structure that happens to be correct, eliminating the behavior the     specification was designed to contain. Qwen~3.5 on Pattern~5 generates both threads with the same lock order (\textsf{m0}$\to$\textsf{m1}), eliminating the lock-ordering conflict that constitutes the partial deadlock.
