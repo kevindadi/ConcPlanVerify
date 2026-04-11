@@ -3,7 +3,7 @@ mod category1_control_flow;
 mod category2_resource;
 mod category3_guard_update;
 
-/// Integration tests using the CIR examples from the cir/ submodule.
+/// Integration tests using the CIR examples from the vendored `cir/` tree.
 mod cir_examples {
     use crate::common;
     use std::path::Path;

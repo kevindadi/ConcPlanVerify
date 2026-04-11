@@ -61,5 +61,6 @@ See the [`doc/`](doc/) directory:
 
 ## Dependencies
 
-- **cir** (`ceir`) — CIR library (git submodule)
-- **cvn** — CVN library with `cir-anchor` feature (git submodule)
+- **cir** (`ceir`) — CIR library (vendored in-repo under `cir/`)
+- **cvn** — CVN library with `cir-anchor` feature (vendored in-repo under `cvn/`)
+- **uni-llm** — optional LLM client for the `llm` feature (vendored in-repo under `uni-llm/`)
