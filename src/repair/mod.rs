@@ -46,11 +46,9 @@ pub fn analyze(
 fn classify_counterexample(net: &CvnNet, cx: &Counterexample) -> BugReport {
     let blocked = cvn::analysis::blocked_places(net, &cx.final_state);
 
-    let has_wait_place = blocked.iter().any(|pid| {
-        net.place(pid)
-            .map(|p| p.is_wait())
-            .unwrap_or(false)
-    });
+    let has_wait_place = blocked
+        .iter()
+        .any(|pid| net.place(pid).map(|p| p.is_wait()).unwrap_or(false));
 
     let has_signal_loss_trace = detect_signal_loss_in_trace(net, cx);
 
@@ -108,7 +106,12 @@ fn classify_signal_loss(
 
     for pid in blocked {
         if let Some(place) = net.place(pid) {
-            if let PlaceKind::Wait { cv_name, fn_name, sid } = &place.kind {
+            if let PlaceKind::Wait {
+                cv_name,
+                fn_name,
+                sid,
+            } = &place.kind
+            {
                 waiter_tid = format!("{fn_name}.{sid}");
                 notifier_tid = format!("notify({cv_name})");
             }
@@ -143,10 +146,7 @@ fn classify_signal_loss(
 
 /// Check if a deadlock is actually a channel block: a blocked transition
 /// requires tokens from a channel resource place.
-fn classify_channel_block(
-    net: &CvnNet,
-    blocked: &[PlaceId],
-) -> Option<(BugKind, String)> {
+fn classify_channel_block(net: &CvnNet, blocked: &[PlaceId]) -> Option<(BugKind, String)> {
     let place_consumers = build_place_to_consumers(net);
 
     for pid in blocked {
@@ -190,11 +190,7 @@ fn classify_channel_block(
     None
 }
 
-fn classify_deadlock(
-    net: &CvnNet,
-    cx: &Counterexample,
-    blocked: &[PlaceId],
-) -> (BugKind, String) {
+fn classify_deadlock(net: &CvnNet, cx: &Counterexample, blocked: &[PlaceId]) -> (BugKind, String) {
     let participants = analyze_deadlock_participants(net, cx, blocked);
 
     let summary = if participants.is_empty() {
@@ -288,7 +284,9 @@ fn find_held_resources(
     let initial = net.initial_marking();
 
     for pid in net.place_ids() {
-        let Some(place) = net.place(pid) else { continue };
+        let Some(place) = net.place(pid) else {
+            continue;
+        };
         let PlaceKind::Resource { res_name, .. } = &place.kind else {
             continue;
         };
@@ -434,10 +432,7 @@ fn extract_involved_functions(net: &CvnNet, blocked: &[PlaceId]) -> Vec<String> 
 
 fn format_marking(net: &CvnNet, marking: &cvn::model::Marking) -> String {
     let mut parts = Vec::new();
-    let mut entries: Vec<_> = marking
-        .iter()
-        .filter(|(_, count)| **count > 0)
-        .collect();
+    let mut entries: Vec<_> = marking.iter().filter(|(_, count)| **count > 0).collect();
     entries.sort_by_key(|(pid, _)| &pid.0);
 
     for (pid, count) in entries {
@@ -445,7 +440,11 @@ fn format_marking(net: &CvnNet, marking: &cvn::model::Marking) -> String {
             match &place.kind {
                 PlaceKind::Control { fn_name, sid } => format!("{fn_name}.{sid}"),
                 PlaceKind::Resource { res_name, .. } => format!("R({res_name})"),
-                PlaceKind::Wait { cv_name, fn_name, sid } => {
+                PlaceKind::Wait {
+                    cv_name,
+                    fn_name,
+                    sid,
+                } => {
                     format!("W({cv_name}@{fn_name}.{sid})")
                 }
             }
