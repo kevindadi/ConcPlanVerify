@@ -4,19 +4,19 @@ overview: 在现有 `cir2cvn`（库）+ vendored `cir`/`cvn`/`uni-llm` 之上新
 todos:
   - id: workspace-tauri
     content: 根 Cargo 改为 workspace；初始化 cpn-gui（Tauri2 + React/TS），src-tauri 依赖 cir2cvn + llm
-    status: in_progress
+    status: completed
   - id: generation-nl
     content: cir2cvn：llm 下新增 generation_nl + NL prompt 与多轮 validate 循环；必要时抽出 JSON 抽取共用函数
-    status: pending
+    status: completed
   - id: invoke-api
     content: 实现 validate/translate/analyze/repair/generate 等 invoke + 可选进度事件
-    status: pending
+    status: completed
   - id: frontend-pages
     content: 三页：工作台（NL+编辑器）、CVN 分析（可配置 explore + DOT）、设置（持久化 JSON）
-    status: pending
+    status: completed
   - id: docs-test
     content: README 桌面端说明；基础测试与手动 E2E 清单
-    status: pending
+    status: completed
 isProject: false
 ---
 

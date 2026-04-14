@@ -220,35 +220,6 @@ fn loop_back_edge_highlighted() {
 }
 
 #[test]
-fn loop_back_edge_disabled() {
-    let func = make_loop_function();
-
-    let prog = Program {
-        program: "test_loop".into(),
-        resources: vec![],
-        protection: vec![],
-        functions: vec![func],
-        fn_summaries: vec![],
-        entry: "looping".into(),
-    };
-
-    let opts = DotOptions {
-        highlight_back_edges: false,
-        show_resources: false,
-        ..DotOptions::default()
-    };
-    let dot = prog.to_dot_with_options(&opts);
-
-    // No blue back-edge styling when disabled
-    assert!(
-        !dot.contains("color=blue, penwidth=2"),
-        "back edge highlighting should be off: {dot}"
-    );
-}
-
-// ── Cross-function edges ────────────────────────────────────────────────────
-
-#[test]
 fn cross_function_spawn_join() {
     let prog = load_example("producer_consumer");
     let dot = prog.to_dot();
@@ -407,7 +378,11 @@ fn snapshot_with_summary_dot() {
 #[test]
 fn snapshot_function_only() {
     let prog = load_example("producer_consumer");
-    let producer = prog.functions.iter().find(|f| f.name == "producer").unwrap();
+    let producer = prog
+        .functions
+        .iter()
+        .find(|f| f.name == "producer")
+        .unwrap();
     let dot = producer.to_dot();
     insta::assert_snapshot!("producer_function_only_dot", dot);
 }

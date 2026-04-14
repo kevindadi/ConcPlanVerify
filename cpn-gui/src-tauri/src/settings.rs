@@ -2,22 +2,51 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tauri::AppHandle;
 use tauri::Manager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GuiSettings {
+    #[serde(default = "default_llm_path")]
     pub llm_config_path: String,
+    #[serde(default)]
     pub provider_override: Option<String>,
+    #[serde(default)]
     pub model_override: Option<String>,
+    #[serde(default = "default_gen_rounds")]
     pub generation_max_rounds: usize,
+    #[serde(default = "default_rep_rounds")]
     pub repair_max_rounds: usize,
+    #[serde(default)]
     pub nl_system_prompt_override: Option<String>,
+    #[serde(default = "default_strategy")]
     pub analysis_strategy: String,
+    #[serde(default = "default_max_states")]
     pub analysis_max_states: usize,
+    #[serde(default = "default_render_dot")]
     pub render_dot_preview: bool,
+}
+
+fn default_llm_path() -> String {
+    "uni-llm.toml".into()
+}
+
+fn default_gen_rounds() -> usize {
+    8
+}
+fn default_rep_rounds() -> usize {
+    6
+}
+fn default_strategy() -> String {
+    "bfs".into()
+}
+fn default_max_states() -> usize {
+    100_000
+}
+fn default_render_dot() -> bool {
+    true
 }
 
 pub fn default_settings() -> GuiSettings {

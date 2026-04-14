@@ -51,6 +51,50 @@ cargo build
 cargo test
 ```
 
+With LLM helpers (NL→CIR generation, repair loop):
+
+```bash
+cargo build --features llm
+cargo test -p cir2cvn --features llm
+```
+
+## Desktop app (`cpn-gui`)
+
+Tauri 2 + React 界面：自然语言需求 → LLM 生成 CIR、JSON 编辑与校验、CVN 翻译与状态空间分析（含 DOT 预览）、可配置 `uni-llm.toml` 路径与 provider/model 覆盖、LLM 修复循环。
+
+### 准备
+
+1. 安装 [Node.js](https://nodejs.org/) 与 [Rust](https://rustup.rs/)。
+2. 按 [`uni-llm/README.md`](uni-llm/README.md) 准备 `uni-llm.toml`（API key 走环境变量，勿写入前端）。
+3. 在应用 **设置** 页填写该文件的绝对路径或 `~/...`；默认值为仓库根下文件名 `uni-llm.toml`（从 `cpn-gui` 目录启动 dev 时需自行改为可解析路径）。
+
+### 开发与打包
+
+```bash
+cd cpn-gui
+npm install
+npm run dev          # 仅 Vite；在浏览器打开时无 Tauri IPC，界面会用内置默认设置
+```
+
+不要只用浏览器访问 `http://localhost:1420` 当作完整应用；请用下面的 `cargo tauri dev` 启动带 Rust 后端的窗口。
+
+从仓库根目录运行 Tauri（会自动执行 `npm run dev` / `npm run build`）：
+
+```bash
+cargo install tauri-cli --locked   # 若尚未安装
+cargo tauri dev --manifest-path cpn-gui/src-tauri/Cargo.toml
+cargo tauri build --manifest-path cpn-gui/src-tauri/Cargo.toml
+```
+
+### 手动 E2E 清单
+
+1. **设置**：选择 `uni-llm.toml`，保存；可选填写 provider/model 覆盖。
+2. **工作台**：输入简短并发需求 →「用 LLM 生成 CIR」→ 得到 JSON；点「校验 CIR」查看报告；必要时「LLM 修复」。
+3. **CVN 分析**：切换 BFS/DFS 与 `max_states` →「翻译并分析」→ 查看状态数、死锁列表、DOT 预览或下载 `.dot`。
+4. **导出**：工作台「导出 cir.json」。
+
+说明：当前 vendored `cvn` 未包含业务目标可达性检查模块，`repair` 循环在存在 `goals` 时仅打印警告，不以目标不可达触发修复（死锁等 CVN 反例仍正常驱动修复）。
+
 ## Documentation
 
 See the [`doc/`](doc/) directory:

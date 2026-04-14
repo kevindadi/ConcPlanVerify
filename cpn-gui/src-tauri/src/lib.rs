@@ -6,7 +6,7 @@ use cir2cvn::repair::llm::{RepairOutcome, RepairSession};
 use cir2cvn::{translate, TranslateError};
 use cvn::analysis::{explore, AnalysisConfig, SearchStrategy};
 use cvn::export::to_dot;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use settings::{default_settings, load_settings, save_settings, GuiSettings};
 use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
@@ -18,10 +18,14 @@ pub struct TranslateOk {
     pub translate_warnings: Vec<String>,
 }
 
+/// Unified translate response for the webview (always returned as `Ok`).
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TranslateErr {
-    pub errors: Vec<String>,
+pub struct TranslateCirResponse {
+    pub success: bool,
+    pub cvn_dot: Option<String>,
+    pub translate_warnings: Option<Vec<String>>,
+    pub errors: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -60,13 +64,6 @@ pub struct RepairResponse {
     pub last_report: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GenerateRequest {
-    pub requirements: String,
-    pub settings: GuiSettings,
-}
-
 fn parse_strategy(s: &str) -> SearchStrategy {
     match s.to_lowercase().as_str() {
         "dfs" => SearchStrategy::Dfs,
@@ -97,26 +94,34 @@ fn validate_cir(cir_json: String) -> Result<ValidationReport, String> {
 }
 
 #[tauri::command]
-fn translate_cir(cir_json: String) -> Result<TranslateOk, TranslateErr> {
+fn translate_cir(cir_json: String) -> TranslateCirResponse {
     let program: cir::ast::Program = match serde_json::from_str(&cir_json) {
         Ok(p) => p,
         Err(e) => {
-            return Err(TranslateErr {
-                errors: vec![format!("JSON parse: {e}")],
-            });
+            return TranslateCirResponse {
+                success: false,
+                cvn_dot: None,
+                translate_warnings: None,
+                errors: Some(vec![format!("JSON parse: {e}")]),
+            };
         }
     };
     match translate(&program) {
         Ok(net) => {
             let warnings = cir2cvn::validate::check_translation(&net);
-            Ok(TranslateOk {
-                cvn_dot: to_dot(&net),
-                translate_warnings: warnings,
-            })
+            TranslateCirResponse {
+                success: true,
+                cvn_dot: Some(to_dot(&net)),
+                translate_warnings: Some(warnings),
+                errors: None,
+            }
         }
-        Err(errs) => Err(TranslateErr {
-            errors: errs.iter().map(TranslateError::to_string).collect(),
-        }),
+        Err(errs) => TranslateCirResponse {
+            success: false,
+            cvn_dot: None,
+            translate_warnings: None,
+            errors: Some(errs.iter().map(TranslateError::to_string).collect()),
+        },
     }
 }
 
@@ -155,19 +160,12 @@ fn analyze_cvn(
                         .map(|step| FiringStepDto {
                             transition_id: step.transition_id.0.clone(),
                             anchor_sids: {
-                                #[cfg(feature = "cir-anchor")]
-                                {
-                                    let v: Vec<String> =
-                                        step.anchor_sids.iter().cloned().collect();
-                                    if v.is_empty() {
-                                        None
-                                    } else {
-                                        Some(v)
-                                    }
-                                }
-                                #[cfg(not(feature = "cir-anchor"))]
-                                {
+                                let v: Vec<String> =
+                                    step.anchor_sids.iter().cloned().collect();
+                                if v.is_empty() {
                                     None
+                                } else {
+                                    Some(v)
                                 }
                             },
                         })
@@ -232,18 +230,20 @@ async fn repair_cir(cir_json: String, settings: GuiSettings) -> Result<RepairRes
 }
 
 #[tauri::command]
-async fn generate_cir_nl(req: GenerateRequest) -> Result<GenerationResult, String> {
-    let client = llm_client_from_settings(&req.settings).await?;
-    let sys = req
-        .settings
+async fn generate_cir_nl(
+    requirements: String,
+    settings: GuiSettings,
+) -> Result<GenerationResult, String> {
+    let client = llm_client_from_settings(&settings).await?;
+    let sys = settings
         .nl_system_prompt_override
         .as_deref()
         .filter(|s| !s.trim().is_empty());
     generation_nl::generate_cir_from_requirements(
         &client,
-        &req.requirements,
+        &requirements,
         sys,
-        req.settings.generation_max_rounds.max(1),
+        settings.generation_max_rounds.max(1),
     )
     .await
     .map_err(|e| e.to_string())
@@ -273,7 +273,11 @@ async fn pick_llm_config_file(app: AppHandle) -> Result<Option<String>, String> 
         .file()
         .add_filter("TOML", &["toml"])
         .blocking_pick_file();
-    Ok(path.map(|p| p.to_string()))
+    Ok(path.and_then(|p| {
+        p.into_path()
+            .ok()
+            .map(|pb| pb.to_string_lossy().into_owned())
+    }))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

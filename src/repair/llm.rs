@@ -163,54 +163,17 @@ const SYSTEM_PROMPT: &str = include_str!("cir_schema_prompt.md");
 
 /// Check business goals against the reachability graph and return
 /// descriptions of unreachable goals.
-fn check_business_goals(
-    program: &cir::ast::Program,
-    net: &cvn::net::CvnNet,
-    result: &cvn::analysis::AnalysisResult,
-) -> Vec<String> {
-    use cvn::analysis::goal::{check_goals, json_to_val, CvnGoal};
-    use cvn::model::PlaceId;
-
-    if program.goals.is_empty() {
-        return Vec::new();
+///
+/// The vendored `cvn` snapshot in this repository does not yet ship
+/// `cvn::analysis::goal`; until it does, goal reachability is not enforced
+/// in the repair loop (deadlock / bug reports from [`crate::repair::analyze`]
+/// still apply).
+fn check_business_goals(program: &cir::ast::Program, _: &cvn::net::CvnNet, _: &cvn::analysis::AnalysisResult) -> Vec<String> {
+    if !program.goals.is_empty() {
+        eprintln!(
+            "warning: CIR declares {} business goal(s); goal reachability is not checked in this build",
+            program.goals.len()
+        );
     }
-
-    let cvn_goals: Vec<CvnGoal> = program
-        .goals
-        .iter()
-        .map(|g| {
-            let marking: std::collections::BTreeMap<PlaceId, u32> = g
-                .marking
-                .iter()
-                .map(|(k, &v)| (PlaceId(k.clone()), v))
-                .collect();
-
-            let variables = g
-                .variables
-                .iter()
-                .map(|(k, v)| (k.clone(), json_to_val(v)))
-                .collect();
-
-            CvnGoal {
-                id: g.id.clone(),
-                desc: g.desc.clone(),
-                marking,
-                variables,
-            }
-        })
-        .collect();
-
-    let results = check_goals(&result.reachability_graph, &cvn_goals);
-
-    results
-        .iter()
-        .filter(|r| !r.reachable)
-        .map(|r| {
-            let goal = program.goals.iter().find(|g| g.id == r.goal_id);
-            let desc = goal
-                .and_then(|g| g.desc.as_deref())
-                .unwrap_or(&r.goal_id);
-            format!("- Goal '{}' ({}): unreachable", r.goal_id, desc)
-        })
-        .collect()
+    Vec::new()
 }
