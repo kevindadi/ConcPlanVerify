@@ -53,7 +53,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.warn("get_settings failed, using defaults", e);
       setSettingsLocal(defaultGuiSettings());
       setSettingsLoadNotice(
-        "未能从 Tauri 读取设置（若你只用浏览器打开了 Vite 预览，这是正常现象）。已载入内置默认；完整功能请运行：cargo tauri dev --manifest-path cpn-gui/src-tauri/Cargo.toml",
+        "未能从 Tauri 读取设置（若你只用浏览器打开了 Vite 预览，这是正常现象）。已载入内置默认。桌面端：在仓库根目录执行 `cargo tauri dev -c cpn-gui/src-tauri/tauri.conf.json`，或在 `cpn-gui/` 下执行 `cargo tauri dev`（Tauri CLI 2.x 无 `--manifest-path`）。",
       );
     }
   }, []);

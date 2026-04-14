@@ -78,13 +78,18 @@ npm run dev          # 仅 Vite；在浏览器打开时无 Tauri IPC，界面会
 
 不要只用浏览器访问 `http://localhost:1420` 当作完整应用；请用下面的 `cargo tauri dev` 启动带 Rust 后端的窗口。
 
-从仓库根目录运行 Tauri（会自动执行 `npm run dev` / `npm run build`）：
-
 ```bash
 cargo install tauri-cli --locked   # 若尚未安装
-cargo tauri dev --manifest-path cpn-gui/src-tauri/Cargo.toml
-cargo tauri build --manifest-path cpn-gui/src-tauri/Cargo.toml
 ```
+
+**Tauri CLI 2.x 的 `dev` / `build` 没有 `--manifest-path` 参数**；请用 **`-c`（`--config`）** 指向 `tauri.conf.json`，或在 `cpn-gui/` 下直接运行（CLI 会向上找到配置）。
+
+| 你所在目录 | 开发命令 | 打包命令 |
+|------------|----------|----------|
+| 仓库根目录（`cpn-guide-llm/`） | `cargo tauri dev -c cpn-gui/src-tauri/tauri.conf.json` | `cargo tauri build -c cpn-gui/src-tauri/tauri.conf.json` |
+| `cpn-gui/` 子目录 | `cargo tauri dev` | `cargo tauri build` |
+
+在子目录下**不要**再写 `cargo tauri dev --manifest-path ...`：当前 CLI 会报 `unexpected argument`；也不要用 `cargo tauri dev -- --manifest-path ...`（`--` 后面是给应用 / runner 的参数，不是给 Tauri 的）。
 
 ### 手动 E2E 清单
 
