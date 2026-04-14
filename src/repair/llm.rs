@@ -9,6 +9,7 @@
 //!   → repeat up to max_rounds
 //! ```
 
+use crate::llm_common::extract_json_from_llm_response;
 use crate::repair::render::render_repair_prompt;
 
 /// Outcome of a repair attempt.
@@ -132,7 +133,7 @@ impl RepairSession {
                     .await
                     .map_err(|e| RepairError::LlmError(e.to_string()))?;
 
-                current_json = extract_json_from_response(&response.content);
+                current_json = extract_json_from_llm_response(&response.content);
                 continue;
             }
 
@@ -148,7 +149,7 @@ impl RepairSession {
                 .await
                 .map_err(|e| RepairError::LlmError(e.to_string()))?;
 
-            current_json = extract_json_from_response(&response.content);
+            current_json = extract_json_from_llm_response(&response.content);
         }
 
         Ok(RepairOutcome::GaveUp {
@@ -212,19 +213,4 @@ fn check_business_goals(
             format!("- Goal '{}' ({}): unreachable", r.goal_id, desc)
         })
         .collect()
-}
-
-/// Extract JSON content from an LLM response, handling markdown code blocks.
-fn extract_json_from_response(response: &str) -> String {
-    let trimmed = response.trim();
-    if trimmed.starts_with("```") {
-        let without_fence = trimmed
-            .strip_prefix("```json")
-            .or_else(|| trimmed.strip_prefix("```"))
-            .unwrap_or(trimmed);
-        let end = without_fence.rfind("```").unwrap_or(without_fence.len());
-        without_fence[..end].trim().to_string()
-    } else {
-        trimmed.to_string()
-    }
 }
