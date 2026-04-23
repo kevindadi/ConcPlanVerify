@@ -3,7 +3,8 @@
 # ══════════════════════════════════════════════════════════════
 #
 # API keys are read from the environment (see .env):
-#   ALL_API_KEY       — aggregator at z.apiyihe.org (GPT-5, Claude 4.6, Gemini 3, DeepSeek-V3)
+#   ALL_API_KEY       — aggregator at z.apiyihe.org (GPT-5, Claude 4.7 Opus, Gemini 3 Pro)
+#   DEEPSEEK_API_KEY  — DeepSeek first-party API (DeepSeek-V3)
 #   DASHSCOPE_API_KEY — Alibaba Cloud DashScope (Qwen3-235B-A22B)
 
 [experiment]
@@ -84,11 +85,13 @@ api_key_env = "ALL_API_KEY"
 base_url    = "https://z.apiyihe.org/v1"
 
 [[models]]
+# DeepSeek goes direct (not via z.apiyihe aggregator): the first-party
+# endpoint is more reliable and avoids aggregator cold-start timeouts.
 name        = "deepseek-v3"
 provider    = "openai"
 model_id    = "deepseek-chat"
-api_key_env = "ALL_API_KEY"
-base_url    = "https://z.apiyihe.org/v1"
+api_key_env = "DEEPSEEK_API_KEY"
+base_url    = "https://api.deepseek.com/v1"
 
 [[models]]
 name        = "qwen3-235b-a22b"
