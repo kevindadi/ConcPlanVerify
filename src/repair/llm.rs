@@ -10,7 +10,7 @@
 //! ```
 
 use crate::llm_common::extract_json_from_llm_response;
-use crate::repair::render::render_repair_prompt;
+use crate::repair::render::{render_goal_repair_prompt, render_repair_prompt};
 
 /// Outcome of a repair attempt.
 #[derive(Debug)]
@@ -108,7 +108,8 @@ impl RepairSession {
 
             if reports.is_empty() {
                 // Layer 3: goal reachability check (only when bug-free)
-                let goal_failures = check_business_goals(&program, &net, &result);
+                let goal_failures = check_business_goals(&program, &net)
+                    .map_err(|e| RepairError::TranslateError(e))?;
                 if goal_failures.is_empty() {
                     return Ok(RepairOutcome::Fixed {
                         fixed_cir_json: current_json,
@@ -116,13 +117,8 @@ impl RepairSession {
                     });
                 }
 
-                let goal_prompt = format!(
-                    "CIR is bug-free but the following business goals are unreachable:\n{}\n\
-                     Please fix the CIR so that these goals become reachable.\n\
-                     Current CIR:\n```json\n{}\n```",
-                    goal_failures.join("\n"),
-                    current_json,
-                );
+                let goal_prompt =
+                    render_goal_repair_prompt(&program, &goal_failures, &current_json);
 
                 let response = self
                     .client
@@ -161,19 +157,28 @@ impl RepairSession {
 
 const SYSTEM_PROMPT: &str = include_str!("cir_schema_prompt.md");
 
-/// Check business goals against the reachability graph and return
-/// descriptions of unreachable goals.
+/// Check business goals against the CVN reachability graph and return
+/// the goals that were not witnessed in any reachable state.
 ///
-/// The vendored `cvn` snapshot in this repository does not yet ship
-/// `cvn::analysis::goal`; until it does, goal reachability is not enforced
-/// in the repair loop (deadlock / bug reports from [`crate::repair::analyze`]
-/// still apply).
-fn check_business_goals(program: &cir::ast::Program, _: &cvn::net::CvnNet, _: &cvn::analysis::AnalysisResult) -> Vec<String> {
-    if !program.goals.is_empty() {
-        eprintln!(
-            "warning: CIR declares {} business goal(s); goal reachability is not checked in this build",
-            program.goals.len()
-        );
+/// Translation is performed by [`crate::translate_goals`] (which maps
+/// user-level resource/function references to CVN place IDs and also
+/// repairs the Channel/Condvar "availability" semantics) and the
+/// reachability query itself is performed by [`cvn::analysis::check_goals`].
+///
+/// Returns a textual [`RepairError`] payload if either step fails.
+pub(crate) fn check_business_goals(
+    program: &cir::ast::Program,
+    net: &cvn::net::CvnNet,
+) -> Result<Vec<cvn::analysis::UnmetGoal>, String> {
+    if program.goals.is_empty() {
+        return Ok(Vec::new());
     }
-    Vec::new()
+
+    let (specs, warnings) = crate::translate_goals(program);
+    for w in &warnings {
+        eprintln!("goal translation warning: {w}");
+    }
+
+    cvn::analysis::check_goals(net, &specs, &cvn::analysis::AnalysisConfig::default())
+        .map_err(|e| e.to_string())
 }

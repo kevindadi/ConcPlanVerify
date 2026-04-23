@@ -1,0 +1,71 @@
+{
+  "program": "fn_summary_prop",
+  "resources": [
+    {"name": "mtx",    "kind": "sync", "type": "Mutex", "mode": "Sync"},
+    {"name": "result", "kind": "var",  "type": "Var",   "base": "Int", "init": 0}
+  ],
+  "protection": [
+    {"var": "result", "lock": "mtx"}
+  ],
+  "functions": [
+    {
+      "name": "main", "kind": "normal",
+      "body": [
+        {"sid": "s1", "op": ["spawn", "producer"], "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["spawn", "consumer"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["join", "producer"],  "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["join", "consumer"],  "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": "return",              "transfer": "return"}
+      ]
+    },
+    {
+      "name": "producer", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "mtx", "lock"],          "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["call", "compute"],                 "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["res_op", "result", "write", "1"],  "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["res_op", "mtx", "drop"],           "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": "return",                             "transfer": "return"}
+      ]
+    },
+    {
+      "name": "consumer", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "mtx", "lock"],          "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["call", "observe"],                 "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["res_op", "result", "read"],        "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["res_op", "mtx", "drop"],           "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": "return",                             "transfer": "return"}
+      ]
+    }
+  ],
+  "fn_summaries": [
+    {
+      "name": "compute",
+      "reads": [],
+      "writes": [],
+      "callees": [],
+      "has_concurrency": false
+    },
+    {
+      "name": "observe",
+      "reads": ["result"],
+      "writes": [],
+      "callees": [],
+      "has_concurrency": false
+    }
+  ],
+  "entry": "main",
+  "goals": [
+    {
+      "id": "g_producer_returns",
+      "desc": "Producer must reach its return place",
+      "marking": {"producer.ret": 1}
+    },
+    {
+      "id": "g_consumer_returns",
+      "desc": "Consumer must reach its return place",
+      "marking": {"consumer.ret": 1}
+    }
+  ]
+}

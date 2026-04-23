@@ -2,53 +2,138 @@
 \section{Analysis and Repair}
 \label{sec:analysis-repair}
 
-% Cvn 分析结果被转换为面向 LLM 的修复反馈。底层可达性和 SCC 分析采用标准方法 [Godefroid1997VeriSoft,Flanagan2005DPOR, Musuvathi2008FairStateless,Esparza2008Unfoldings]。本节的贡献在于验证器和 LLM 之间的诊断接口:从缺陷状态中提取的信息、每个字段的修复作用,以及支持局部修订而非整个模型重新生成的提示汇编。
-\textsc{Cvn} analysis results are converted into repair-oriented feedback for the LLM\@. The underlying reachability and SCC analyses are standard \cite{Godefroid1997VeriSoft,Flanagan2005DPOR, Musuvathi2008FairStateless,Esparza2008Unfoldings}.
-The contribution of this section is the diagnostic interface between the verifier and the LLM: the information
-extracted from a bug state, the repair role of each field, and the prompt assembly that supports local revision rather than whole-model regeneration.
+% CVN 分析结果被转换为面向 LLM 的修复反馈。底层可达性分析采用标准方法。本节的贡献在于验证器和 LLM 之间的诊断接口:从缺陷状态中提取的信息、每个字段的修复作用、支持局部修订而非整个模型重新生成的提示汇编,以及把功能正确性下放到 Cvn 的"目标可达性"一等性质。
+\textsc{Cvn} analysis results are converted into repair-oriented feedback for the LLM\@. The underlying reachability analysis is
+standard~\cite{Godefroid1997VeriSoft,Flanagan2005DPOR,
+Musuvathi2008FairStateless,Esparza2008Unfoldings}. The contribution of this section is the diagnostic interface between the verifier and the LLM: the information extracted from a bug state, the repair role of each field, the prompt assembly that supports local revision rather than whole-model regeneration, and the elevation of
+\emph{goal reachability} to a first-class property that checks functional correctness alongside concurrency safety.
 
 
 \subsection{Reachability-Based Bug Detection}
 \label{subsec:bug-patterns}
 
-% 给定一个翻译后的 Cvn $(\mathcal{N},S_0)$,验证器从 $S_0$ 开始执行穷举状态空间探索。当一个守卫状态的计算结果为 $\mathsf{unknown}$ 时,两个后继分支都会被探索;因此,该搜索是一种保守的过近似,永远不会抑制任何可行的行为。我们区分两类属性:一是"确定性缺陷”,其检测在模型中是可靠且完整的;二是"结构性警告”,它标记出设计层面的漏洞,这些漏洞可能在具体的调度器下显现,也可能不会显现。
-Given a translated \textsc{Cvn} $(\mathcal{N},S_0)$, the verifier performs exhaustive state-space exploration from~$S_0$. When a guard evaluates to~$\mathsf{unknown}$, both successor branches are explored; the search is therefore a conservative
-over-approximation that never suppresses a feasible behavior. We distinguish two classes of properties: \emph{definite bugs},
-whose detection is sound and complete within the model, and \emph{structural warnings}, which flag design-level vulnerabilities that may or may not manifest under a concrete scheduler.
+% 给定一个翻译后的 Cvn $(\mathcal{N},S_0)$,验证器从 $S_0$ 开始执行穷举状态空间探索。当一个守卫状态的计算结果为 $\mathsf{unknown}$ 时,两个后继分支都会被探索;因此,该搜索是一种保守的过近似,永远不会抑制任何可行的行为。我们只在 Cvn 模型中声称对"死锁"这一种确定性缺陷有可靠性,信号丢失和通道阻塞作为死锁的二次分类出现——它们从不增加新的误报。
+Given a translated \textsc{Cvn} $(\mathcal{N},S_0)$, the verifier
+performs exhaustive state-space exploration from~$S_0$. When a guard
+evaluates to~$\mathsf{unknown}$, both successor branches are explored;
+the search is therefore a conservative over-approximation that never
+suppresses a feasible behavior.
 
-\subsubsection{Definite Bugs}
+\emph{Only one property is reported directly by the state-space
+search}: \emph{deadlock}. All other bug labels used in the diagnostic
+layer are refinements that \emph{re-classify} a deadlock witness without
+ever enlarging the reported bug set. This design choice keeps the
+analysis sound with zero false positives: we deliberately avoid
+scheduler-dependent properties such as livelock, starvation, or
+standalone signal-loss, all of which cannot be decided on a
+scheduler-agnostic Petri-net semantics without risking spurious alarms
+on interleavings that no real scheduler would ever realise.
+
+\subsubsection{Primary Property: Deadlock}
+\label{subsubsec:deadlock}
+
+A state $S$ is a \emph{deadlock}~$(\kappa_{dl})$ iff
+$\mathsf{enabled}_{\mathcal{N}}(S)=\emptyset$ and $S$ retains at least
+one control token on a non-return control place. Every such state found
+by exploration is reported with its full firing sequence from~$S_0$.
+Deadlock detection is sound and complete within the \textsc{Cvn}
+semantics: the marking graph is finite (guarded by
+Theorem~\ref{thm:forward}) and exploration is exhaustive.
+
+\subsubsection{Deadlock Sub-Classification}
+\label{subsubsec:deadlock-subclass}
+
+Two refinements specialise a deadlock diagnosis when the evidence is
+unambiguous. Each refinement is applied strictly \emph{after} a
+deadlock has already been detected on a concrete witness, so it is
+sound by construction: the set of reclassified states is a subset of
+the set of deadlocks.
 
 \begin{itemize}[leftmargin=1.5em]
-  \item \emph{Deadlock\/ $(\kappa_{dl})$.}\;
-    A non-terminal state with no enabled transition. Every state whose enabled set is empty and that retains at least one non-return control token is a deadlock.
+  \item \emph{Signal-loss refinement\/ $(\kappa_{sl})$.}\;
+    A deadlock witness is relabelled $\kappa_{sl}$ when at least one
+    blocked control token resides on a wait-place
+    $wp_{cv,f,\mathit{sid}}$, or when the witness's firing sequence
+    contains a \textsc{NotifyLost} (resp.~\textsc{NotifyAllLost})
+    transition that fired before the waiter entered its wait-place.
+    The \textsc{NotifyLost} guard $nw_{cv}=0$ is evaluated on concrete
+    integers only (\,$nw_{cv}$ is updated by literal $\pm 1$ steps\,),
+    so \emph{the firing of this transition is detected precisely};
+    the refinement label, however, is emitted only in conjunction with
+    a confirmed deadlock, because an isolated lost notification is not
+    itself a soundness violation on a scheduler-agnostic model.
 
-  \item \emph{Signal loss\/ $(\kappa_{sl})$.}\;
-    A \textsc{NotifyLost} transition fires, indicating that the guard $nw_{\mathit{cv}}=0$ evaluated to~$\mathsf{true}$.   Because $nw_{\mathit{cv}}$ is initialised to~$0$ and modified only by literal $\pm 1$ updates, it remains a concrete integer throughout the analysis; within the model, this detection therefore has no false positives and no false negatives.
-
-  \item \emph{Channel block\/ $(\kappa_{cb})$.}\;
-    A heuristic refinement of~$\kappa_{dl}$. A deadlock state is reclassified as a channel block when at least one blocked transition requires a token from a channel resource place. Soundness reduces to the underlying deadlock predicate~$\kappa_{dl}$.
+  \item \emph{Channel-block refinement\/ $(\kappa_{cb})$.}\;
+    A deadlock witness is relabelled $\kappa_{cb}$ when at least one
+    blocked consumer requires a token from a channel resource place
+    whose marking is~$0$. Soundness reduces to the underlying
+    deadlock predicate $\kappa_{dl}$.
 \end{itemize}
 
-\subsubsection{Structural Warnings}
-
-The \textsc{Cvn} explores all possible transition interleavings no-deterministically but does not model dynamic scheduling policies. Consequently, it can identify \emph{structural vulnerabilities}---interleavings under which progress fails---but cannot determine whether a concrete scheduler would produce such interleavings. The following LiveLock is therefore reported as warnings rather than definitive bugs. A non-trivial SCC in the reachability graph in which no state has all control tokens in return places. The existence of such an SCC means that there is \emph{some} infinite interleaving in which the system cycles without completing. Under a fair scheduler, such an SCC would constitute a genuine livelock. Under an unfair but realistic scheduler, the cycle may never be entered.
-
-% 这些警告的价值在于其逆否命题:如果可达性图中不存在此类 SCC,则程序在任何可能的调度器下都不会出现活锁问题。这种结构性保证是与调度无关的模型所能提供的最强保证。当发出警告时,诊断信息会将其报告为潜在漏洞,并包含 SCC 结构,以便 LLM 或开发人员可以评估标记的交错是否合理。
-\noindent
-The value of these warnings lies in their contrapositive: if no such SCC exists in the reachability graph, the program is immune to livelock \emph{under every possible scheduler}. This structural guarantee is the strongest that a scheduling-agnostic model can provide. When a warning is issued, the diagnostic reports it as a potential vulnerability and includes the SCC structure so that the LLM or the developer can assess whether the flagged interleaving is realistic.
-
-% 综上所述:死锁、信号丢失和信道阻塞在 Cvn 模型中是可靠且完备的。活锁和饥饿在公平调度假设下是可靠的,否则则作为结构性警告。在建模的 Cir 中,系统绝不会悄无声息地遗漏死锁或信号丢失;但相对于特定的实际调度器,它可能会高估活锁或饥饿的发生概率。
 \begin{remark}[Scope of soundness]
 \label{rem:soundness-scope}
-To summarize: deadlock, signal loss, and channel block are \emph{sound and complete within the \textsc{Cvn} model}. Livelock is \emph{sound under a fair-scheduling assumption} and serves as \emph{structural warnings} otherwise. The system never silently misses a deadlock or signal loss in the modeled \textsc{Cir}; it may over-report livelock relative to a specific real-world scheduler.
+In summary: the \textsc{Cvn} state-space search reports exactly one
+primary property, \emph{deadlock}, which is sound and complete inside
+the model. The sub-classifications $\kappa_{sl}$ and $\kappa_{cb}$ are
+refinements of~$\kappa_{dl}$ and inherit its soundness. The system
+never silently misses a deadlock in the modelled \textsc{Cir}, and it
+never fabricates a bug that is not already a genuine deadlock under
+\textsc{Cvn} semantics.
 \end{remark}
+
+
+\subsection{Goal Reachability as a First-Class Property}
+\label{subsec:goal-reach}
+
+% 业务目标可达性在 Cvn 层面与死锁并列,而不再是一个后处理步骤。它的作用不是检测"出错的线程交错",而是检测"LLM 修复把用户要的功能去掉了"这一类回归。
+A verified \textsc{Cir} may be concurrency-safe and yet still fail to
+implement the behavior its author declared. We address this by
+promoting the reachability of user-declared \emph{business goals}
+(Definition~\ref{def:cir-goal}) to a property that is checked with the
+same state-space exploration engine as deadlock, in the same round of
+the repair loop.
+
+Each business goal $\gamma\in\Gamma$ is compiled into a \emph{goal
+predicate}
+$\phi_{\gamma}$ over \textsc{Cvn} states. Three predicate shapes are
+supported, chosen so that every field of the CIR goal format maps onto
+a sound, marking-level query:
+
+\begin{itemize}[leftmargin=1.5em]
+  \item $\mathsf{Reachable}(p,k)\;\triangleq\;M(p)\ge k$\; for
+    control-, wait-, or resource-places. Used for "thread $t$ reaches
+    return" ($p=cp_{t,\mathrm{ret}}$, $k=1$) and for "at least $k$
+    permits accumulated".
+  \item $\mathsf{Empty}(p)\;\triangleq\;M(p)=0$\; for resource places
+    whose \emph{initial} marking is~$0$ (channel message counters and
+    condvar signal places). This is the semantically meaningful
+    availability check: asking $M(rp(r))\ge 0$ on a channel is
+    trivially true and therefore worthless, whereas
+    $\mathsf{Empty}(rp(r))$ expresses "no pending messages" and is the
+    condition the paper assumes.
+  \item $\mathsf{GlobalEq}(v,c)\;\triangleq\; V(v)=c$\; for a variable
+    $v$ in the \textsc{Cvn} variable store and a concrete
+    value~$c$. Because the \textsc{Cvn} uses a three-valued domain and
+    $\mathsf{Unknown}$ never equals a concrete value, unresolved
+    branches cannot spuriously satisfy a goal, preserving soundness.
+\end{itemize}
+
+A goal $\gamma$ with predicates $\phi_{\gamma}^{1},\dots,\phi_{\gamma}^{n}$
+is \emph{reachable}, written $\mathcal{R}\models\gamma$, iff some
+$s\in\mathcal{R}$ simultaneously satisfies all~$\phi_{\gamma}^{i}$
+(EF-reachability, conjunctive). The analyser returns the subset
+$\mathcal{U}=\{\gamma\in\Gamma\mid\mathcal{R}\not\models\gamma\}$ of
+\emph{unmet goals}. The soundness of this check is captured by
+Theorem~\ref{thm:goal-soundness} in Section~\ref{sec:properties}.
 
 
 \subsection{Repair-Oriented Diagnostics}
 \label{subsec:counterexample}
 
 % 当发现违规时,验证器构建紧凑的诊断负载,而不是返回原始状态图或完整的标记转储。
-When a violation is found, the verifier constructs a compact diagnostic payload rather than returning the raw state graph or a full marking dump.
+When a violation is found, the verifier constructs a compact diagnostic
+payload rather than returning the raw state graph or a full marking
+dump.
 
 \begin{definition}[Repair-oriented diagnostic]
 \label{def:diagnostic}
@@ -56,29 +141,55 @@ A repair-oriented diagnostic is a tuple
 $\mathcal{D}=(\kappa,\;\pi_{\mu},\;\Sigma_{\mathit{state}},\;
   \Sigma_{\mathit{wait}},\;\Lambda,\;\Gamma_{\mathit{ctx}},\;H)$,
 where
-$\kappa$ is the bug kind;
+$\kappa\in\{\kappa_{dl},\kappa_{sl},\kappa_{cb},\kappa_{goal}\}$ is the
+bug or goal kind;
 $\pi_{\mu}$ is a bug witness expressed as a sequence of
-$\mathit{sid}$s via the anchor mapping~$\mu$;
+$\mathit{sid}$s via the anchor mapping~$\mu$ (for a bug-free but
+goal-unmet report $\pi_{\mu}$ is empty);
 $\Sigma_{\mathit{state}}$ is a marking-derived state summary;
 $\Sigma_{\mathit{wait}}$ is a wait/ownership summary;
 $\Lambda$ is the relevant \textsc{Cir} slice;
 $\Gamma_{\mathit{ctx}}$ is the set of preservation constraints;
-and $H$ is a bug-specific repair hint.
+and $H$ is a bug- or goal-specific repair hint.
 \end{definition}
 
 Each field serves a distinct repair purpose.
-% 对于死锁、信号丢失和通道阻塞,$\pi_{\mu}$ 是一个以错误状态结束的有限触发序列。对于活锁和饥饿,它是一个到达 SCC 条目的有限前缀,外加 SCC 结构(参与状态和转换)的摘要。在这两种情况下,序列都以 \textsc{Cir} $\mathit{sid}$ 表示,而不是 \textsc{Cvn} 转换名称。对于单状态错误,它会报告哪个线程位于哪个 $\mathit{sid}$,哪些资源可用,以及系统是否全局阻塞。对于基于 SCC 的错误,它会总结 SCC 内访问的控制位置集合,并识别卡住或饥饿的线程。这会提取与修复最相关的关系:哪个线程持有哪个资源,哪个线程正在等待哪个资源或条件,以及哪个谓词触发了分类。 $\Lambda$ 是围绕相关 $\mathit{sid}$ 的有界窗口,用于限制 LLM 的编辑范围。$\Gamma_{\mathit{ctx}}$ 指定修复后必须保留的内容:资源名称、线程结构和业务目标(定义~\ref{def:cir-goal})。此外,它还提供针对特定 bug 的建议,例如强制执行一致的锁定顺序或在发出通知前更新谓词。该提示提供方向,但不强制要求应用任何补丁。
-For deadlock, signal loss, and channel block, $\pi_{\mu}$ is a finite firing sequence ending in the bug state. For livelock and starvation, it is a finite prefix reaching the SCC entry plus a summary of the SCC structure (participating states and transitions). In both cases the sequence is expressed in \textsc{Cir} $\mathit{sid}$s, not \textsc{Cvn} transition names. For single-state bugs, this reports which thread is at which $\mathit{sid}$, which resource counts are available, and whether
-the system is globally blocked. For SCC-based bugs, it summarises the set of control locations visited within the SCC and identifies the stuck or starved thread. This extracts the relations most relevant to repair: which thread holds which resource, which thread is waiting for which resource or condition, and which predicate triggered the classification. $\Lambda$ is a bounded window around the implicated $\mathit{sid}$s, restricting the LLM's editing scope. $\Gamma_{\mathit{ctx}}$ specifies what must survive the repair: resource names, thread structure, and business goals (Definition~\ref{def:cir-goal}). A bug-specific suggestion such as enforce a consistent lock order or update the predicate before notification. The hint provides direction without mandating a single patch.
+% 对于死锁及其二次分类,$\pi_{\mu}$ 是一个以错误状态结束的有限触发序列,以 Cir $sid$ 表示。对于单状态错误,它会报告哪个线程位于哪个 $sid$、哪些资源可用、系统是否全局阻塞。对于目标不可达报告,$\pi_{\mu}$ 为空而 $\Sigma_{\mathit{state}}$ 列出每个未达 $\phi_{\gamma}^{i}$。这会提取与修复最相关的关系:哪个线程持有哪个资源、哪个线程正在等待哪个资源或条件、哪个谓词触发了分类。$\Lambda$ 是围绕相关 $\mathit{sid}$ 的有界窗口,用于限制 LLM 的编辑范围。$\Gamma_{\mathit{ctx}}$ 指定修复后必须保留的内容:资源名称、线程结构和业务目标(定义~\ref{def:cir-goal})。提示提供方向,但不强制要求应用任何补丁。
+For deadlock and its sub-classifications, $\pi_{\mu}$ is a finite firing
+sequence ending in the bug state, expressed in \textsc{Cir}
+$\mathit{sid}$s rather than \textsc{Cvn} transition names. For a
+goal-unmet report ($\kappa=\kappa_{goal}$), $\pi_{\mu}$ is empty and
+$\Sigma_{\mathit{state}}$ instead lists each unmet predicate
+$\phi_{\gamma}^{i}$ together with the \textsc{Cvn} place or variable it
+refers to. $\Sigma_{\mathit{state}}$ reports which thread is at which
+$\mathit{sid}$, which resource counts are available, and whether the
+system is globally blocked. $\Sigma_{\mathit{wait}}$ extracts the
+relations most relevant to repair: which thread holds which resource,
+which thread is waiting for which resource or condition, and which
+predicate triggered the classification. $\Lambda$ is a bounded window
+around the implicated $\mathit{sid}$s, restricting the LLM's editing
+scope. $\Gamma_{\mathit{ctx}}$ specifies what must survive the repair:
+resource names, thread structure, and business goals
+(Definition~\ref{def:cir-goal}). Finally $H$ offers a
+bug-specific suggestion such as enforce a consistent lock order or update
+the predicate before notification, or, for goal-unmet reports, the
+likely producer transition that must be re-introduced.
 
 \medskip
 \noindent
-Together, the witness and state summary supply both \emph{causality} (how the system reached the bug) and \emph{locality} (where it is stuck), which the raw marking alone cannot convey in a form the LLM can act on.
-For the running example, a signal-loss diagnostic would report that the witness reaches \texttt{n2} before the worker reaches \texttt{w3}, that $nw_{\mathit{cv0}}=0$ at notification time, and that the editable slice contains \texttt{n2} and~\texttt{n3}.
+Together, the witness and state summary supply both \emph{causality}
+(how the system reached the bug) and \emph{locality} (where it is
+stuck), which the raw marking alone cannot convey in a form the LLM
+can act on.
+For the running example, a signal-loss diagnostic would report that
+the witness reaches \texttt{n2} before the worker reaches \texttt{w3},
+that $nw_{\mathit{cv0}}=0$ at notification time, and that the editable
+slice contains \texttt{n2} and~\texttt{n3}.
 
 \subsection{The Goal-Aware Repair Loop}
 \label{subsec:repair-loop-final}
-The repair loop operationalises the three-tier hierarchy introduced in Section~\ref{subsec:repair-tier}.
+The repair loop operationalises the three-tier hierarchy introduced in
+Section~\ref{subsec:repair-tier}.
 Algorithm~\ref{alg:repair-goal} gives the pseudocode.
 
 \begin{algorithm}[t]
@@ -100,7 +211,7 @@ Algorithm~\ref{alg:repair-goal} gives the pseudocode.
     \State $(\mathcal{R},\,\mathcal{B})
       \gets \text{Analyze}(\mathcal{N})$
       \Comment{$\mathcal{R}$: reachable states;\;
-               $\mathcal{B}$: bug set}
+               $\mathcal{B}$: deadlocks}
     \If{$\mathcal{B} \neq \emptyset$}
         \State $b^{*} \gets \text{SelectBug}(\mathcal{B})$
           \Comment{priority $+$ shortest witness}
@@ -111,9 +222,8 @@ Algorithm~\ref{alg:repair-goal} gives the pseudocode.
         \State \textbf{continue}
     \EndIf
     \State $\mathcal{U} \gets
-      \{\gamma\in\Gamma \mid
-        \nexists\,s\in\mathcal{R}:\;s\models\gamma\}$
-      \Comment{Def.~\ref{def:goal-sat}}
+      \text{CheckGoals}(\mathcal{N},\Gamma,\mathcal{R})$
+      \Comment{Sec.~\ref{subsec:goal-reach}}
     \If{$\mathcal{U}=\emptyset$}
         \Return $\mathcal{I}$
           \Comment{bug-free $\wedge$ goals reachable}
@@ -126,13 +236,32 @@ Algorithm~\ref{alg:repair-goal} gives the pseudocode.
 \end{algorithmic}
 \end{algorithm}
 
-$\text{Analyze}$ returns the pair $(\mathcal{R},\mathcal{B})$ where $\mathcal{R}$ is the set of reachable \textsc{Cvn} states and $\mathcal{B}$ is the set of detected violations, each tagged with its kind~$\kappa$ and a raw witness. $\text{BuildDiag}$ assembles the diagnostic tuple from a single selected bug, the reachable-state set, and the current \textsc{Cir} artifact. $\text{BuildGoalDiag}$ produces an analogous diagnostic for unreachable goals, reporting the missing conditions and suggesting which operations may need to be added to a reachable path.
+$\text{Analyze}$ returns the pair $(\mathcal{R},\mathcal{B})$ where
+$\mathcal{R}$ is the set of reachable \textsc{Cvn} states and
+$\mathcal{B}$ is the set of detected deadlocks (already refined to
+$\kappa_{sl}$ or $\kappa_{cb}$ where applicable). $\text{CheckGoals}$
+implements the EF-reachability query of
+Section~\ref{subsec:goal-reach}: it folds over $\mathcal{R}$ and
+returns the subset $\mathcal{U}\subseteq\Gamma$ of unmet goals.
+$\text{BuildDiag}$ assembles the diagnostic tuple from a single
+selected bug, the reachable-state set, and the current \textsc{Cir}
+artifact. $\text{BuildGoalDiag}$ produces an analogous diagnostic for
+unreachable goals, reporting the missing conditions and suggesting
+which operations may need to be added to a reachable path.
 
-When $|\mathcal{B}|>1$, $\text{SelectBug}$ picks a single bug in priority order: $\kappa_{dl}>\kappa_{sl}>\kappa_{cb}>\kappa_{ll}>\kappa_{st}$. Within the same category the bug with the shortest witness is preferred. This deterministic policy ensures reproducibility and avoids overwhelming the LLM with multiple simultaneous targets.
+When $|\mathcal{B}|>1$, $\text{SelectBug}$ picks a single bug in
+priority order
+$\kappa_{dl}>\kappa_{sl}>\kappa_{cb}$. Within the same category the
+bug with the shortest witness is preferred. This deterministic policy
+ensures reproducibility and avoids overwhelming the LLM with multiple
+simultaneous targets.
 
-The crucial ordering invariant is that goal reachability (lines~14--17) is checked only after the bug set is empty.
-If a goal is unreachable due to a deadlock, the deadlock is repaired first; goal feedback is given only when no concurrency
-fault remains. This gives every round a single semantic target: either remove a bug, or restore missing behavior.
+The crucial ordering invariant is that goal reachability
+(lines~14--17) is checked only after the bug set is empty.
+If a goal is unreachable because a deadlock blocks its producer, the
+deadlock is repaired first; goal feedback is given only when no
+concurrency fault remains. This gives every round a single semantic
+target: either remove a bug, or restore missing behavior.
 
 \begin{figure}[t]
 \begin{lstlisting}[basicstyle=\small\ttfamily,frame=single]
@@ -156,8 +285,11 @@ UNREACHABLE GOAL: G1
 \subsection{Prompt Assembly for Logic-Driven Repair}
 \label{subsec:repair-templates}
 
-The diagnostic fields are assembled into a structured prompt whose design principle is that every field should either reduce
-the search space or protect intended behavior. Table~\ref{tab:repair-templates} maps each field to its repair role; Figure~\ref{fig:repair-prompt} shows a concrete prompt skeleton for the running example. 
+The diagnostic fields are assembled into a structured prompt whose
+design principle is that every field should either reduce the search
+space or protect intended behavior. Table~\ref{tab:repair-templates}
+maps each field to its repair role; Figure~\ref{fig:repair-prompt}
+shows a concrete prompt skeleton for the running example.
 
 \begin{table*}[t]
 \caption{Prompt template for \textsc{Cir} repair from a
@@ -170,19 +302,19 @@ the search space or protect intended behavior. Table~\ref{tab:repair-templates} 
   & \textbf{Source}
   & \textbf{Repair role} \\
 \midrule
-Bug kind
+Bug or goal kind
   & $\kappa$
-  & Selects the repair mode: deadlock, signal loss,
-    channel block, livelock, and starvation require
-    different structural edits. \\
+  & Selects the repair mode: deadlock, signal-loss refinement,
+    channel-block refinement, and goal-unmet each require different
+    structural edits. \\
 \addlinespace[3pt]
 Witness trace
   & $\pi_{\mu}$
-  & Localises the causal path to the bug state in editable $\mathit{sid}$s. \\
+  & Localises the causal path to the bug state in editable $\mathit{sid}$s. Empty for a goal-unmet report. \\
 \addlinespace[3pt]
 Bug-state summary
   & $\Sigma_{\mathit{state}}$
-  & Reports where execution is stuck: current $\mathit{sid}$ per thread, blocked status, critical variable values. \\
+  & Reports where execution is stuck (or which goal predicates were never reached): current $\mathit{sid}$ per thread, blocked status, critical variable values. \\
 \addlinespace[3pt]
 Held resources
   & $\Sigma_{\mathit{wait}}$ (ownership)
@@ -215,11 +347,11 @@ Output contract
 \begin{lstlisting}[basicstyle=\small\ttfamily,frame=single]
 Repair task: revise the CIR locally.
 
-Bug kind: SignalLoss
+Bug kind: SignalLoss (deadlock sub-class)
 Witness trace (sid): n1 -> n2 -> w1 -> w2 -> w3
 
 Bug-state summary:
-  notifier at sid n2 (notify_one fired)
+  notifier at sid n2 (notify fired)
   worker not yet at sid w3
   waiter_count(cv0) = 0 at notification
 
@@ -228,7 +360,7 @@ Relevant resources:
 
 Relevant CIR slice:
   n1: lock(m0)
-  n2: notify_one(cv0)
+  n2: notify(cv0)
   n3: write(ready, true)
 
 Preserve:
@@ -245,4 +377,10 @@ Output: the complete revised CIR artifact
 \label{fig:repair-prompt}
 \end{figure}
 
-The prompt is intentionally compact. It serialises neither the full reachability graph nor every intermediate marking, but provides the minimum evidence needed for a local repair: what failed, how the execution reached the failure, what the system looks like at the failure point, and what must be preserved. This is the interface that allows a bounded formal analyser and a token-limited LLM to collaborate within a single feedback round.
+The prompt is intentionally compact. It serialises neither the full
+reachability graph nor every intermediate marking, but provides the
+minimum evidence needed for a local repair: what failed, how the
+execution reached the failure, what the system looks like at the
+failure point, and what must be preserved. This is the interface that
+allows a bounded formal analyser and a token-limited LLM to collaborate
+within a single feedback round.

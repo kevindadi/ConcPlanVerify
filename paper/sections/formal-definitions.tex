@@ -46,11 +46,11 @@ Every resource in $R$ has a unique global name. Pointers, heap indirection, and 
 \midrule
 \multirow{2}{*}{Lock}
   & \textsf{lock}, \textsf{drop}
-  & Mutex, RwLock \\
-  & \textsf{read\_lock}, \textsf{write\_lock}
-  & RwLock \\[3pt]
+  & Mutex, RwLock (write) \\
+  & \textsf{read}, \textsf{drop}
+  & RwLock (read) \\[3pt]
 \multirow{3}{*}{Synchronization}
-  & \textsf{wait}, \textsf{notify\_one}, \textsf{notify\_all}
+  & \textsf{wait}, \textsf{notify}, \textsf{notify\_all}
   & Condvar \\
   & \textsf{acquire}, \textsf{release}
   & Semaphore \\
@@ -75,7 +75,7 @@ Every resource in $R$ has a unique global name. Pointers, heap indirection, and 
 \end{table}
 
 % 摘要映射表 Σ 为每个函数提供摘要,这些函数的函数体未在 F 中建模.摘要是一个元组 Σ(f)=(reads, writes, calls, has_concurrency),其中 reads 和 writes 是资源名称的集合,calls 是被调用者名称的集合,has_concurrency 是一个布尔值.只有 writes 字段会影响 Cvn 转换;其余字段供静态检查器使用.静态检查器强制执行 61 条格式良好性规则,这些规则分为 9 个类别(代码 \texttt{E0xx}--\texttt{E8xx}),涵盖结构完整性、名称解析、类型兼容性、资源配对、锁安全、控制流、保护映射和函数摘要一致性.完整目录请参见 \S\ref{sec:analysis-repair}.
-The summary map~$\Sigma$ provides a summary for each function whose body is not modeled in~$F$. A summary is a tuple $\Sigma(f)=(\mathit{reads},\mathit{writes},\mathit{calls},\mathit{has\_concurrency})$, where $\mathit{reads}$ and $\mathit{writes}$ are sets of resource names, $\mathit{calls}$ is a set of callee names, and $\mathit{has\_concurrency}$ is a boolean. Only the $\mathit{writes}$ field affects the \textsc{Cvn} translation; the remaining fields serve the static checker. The static checker enforces 61 well-formedness rules organized in 9~categories (codes \texttt{E0xx}--\texttt{E8xx}) covering structural integrity, name resolution, type compatibility, resource pairing, lock safety, control flow, protection mapping, and function-summary consistency. The full catalogue appears in Table~\ref{tab:cir-errors} (Appendix~\ref{app:tables}).
+The summary map~$\Sigma$ provides a summary for each function whose body is not modeled in~$F$. A summary is a tuple $\Sigma(f)=(\mathit{reads},\mathit{writes},\mathit{calls},\mathit{has\_concurrency})$, where $\mathit{reads}$ and $\mathit{writes}$ are sets of resource names, $\mathit{calls}$ is a set of callee names, and $\mathit{has\_concurrency}$ is a boolean. Only the $\mathit{writes}$ field affects the \textsc{Cvn} translation; the remaining fields serve the static checker. The static checker enforces 58 well-formedness rules organized in 9~categories (codes \texttt{E0xx}--\texttt{E8xx}) covering structural integrity, name resolution, type compatibility, resource pairing, lock safety, control flow, protection mapping, and function-summary consistency. The full catalogue appears in Table~\ref{tab:cir-errors} (Appendix~\ref{app:tables}).
 
 \begin{definition}[\textsc{Cir} business goal]
   \label{def:cir-goal}
@@ -238,7 +238,7 @@ Each transition also carries a classification tag (Lock, Unlock, Spawn, etc.) fo
 \label{subsec:translation}
 
 
-Let $\textsc{Cir}_v$ denote the subset of \textsc{Cir} artifacts that pass all 61 static-checking rules. The translator is a pure, total function $\mathit{translate}:\textsc{Cir}_v\to\textsc{Cvn}$
+Let $\textsc{Cir}_v$ denote the subset of \textsc{Cir} artifacts that pass all 58 static-checking rules. The translator is a pure, total function $\mathit{translate}:\textsc{Cir}_v\to\textsc{Cvn}$
 executed in three phases.
 
 \paragraph{Phase 1: Resource scanning.}

@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use cir::ast::Program;
-use cvn::analysis::{explore, AnalysisConfig};
+use cvn::analysis::{check_goals, explore, AnalysisConfig};
 use cvn::net::CvnNet;
 
 use serde::Deserialize;
@@ -130,6 +130,79 @@ fn run_fixed_test(dir_name: &str) {
     );
 }
 
+/// Run a buggy fixture whose oracle is *goal unreachability* rather than a
+/// concrete deadlock:
+/// 1. the CVN search must find no deadlock (the bug is a partial deadlock /
+///    behaviour regression, not a real deadlock), and
+/// 2. every business goal declared in the CIR must be reported as unmet by
+///    [`cvn::analysis::check_goals`].
+fn run_goal_buggy_test(dir_name: &str) {
+    let dir = e2e_dir().join(dir_name);
+    let buggy = load_cir(&dir.join("buggy.json"));
+    assert!(
+        !buggy.goals.is_empty(),
+        "[{dir_name}/buggy] fixture must declare at least one business goal"
+    );
+
+    let net = translate(&buggy);
+    let config = AnalysisConfig::default();
+    let result = explore(&net, &config).expect("state space exploration should succeed");
+
+    assert!(
+        result.deadlocks.is_empty(),
+        "[{dir_name}/buggy] expected a *partial* deadlock (no CVN deadlock), but found {}",
+        result.deadlocks.len()
+    );
+
+    let (specs, warnings) = cir2cvn::translate_goals(&buggy);
+    assert!(
+        warnings.is_empty(),
+        "[{dir_name}/buggy] goal translation warnings: {warnings:?}"
+    );
+    let unmet = check_goals(&net, &specs, &config).expect("goal check should succeed");
+    assert_eq!(
+        unmet.len(),
+        specs.len(),
+        "[{dir_name}/buggy] expected all {} goals to be unreachable, but only {} were reported",
+        specs.len(),
+        unmet.len()
+    );
+}
+
+/// Run a fixed fixture whose oracle is: no deadlock AND every declared
+/// business goal is reachable.
+fn run_goal_fixed_test(dir_name: &str) {
+    let dir = e2e_dir().join(dir_name);
+    let fixed_path = dir.join("fixed.json");
+    if !fixed_path.exists() {
+        return;
+    }
+
+    let fixed = load_cir(&fixed_path);
+    let net = translate(&fixed);
+    let config = AnalysisConfig::default();
+    let result = explore(&net, &config).expect("state space exploration should succeed");
+
+    assert!(
+        result.deadlocks.is_empty(),
+        "[{dir_name}/fixed] expected no deadlocks but found {}",
+        result.deadlocks.len()
+    );
+
+    let (specs, warnings) = cir2cvn::translate_goals(&fixed);
+    assert!(
+        warnings.is_empty(),
+        "[{dir_name}/fixed] goal translation warnings: {warnings:?}"
+    );
+    let unmet = check_goals(&net, &specs, &config).expect("goal check should succeed");
+    assert!(
+        unmet.is_empty(),
+        "[{dir_name}/fixed] expected all goals reachable, but {} remained unmet: {:?}",
+        unmet.len(),
+        unmet.iter().map(|g| &g.goal.id).collect::<Vec<_>>()
+    );
+}
+
 // ── Test 1: Mutex Deadlock ──
 
 #[test]
@@ -190,4 +263,35 @@ fn e2e_semaphore_throttle_no_bug() {
 #[test]
 fn e2e_cas_race_no_bug() {
     run_buggy_test("cas_race");
+}
+
+// ── Test 7: Partial Deadlock (goal-reachability oracle) ──
+
+#[test]
+fn e2e_partial_deadlock_buggy() {
+    run_goal_buggy_test("partial_deadlock");
+}
+
+#[test]
+fn e2e_partial_deadlock_fixed() {
+    run_goal_fixed_test("partial_deadlock");
+}
+
+// ── Test 8: Dual Condvar (genuine deadlock) ──
+
+#[test]
+fn e2e_dual_condvar_buggy() {
+    run_buggy_test("dual_condvar");
+}
+
+#[test]
+fn e2e_dual_condvar_fixed() {
+    run_fixed_test("dual_condvar");
+}
+
+// ── Test 9: FnSummary propagation baseline (no bug, goals reachable) ──
+
+#[test]
+fn e2e_fn_summary_prop_no_bug() {
+    run_goal_fixed_test("fn_summary_prop");
 }

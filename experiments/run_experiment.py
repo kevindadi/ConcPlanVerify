@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 """
 CIR+CVN Experiment Runner
+=========================
 
 Orchestrates the evaluation experiments described in Section 7 of the paper:
-  RQ1 - CIR Generation: How many rounds for each LLM to produce valid CIR?
-  RQ2 - Bug Detection & Repair: CVN analysis metrics + LLM repair loop.
-  RQ3 - Translation Correctness: Structural invariant checks.
+  RQ1 — CIR Generation           : Rounds required for each LLM to produce a
+                                   static-valid CIR from a Rust source.
+  RQ2 — Bug Detection & Repair   : CVN analysis + LLM repair loop until no
+                                   deadlock remains.
+  RQ3 — Translation Correctness  : Structural invariants of CIR→CVN output.
+  RQ4 — Goal Reachability        : Fraction of user-declared business goals
+                                   that remain reachable in the fixed CIR.
 
 Usage:
     python experiments/run_experiment.py --config experiments/config.toml
-    python experiments/run_experiment.py --config experiments/config.toml --rq 1
-    python experiments/run_experiment.py --config experiments/config.toml --rq 2 --model gpt-4o
+    python experiments/run_experiment.py --config experiments/config.toml --rq 2
+    python experiments/run_experiment.py --rq 4
 """
 
 from __future__ import annotations
@@ -58,6 +63,7 @@ class ExperimentConfig:
     models: list[ModelConfig]
     source_programs: dict[str, str]
     buggy_cirs: dict[str, str]
+    fixed_cirs: dict[str, str]
 
 @dataclass
 class RQ1Result:
@@ -90,6 +96,15 @@ class RQ3Result:
     invariants_passed: int
     invariants_total: int
 
+@dataclass
+class RQ4Result:
+    pattern: str
+    goals_total: int
+    goals_met: int
+    goals_unmet: int
+    unmet_ids: str     # comma-separated for CSV friendliness
+    warnings: int
+
 
 # ── Config loading ────────────────────────────────────────────
 
@@ -112,6 +127,7 @@ def load_config(config_path: str) -> ExperimentConfig:
         models=models,
         source_programs=raw.get("source_programs", {}),
         buggy_cirs=raw.get("buggy_cirs", {}),
+        fixed_cirs=raw.get("fixed_cirs", {}),
     )
 
 
@@ -130,22 +146,23 @@ CIR schema:
   - For Condvar: add "paired_with": "<mutex_name>"
   - For Semaphore: add "count": <initial_permits>
   - For Var/Atomic: add "base": "Bool"|"Int"|"Float"|"String", "init": <value>
-- "protection": array of {variable, locks: [lock_names]}
+- "protection": array of {var, lock} (map variable → guarding lock)
 - "functions": array of {name, kind, body}
   - kind: "normal", "async", "closure"
   - body: array of statements {sid, op, transfer}
     - sid: unique within function (e.g. "s1", "s2")
-    - op: ["res_op", resource, action] | ["spawn", fn] | ["join", fn] | \
-["call", fn] | "return" | "nop"
-      - actions: "lock", "drop", "read_lock", "read_unlock", "write_lock", \
-"write_unlock", "acquire", "release", "send", "recv", \
-"wait", "notify_one", "notify_all", "read", "write", "cas"
+    - op: ["res_op", resource, action] | ["spawn", fn] | ["join", fn] |
+          ["call", fn] | "return" | "nop"
+      - actions: "lock", "drop", "read", "write", "acquire", "release",
+                 "send", "recv", "wait", "notify", "notify_all", "cas"
       - For write: ["res_op", var, "write", value]
-      - For cas: ["res_op", var, "cas", expected, desired]
+      - For cas:   ["res_op", var, "cas", expected, desired]
     - transfer: ["next", sid] | ["branch", {cond, on_true, on_false}] | "return"
-      - cond: {var, op, val}  op: "Eq"|"Neq"|"Gt"|"Lt"|"Gte"|"Lte"
-- "fn_summaries": array of {name, reads, writes}
+      - cond: {var, op, val}   op: "Eq"|"Neq"|"Gt"|"Lt"|"Gte"|"Lte"
+- "fn_summaries": array of {name, reads, writes, callees, has_concurrency}
 - "entry": string (entry function name, usually "main")
+- Optional "goals": array of {id, desc?, marking, variables} specifying
+  user-visible outcomes that must remain reachable after repair.
 
 Rules:
 1. Every shared resource gets a unique global name.
@@ -157,10 +174,10 @@ Rules:
 Output ONLY the JSON, no explanation."""
 
 REPAIR_SYSTEM_PROMPT = """\
-你是一个并发系统修复专家.你会收到一个包含并发 bug 的 CIR JSON,\
-以及由模型检验工具检测到的 bug 报告.\
-请根据报告中的修复建议修复 CIR,输出修复后的完整 CIR JSON.\
-只输出 JSON,不要添加任何解释文本."""
+你是一个并发系统修复专家。你会收到一个包含并发 bug 的 CIR JSON，\
+以及由模型检验工具检测到的 bug 报告。\
+请根据报告中的修复建议修复 CIR，保持所有 business goals 可达，\
+输出修复后的完整 CIR JSON。只输出 JSON，不要添加任何解释文本。"""
 
 
 def call_llm(
@@ -170,22 +187,21 @@ def call_llm(
     temperature: float,
     max_tokens: int,
 ) -> tuple[str, dict[str, Any]]:
-    """Call an LLM API and return (content, usage_info)."""
+    """Call an LLM API and return (content, usage_info).
+
+    The paper's five evaluation models all go through OpenAI-compatible
+    endpoints (z.apiyihe.org aggregator + DashScope), so only one transport
+    implementation is needed.
+    """
     api_key = os.environ.get(model.api_key_env, "")
     if not api_key:
         raise RuntimeError(
             f"Missing API key: set env var {model.api_key_env}"
         )
-
-    if model.provider == "anthropic":
-        return _call_anthropic(model, api_key, system_prompt, user_prompt,
-                               temperature, max_tokens)
-    elif model.provider == "google":
-        return _call_google(model, api_key, system_prompt, user_prompt,
-                            temperature, max_tokens)
-    else:
-        return _call_openai_compat(model, api_key, system_prompt,
-                                   user_prompt, temperature, max_tokens)
+    return _call_openai_compat(
+        model, api_key, system_prompt, user_prompt,
+        temperature, max_tokens,
+    )
 
 
 def _call_openai_compat(
@@ -207,66 +223,12 @@ def _call_openai_compat(
         f"{model.base_url}/chat/completions",
         headers=headers,
         json=payload,
-        timeout=120,
+        timeout=180,
     )
     resp.raise_for_status()
     data = resp.json()
     content = data["choices"][0]["message"]["content"]
     usage = data.get("usage", {})
-    return content, usage
-
-
-def _call_anthropic(
-    model: ModelConfig, api_key: str,
-    system_prompt: str, user_prompt: str,
-    temperature: float, max_tokens: int,
-) -> tuple[str, dict[str, Any]]:
-    headers = {
-        "x-api-key": api_key,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": model.model_id,
-        "max_tokens": max_tokens,
-        "temperature": temperature,
-        "system": system_prompt,
-        "messages": [{"role": "user", "content": user_prompt}],
-    }
-    resp = requests.post(
-        f"{model.base_url}/messages",
-        headers=headers,
-        json=payload,
-        timeout=120,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    content = data["content"][0]["text"]
-    usage = data.get("usage", {})
-    return content, usage
-
-
-def _call_google(
-    model: ModelConfig, api_key: str,
-    system_prompt: str, user_prompt: str,
-    temperature: float, max_tokens: int,
-) -> tuple[str, dict[str, Any]]:
-    url = (
-        f"{model.base_url}/models/{model.model_id}:generateContent"
-        f"?key={api_key}"
-    )
-    payload = {
-        "contents": [{"parts": [{"text": f"{system_prompt}\n\n{user_prompt}"}]}],
-        "generationConfig": {
-            "temperature": temperature,
-            "maxOutputTokens": max_tokens,
-        },
-    }
-    resp = requests.post(url, json=payload, timeout=120)
-    resp.raise_for_status()
-    data = resp.json()
-    content = data["candidates"][0]["content"]["parts"][0]["text"]
-    usage = data.get("usageMetadata", {})
     return content, usage
 
 
@@ -282,52 +244,44 @@ def extract_json(text: str) -> str:
 
 # ── Rust toolchain interface ─────────────────────────────────
 
-def validate_cir(cir_json: str) -> tuple[bool, list[str]]:
-    """Validate a CIR JSON string by calling the Rust binary.
-
-    Returns (success, error_messages).
-    """
+def _cir2cvn(mode: str, cir_json: str, timeout: int = 120) -> dict[str, Any]:
+    """Invoke the cir2cvn CLI with the given mode (--validate, --analyze, --goals)."""
     proc = subprocess.run(
-        ["cargo", "run", "--quiet", "--", "--validate", "-"],
+        ["cargo", "run", "--quiet", "--release", "--", mode, "-"],
         input=cir_json,
         capture_output=True,
         text=True,
         cwd=str(ROOT_DIR),
-        timeout=60,
+        timeout=timeout,
     )
-    if proc.returncode == 0:
+    if proc.returncode != 0 and not proc.stdout.strip():
+        return {"error": proc.stderr.strip() or f"cir2cvn {mode} exited {proc.returncode}"}
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return {"error": f"Invalid JSON output from cir2cvn {mode}: {proc.stdout[:200]}"}
+
+
+def validate_cir(cir_json: str) -> tuple[bool, list[str]]:
+    """Validate a CIR JSON string using the cir2cvn binary."""
+    report = _cir2cvn("--validate", cir_json, timeout=60)
+    if "error" in report and "valid" not in report:
+        return False, [report["error"]]
+    if report.get("valid", False):
         return True, []
-    errors = [line for line in proc.stderr.strip().split("\n") if line]
+    diags = report.get("diagnostics", [])
+    errors = [f"{d.get('code', '')}: {d.get('message', '')}" for d in diags]
     return False, errors
 
 
 def translate_and_analyze(cir_json: str) -> dict[str, Any]:
-    """Translate CIR to CVN and run analysis. Returns a result dict.
+    """Translate CIR to CVN and run full analysis."""
+    return _cir2cvn("--analyze", cir_json)
 
-    Expected output format (JSON on stdout):
-    {
-      "places": int,
-      "transitions": int,
-      "states": int,
-      "analysis_time_ms": float,
-      "bugs": [{"kind": str, ...}],
-      "bug_reports": [{"kind": str, "summary": str, ...}]
-    }
-    """
-    proc = subprocess.run(
-        ["cargo", "run", "--quiet", "--", "--analyze", "-"],
-        input=cir_json,
-        capture_output=True,
-        text=True,
-        cwd=str(ROOT_DIR),
-        timeout=120,
-    )
-    if proc.returncode != 0:
-        return {"error": proc.stderr.strip()}
-    try:
-        return json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        return {"error": f"Invalid JSON output: {proc.stdout[:200]}"}
+
+def check_goal_reachability(cir_json: str) -> dict[str, Any]:
+    """Run the goal-reachability check on a (typically fixed) CIR."""
+    return _cir2cvn("--goals", cir_json)
 
 
 def translate_and_analyze_with_timing(cir_json: str) -> dict[str, Any]:
@@ -503,7 +457,7 @@ def _run_rq2_repair(
                 model, REPAIR_SYSTEM_PROMPT, repair_prompt,
                 config.temperature, config.max_tokens,
             )
-        except Exception as e:
+        except Exception:
             continue
 
         candidate_json = extract_json(content)
@@ -523,6 +477,22 @@ def _run_rq2_repair(
 
         new_bugs = analysis.get("bugs", [])
         if not new_bugs:
+            # Also check that declared goals remain reachable after repair.
+            goal_report = check_goal_reachability(candidate_json)
+            if goal_report.get("goals_unmet", 0) > 0:
+                regressions += 1
+                unmet_ids = ", ".join(
+                    g.get("id", "?") for g in goal_report.get("unmet", [])
+                )
+                report_text = (
+                    f"Deadlock cleared but {goal_report['goals_unmet']} "
+                    f"business goal(s) became unreachable: [{unmet_ids}]. "
+                    f"Please restore those behaviours without reintroducing "
+                    f"the original deadlock."
+                )
+                current_json = candidate_json
+                continue
+
             return RQ2Result(
                 model=model.name, pattern=pattern,
                 places=initial_analysis.get("places", 0),
@@ -560,9 +530,10 @@ def _build_repair_prompt(cir_json: str, report_text: str) -> str:
     return (
         f"# Concurrency Bug Repair Request\n\n"
         f"## Original CIR\n\n```json\n{cir_json}\n```\n\n"
-        f"## Detected Bug\n\n{report_text}\n\n"
+        f"## Detected Bug / Regression\n\n{report_text}\n\n"
         f"## Instructions\n\n"
-        f"Fix the bug and output the complete repaired CIR JSON. "
+        f"Fix the issue and output the complete repaired CIR JSON. "
+        f"Keep all declared business goals reachable. "
         f"Only output JSON, no explanation."
     )
 
@@ -624,6 +595,50 @@ def run_rq3(config: ExperimentConfig) -> list[RQ3Result]:
     return results
 
 
+# ── RQ4: Goal Reachability ───────────────────────────────────
+
+def run_rq4(config: ExperimentConfig) -> list[RQ4Result]:
+    """Run RQ4 experiments: goal reachability on fixed (or baseline) CIRs.
+
+    For every pattern listed in `[fixed_cirs]`, translate the fixed CIR and
+    run `cir2cvn --goals`. Patterns with no declared goals contribute
+    `goals_total == 0` rows (kept for completeness).
+    """
+    results: list[RQ4Result] = []
+
+    for pattern, cir_path in config.fixed_cirs.items():
+        full_path = ROOT_DIR / cir_path
+        if not full_path.exists():
+            print(f"  [{pattern}] SKIP - fixed CIR not found: {cir_path}")
+            continue
+
+        cir_json = full_path.read_text()
+        report = check_goal_reachability(cir_json)
+        if "error" in report:
+            print(f"  [{pattern}] Error: {report['error']}")
+            results.append(RQ4Result(
+                pattern=pattern, goals_total=0, goals_met=0,
+                goals_unmet=0, unmet_ids="error", warnings=0,
+            ))
+            continue
+
+        total = report.get("goals_total", 0)
+        met = report.get("goals_met", 0)
+        unmet = report.get("goals_unmet", 0)
+        unmet_ids = ",".join(g.get("id", "?") for g in report.get("unmet", []))
+        warnings = len(report.get("warnings", []))
+
+        print(f"  [{pattern}] goals {met}/{total} met"
+              + (f"  (unmet: {unmet_ids})" if unmet else ""))
+
+        results.append(RQ4Result(
+            pattern=pattern, goals_total=total, goals_met=met,
+            goals_unmet=unmet, unmet_ids=unmet_ids, warnings=warnings,
+        ))
+
+    return results
+
+
 # ── Output ────────────────────────────────────────────────────
 
 def save_results(
@@ -631,6 +646,7 @@ def save_results(
     rq1: list[RQ1Result] | None = None,
     rq2: list[RQ2Result] | None = None,
     rq3: list[RQ3Result] | None = None,
+    rq4: list[RQ4Result] | None = None,
 ):
     """Save results as CSV and JSON."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -650,6 +666,11 @@ def save_results(
         _save_csv(output_dir / f"rq3_{ts}.csv", rq3)
         _save_json(output_dir / f"rq3_{ts}.json", rq3)
         print(f"RQ3 results saved to {output_dir}/rq3_{ts}.*")
+
+    if rq4:
+        _save_csv(output_dir / f"rq4_{ts}.csv", rq4)
+        _save_json(output_dir / f"rq4_{ts}.json", rq4)
+        print(f"RQ4 results saved to {output_dir}/rq4_{ts}.*")
 
 
 def _save_csv(path: Path, records: list) -> None:
@@ -692,8 +713,8 @@ def main():
         help="Path to experiment config TOML",
     )
     parser.add_argument(
-        "--rq", type=int, choices=[1, 2, 3],
-        help="Run only a specific RQ (1, 2, or 3). Default: all.",
+        "--rq", type=int, choices=[1, 2, 3, 4],
+        help="Run only a specific RQ (1, 2, 3, or 4). Default: all.",
     )
     parser.add_argument(
         "--model", type=str, default=None,
@@ -707,6 +728,7 @@ def main():
     rq1_results = None
     rq2_results = None
     rq3_results = None
+    rq4_results = None
 
     run_all = args.rq is None
 
@@ -728,7 +750,16 @@ def main():
         print("=" * 60)
         rq3_results = run_rq3(config)
 
-    save_results(output_dir, rq1_results, rq2_results, rq3_results)
+    if run_all or args.rq == 4:
+        print("\n" + "=" * 60)
+        print("  RQ4: Goal Reachability")
+        print("=" * 60)
+        rq4_results = run_rq4(config)
+
+    save_results(
+        output_dir,
+        rq1_results, rq2_results, rq3_results, rq4_results,
+    )
 
     print("\nDone.")
 

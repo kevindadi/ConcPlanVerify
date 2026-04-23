@@ -1,0 +1,68 @@
+{
+  "program": "partial_deadlock",
+  "resources": [
+    {"name": "mtx_a", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+    {"name": "mtx_b", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+    {"name": "sem_a", "kind": "sync", "type": "Semaphore", "mode": "Sync", "count": 0},
+    {"name": "sem_b", "kind": "sync", "type": "Semaphore", "mode": "Sync", "count": 0}
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main", "kind": "normal",
+      "body": [
+        {"sid": "s1", "op": ["spawn", "worker_a"], "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["spawn", "worker_b"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["spawn", "bystander"], "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["join", "worker_a"],  "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": ["join", "worker_b"],  "transfer": ["next", "s6"]},
+        {"sid": "s6", "op": "return",              "transfer": "return"}
+      ]
+    },
+    {
+      "name": "worker_a", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "mtx_a", "lock"],    "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "sem_a", "release"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["res_op", "sem_b", "acquire"], "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["res_op", "mtx_b", "lock"],    "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": ["res_op", "mtx_b", "drop"],    "transfer": ["next", "s6"]},
+        {"sid": "s6", "op": ["res_op", "mtx_a", "drop"],    "transfer": ["next", "s7"]},
+        {"sid": "s7", "op": "return",                        "transfer": "return"}
+      ]
+    },
+    {
+      "name": "worker_b", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "mtx_b", "lock"],    "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "sem_b", "release"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["res_op", "sem_a", "acquire"], "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["res_op", "mtx_a", "lock"],    "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": ["res_op", "mtx_a", "drop"],    "transfer": ["next", "s6"]},
+        {"sid": "s6", "op": ["res_op", "mtx_b", "drop"],    "transfer": ["next", "s7"]},
+        {"sid": "s7", "op": "return",                        "transfer": "return"}
+      ]
+    },
+    {
+      "name": "bystander", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": "nop", "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": "nop", "transfer": ["next", "s1"]}
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main",
+  "goals": [
+    {
+      "id": "g_worker_a_returns",
+      "desc": "Worker A must reach its return place",
+      "marking": {"worker_a.ret": 1}
+    },
+    {
+      "id": "g_worker_b_returns",
+      "desc": "Worker B must reach its return place",
+      "marking": {"worker_b.ret": 1}
+    }
+  ]
+}

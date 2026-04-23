@@ -2,21 +2,59 @@ use cvn::model::TransitionKind;
 use serde::{Deserialize, Serialize};
 
 /// Classification of a detected concurrency bug.
+///
+/// # Classification hierarchy
+///
+/// The only bug class that is directly detected by the CVN state-space
+/// search is [`BugKind::Deadlock`] — a state with no enabled transitions
+/// where at least one thread has not reached its return place. The other
+/// two variants ([`BugKind::SignalLoss`] and [`BugKind::ChannelBlock`])
+/// are *secondary sub-classifications*: the repair layer inspects the
+/// counterexample trace and the set of blocked control/wait places of an
+/// already-reported deadlock, and relabels it with the more specific
+/// variant when the evidence is unambiguous. They never broaden the set
+/// of reported bugs beyond the deadlocks found by
+/// [`cvn::analysis::explore`], which keeps the analysis *sound* (no false
+/// positives): any state labelled `SignalLoss` or `ChannelBlock` is also
+/// a genuine deadlock in the CVN semantics.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum BugKind {
     /// No transitions enabled and not all threads have returned.
+    ///
+    /// Primary classification produced directly by
+    /// [`cvn::analysis::explore`]. This is the only variant that is
+    /// sound on its own — the sub-classifications below refine a
+    /// `Deadlock` counterexample but do not add new ones.
     Deadlock {
         participants: Vec<DeadlockParticipant>,
     },
-    /// A condvar notify fires before the waiter reaches its wait point,
-    /// causing the signal to be lost and the waiter to block forever.
+    /// **Sub-classification of a deadlock** in which the blocking
+    /// context is a lost condvar notification.
+    ///
+    /// Emitted only when
+    ///
+    /// 1. an already-detected deadlock state has at least one token on a
+    ///    [`cvn::model::PlaceKind::Wait`] place, *or*
+    /// 2. the counterexample trace contains a `CondvarNotifyLost`
+    ///    (`CondvarNotifyAllLost`) transition firing before the waiter
+    ///    reached its wait point.
+    ///
+    /// This variant is therefore **not** an independent soundness claim
+    /// about signal-loss detection in general — `notify` firings without
+    /// a subsequent deadlock are intentionally ignored, because
+    /// scheduler-agnostic reasoning on the CVN alone cannot guarantee
+    /// zero false positives for standalone signal-loss detection.
     SignalLoss {
         /// Transition ID that performed the notify.
         notifier_tid: String,
         /// Transition ID (or wait-place) where the waiter is stuck.
         waiter_tid: String,
     },
-    /// A channel send/recv is blocked with no matching counterpart.
+    /// **Sub-classification of a deadlock** in which the blocked thread
+    /// is waiting on a channel resource place.
+    ///
+    /// Like [`BugKind::SignalLoss`], this variant refines an existing
+    /// deadlock counterexample; it never adds new reachable bugs.
     ChannelBlock {
         /// "send" or "recv"
         blocked_op: String,

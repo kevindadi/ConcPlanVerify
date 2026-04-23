@@ -1,0 +1,48 @@
+{
+  "program": "dual_condvar",
+  "resources": [
+    {"name": "m1",  "kind": "sync", "type": "Mutex",   "mode": "Sync"},
+    {"name": "m2",  "kind": "sync", "type": "Mutex",   "mode": "Sync"},
+    {"name": "cv1", "kind": "sync", "type": "Condvar", "mode": "Sync"},
+    {"name": "cv2", "kind": "sync", "type": "Condvar", "mode": "Sync"}
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main", "kind": "normal",
+      "body": [
+        {"sid": "s1", "op": ["spawn", "thread_a"], "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["spawn", "thread_b"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["join", "thread_a"],  "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["join", "thread_b"],  "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": "return",              "transfer": "return"}
+      ]
+    },
+    {
+      "name": "thread_a", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "m1", "lock"],          "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "cv1", "wait", "m1"],   "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["res_op", "m2", "lock"],          "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["res_op", "cv2", "notify_all"],   "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": ["res_op", "m2", "drop"],          "transfer": ["next", "s6"]},
+        {"sid": "s6", "op": ["res_op", "m1", "drop"],          "transfer": ["next", "s7"]},
+        {"sid": "s7", "op": "return",                           "transfer": "return"}
+      ]
+    },
+    {
+      "name": "thread_b", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "m2", "lock"],          "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "cv2", "wait", "m2"],   "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["res_op", "m1", "lock"],          "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["res_op", "cv1", "notify_all"],   "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": ["res_op", "m1", "drop"],          "transfer": ["next", "s6"]},
+        {"sid": "s6", "op": ["res_op", "m2", "drop"],          "transfer": ["next", "s7"]},
+        {"sid": "s7", "op": "return",                           "transfer": "return"}
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main"
+}

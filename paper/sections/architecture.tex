@@ -7,8 +7,7 @@
 \label{sec:architecture}
 % 该架构将流程分为五个阶段,包括两个验证层和三个修复层.第一层(第二阶段)通过确定性静态检查验证模型质量;第二层(第四阶段)通过穷举状态空间搜索分析并发行为;此外,还有一个专门的目标可达性检查(第五阶段)来防止行为丢失型修复.图~\ref{fig:pipeline}展示了完整的流程.
 The architecture organizes five stages into two verification layers and three repair tiers.
-Layer~1 (Stage~2) validates model quality through deterministic static checking; Layer~2 (Stage~4) analyzes concurrency behavior through exhaustive state-space search; and a dedicated
-goal-reachability check (Stage~5) guards against behavior-dropping repairs. Figure~\ref{fig:pipeline} shows the complete pipeline.
+Layer~1 (Stage~2) validates model quality through deterministic static checking; Layer~2 analyzes behaviour on the \textsc{Cvn} through two complementary searches on the same reachability graph, namely Layer~2a (Stage~4) which reports deadlocks (with signal-loss and channel-block sub-classifications) and Layer~2b (Stage~5) which reports unmet business goals. Figure~\ref{fig:pipeline} shows the complete pipeline.
 
 \begin{figure}[t]
 \centering
@@ -84,18 +83,18 @@ An LLM reads a natural-language requirement or system specification and produces
 
 % 确定性检查器根据分为 9 个类别的 61 条格式良好性规则来验证 \textsc{Cir}.此阶段可以及早发现格式错误的工件:缺少字段、未定义的资源、不兼容的操作、损坏的 spawn/join 结构以及保护映射错误.
 \emph{Stage~2: Static checking (Layer~1).}
-A deterministic checker validates the \textsc{Cir} against 61~well-formedness rules organized in 9~categories. This stage catches malformed artifacts early: missing fields, undefined resources, incompatible operations, broken spawn/join structure, and protection-mapping errors.
+A deterministic checker validates the \textsc{Cir} against 58~well-formedness rules organized in 9~categories. This stage catches malformed artifacts early: missing fields, undefined resources, incompatible operations, broken spawn/join structure, and protection-mapping errors.
 
 % 无状态转换器将已验证的 Cir 语句转换为 Cvn 语句.每个 Cir 语句至少会产生一个锚定转换;不进行任何优化或转换合并.这既简化了正确性论证,又保留了诊断可追溯性.
 \emph{Stage~3: Translation to \textsc{Cvn}.}
 A stateless translator converts the validated \textsc{Cir} into a \textsc{Cvn}. Each \textsc{Cir} statement gives rise to at least one anchored transition; no optimization or transition merging is performed. This keeps the correctness argument simple and preserves diagnostic traceability.
 
-% 状态空间分析器通过穷举可达性和基于 SCC 的活性检查来探索 \textsc{Cvn}.此阶段完全离线运行,不消耗 LLM 预算.
-\emph{Stage~4: State-space analysis (Layer~2).}
-The \textsc{Cvn} is explored through exhaustive reachability and SCC-based liveness checks. This stage runs entirely off-prompt and does not consume LLM budget.
+% 状态空间分析器通过穷举可达性检查来探索 \textsc{Cvn};该阶段完全离线运行,不消耗 LLM 预算.可达图上仅产出一等性质死锁,其余(SignalLoss/ChannelBlock)是死锁反例的二次分类,而非独立可检测错误.
+\emph{Stage~4: State-space analysis (Layer~2a).}
+The \textsc{Cvn} is explored through exhaustive reachability search, which yields deadlock as the only first-class concurrency-bug verdict. Signal loss and channel block are reported only as sub-classifications of an already-detected deadlock counterexample (Section~\ref{subsubsec:deadlock-subclass}), so they inherit the soundness of the deadlock oracle and do not broaden the set of reported bugs. This stage runs entirely off-prompt and does not consume LLM budget.
 
 % 目标可达性检查器检查每个用户指定的关键结果是否在探索的状态空间中保持可达.只有当工件既没有并发违规又没有目标不可达时,它才会被接受.一种看似安全的修复,通过删除所需的行为来实现无 bug,在此阶段会被拒绝.
-\emph{Stage~5: Goal-reachability check.}
+\emph{Stage~5: Goal-reachability check (Layer~2b).}
 If Stage~4 finds no concurrency violation, the verifier checks whether each user-designated critical outcome remains reachable in the explored state space. An artifact is accepted only if it is both violation-free and goal-reachable. An apparently safe repair that achieves bug-freedom by deleting required behavior is rejected at this stage. The loop iterates until the artifact passes all stages, or until a configurable iteration budget (default: 5~rounds) is exhausted, in which case the pipeline reports failure.
 
 % ─────────────────────────────────────────────────────
@@ -132,11 +131,14 @@ LLM to revise the affected synchronization logic. This is the most expensive rep
 \quad Spawn/join mismatch       & \textsc{Cir} & 2 (LLM) \\
 \quad Protection inconsistency  & \textsc{Cir} & 2 (LLM) \\
 \midrule
-\multicolumn{3}{@{}l}{\textit{Behavioral (Layer~2)}} \\
-\quad Deadlock                  & \textsc{Cvn} & 3 (LLM) \\
-\quad Signal loss               & \textsc{Cvn} & 3 (LLM) \\
-\quad Starvation                & \textsc{Cvn} & 3 (LLM) \\
-\quad Cross-primitive deadlock  & \textsc{Cvn} & 3 (LLM) \\
+\multicolumn{3}{@{}l}{\textit{Concurrency bugs (Layer~2a, deadlock search)}} \\
+\quad Deadlock                                     & \textsc{Cvn} & 3 (LLM) \\
+\quad \;\;$\hookrightarrow$ Signal-loss refinement & \textsc{Cvn} & 3 (LLM) \\
+\quad \;\;$\hookrightarrow$ Channel-block refinement & \textsc{Cvn} & 3 (LLM) \\
+\quad Cross-primitive deadlock                     & \textsc{Cvn} & 3 (LLM) \\
+\midrule
+\multicolumn{3}{@{}l}{\textit{Functional regressions (Layer~2b, goal reachability)}} \\
+\quad Unreachable business goal & \textsc{Cvn} & 3 (LLM) \\
 \bottomrule
 \end{tabular}
 \end{table}

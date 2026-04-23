@@ -5,9 +5,7 @@ use super::report::{BugKind, BugReport, DeadlockParticipant};
 const TEMPLATE_DEADLOCK: &str = include_str!("templates/deadlock.md");
 const TEMPLATE_SIGNAL_LOSS: &str = include_str!("templates/signal_loss.md");
 const TEMPLATE_CHANNEL_BLOCK: &str = include_str!("templates/channel_block.md");
-// These will be used when Livelock/Starvation BugKind variants are added.
-const _TEMPLATE_LIVELOCK: &str = include_str!("templates/livelock.md");
-const _TEMPLATE_STARVATION: &str = include_str!("templates/starvation.md");
+const TEMPLATE_GOAL_UNMET: &str = include_str!("templates/goal_unmet.md");
 
 /// Render a bug report as human-readable text (also suitable as LLM input).
 pub fn render_text(report: &BugReport) -> String {
@@ -20,6 +18,66 @@ pub fn render_text(report: &BugReport) -> String {
     if let Some(hint) = &report.repair_hint {
         writeln!(out, "SUGGESTION: {hint}").unwrap();
     }
+
+    out
+}
+
+/// Render an LLM repair prompt for a set of unmet business goals.
+///
+/// Used when the CVN analysis reports no concurrency bugs but one or
+/// more `BusinessGoal`s are unreachable in the state space. The prompt
+/// lists the unmet predicates, attaches the preservation constraints
+/// derived from the current CIR, and appends the `goal_unmet.md`
+/// strategy template.
+pub fn render_goal_repair_prompt(
+    program: &cir::ast::Program,
+    unmet: &[cvn::analysis::UnmetGoal],
+    original_cir_json: &str,
+) -> String {
+    let mut out = String::new();
+
+    writeln!(out, "# Business Goal Repair Request\n").unwrap();
+    writeln!(out, "## Status\n").unwrap();
+    writeln!(
+        out,
+        "The CIR translates to a CVN with no concurrency bugs, but **{}** declared business goal(s) are unreachable.\n",
+        unmet.len()
+    )
+    .unwrap();
+
+    writeln!(out, "## Unmet Goals\n").unwrap();
+    for g in unmet {
+        let label = g
+            .goal
+            .desc
+            .as_deref()
+            .unwrap_or(g.goal.id.as_str());
+        writeln!(out, "- `{}` ({})", g.goal.id, label).unwrap();
+        writeln!(out, "  {}", g.reason).unwrap();
+    }
+    writeln!(out).unwrap();
+
+    // Preservation constraints from the CIR (resources + protection + goals).
+    let constraints = super::build_preservation_constraints(program);
+    if !constraints.is_empty() {
+        writeln!(out, "## Preservation Constraints\n").unwrap();
+        for c in &constraints {
+            writeln!(out, "- {c}").unwrap();
+        }
+        writeln!(out).unwrap();
+    }
+
+    writeln!(out, "{TEMPLATE_GOAL_UNMET}\n").unwrap();
+
+    writeln!(out, "## Current CIR\n").unwrap();
+    writeln!(out, "```json\n{original_cir_json}\n```\n").unwrap();
+
+    writeln!(out, "## Output\n").unwrap();
+    writeln!(
+        out,
+        "Output the complete revised CIR JSON. Do not drop any resource, protection entry, function, or goal."
+    )
+    .unwrap();
 
     out
 }

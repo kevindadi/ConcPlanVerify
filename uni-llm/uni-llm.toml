@@ -1,59 +1,47 @@
-# uni-llm 配置文件示例
+# uni-llm 配置文件
+#
+# Default target is the paper's primary model (GPT-5) via the
+# z.apiyihe.org OpenAI-compatible aggregator. DashScope is kept for
+# the Qwen3-235B-A22B entry.
 
 [default]
 provider = "openai"
-model = "gpt-4o"
+model = "gpt-5"
 temperature = 0.0
 max_tokens = 4096
 timeout_secs = 60
 max_retries = 3
 retry_delay_ms = 1000
 
+# ── z.apiyihe.org aggregator (OpenAI-compatible) ─────────────────
+# Routes GPT-5 / Claude 4.6 Opus / Gemini 3 Pro / DeepSeek-V3.
 [providers.openai]
-api_key_env = "OPENAI_API_KEY"
-base_url = "https://api.openai.com/v1"
-models = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
+api_key_env = "ALL_API_KEY"
+base_url = "https://z.apiyihe.org/v1"
+models = [
+    "gpt-5",
+    "claude-opus-4-6",
+    "gemini-3-pro",
+    "deepseek-chat",
+]
 
-[providers.anthropic]
-api_key_env = "ANTHROPIC_API_KEY"
-base_url = "https://api.anthropic.com/v1"
-models = ["claude-sonnet-4-20250514", "claude-3-5-haiku-20241022"]
-
-[providers.gemini]
-api_key_env = "GEMINI_API_KEY"
-base_url = "https://generativelanguage.googleapis.com/v1beta"
-models = ["gemini-2.5-pro", "gemini-2.5-flash"]
-
-[providers.deepseek]
-api_key_env = "DEEPSEEK_API_KEY"
-base_url = "https://api.deepseek.com/v1"
-models = ["deepseek-chat", "deepseek-reasoner"]
-
+# ── Alibaba Cloud DashScope (OpenAI-compatible) ──────────────────
+# Hosts the Qwen3-235B-A22B model used in the paper.
 [providers.dashscope]
 api_key_env = "DASHSCOPE_API_KEY"
 base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-models = ["qwen-plus", "qwen-turbo", "qwen-max"]
+models = ["qwen3-235b-a22b"]
 
-[providers.wenxin]
-api_key_env = "WENXIN_API_KEY"
-api_secret_env = "WENXIN_API_SECRET"
-base_url = "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop"
-models = ["ernie-4.0", "ernie-3.5"]
-
-[providers.glm]
-api_key_env = "GLM_API_KEY"
-base_url = "https://open.bigmodel.cn/api/paas/v4"
-models = ["glm-4-plus", "glm-4-flash"]
-
+# ── Local fallback (optional) ────────────────────────────────────
 [providers.ollama]
 base_url = "http://localhost:11434/v1"
 models = ["llama3", "qwen2", "codestral"]
 
 [fallback]
 chain = [
-    { provider = "openai", model = "gpt-4o" },
-    { provider = "deepseek", model = "deepseek-chat" },
-    { provider = "ollama", model = "qwen2" },
+    { provider = "openai",    model = "gpt-5" },
+    { provider = "openai",    model = "deepseek-chat" },
+    { provider = "dashscope", model = "qwen3-235b-a22b" },
 ]
 
 [logging]

@@ -489,7 +489,7 @@ fn extract_cir_slice(
 }
 
 /// Build preservation constraints from the CIR program (Gamma_ctx).
-fn build_preservation_constraints(program: &cir::ast::Program) -> Vec<String> {
+pub(crate) fn build_preservation_constraints(program: &cir::ast::Program) -> Vec<String> {
     let mut constraints = Vec::new();
 
     for res in &program.resources {

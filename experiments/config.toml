@@ -2,18 +2,19 @@
 #  CIR+CVN Experiment Configuration
 # ══════════════════════════════════════════════════════════════
 #
-# Fill in the API keys (or set the corresponding env vars) and
-# uncomment the models you want to evaluate.
+# API keys are read from the environment (see .env):
+#   ALL_API_KEY       — aggregator at z.apiyihe.org (GPT-5, Claude 4.6, Gemini 3, DeepSeek-V3)
+#   DASHSCOPE_API_KEY — Alibaba Cloud DashScope (Qwen3-235B-A22B)
 
 [experiment]
-max_gen_rounds   = 5        # RQ1: max CIR generation iterations
-max_repair_rounds = 5       # RQ2: max repair loop iterations
-temperature      = 0.0
-max_tokens       = 4096
-patterns_dir     = "tests/e2e"
-source_dir       = "experiments/source_programs"
-output_dir       = "experiments/results"
-runs_per_pattern = 3        # repeat each experiment for averaging
+max_gen_rounds    = 5        # RQ1: max CIR generation iterations
+max_repair_rounds = 5        # RQ2: max repair loop iterations
+temperature       = 0.0
+max_tokens        = 4096
+patterns_dir      = "tests/e2e"
+source_dir        = "experiments/source_programs"
+output_dir        = "experiments/results"
+runs_per_pattern  = 3        # repeat each experiment for averaging
 
 # ── Source programs for RQ1 ───────────────────────────────────
 # Each entry maps a pattern name to its Rust source file.
@@ -25,10 +26,10 @@ channel_deadlock     = "experiments/source_programs/channel_deadlock.rs"
 three_way_deadlock   = "experiments/source_programs/three_way_deadlock.rs"
 semaphore_throttle   = "experiments/source_programs/semaphore_throttle.rs"
 cas_race             = "experiments/source_programs/cas_race.rs"
-rwlock_starvation    = "experiments/source_programs/rwlock_starvation.rs"
 condvar_spurious     = "experiments/source_programs/condvar_spurious.rs"
 dual_condvar         = "experiments/source_programs/dual_condvar.rs"
-fn_summary           = "experiments/source_programs/fn_summary.rs"
+partial_deadlock     = "experiments/source_programs/partial_deadlock.rs"
+fn_summary_prop      = "experiments/source_programs/fn_summary_prop.rs"
 
 # ── Buggy CIR files for RQ2 ──────────────────────────────────
 # Each entry maps a pattern name to its ground-truth buggy CIR JSON.
@@ -37,53 +38,57 @@ mutex_deadlock       = "tests/e2e/mutex_deadlock/buggy.json"
 signal_loss          = "tests/e2e/signal_loss/buggy.json"
 channel_deadlock     = "tests/e2e/channel_deadlock/buggy.json"
 three_way_deadlock   = "tests/e2e/three_way_deadlock/buggy.json"
-rwlock_starvation    = "tests/e2e/rwlock_starvation/buggy.json"
-condvar_spurious     = "tests/e2e/condvar_spurious/buggy.json"
 dual_condvar         = "tests/e2e/dual_condvar/buggy.json"
+partial_deadlock     = "tests/e2e/partial_deadlock/buggy.json"
+
+# ── Fixed / baseline CIR files for RQ4 goal reachability ─────
+# Each entry maps a pattern name to its repaired / baseline CIR JSON.
+# Patterns without declared business goals contribute `goals_total == 0`.
+[fixed_cirs]
+mutex_deadlock       = "tests/e2e/mutex_deadlock/fixed.json"
+channel_deadlock     = "tests/e2e/channel_deadlock/fixed.json"
+three_way_deadlock   = "tests/e2e/three_way_deadlock/fixed.json"
+semaphore_throttle   = "tests/e2e/semaphore_throttle/buggy.json"  # baseline, no bug
+cas_race             = "tests/e2e/cas_race/buggy.json"            # baseline, no bug
+dual_condvar         = "tests/e2e/dual_condvar/fixed.json"
+partial_deadlock     = "tests/e2e/partial_deadlock/fixed.json"
+fn_summary_prop      = "tests/e2e/fn_summary_prop/fixed.json"
 
 # ── Model Definitions ─────────────────────────────────────────
-# Uncomment and fill in the models you want to test.
-# Each model needs: name, provider, api_key_env, base_url, model_id
+# Paper's five evaluation models. Four route through the z.apiyihe.org
+# OpenAI-compatible aggregator (using ALL_API_KEY); Qwen uses DashScope.
 
 [[models]]
-name        = "gpt-4o"
+name        = "gpt-5"
 provider    = "openai"
-model_id    = "gpt-4o"
-api_key_env = "OPENAI_API_KEY"          # export OPENAI_API_KEY=sk-...
-base_url    = "https://api.openai.com/v1"
+model_id    = "gpt-5"
+api_key_env = "ALL_API_KEY"
+base_url    = "https://z.apiyihe.org/v1"
 
 [[models]]
-name        = "gpt-4o-mini"
+name        = "claude-4.6-opus"
 provider    = "openai"
-model_id    = "gpt-4o-mini"
-api_key_env = "OPENAI_API_KEY"
-base_url    = "https://api.openai.com/v1"
+model_id    = "claude-opus-4-6"
+api_key_env = "ALL_API_KEY"
+base_url    = "https://z.apiyihe.org/v1"
 
 [[models]]
-name        = "claude-3-5-sonnet"
-provider    = "anthropic"
-model_id    = "claude-3-5-sonnet-20241022"
-api_key_env = "ANTHROPIC_API_KEY"       # export ANTHROPIC_API_KEY=sk-ant-...
-base_url    = "https://api.anthropic.com/v1"
+name        = "gemini-3-pro"
+provider    = "openai"
+model_id    = "gemini-3-pro"
+api_key_env = "ALL_API_KEY"
+base_url    = "https://z.apiyihe.org/v1"
 
 [[models]]
 name        = "deepseek-v3"
-provider    = "openai"                  # DeepSeek uses OpenAI-compatible API
+provider    = "openai"
 model_id    = "deepseek-chat"
-api_key_env = "DEEPSEEK_API_KEY"        # export DEEPSEEK_API_KEY=sk-...
-base_url    = "https://api.deepseek.com/v1"
+api_key_env = "ALL_API_KEY"
+base_url    = "https://z.apiyihe.org/v1"
 
 [[models]]
-name        = "gemini-1-5-pro"
-provider    = "google"
-model_id    = "gemini-1.5-pro"
-api_key_env = "GOOGLE_API_KEY"          # export GOOGLE_API_KEY=AIza...
-base_url    = "https://generativelanguage.googleapis.com/v1beta"
-
-# ── Add more models below ────────────────────────────────────
-# [[models]]
-# name        = "qwen-2.5-72b"
-# provider    = "openai"
-# model_id    = "qwen-2.5-72b-instruct"
-# api_key_env = "DASHSCOPE_API_KEY"
-# base_url    = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+name        = "qwen3-235b-a22b"
+provider    = "openai"                  # DashScope is OpenAI-compatible
+model_id    = "qwen3-235b-a22b"
+api_key_env = "DASHSCOPE_API_KEY"
+base_url    = "https://dashscope.aliyuncs.com/compatible-mode/v1"

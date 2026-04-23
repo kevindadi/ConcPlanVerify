@@ -48,7 +48,7 @@ threads:
   notifier:
     body:
     - { sid: n1, op: lock(m0),            next: n2 }
-    - { sid: n2, op: notify_one(cv0),     next: n3 }
+    - { sid: n2, op: notify(cv0),         next: n3 }
     - { sid: n3, op: write(ready, true),  next: n4 }
     - { sid: n4, op: unlock(m0) }
 \end{lstlisting}
@@ -74,7 +74,7 @@ end_state:
   waiting:       [worker]
 trace:     [n1, n2(lost), n3, n4, w1, w2(blocked)]
 diagnosis:
-  notify_one at sid=n2 fires when no thread is
+  notify at sid=n2 fires when no thread is
   waiting on cv0; worker enters bare wait at
   sid=w2 with no loop guard and no future
   notification.
@@ -94,7 +94,7 @@ goal_check:
 \end{figure}
 
 % 本报告有三个方面值得关注.首先,$\textbf{blame anchors} $\mathsf{sid}{=}n2$ 和 $\mathsf{sid}{=}w2$ 明确地告诉 LLM 要修改哪些语句,从而避免重新生成整个工件.其次,修复建议以结构化的 Cir 编辑(插入一个读取分支节点,添加一个回溯边)的形式表达,LLM 可以直接应用.第三,目标检查验证了指定的关键结果——即工作进程最终退出同步点——在修复后是否可行;通过删除行为(例如,移除 `\texttt{notify\_one}`)来实现安全性的修复方案会因行为不完整而被拒绝.
-Three aspects of this report merit attention. First, the \emph{blame anchors} $\mathsf{sid}{=}n2$ and $\mathsf{sid}{=}w2$ tell the LLM exactly which statements to modify, avoiding regeneration of the entire artifact. Second, the \emph{repair suggestion} is expressed as a structural \textsc{Cir} edit (insert a read-and-branch node, add a back-edge), which the LLM can apply directly. Third, the \emph{goal check} verifies that the designated critical outcome is reachable after repair; a fix that achieves safety by deleting behavior (e.g., removing \texttt{notify\_one}) is rejected as behaviorally incomplete.
+Three aspects of this report merit attention. First, the \emph{blame anchors} $\mathsf{sid}{=}n2$ and $\mathsf{sid}{=}w2$ tell the LLM exactly which statements to modify, avoiding regeneration of the entire artifact. Second, the \emph{repair suggestion} is expressed as a structural \textsc{Cir} edit (insert a read-and-branch node, add a back-edge), which the LLM can apply directly. Third, the \emph{goal check} verifies that the designated critical outcome is reachable after repair; a fix that achieves safety by deleting behavior (e.g., removing \texttt{notify}) is rejected as behaviorally incomplete.
 
 % 同一条流水线处理其他反模式,但诊断结果各不相同.例如,如果工作进程使用 `if` 而不是 `while`,但通知器使用了正确的先写后通知顺序,则验证器会报告一个"虚假唤醒违规”:非确定性唤醒(POSIX 和 Rust 语义允许这种唤醒)会导致工作进程在未重新检查谓词的情况下退出 `if` 代码块.此时,问题锚点会转移到 `if` 分支和唤醒后的代码点,修复建议变为"通过添加回溯边将 `if` 替换为 `while`”.目标检查确认工作进程仍然可以到达满足谓词的同步后代码.
 The same pipeline handles other anti-patterns with different diagnostics. For instance, if the worker uses \texttt{if} instead of \texttt{while} but the notifier uses the correct write-before-notify order, the verifier reports a \emph{spurious-wakeup violation}: a

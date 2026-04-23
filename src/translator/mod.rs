@@ -3,8 +3,11 @@ mod context;
 mod control_flow;
 mod expr_parser;
 mod fn_summary;
+pub(crate) mod goals;
 mod operation;
 mod resource;
+
+pub use goals::translate_goals;
 
 use crate::error::TranslateError;
 use context::{TranslateContext, cp_id};

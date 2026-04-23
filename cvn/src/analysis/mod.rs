@@ -5,8 +5,10 @@
 
 pub mod counterexample;
 pub mod deadlock;
+pub mod goal;
 pub mod search;
 
 pub use counterexample::*;
 pub use deadlock::*;
+pub use goal::*;
 pub use search::*;
