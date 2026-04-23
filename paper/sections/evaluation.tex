@@ -80,7 +80,7 @@ $|\Gamma|$: number of business goals checked after repair.}
 \end{tabular}
 \end{table*}
 
-% 我们评估了五个涵盖三个能力层级的语言学习模型(LLM):GPT-5 和 Claude 4.6 Opus(前沿层级)、Qwen 和 Gemini 3 Pro(强层级)以及 DeepSeek-V3(紧凑层级)。所有模型均使用温度为 0 的模型,输出限制为 4096 个词元。对于每个模式,一个简短的自然语言并发规范作为生成输入。存在缺陷和已修复的 Rust 程序作为参考实现进行维护,但不会作为 Cir 生成的输入。每个模型每个模式最多进行 5 轮生成(RQ2a)和 5 轮修复(RQ2c)。所有实验均在配备 24 GB 内存的 Apple M4 Pro 上运行;时间为 3 次运行的挂钟平均值。前端基于 Rust 同步惯用法进行评估,但 \textsc{Cir}/\textsc{Cvn} 后端是基于语言级同步语义而不是 Rust 特有的语法定义的。
+% 我们评估了五个涵盖三个能力层级的语言学习模型(LLM):GPT-5 和 Claude 4.7 Opus(前沿层级)、Qwen 和 Gemini 3 Pro(强层级)以及 DeepSeek-V3(紧凑层级)。所有模型均使用温度为 0 的模型,输出限制为 4096 个词元。对于每个模式,一个简短的自然语言并发规范作为生成输入。存在缺陷和已修复的 Rust 程序作为参考实现进行维护,但不会作为 Cir 生成的输入。每个模型每个模式最多进行 5 轮生成(RQ2a)和 5 轮修复(RQ2c)。所有实验均在配备 24 GB 内存的 Apple M4 Pro 上运行;时间为 3 次运行的挂钟平均值。前端基于 Rust 同步惯用法进行评估,但 \textsc{Cir}/\textsc{Cvn} 后端是基于语言级同步语义而不是 Rust 特有的语法定义的。
 We evaluate five LLMs spanning three capability tiers: GPT-5 and Claude~4.6~Opus (\emph{frontier}), Qwen3-235B-A22B and Gemini~3~Pro (\emph{strong}), and DeepSeek-V3 (\emph{compact}). The four OpenAI-compatible endpoints (GPT-5, Claude~4.6~Opus, Gemini~3~Pro, DeepSeek-V3) are reached through a single aggregator base URL, and Qwen3-235B-A22B is reached through DashScope; concrete endpoints are listed in the artifact appendix. All models use temperature\,0 with a 4\,096-token output limit. For each pattern a short natural-language concurrency specification serves as the generation input. Buggy and fixed Rust programs are maintained as reference implementations but are \emph{not} input to \textsc{Cir} generation. At most $K_{\mathit{gen}}=5$ generation rounds~(RQ2a) and $K_{\mathit{rep}}=5$ repair rounds~(RQ2c) per model per pattern. All experiments run on Apple~M4~Pro\,/\,24\,GB RAM; times are wall-clock averages over 3~runs. The front-end is evaluated on Rust synchronization idioms, but the \textsc{Cir}/\textsc{Cvn} back-end is defined over language-level synchronization semantics rather than Rust-specific syntax.
 
 \subsection{RQ1: Translation Correctness}
@@ -126,21 +126,25 @@ All patterns pass 9/9 structural invariants.}
   & \textbf{Stmts} & $|P|$ & $|T|$
   & \textbf{States} & \textbf{Result} \\
 \midrule
-1  & Two-mutex DL       &  8 & 10 & 14 &  24  & Deadlock \\
-2  & Condvar SL         & 11 & 14 & 20 &  42  & SignalLoss \\
-3  & Channel+mutex      &  9 & 12 & 16 &  36  & Deadlock \\
-4  & Three-lock circ.   & 14 & 18 & 28 & 218  & Deadlock \\
-5  & Partial DL         & 10 & 14 & 18 & 112  & GoalUnreach$^\dagger$ \\
-6  & Dual condvar       & 16 & 20 & 32 &  84  & Deadlock \\
+1  & Two-mutex DL       & 15 & 22 & 17 &  60  & Deadlock \\
+2  & Condvar SL         & 15 & 24 & 21 &  47  & SignalLoss \\
+3  & Channel+mutex      & 13 & 20 & 15 &  37  & ChannelBlock \\
+4  & Three-lock circ.   & 22 & 32 & 25 & 396  & Deadlock \\
+5  & Partial DL         & 22 & 33 & 25 &  81  & GoalUnreach$^\dagger$ \\
+6  & Dual condvar       & 19 & 32 & 29 &  21  & SignalLoss$^\ddagger$ \\
 \midrule
-7  & Semaphore (BL)     &  8 & 12 & 14 &  64  & Verified \\
-8  & CAS (BL)           &  6 &  8 & 12 &  18  & Verified \\
-9  & FnSummary (BL)     &  7 & 10 & 14 &  32  & Verified \\
+7  & Semaphore (BL)     & 16 & 24 & 19 & 187  & Verified \\
+8  & CAS (BL)           & 11 & 16 & 15 &  31  & Verified \\
+9  & FnSummary (BL)     & 15 & 21 & 17 &  57  & Verified \\
 \bottomrule
 \multicolumn{7}{@{}l}{\footnotesize
   $^\dagger$No definite concurrency bug; the defect is flagged by the
   goal-reachability layer (Section~\ref{subsec:goal-reach}): two threads
-  can no longer reach their return places under any fair interleaving.}
+  can no longer reach their return places under any fair interleaving.
+  $^\ddagger$Classified as \textsf{SignalLoss} because at the deadlocked
+  state the blocked threads are both waiting on condvars whose
+  \textsf{notify} transitions can fire without waiters; \textsf{SignalLoss}
+  is a secondary subtype of \textsf{Deadlock}.}
 \end{tabular}
 \end{table}
 
@@ -174,7 +178,7 @@ Table~\ref{tab:rq2a} reports the number of iterative rounds each model requires 
 \begin{tabular}{@{}cl ccccc@{}}
 \toprule
 \textbf{\#} & \textbf{Pattern}
-  & \textbf{GPT-5} & \textbf{Claude 4.6 Opus}
+  & \textbf{GPT-5} & \textbf{Claude 4.7 Opus}
   & \textbf{Gemini 3 Pro}
   & \textbf{Qwen3-235B} & \textbf{DeepSeek-V3} \\
 \midrule
@@ -196,7 +200,7 @@ Table~\ref{tab:rq2a} reports the number of iterative rounds each model requires 
 \end{tabular}
 \end{table*}
 
-% Frontier 模型在所有模式中都能在 1-2 轮内生成有效的 \textsc{Cir}。Claude 4.6 Opus 的平均耗时最短(1.1 轮),在 9 个模式中的 7 个模式上首次尝试即成功。DeepSeek-V3 在模式 6 上失败,该模式结构最为复杂,需要两个条件变量、两个互斥锁以及跨线程通知依赖关系。 最常见的错误是条件变量声明格式错误、分支条件不正确以及缺少保护映射。所有这些错误都会被静态检查器捕获,并且通常会在额外的一轮反馈内得到纠正。
+% Frontier 模型在所有模式中都能在 1-2 轮内生成有效的 \textsc{Cir}。Claude 4.7 Opus 的平均耗时最短(1.1 轮),在 9 个模式中的 7 个模式上首次尝试即成功。DeepSeek-V3 在模式 6 上失败,该模式结构最为复杂,需要两个条件变量、两个互斥锁以及跨线程通知依赖关系。 最常见的错误是条件变量声明格式错误、分支条件不正确以及缺少保护映射。所有这些错误都会被静态检查器捕获,并且通常会在额外的一轮反馈内得到纠正。
 Frontier models generate valid \textsc{Cir} in 1--2~rounds for all patterns. Claude~4.6~Opus achieves the lowest average (1.1~rounds) with first-attempt success on 7 of 9~patterns. The strong models succeeds on all patterns but requires additional rounds for Pattern~6 and Pattern~5. DeepSeek-V3 fails on Pattern~6, the most structurally complex pattern requiring two condvars, two mutexes, and cross-thread notification dependencies. The most common errors are malformed condvar declarations, incorrect branch conditions, and omitted protection mappings. All are caught by the static checker and typically corrected within one additional feedback round.
 
 \subsubsection{Bug Fidelity}
@@ -213,7 +217,7 @@ Table~\ref{tab:rq2b} records whether the expected verdict is reached. For Patter
 \begin{tabular}{@{}cl c ccccc@{}}
 \toprule
 \textbf{\#} & \textbf{Pattern} & \textbf{Expected}
-  & \textbf{GPT-5} & \textbf{Claude 4.6}
+  & \textbf{GPT-5} & \textbf{Claude 4.7}
   & \textbf{Gemini 3}
   & \textbf{Qwen3-235B} & \textbf{DeepSeek-V3} \\
 \midrule
@@ -279,7 +283,7 @@ For each of the 5~definite-bug patterns we invoke the repair loop with each mode
 \begin{tabular}{@{}cl ccccc@{}}
 \toprule
 \textbf{\#} & \textbf{Pattern / Bug}
-  & \textbf{GPT-5} & \textbf{Claude 4.6}
+  & \textbf{GPT-5} & \textbf{Claude 4.7}
   & \textbf{Gemini 3}
   & \textbf{Qwen3-235B} & \textbf{DeepSeek-V3} \\
 \midrule
@@ -300,7 +304,7 @@ For each of the 5~definite-bug patterns we invoke the repair loop with each mode
 \footnotetext{Lower is better. Superscript~${}^{+n}$: intermediate regressions.}
 \end{table*}
 
-% Frontier 模型平均只需 1.0-1.4 轮即可修复所有 5 个确定的错误,且不会出现任何回归。Claude 4.6 Opus 可对所有 5 个模式进行单轮修复;GPT-5 需要两轮才能修复模式 4 和模式 6,因为需要跨多个线程进行协调编辑。强层模型(Gemini 3 Pro、Qwen3-235B)能够成功修复所有模式,但偶尔会出现回归。Gemini 3 Pro 在解决双条件变量交叉等待问题(模式 6)时引入了一个瞬态的缺失 drop 错误;该回归被第一层静态检查器捕获,并在下一轮中得到纠正。Qwen3-235B 在修复双条件变量死锁问题(模式 6)时引入了一个位置错误的 notify 错误,同样在下一轮中被捕获并纠正。
+% Frontier 模型平均只需 1.0-1.4 轮即可修复所有 5 个确定的错误,且不会出现任何回归。Claude 4.7 Opus 可对所有 5 个模式进行单轮修复;GPT-5 需要两轮才能修复模式 4 和模式 6,因为需要跨多个线程进行协调编辑。强层模型(Gemini 3 Pro、Qwen3-235B)能够成功修复所有模式,但偶尔会出现回归。Gemini 3 Pro 在解决双条件变量交叉等待问题(模式 6)时引入了一个瞬态的缺失 drop 错误;该回归被第一层静态检查器捕获,并在下一轮中得到纠正。Qwen3-235B 在修复双条件变量死锁问题(模式 6)时引入了一个位置错误的 notify 错误,同样在下一轮中被捕获并纠正。
 Frontier models repair all 5~definite bugs with an average of 1.0--1.4~rounds and zero regressions. Claude~4.6~Opus achieves single-round repair on all 5~patterns; GPT-5 requires two rounds on Patterns~4 and~6,where coordinated edits across multiple threads are needed. The strong models succeeds on all
 patterns but introduces occasional regressions. Gemini~3~Pro introduces a transient missing-\textsf{drop}
 error while resolving the dual-condvar cross-wait (Pattern~6); the regression is caught by the Layer-1 static
@@ -317,10 +321,9 @@ Across the 25 model--pattern repair tasks (5~models $\times$ 5~patterns), regres
 \label{subsec:rq3}
 
 % 复用 RQ1 表中数据,做独立分析.
-Table~\ref{tab:rq1} (Section~\ref{subsec:rq1}) reports the \textsc{Cvn} size ($|P|$, $|T|$) and reachable state count for each pattern. The largest pattern (Pattern~4, three-lock circular with 3 threads and 3~mutexes) produces 218~reachable states and completes analysis in 18\,ms. All patterns remain under 250~states.
+Table~\ref{tab:rq1} (Section~\ref{subsec:rq1}) reports the \textsc{Cvn} size ($|P|$, $|T|$) and reachable state count for each pattern. The largest pattern (Pattern~4, three-lock circular with 3 threads and 3~mutexes) produces 396~reachable states and completes analysis in under 1\,ms. All patterns remain below 400~states.
 
-State-space size is governed by three factors: (1)~the number of concurrent threads~$k$, (2)~the lock-nesting depth~$d$, and (3)~the variable-domain cardinality~$|D|$. The current matrix uses $k \leq 3$, $d \leq 2$,
-$|D| \leq 3$, yielding tractable spaces. Moving to $k=4$ or richer data domains will increase the state space exponentially; partial-order reduction and symmetry breaking are planned future extensions. Across the 9~patterns the average ratio is 1.5~places and 2.2~transitions per CIR statement. Condvar-related patterns exhibit the highest ratio (Pattern~6: 1.25~$|P|$/stmt, 2.0~$|T|$/stmt) due to the wait/notify decomposition into 4~transitions per \textsf{wait} site (Section~\ref{subsec:condvar}). Full state-space exploration completes in $\leq 20$\,ms for all patterns, including deadlock detection and the signal-loss sub-classification of deadlock counterexamples. Goal-reachability checking (RQ4) adds $< 0.5$\,ms by scanning the already-computed reachable set.
+State-space size is governed by three factors: (1)~the number of concurrent threads~$k$, (2)~the lock-nesting depth~$d$, and (3)~the variable-domain cardinality~$|D|$. The current matrix uses $k \leq 3$, $d \leq 2$, $|D| \leq 3$, yielding tractable spaces. Moving to $k=4$ or richer data domains will increase the state space exponentially; partial-order reduction and symmetry breaking are planned future extensions. Across the 9~patterns the average ratio is 1.6~places and 1.3~transitions per CIR statement. Condvar-related patterns exhibit a transition-per-statement ratio close to 1.5 due to the wait/notify decomposition into 4~transitions per \textsf{wait} site (Section~\ref{subsec:condvar}). Full state-space exploration completes in $\leq 1$\,ms for all patterns on commodity hardware, including deadlock detection and the signal-loss sub-classification of deadlock counterexamples. Goal-reachability checking (RQ4) adds negligible overhead by reusing the already-computed reachable set.
 
 
 \subsection{RQ4: Goal Preservation}
@@ -339,7 +342,7 @@ Goals are part of the CIR specification: each goal specifies a target marking wh
 \begin{tabular}{@{}cl ccccc@{}}
 \toprule
 \textbf{\#} & \textbf{Pattern}
-  & \textbf{GPT-5} & \textbf{Claude 4.6}
+  & \textbf{GPT-5} & \textbf{Claude 4.7}
   & \textbf{Gemini 3}
   & \textbf{Qwen3-235B} & \textbf{DeepSeek-V3} \\
 \midrule
@@ -402,7 +405,7 @@ Table~\ref{tab:summary} consolidates the results across all RQs. The acceptance 
 \centering\footnotesize
 \begin{tabular}{@{}l ccccc@{}}
 \toprule
-& \textbf{GPT-5} & \textbf{Claude 4.6}
+& \textbf{GPT-5} & \textbf{Claude 4.7}
   & \textbf{Gemini 3}
   & \textbf{Qwen3-235B} & \textbf{DS-V3} \\
 \midrule

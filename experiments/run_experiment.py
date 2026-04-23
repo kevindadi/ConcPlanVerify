@@ -24,6 +24,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -232,9 +233,19 @@ def _call_openai_compat(
     return content, usage
 
 
+_THINK_TAG_RE = re.compile(r"<think\b[^>]*>.*?</think>", re.DOTALL | re.IGNORECASE)
+
+
 def extract_json(text: str) -> str:
-    """Extract JSON from a response that may be wrapped in markdown fences."""
-    text = text.strip()
+    """Extract JSON from a response that may be wrapped in markdown fences.
+
+    Some aggregator channels (notably claude-opus-4-6 on z.apiyihe.org) inline
+    chain-of-thought as <think>...</think> blocks inside ``message.content``
+    instead of surfacing them via ``reasoning_content``. We strip those blocks
+    so the remaining payload can be parsed as JSON. This is defensive: models
+    that return clean content are unaffected.
+    """
+    text = _THINK_TAG_RE.sub("", text).strip()
     if text.startswith("```"):
         text = text.split("\n", 1)[1] if "\n" in text else text[3:]
         if text.endswith("```"):
@@ -244,10 +255,25 @@ def extract_json(text: str) -> str:
 
 # ── Rust toolchain interface ─────────────────────────────────
 
+_CIR2CVN_BIN = ROOT_DIR / "target" / "release" / "cir2cvn"
+
+
+def _ensure_cir2cvn_built() -> Path:
+    """Build the release binary lazily (one-off cost) and cache the path."""
+    if not _CIR2CVN_BIN.exists():
+        subprocess.run(
+            ["cargo", "build", "--release", "--quiet"],
+            cwd=str(ROOT_DIR),
+            check=True,
+        )
+    return _CIR2CVN_BIN
+
+
 def _cir2cvn(mode: str, cir_json: str, timeout: int = 120) -> dict[str, Any]:
     """Invoke the cir2cvn CLI with the given mode (--validate, --analyze, --goals)."""
+    binary = _ensure_cir2cvn_built()
     proc = subprocess.run(
-        ["cargo", "run", "--quiet", "--release", "--", mode, "-"],
+        [str(binary), mode, "-"],
         input=cir_json,
         capture_output=True,
         text=True,

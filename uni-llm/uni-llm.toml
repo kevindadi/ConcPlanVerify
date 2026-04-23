@@ -14,13 +14,16 @@ max_retries = 3
 retry_delay_ms = 1000
 
 # ── z.apiyihe.org aggregator (OpenAI-compatible) ─────────────────
-# Routes GPT-5 / Claude 4.6 Opus / Gemini 3 Pro / DeepSeek-V3.
+# Routes GPT-5 / Claude 4.7 Opus / Gemini 3 Pro / DeepSeek-V3.
+# Note: We use claude-opus-4-7 not -4-6. The -4-6 channel inlines
+# <think>...</think> blocks into message.content which breaks JSON-mode
+# consumers. -4-7 returns clean content.
 [providers.openai]
 api_key_env = "ALL_API_KEY"
 base_url = "https://z.apiyihe.org/v1"
 models = [
     "gpt-5",
-    "claude-opus-4-6",
+    "claude-opus-4-7",
     "gemini-3-pro",
     "deepseek-chat",
 ]

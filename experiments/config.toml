@@ -66,9 +66,13 @@ api_key_env = "ALL_API_KEY"
 base_url    = "https://z.apiyihe.org/v1"
 
 [[models]]
-name        = "claude-4.6-opus"
+# NOTE: We use claude-opus-4-7 rather than -4-6 on this aggregator because
+# the -4-6 channel inlines <think>...</think> blocks into message.content,
+# which corrupts downstream JSON parsing. The -4-7 channel returns clean
+# content with reasoning hidden from the transport layer.
+name        = "claude-4.7-opus"
 provider    = "openai"
-model_id    = "claude-opus-4-6"
+model_id    = "claude-opus-4-7"
 api_key_env = "ALL_API_KEY"
 base_url    = "https://z.apiyihe.org/v1"
 
