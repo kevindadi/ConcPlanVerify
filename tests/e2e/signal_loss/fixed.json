@@ -1,0 +1,44 @@
+{
+  "program": "signal_loss",
+  "resources": [
+    {"name": "mtx", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+    {"name": "cv",  "kind": "sync", "type": "Condvar", "mode": "Sync", "paired_with": "mtx"},
+    {"name": "ready", "kind": "var", "type": "Var", "base": "Bool", "init": false}
+  ],
+  "protection": [{"var": "ready", "lock": "mtx"}],
+  "functions": [
+    {
+      "name": "main", "kind": "normal",
+      "body": [
+        {"sid": "s1", "op": ["spawn", "waiter"],    "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["spawn", "notifier"],  "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["join", "waiter"],     "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["join", "notifier"],   "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": "return",                "transfer": "return"}
+      ]
+    },
+    {
+      "name": "waiter", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "mtx", "lock"],       "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "ready", "read"],
+          "transfer": ["branch", "ready == true", "s4", "s3"]},
+        {"sid": "s3", "op": ["res_op", "cv", "wait", "mtx"], "transfer": ["next", "s2"]},
+        {"sid": "s4", "op": ["res_op", "mtx", "drop"],       "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": "return",                         "transfer": "return"}
+      ]
+    },
+    {
+      "name": "notifier", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "mtx", "lock"],            "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "ready", "write", "true"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["res_op", "cv", "notify_all"],       "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["res_op", "mtx", "drop"],            "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": "return",                              "transfer": "return"}
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main"
+}

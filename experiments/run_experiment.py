@@ -28,7 +28,7 @@ import re
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, replace
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +40,27 @@ except ModuleNotFoundError:
 import requests
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
+
+
+def _load_dotenv(path: Path) -> None:
+    """Minimal .env loader (no dependency on python-dotenv).
+
+    Silently updates os.environ for KEY=VALUE lines, ignoring comments and
+    existing environment values (env-level settings win).
+    """
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        key = key.strip()
+        val = val.strip().strip('"').strip("'")
+        os.environ.setdefault(key, val)
+
+
+_load_dotenv(ROOT_DIR / ".env")
 
 # ── Data classes ──────────────────────────────────────────────
 
@@ -134,10 +155,7 @@ def load_config(config_path: str) -> ExperimentConfig:
 
 # ── LLM API calls ────────────────────────────────────────────
 
-GENERATION_SYSTEM_PROMPT = """\
-You are an expert in concurrent systems. Given a Rust source program, produce a \
-CIR (Concurrency Intermediate Representation) in JSON format.
-
+CIR_SCHEMA_SPEC = """\
 CIR schema:
 - "program": string (program name)
 - "resources": array of {name, kind, type, mode?, count?, base?, init?}
@@ -158,12 +176,26 @@ CIR schema:
                  "send", "recv", "wait", "notify", "notify_all", "cas"
       - For write: ["res_op", var, "write", value]
       - For cas:   ["res_op", var, "cas", expected, desired]
-    - transfer: ["next", sid] | ["branch", {cond, on_true, on_false}] | "return"
-      - cond: {var, op, val}   op: "Eq"|"Neq"|"Gt"|"Lt"|"Gte"|"Lte"
+    - transfer: "return" | ["next", sid] | ["branch", cond_expr, true_sid, false_sid]
+      - cond_expr: a single string expression, NOT an object.
+        Supported forms (lhs is a variable name; rhs is a literal):
+          "x == 0"   "x != 1"   "x > 0"   "x < 10"
+          "x >= 1"   "x <= 5"   "flag == true"   "state == \\"ready\\""
+        Logical connectives are also accepted:
+          "x > 0 && y != 1"   "done == true || count == 0"
+        The lhs variable must be declared in "resources" as kind "var" or
+        "atomic". Do NOT use object form {cond, on_true, on_false}.
 - "fn_summaries": array of {name, reads, writes, callees, has_concurrency}
 - "entry": string (entry function name, usually "main")
 - Optional "goals": array of {id, desc?, marking, variables} specifying
   user-visible outcomes that must remain reachable after repair.
+
+Predicate-loop example (use this shape for wait-with-predicate patterns):
+  {"sid":"s1","op":["res_op","mtx","lock"],"transfer":["next","s2"]},
+  {"sid":"s2","op":["res_op","ready","read"],
+    "transfer":["branch","ready == true","s4","s3"]},
+  {"sid":"s3","op":["res_op","cv","wait"],"transfer":["next","s2"]},
+  {"sid":"s4","op":["res_op","mtx","drop"],"transfer":"return"}
 
 Rules:
 1. Every shared resource gets a unique global name.
@@ -171,14 +203,60 @@ Rules:
 3. Every lock must have a matching drop.
 4. Condvar wait requires paired mutex to be held.
 5. Spawn targets must have matching join in the same function.
+6. "transfer" is always either the string "return", or an array whose
+   first element is the string "next" or "branch" (NEVER an object).
+"""
 
-Output ONLY the JSON, no explanation."""
 
-REPAIR_SYSTEM_PROMPT = """\
-你是一个并发系统修复专家。你会收到一个包含并发 bug 的 CIR JSON，\
-以及由模型检验工具检测到的 bug 报告。\
-请根据报告中的修复建议修复 CIR，保持所有 business goals 可达，\
-输出修复后的完整 CIR JSON。只输出 JSON，不要添加任何解释文本。"""
+GENERATION_SYSTEM_PROMPT = (
+    "You are an expert in concurrent systems. Given a Rust source program, "
+    "produce a CIR (Concurrency Intermediate Representation) in JSON format.\n\n"
+    + CIR_SCHEMA_SPEC
+    + "\nOutput ONLY the JSON, no explanation."
+)
+
+REPAIR_SYSTEM_PROMPT = (
+    "You are an expert in concurrent systems, specialised in repairing CIR "
+    "(Concurrency Intermediate Representation) programs based on formal "
+    "verification feedback.\n\n"
+    "You will receive:\n"
+    "  1. A buggy CIR JSON.\n"
+    "  2. A structured bug report produced by a Petri-net state-space\n"
+    "     analyser (may describe a deadlock, signal-loss, channel-block,\n"
+    "     dead-transition, or goal-unreachability).\n"
+    "  3. Zero or more regression notes from previous attempts.\n\n"
+    "Your task is to output the complete repaired CIR JSON so that:\n"
+    "  (a) the static checker reports zero errors,\n"
+    "  (b) the state-space analyser reports no concurrency bug, AND\n"
+    "  (c) every declared business goal remains reachable.\n\n"
+    "Editing constraints (violating these causes regressions):\n"
+    "  * Keep the same 'program' name and 'entry' function.\n"
+    "  * Preserve every declared resource name, protection entry, and\n"
+    "    business goal id. You may add resources only if strictly\n"
+    "    necessary to fix the bug.\n"
+    "  * Keep existing 'sid' names whenever the statement is kept. Only\n"
+    "    introduce new sids when you add statements.\n"
+    "  * Apply the minimum edit that removes the reported bug — do not\n"
+    "    rewrite unrelated functions.\n"
+    "  * Do NOT delete statements that produce business-goal-relevant\n"
+    "    behaviour (e.g. a write that a goal depends on).\n\n"
+    "Regression feedback semantics (read carefully when given):\n"
+    "  - 'Static check errors: ...'     → your JSON violates well-formedness;\n"
+    "                                     re-read the schema above.\n"
+    "  - 'Translation error: ...'       → translation from CIR to CVN failed;\n"
+    "                                     usually an unknown resource or a\n"
+    "                                     malformed transfer.\n"
+    "  - 'Deadlock cleared but N business goal(s) became unreachable'\n"
+    "                                   → you removed required behaviour;\n"
+    "                                     restore it without re-introducing\n"
+    "                                     the original bug.\n"
+    "  - Repeated identical bug reports → your last edit did not change the\n"
+    "                                     concurrency structure that caused\n"
+    "                                     the bug; try a different strategy.\n\n"
+    + CIR_SCHEMA_SPEC
+    + "\nOutput ONLY the revised CIR JSON object, with no prose and no\n"
+    "markdown fences."
+)
 
 
 def call_llm(
@@ -404,6 +482,38 @@ def _run_rq1_single(
 
 # ── RQ2: Bug Detection & Repair ──────────────────────────────
 
+def _format_goal_unreachable_report(
+    unmet: list[dict[str, Any]],
+    *,
+    deadlock_was_present: bool = False,
+) -> str:
+    """Render an unmet-goal list as a repair prompt diagnostic."""
+    if not unmet:
+        return ""
+    lines = []
+    for g in unmet:
+        gid = g.get("id", "?")
+        desc = g.get("desc") or g.get("description") or ""
+        if desc:
+            lines.append(f"- {gid}: {desc}")
+        else:
+            lines.append(f"- {gid}")
+    body = "\n".join(lines)
+    prefix = (
+        "Deadlock cleared but the following business goal(s) became "
+        "unreachable after the repair:"
+        if deadlock_was_present
+        else (
+            "BUG: GoalUnreachable. The program has no CVN deadlock, but the "
+            "following declared business goal(s) are not reachable from any "
+            "execution trace. Typical causes: a monitor/watcher loop never "
+            "exits, a spawned worker never signals completion, or a branch "
+            "guard locks control flow away from the goal state."
+        )
+    )
+    return f"{prefix}\n{body}"
+
+
 def run_rq2(
     config: ExperimentConfig,
     model_filter: str | None = None,
@@ -430,12 +540,30 @@ def run_rq2(
         base_states = analysis.get("states", 0)
         base_time = analysis.get("analysis_time_ms", 0)
         bugs = analysis.get("bugs", [])
-        bug_kind = bugs[0]["kind"] if bugs else "none"
+
+        # Also probe business-goal reachability. A "partial deadlock" pattern
+        # such as the monitor-loop bug has no CVN deadlock, yet the declared
+        # business goal (e.g. "counter reaches N") is unreachable. We treat
+        # that as a first-class repair trigger with a synthetic bug kind so
+        # the LLM gets a chance to fix it in the repair loop.
+        goal_report_initial = check_goal_reachability(buggy_json)
+        unmet_initial = goal_report_initial.get("unmet", []) \
+            if isinstance(goal_report_initial, dict) else []
+
+        if bugs:
+            bug_kind = bugs[0]["kind"]
+            goal_trigger = False
+        elif unmet_initial:
+            bug_kind = "GoalUnreachable"
+            goal_trigger = True
+        else:
+            bug_kind = "none"
+            goal_trigger = False
 
         print(f"\n  [{pattern}] CVN: {base_places}P/{base_transitions}T, "
               f"{base_states} states, {base_time:.1f}ms, bug={bug_kind}")
 
-        if not bugs:
+        if not bugs and not goal_trigger:
             for model in models:
                 results.append(RQ2Result(
                     model=model.name, pattern=pattern,
@@ -449,7 +577,9 @@ def run_rq2(
         for model in models:
             print(f"    [{model.name}] repairing...", end="", flush=True)
             result = _run_rq2_repair(
-                config, model, pattern, buggy_json, analysis
+                config, model, pattern, buggy_json, analysis,
+                initial_unmet_goals=unmet_initial if goal_trigger else None,
+                synthetic_bug_kind="GoalUnreachable" if goal_trigger else None,
             )
             results.append(result)
             status = (f"fixed in {result.repair_rounds} rounds"
@@ -466,14 +596,27 @@ def _run_rq2_repair(
     pattern: str,
     buggy_json: str,
     initial_analysis: dict[str, Any],
+    *,
+    initial_unmet_goals: list[dict[str, Any]] | None = None,
+    synthetic_bug_kind: str | None = None,
 ) -> RQ2Result:
     bugs = initial_analysis.get("bugs", [])
-    bug_kind = bugs[0]["kind"] if bugs else "none"
     bug_reports = initial_analysis.get("bug_reports", [])
-    report_text = bug_reports[0].get("text", "") if bug_reports else ""
+
+    if bugs:
+        bug_kind = bugs[0]["kind"]
+        report_text = bug_reports[0].get("text", "") if bug_reports else ""
+    elif synthetic_bug_kind and initial_unmet_goals:
+        bug_kind = synthetic_bug_kind
+        report_text = _format_goal_unreachable_report(initial_unmet_goals)
+    else:
+        bug_kind = "none"
+        report_text = ""
 
     current_json = buggy_json
     regressions = 0
+    last_error: str | None = None
+    round_diagnostics: list[str] = []
 
     for round_num in range(1, config.max_repair_rounds + 1):
         repair_prompt = _build_repair_prompt(current_json, report_text)
@@ -483,13 +626,18 @@ def _run_rq2_repair(
                 model, REPAIR_SYSTEM_PROMPT, repair_prompt,
                 config.temperature, config.max_tokens,
             )
-        except Exception:
+        except Exception as e:
+            last_error = f"Round {round_num}: API error: {type(e).__name__}: {str(e)[:200]}"
+            round_diagnostics.append(f"r{round_num}=api_err")
+            print(f"\n      {last_error}", flush=True)
             continue
 
         candidate_json = extract_json(content)
         valid, errors = validate_cir(candidate_json)
         if not valid:
             regressions += 1
+            err_summary = "; ".join(errors[:3])
+            round_diagnostics.append(f"r{round_num}=static_err[{err_summary[:150]}]")
             report_text = "Static check errors:\n" + "\n".join(errors)
             current_json = candidate_json
             continue
@@ -497,6 +645,7 @@ def _run_rq2_repair(
         analysis = translate_and_analyze(candidate_json)
         if "error" in analysis:
             regressions += 1
+            round_diagnostics.append(f"r{round_num}=xlate_err[{str(analysis['error'])[:150]}]")
             report_text = f"Translation error: {analysis['error']}"
             current_json = candidate_json
             continue
@@ -506,15 +655,15 @@ def _run_rq2_repair(
             # Also check that declared goals remain reachable after repair.
             goal_report = check_goal_reachability(candidate_json)
             if goal_report.get("goals_unmet", 0) > 0:
-                regressions += 1
-                unmet_ids = ", ".join(
-                    g.get("id", "?") for g in goal_report.get("unmet", [])
-                )
-                report_text = (
-                    f"Deadlock cleared but {goal_report['goals_unmet']} "
-                    f"business goal(s) became unreachable: [{unmet_ids}]. "
-                    f"Please restore those behaviours without reintroducing "
-                    f"the original deadlock."
+                # Continued goal-unmet on a GoalUnreachable-triggered run is
+                # just incomplete progress, not a fresh regression introduced
+                # by the LLM, so we only bump regressions when the repair
+                # actually introduced the goal-unmet state from scratch.
+                if synthetic_bug_kind != "GoalUnreachable":
+                    regressions += 1
+                report_text = _format_goal_unreachable_report(
+                    goal_report.get("unmet", []),
+                    deadlock_was_present=bool(bugs),
                 )
                 current_json = candidate_json
                 continue
@@ -534,10 +683,14 @@ def _run_rq2_repair(
         new_kind = new_bugs[0]["kind"]
         if new_kind != bug_kind:
             regressions += 1
+        round_diagnostics.append(f"r{round_num}=bug_{new_kind}")
 
         new_reports = analysis.get("bug_reports", [])
         report_text = new_reports[0].get("text", "") if new_reports else ""
         current_json = candidate_json
+
+    if round_diagnostics:
+        print(f"\n      trace: {' | '.join(round_diagnostics)}", flush=True)
 
     return RQ2Result(
         model=model.name, pattern=pattern,
@@ -552,15 +705,44 @@ def _run_rq2_repair(
     )
 
 
+_BRANCH_FEW_SHOT = """\
+## Example: predicate-check loop pattern (branch syntax)
+
+A waiter that must re-check a predicate after being woken by a condvar
+uses a `branch` transfer whose condition is a *string* expression. The
+`branch` transfer is ALWAYS a 4-element array: ["branch", cond_expr,
+true_sid, false_sid].
+
+Example body (abridged):
+
+```json
+[
+  {"sid":"s1","op":["res_op","mtx","lock"],"transfer":["next","s2"]},
+  {"sid":"s2","op":["res_op","ready","read"],
+    "transfer":["branch","ready == true","s5","s3"]},
+  {"sid":"s3","op":["res_op","cv","wait"],"transfer":["next","s4"]},
+  {"sid":"s4","op":["res_op","ready","read"],
+    "transfer":["branch","ready == true","s5","s3"]},
+  {"sid":"s5","op":["res_op","mtx","drop"],"transfer":"return"}
+]
+```
+
+This is the canonical fix for both signal-loss and dual-condvar
+deadlocks: always re-check the predicate variable via `branch` after
+`wait`, and loop back to `wait` while the predicate is false.
+"""
+
+
 def _build_repair_prompt(cir_json: str, report_text: str) -> str:
     return (
-        f"# Concurrency Bug Repair Request\n\n"
+        "# Concurrency Bug Repair Request\n\n"
         f"## Original CIR\n\n```json\n{cir_json}\n```\n\n"
         f"## Detected Bug / Regression\n\n{report_text}\n\n"
-        f"## Instructions\n\n"
-        f"Fix the issue and output the complete repaired CIR JSON. "
-        f"Keep all declared business goals reachable. "
-        f"Only output JSON, no explanation."
+        f"{_BRANCH_FEW_SHOT}\n"
+        "## Instructions\n\n"
+        "Fix the issue and output the complete repaired CIR JSON. "
+        "Keep all declared business goals reachable. "
+        "Do NOT output any explanation, markdown fences, or partial JSON."
     )
 
 
@@ -667,6 +849,52 @@ def run_rq4(config: ExperimentConfig) -> list[RQ4Result]:
 
 # ── Output ────────────────────────────────────────────────────
 
+def _merge_rq2_results(
+    existing_json_path: Path,
+    new_results: list[RQ2Result],
+    pattern_filter: list[str] | None,
+    model_filter: str | None,
+) -> list[RQ2Result]:
+    """Merge newly-computed RQ2 rows with rows from an existing JSON file.
+
+    Rows from the existing JSON are kept *unless* they match the current run's
+    (pattern, model) filter (those are considered re-runs and replaced by the
+    new rows). This is used when selectively re-running a subset of cells that
+    failed for transient / network reasons in a previous invocation.
+    """
+    if not existing_json_path.exists():
+        print(f"  [merge] existing rq2 JSON not found: {existing_json_path}")
+        return new_results
+
+    raw = json.loads(existing_json_path.read_text())
+    field_names = {f for f in RQ2Result.__dataclass_fields__}
+
+    model_filter_set: set[str] | None = None
+    if model_filter:
+        model_filter_set = {m.strip() for m in model_filter.split(",") if m.strip()}
+
+    merged: list[RQ2Result] = []
+    for entry in raw:
+        pat = entry.get("pattern")
+        mod = entry.get("model")
+        # A row is considered "re-run" (and therefore dropped from the prior
+        # JSON) only if BOTH the pattern filter AND the model filter match.
+        # If a filter is None it matches everything.
+        pat_match = pattern_filter is None or pat in pattern_filter
+        mod_match = model_filter_set is None or mod in model_filter_set
+        if pat_match and mod_match:
+            continue
+        kwargs = {k: v for k, v in entry.items() if k in field_names}
+        try:
+            merged.append(RQ2Result(**kwargs))
+        except TypeError as e:
+            print(f"  [merge] skipping malformed row {pat}/{mod}: {e}")
+    merged.extend(new_results)
+    print(f"  [merge] kept {len(merged) - len(new_results)} prior rows, "
+          f"added {len(new_results)} new rows")
+    return merged
+
+
 def save_results(
     output_dir: Path,
     rq1: list[RQ1Result] | None = None,
@@ -721,10 +949,11 @@ def _filter_models(
 ) -> list[ModelConfig]:
     if name is None:
         return models
-    filtered = [m for m in models if m.name == name]
+    wanted = {n.strip() for n in name.split(",") if n.strip()}
+    filtered = [m for m in models if m.name in wanted]
     if not filtered:
         available = ", ".join(m.name for m in models)
-        raise ValueError(f"Model '{name}' not found. Available: {available}")
+        raise ValueError(f"Model(s) '{name}' not found. Available: {available}")
     return filtered
 
 
@@ -745,6 +974,16 @@ def main():
     parser.add_argument(
         "--model", type=str, default=None,
         help="Run only a specific model by name.",
+    )
+    parser.add_argument(
+        "--patterns", type=str, default=None,
+        help="Comma-separated list of pattern names to run (RQ2 only).",
+    )
+    parser.add_argument(
+        "--merge-rq2", type=str, default=None,
+        help="Path to an existing rq2 JSON; its (model, pattern) rows "
+             "that are NOT regenerated by the current run are preserved in "
+             "the output (used for selective re-runs).",
     )
     args = parser.parse_args()
 
@@ -768,7 +1007,22 @@ def main():
         print("\n" + "=" * 60)
         print("  RQ2: Bug Detection & Repair")
         print("=" * 60)
-        rq2_results = run_rq2(config, args.model)
+        pattern_filter = (
+            [p.strip() for p in args.patterns.split(",") if p.strip()]
+            if args.patterns else None
+        )
+        if pattern_filter is not None:
+            filtered_cfg = replace(config, buggy_cirs={
+                k: v for k, v in config.buggy_cirs.items()
+                if k in pattern_filter
+            })
+            rq2_results = run_rq2(filtered_cfg, args.model)
+        else:
+            rq2_results = run_rq2(config, args.model)
+        if args.merge_rq2:
+            rq2_results = _merge_rq2_results(
+                Path(args.merge_rq2), rq2_results, pattern_filter, args.model,
+            )
 
     if run_all or args.rq == 3:
         print("\n" + "=" * 60)
