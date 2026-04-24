@@ -19,11 +19,12 @@ evaluates to~$\mathsf{unknown}$, both successor branches are explored;
 the search is therefore a conservative over-approximation that never
 suppresses a feasible behavior.
 
-\emph{Only one property is reported directly by the state-space
-search}: \emph{deadlock}. All other bug labels used in the diagnostic
-layer are refinements that \emph{re-classify} a deadlock witness without
-ever enlarging the reported bug set. This design choice keeps the
-analysis sound with zero false positives: we deliberately avoid
+\emph{Two properties are reported directly by the state-space
+search}: \emph{deadlock} and \emph{behavioral dead transition}.
+All other concurrency-bug labels used in the diagnostic layer are
+refinements that \emph{re-classify} a deadlock witness without ever
+enlarging the reported bug set. This design choice keeps the analysis
+sound with zero false positives: we deliberately avoid
 scheduler-dependent properties such as livelock, starvation, or
 standalone signal-loss, all of which cannot be decided on a
 scheduler-agnostic Petri-net semantics without risking spurious alarms
@@ -72,14 +73,43 @@ the set of deadlocks.
 
 \begin{remark}[Scope of soundness]
 \label{rem:soundness-scope}
-In summary: the \textsc{Cvn} state-space search reports exactly one
-primary property, \emph{deadlock}, which is sound and complete inside
-the model. The sub-classifications $\kappa_{sl}$ and $\kappa_{cb}$ are
-refinements of~$\kappa_{dl}$ and inherit its soundness. The system
-never silently misses a deadlock in the modelled \textsc{Cir}, and it
-never fabricates a bug that is not already a genuine deadlock under
-\textsc{Cvn} semantics.
+In summary: the \textsc{Cvn} state-space search reports two primary
+properties, \emph{deadlock} and \emph{behavioral dead transition}
+(Section~\ref{subsubsec:dead-transition}), both sound inside the model.
+The sub-classifications $\kappa_{sl}$ and $\kappa_{cb}$ are refinements
+of~$\kappa_{dl}$ and inherit its soundness. The system never silently
+misses a deadlock or a dead transition in the modelled \textsc{Cir},
+and it never fabricates a bug that is not already a genuine deadlock
+or a genuinely unreachable transition under \textsc{Cvn} semantics.
 \end{remark}
+
+\subsubsection{Behavioral Dead Transition}
+\label{subsubsec:dead-transition}
+
+A transition $t\in T$ of the \textsc{Cvn} is \emph{behaviorally dead}
+$(\kappa_{dt})$ with respect to the initial state $S_0$ iff
+$t\notin \mathsf{fired}(\mathcal{R})$, where $\mathsf{fired}(\mathcal{R})$ is
+the set of transitions that appear on any edge of the reachability
+graph produced by exhaustive exploration from~$S_0$. Intuitively, $t$
+corresponds to a \textsc{Cir} statement that the verifier can prove
+will never execute on any feasible interleaving: either its guard is
+unsatisfiable, its input place never receives tokens, or its
+predecessors are themselves dead. Because $\mathsf{fired}(\mathcal{R})$ is
+computed from the very same reachability graph used for deadlock
+detection, reporting $\kappa_{dt}$ requires no additional search
+budget.
+
+We report behavioral, not structural, dead transitions: a transition
+that is structurally live but behaviorally dead (e.g., a branch that
+the \textsc{Cvn}'s three-valued guard can statically refute) is still
+reported. Soundness is immediate: if $t$ fires on a real \textsc{Cir}
+trace, then by Theorem~\ref{thm:forward} $t$ also appears on a
+\textsc{Cvn} firing sequence, hence on an edge of $\mathcal{R}$;
+contrapositively, $t\notin\mathsf{fired}(\mathcal{R})$ implies that no
+\textsc{Cir} execution ever reaches the statement anchored to~$t$.
+The conservative $\mathsf{unknown}$-branching (Section~\ref{subsec:bug-patterns})
+only enlarges $\mathsf{fired}(\mathcal{R})$, so it can only turn a would-be
+dead transition into a live one, never the reverse.
 
 
 \subsection{Goal Reachability as a First-Class Property}
@@ -141,8 +171,8 @@ A repair-oriented diagnostic is a tuple
 $\mathcal{D}=(\kappa,\;\pi_{\mu},\;\Sigma_{\mathit{state}},\;
   \Sigma_{\mathit{wait}},\;\Lambda,\;\Gamma_{\mathit{ctx}},\;H)$,
 where
-$\kappa\in\{\kappa_{dl},\kappa_{sl},\kappa_{cb},\kappa_{goal}\}$ is the
-bug or goal kind;
+$\kappa\in\{\kappa_{dl},\kappa_{sl},\kappa_{cb},\kappa_{dt},\kappa_{goal}\}$
+is the bug or goal kind;
 $\pi_{\mu}$ is a bug witness expressed as a sequence of
 $\mathit{sid}$s via the anchor mapping~$\mu$ (for a bug-free but
 goal-unmet report $\pi_{\mu}$ is empty);
@@ -211,7 +241,7 @@ Algorithm~\ref{alg:repair-goal} gives the pseudocode.
     \State $(\mathcal{R},\,\mathcal{B})
       \gets \text{Analyze}(\mathcal{N})$
       \Comment{$\mathcal{R}$: reachable states;\;
-               $\mathcal{B}$: deadlocks}
+               $\mathcal{B}$: deadlocks $\cup$ dead transitions}
     \If{$\mathcal{B} \neq \emptyset$}
         \State $b^{*} \gets \text{SelectBug}(\mathcal{B})$
           \Comment{priority $+$ shortest witness}
@@ -238,8 +268,10 @@ Algorithm~\ref{alg:repair-goal} gives the pseudocode.
 
 $\text{Analyze}$ returns the pair $(\mathcal{R},\mathcal{B})$ where
 $\mathcal{R}$ is the set of reachable \textsc{Cvn} states and
-$\mathcal{B}$ is the set of detected deadlocks (already refined to
-$\kappa_{sl}$ or $\kappa_{cb}$ where applicable). $\text{CheckGoals}$
+$\mathcal{B}$ is the union of detected deadlocks (already refined to
+$\kappa_{sl}$ or $\kappa_{cb}$ where applicable) and behavioral dead
+transitions ($\kappa_{dt}$), both computed over the same reachability
+graph. $\text{CheckGoals}$
 implements the EF-reachability query of
 Section~\ref{subsec:goal-reach}: it folds over $\mathcal{R}$ and
 returns the subset $\mathcal{U}\subseteq\Gamma$ of unmet goals.
@@ -251,8 +283,10 @@ which operations may need to be added to a reachable path.
 
 When $|\mathcal{B}|>1$, $\text{SelectBug}$ picks a single bug in
 priority order
-$\kappa_{dl}>\kappa_{sl}>\kappa_{cb}$. Within the same category the
-bug with the shortest witness is preferred. This deterministic policy
+$\kappa_{dl}>\kappa_{sl}>\kappa_{cb}>\kappa_{dt}$. Within the same
+category the bug with the shortest witness is preferred (dead
+transitions carry an empty witness and are ordered by anchor
+$\mathit{sid}$). This deterministic policy
 ensures reproducibility and avoids overwhelming the LLM with multiple
 simultaneous targets.
 
@@ -305,8 +339,8 @@ shows a concrete prompt skeleton for the running example.
 Bug or goal kind
   & $\kappa$
   & Selects the repair mode: deadlock, signal-loss refinement,
-    channel-block refinement, and goal-unmet each require different
-    structural edits. \\
+    channel-block refinement, dead-transition, and goal-unmet each
+    require different structural edits. \\
 \addlinespace[3pt]
 Witness trace
   & $\pi_{\mu}$

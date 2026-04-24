@@ -6,6 +6,7 @@ const TEMPLATE_DEADLOCK: &str = include_str!("templates/deadlock.md");
 const TEMPLATE_SIGNAL_LOSS: &str = include_str!("templates/signal_loss.md");
 const TEMPLATE_CHANNEL_BLOCK: &str = include_str!("templates/channel_block.md");
 const TEMPLATE_GOAL_UNMET: &str = include_str!("templates/goal_unmet.md");
+const TEMPLATE_DEAD_TRANSITION: &str = include_str!("templates/dead_transition.md");
 
 /// Render a bug report as human-readable text (also suitable as LLM input).
 pub fn render_text(report: &BugReport) -> String {
@@ -180,6 +181,23 @@ fn write_state_summary(out: &mut String, report: &BugReport) {
             writeln!(out, "- Channel `{channel}`: `{blocked_op}` operation is permanently blocked").unwrap();
             writeln!(out, "- No matching counterpart can execute because of lock contention or missing pair").unwrap();
         }
+        BugKind::DeadTransition { transition, sids } => {
+            let sid_label = if sids.is_empty() {
+                "(no anchor)".to_string()
+            } else {
+                sids.join(", ")
+            };
+            writeln!(
+                out,
+                "- CVN transition `{transition}` (sid: {sid_label}) is never enabled on any reachable path"
+            )
+            .unwrap();
+            writeln!(
+                out,
+                "- The anchored CIR statement cannot execute regardless of interleaving"
+            )
+            .unwrap();
+        }
     }
 
     if !report.final_marking_summary.is_empty() {
@@ -246,6 +264,7 @@ fn write_repair_template(out: &mut String, report: &BugReport) {
         BugKind::Deadlock { .. } => TEMPLATE_DEADLOCK,
         BugKind::SignalLoss { .. } => TEMPLATE_SIGNAL_LOSS,
         BugKind::ChannelBlock { .. } => TEMPLATE_CHANNEL_BLOCK,
+        BugKind::DeadTransition { .. } => TEMPLATE_DEAD_TRANSITION,
     };
 
     writeln!(out, "{template}\n").unwrap();
@@ -295,6 +314,13 @@ fn write_bug_details(out: &mut String, report: &BugReport) {
         } => {
             writeln!(out, "CHANNEL BLOCK:").unwrap();
             writeln!(out, "  channel: {channel}, blocked on: {blocked_op}").unwrap();
+        }
+        BugKind::DeadTransition { transition, sids } => {
+            writeln!(out, "DEAD TRANSITION:").unwrap();
+            writeln!(out, "  transition: {transition}").unwrap();
+            if !sids.is_empty() {
+                writeln!(out, "  anchored sid(s): {}", sids.join(", ")).unwrap();
+            }
         }
     }
     writeln!(out).unwrap();

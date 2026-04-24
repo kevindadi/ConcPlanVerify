@@ -7,7 +7,7 @@
 \label{sec:architecture}
 % 该架构将流程分为五个阶段,包括两个验证层和三个修复层.第一层(第二阶段)通过确定性静态检查验证模型质量;第二层(第四阶段)通过穷举状态空间搜索分析并发行为;此外,还有一个专门的目标可达性检查(第五阶段)来防止行为丢失型修复.图~\ref{fig:pipeline}展示了完整的流程.
 The architecture organizes five stages into two verification layers and three repair tiers.
-Layer~1 (Stage~2) validates model quality through deterministic static checking; Layer~2 analyzes behaviour on the \textsc{Cvn} through two complementary searches on the same reachability graph, namely Layer~2a (Stage~4) which reports deadlocks (with signal-loss and channel-block sub-classifications) and Layer~2b (Stage~5) which reports unmet business goals. Figure~\ref{fig:pipeline} shows the complete pipeline.
+Layer~1 (Stage~2) validates model quality through deterministic static checking; Layer~2 analyzes behaviour on the \textsc{Cvn} through two complementary searches on the same reachability graph, namely Layer~2a (Stage~4) which reports deadlocks (with signal-loss and channel-block sub-classifications) and behavioral dead transitions, and Layer~2b (Stage~5) which reports unmet business goals. Figure~\ref{fig:pipeline} shows the complete pipeline.
 
 \begin{figure}[t]
 \centering
@@ -91,7 +91,18 @@ A stateless translator converts the validated \textsc{Cir} into a \textsc{Cvn}. 
 
 % 状态空间分析器通过穷举可达性检查来探索 \textsc{Cvn};该阶段完全离线运行,不消耗 LLM 预算.可达图上仅产出一等性质死锁,其余(SignalLoss/ChannelBlock)是死锁反例的二次分类,而非独立可检测错误.
 \emph{Stage~4: State-space analysis (Layer~2a).}
-The \textsc{Cvn} is explored through exhaustive reachability search, which yields deadlock as the only first-class concurrency-bug verdict. Signal loss and channel block are reported only as sub-classifications of an already-detected deadlock counterexample (Section~\ref{subsubsec:deadlock-subclass}), so they inherit the soundness of the deadlock oracle and do not broaden the set of reported bugs. This stage runs entirely off-prompt and does not consume LLM budget.
+The \textsc{Cvn} is explored through exhaustive reachability search.
+Two first-class concurrency-bug verdicts are produced from the same
+reachability graph: deadlock (Section~\ref{subsubsec:deadlock}) and
+behavioral dead transition
+(Section~\ref{subsubsec:dead-transition}), the latter flagging any
+transition that never fires on any feasible interleaving. Signal loss
+and channel block are reported only as sub-classifications of an
+already-detected deadlock counterexample
+(Section~\ref{subsubsec:deadlock-subclass}), so they inherit the
+soundness of the deadlock oracle and do not broaden the set of
+reported bugs. This stage runs entirely off-prompt and does not
+consume LLM budget.
 
 % 目标可达性检查器检查每个用户指定的关键结果是否在探索的状态空间中保持可达.只有当工件既没有并发违规又没有目标不可达时,它才会被接受.一种看似安全的修复,通过删除所需的行为来实现无 bug,在此阶段会被拒绝.
 \emph{Stage~5: Goal-reachability check (Layer~2b).}
@@ -136,6 +147,7 @@ LLM to revise the affected synchronization logic. This is the most expensive rep
 \quad \;\;$\hookrightarrow$ Signal-loss refinement & \textsc{Cvn} & 3 (LLM) \\
 \quad \;\;$\hookrightarrow$ Channel-block refinement & \textsc{Cvn} & 3 (LLM) \\
 \quad Cross-primitive deadlock                     & \textsc{Cvn} & 3 (LLM) \\
+\quad Behavioral dead transition                    & \textsc{Cvn} & 3 (LLM) \\
 \midrule
 \multicolumn{3}{@{}l}{\textit{Functional regressions (Layer~2b, goal reachability)}} \\
 \quad Unreachable business goal & \textsc{Cvn} & 3 (LLM) \\

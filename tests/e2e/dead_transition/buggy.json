@@ -1,0 +1,24 @@
+{
+  "program": "dead_branch",
+  "resources": [
+    {"name": "flag", "kind": "var", "type": "Var", "base": "Int", "init": 0}
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main",
+      "kind": "normal",
+      "body": [
+        {
+          "sid": "s0",
+          "op": ["res_op", "flag", "read"],
+          "transfer": ["branch", "flag > 0", "s1", "s2"]
+        },
+        {"sid": "s1", "op": "return", "transfer": "return"},
+        {"sid": "s2", "op": "return", "transfer": "return"}
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main"
+}

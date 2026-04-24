@@ -13,7 +13,7 @@ pub mod llm;
 
 pub use report::{BugKind, BugReport, DeadlockParticipant, EnrichedFiringStep};
 
-use cvn::analysis::{AnalysisResult, Counterexample};
+use cvn::analysis::{AnalysisResult, Counterexample, PropertyViolation};
 use cvn::model::{PlaceId, PlaceKind, TransitionId};
 use cvn::net::CvnNet;
 use std::collections::{HashMap, HashSet};
@@ -21,9 +21,11 @@ use std::fmt::Write;
 
 /// Analyze CVN counterexamples and produce enriched bug reports.
 ///
-/// Each CVN `Counterexample` (currently always `PropertyViolation::Deadlock`)
-/// is classified into a more specific `BugKind` by inspecting the net
-/// structure and final state.
+/// Each CVN [`Counterexample`] is classified into a more specific
+/// [`BugKind`] by inspecting the net structure and the final state.
+/// Deadlocks come from `result.deadlocks`; behavioral dead transitions
+/// are computed from the reachability graph via
+/// [`cvn::analysis::find_dead_transitions`].
 pub fn analyze(
     program: &cir::ast::Program,
     net: &CvnNet,
@@ -31,7 +33,7 @@ pub fn analyze(
 ) -> Vec<BugReport> {
     let preservation = build_preservation_constraints(program);
 
-    result
+    let mut reports: Vec<BugReport> = result
         .deadlocks
         .iter()
         .map(|cx| {
@@ -40,10 +42,38 @@ pub fn analyze(
             report.preservation_constraints = preservation.clone();
             report
         })
-        .collect()
+        .collect();
+
+    for cx in cvn::analysis::find_dead_transitions(net, result) {
+        let mut report = classify_counterexample(net, &cx);
+        if let BugKind::DeadTransition { sids, .. } = &report.kind {
+            report.involved_functions = functions_for_sids(program, sids);
+        }
+        report.cir_slice = extract_cir_slice(program, &report.trace);
+        report.preservation_constraints = preservation.clone();
+        reports.push(report);
+    }
+
+    reports
+}
+
+fn functions_for_sids(program: &cir::ast::Program, sids: &[String]) -> Vec<String> {
+    let mut result: Vec<String> = Vec::new();
+    for func in &program.functions {
+        if func.body.iter().any(|stmt| sids.contains(&stmt.sid)) {
+            if !result.contains(&func.name) {
+                result.push(func.name.clone());
+            }
+        }
+    }
+    result.sort();
+    result
 }
 
 fn classify_counterexample(net: &CvnNet, cx: &Counterexample) -> BugReport {
+    if let PropertyViolation::DeadTransition { .. } = &cx.kind {
+        return classify_dead_transition(net, cx);
+    }
     let blocked = cvn::analysis::blocked_places(net, &cx.final_state);
 
     let has_wait_place = blocked
@@ -188,6 +218,55 @@ fn classify_channel_block(net: &CvnNet, blocked: &[PlaceId]) -> Option<(BugKind,
     }
 
     None
+}
+
+fn classify_dead_transition(net: &CvnNet, cx: &Counterexample) -> BugReport {
+    let (transition_id_str, sids): (String, Vec<String>) = match &cx.kind {
+        PropertyViolation::DeadTransition {
+            transition_id,
+            anchor_sids,
+        } => (
+            transition_id.0.clone(),
+            anchor_sids.iter().cloned().collect(),
+        ),
+        _ => (String::new(), Vec::new()),
+    };
+
+    let involved_functions: Vec<String> = Vec::new();
+
+    let anchor_label = if sids.is_empty() {
+        format!("transition {}", transition_id_str)
+    } else {
+        format!(
+            "transition {} (sid: {})",
+            transition_id_str,
+            sids.join(", ")
+        )
+    };
+
+    let summary = format!(
+        "Behavioral dead transition: {anchor_label} never fires on any reachable interleaving"
+    );
+
+    let trace = enrich_trace(net, cx);
+    let final_marking_summary = format_marking(net, &cx.final_state.marking);
+    let kind = BugKind::DeadTransition {
+        transition: transition_id_str,
+        sids,
+    };
+    let repair_hint = suggestion::suggestion_for(&kind);
+
+    BugReport {
+        kind,
+        trace,
+        final_marking_summary,
+        summary,
+        involved_resources: Vec::new(),
+        involved_functions,
+        cir_slice: Vec::new(),
+        preservation_constraints: Vec::new(),
+        repair_hint,
+    }
 }
 
 fn classify_deadlock(net: &CvnNet, cx: &Counterexample, blocked: &[PlaceId]) -> (BugKind, String) {

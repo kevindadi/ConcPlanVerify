@@ -5,18 +5,23 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Classification hierarchy
 ///
-/// The only bug class that is directly detected by the CVN state-space
-/// search is [`BugKind::Deadlock`] — a state with no enabled transitions
-/// where at least one thread has not reached its return place. The other
-/// two variants ([`BugKind::SignalLoss`] and [`BugKind::ChannelBlock`])
+/// Two bug classes are directly detected by the CVN state-space search:
+/// [`BugKind::Deadlock`] — a state with no enabled transitions where at
+/// least one thread has not reached its return place — and
+/// [`BugKind::DeadTransition`] — a transition that never fires on any
+/// edge of the reachability graph (its anchored CIR statement is
+/// behaviorally unreachable). Both are primary, independent soundness
+/// claims.
+///
+/// The variants [`BugKind::SignalLoss`] and [`BugKind::ChannelBlock`]
 /// are *secondary sub-classifications*: the repair layer inspects the
-/// counterexample trace and the set of blocked control/wait places of an
-/// already-reported deadlock, and relabels it with the more specific
-/// variant when the evidence is unambiguous. They never broaden the set
-/// of reported bugs beyond the deadlocks found by
-/// [`cvn::analysis::explore`], which keeps the analysis *sound* (no false
-/// positives): any state labelled `SignalLoss` or `ChannelBlock` is also
-/// a genuine deadlock in the CVN semantics.
+/// counterexample trace and the set of blocked control/wait places of
+/// an already-reported deadlock, and relabels it with the more specific
+/// variant when the evidence is unambiguous. They never broaden the
+/// set of reported bugs beyond the deadlocks found by
+/// [`cvn::analysis::explore`], which keeps the analysis *sound* (no
+/// false positives): any state labelled `SignalLoss` or `ChannelBlock`
+/// is also a genuine deadlock in the CVN semantics.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum BugKind {
     /// No transitions enabled and not all threads have returned.
@@ -61,6 +66,19 @@ pub enum BugKind {
         /// Channel resource name.
         channel: String,
     },
+    /// **Primary classification**: a transition that never fires on any
+    /// reachable edge of the CVN state graph.
+    ///
+    /// Corresponds to [`cvn::analysis::PropertyViolation::DeadTransition`].
+    /// The anchored CIR statement is behaviorally unreachable; this
+    /// typically indicates unreachable code (e.g., a `branch` whose
+    /// condition is statically falsified) or a missing producer.
+    DeadTransition {
+        /// CVN transition identifier that never fires.
+        transition: String,
+        /// CIR statement id(s) anchored to the dead transition, if any.
+        sids: Vec<String>,
+    },
 }
 
 impl BugKind {
@@ -70,6 +88,7 @@ impl BugKind {
             BugKind::Deadlock { .. } => "Deadlock",
             BugKind::SignalLoss { .. } => "SignalLoss",
             BugKind::ChannelBlock { .. } => "ChannelBlock",
+            BugKind::DeadTransition { .. } => "DeadTransition",
         }
     }
 }

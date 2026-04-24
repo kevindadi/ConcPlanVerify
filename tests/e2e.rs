@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use cir::ast::Program;
-use cvn::analysis::{check_goals, explore, AnalysisConfig};
+use cvn::analysis::{check_goals, explore, find_dead_transitions, AnalysisConfig};
 use cvn::net::CvnNet;
 
 use serde::Deserialize;
@@ -294,4 +294,51 @@ fn e2e_dual_condvar_fixed() {
 #[test]
 fn e2e_fn_summary_prop_no_bug() {
     run_goal_fixed_test("fn_summary_prop");
+}
+
+// ── Test 10: Dead Transition (behavioral unreachability) ──
+
+/// Helper: a fixture is "dead-transition-free" iff
+/// [`find_dead_transitions`] returns the empty set on its state graph.
+fn run_dead_transition_fixed_test(dir_name: &str) {
+    let dir = e2e_dir().join(dir_name);
+    let fixed_path = dir.join("fixed.json");
+    if !fixed_path.exists() {
+        return;
+    }
+
+    let fixed = load_cir(&fixed_path);
+    let net = translate(&fixed);
+    let config = AnalysisConfig::default();
+    let result = explore(&net, &config).expect("state space exploration should succeed");
+
+    assert!(
+        result.deadlocks.is_empty(),
+        "[{dir_name}/fixed] expected no deadlocks but found {}",
+        result.deadlocks.len()
+    );
+
+    let dead = find_dead_transitions(&net, &result);
+    assert!(
+        dead.is_empty(),
+        "[{dir_name}/fixed] expected no dead transitions, but found {}: {:?}",
+        dead.len(),
+        dead.iter()
+            .map(|cx| match &cx.kind {
+                cvn::analysis::PropertyViolation::DeadTransition { transition_id, .. } =>
+                    transition_id.0.clone(),
+                _ => "<other>".into(),
+            })
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn e2e_dead_transition_buggy() {
+    run_buggy_test("dead_transition");
+}
+
+#[test]
+fn e2e_dead_transition_fixed() {
+    run_dead_transition_fixed_test("dead_transition");
 }

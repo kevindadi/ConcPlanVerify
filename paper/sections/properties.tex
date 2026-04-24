@@ -148,6 +148,27 @@ waiting, and blocked-position summaries are faithful to the bug
 state from which they are extracted.
 \end{proof}
 
+% 行为死变迁 soundness.只要 Cvn 在可达图上没有触发 t, 对应的 CIR 语句在任何执行中都不会运行.
+\begin{proposition}[Dead-transition soundness]
+\label{prop:dead-transition}
+Let $\mathcal{R}$ be the reachable state set of the \textsc{Cvn} and
+$\mathsf{fired}(\mathcal{R})$ the set of transitions appearing on any
+edge of~$\mathcal{R}$. If $t\notin\mathsf{fired}(\mathcal{R})$, then no
+\textsc{Cir} execution starting from the initial configuration ever
+performs the \textsc{Cir} step to which $t$ is anchored.
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+By Theorem~\ref{thm:forward}, any \textsc{Cir} step $C\xrightarrow{o}C'$
+is matched by a \textsc{Cvn} transition firing in~$\mathcal{R}$.
+Contrapositively, if the translated transition~$t$ is absent from every
+edge of $\mathcal{R}$, the anchored \textsc{Cir} step has no witness
+and hence never executes. The three-valued overapproximation only adds
+firings (Section~\ref{subsec:bug-patterns}); it can move a transition
+from the dead set to the live set but never the other way, preserving
+soundness of the dead-transition report.
+\end{proof}
+
 % 目标可达性作为一等性质的 soundness.只要 Cvn 报 goal 不可达,Cir 也不可达;反之因为 unknown 过近似,不一定成立.
 \begin{theorem}[Goal-reachability soundness]
 \label{thm:goal-soundness}

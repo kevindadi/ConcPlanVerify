@@ -54,5 +54,19 @@ pub fn suggestion_for(kind: &BugKind) -> Option<String> {
             "Channel `{channel}` {blocked_op} is blocked. \
              Move the {blocked_op} operation outside any held mutex."
         )),
+        BugKind::DeadTransition { transition, sids } => {
+            let sid_label = if sids.is_empty() {
+                String::new()
+            } else {
+                format!(" (sid: {})", sids.join(", "))
+            };
+            Some(format!(
+                "Transition `{transition}`{sid_label} never fires. \
+                 Check the upstream control flow: a `branch` guard may be \
+                 statically unsatisfiable, a required `spawn`/`notify`/ \
+                 `send` may be missing, or a `next` target may bypass this \
+                 statement entirely."
+            ))
+        }
     }
 }

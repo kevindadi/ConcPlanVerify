@@ -140,6 +140,7 @@ fn cmd_analyze(source: &str) {
         .iter()
         .filter(|cx| matches!(cx.kind, PropertyViolation::Deadlock))
         .count();
+    let dead_transition_count = cvn::analysis::find_dead_transitions(&net, &result).len();
 
     let out = serde_json::json!({
         "places": net.places().count(),
@@ -147,6 +148,7 @@ fn cmd_analyze(source: &str) {
         "states": result.state_count,
         "analysis_time_ms": elapsed_ms,
         "deadlock_count": deadlock_count,
+        "dead_transition_count": dead_transition_count,
         "bugs": bugs,
         "bug_reports": bug_reports,
     });

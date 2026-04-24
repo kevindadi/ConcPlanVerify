@@ -220,6 +220,56 @@ fn reconstruct_trace(
     path
 }
 
+/// Compute the set of behaviorally dead transitions with respect to
+/// the explored reachability graph.
+///
+/// A transition is *behaviorally dead* when it does not appear on any
+/// edge of the reachability graph: i.e. no reachable state enables it.
+/// Soundness relative to the CIR follows from the forward-simulation
+/// theorem (see `paper/sections/properties.tex`): if the anchored CIR
+/// statement could fire on any interleaving, the transition would
+/// appear on some edge here.
+///
+/// Returns one [`Counterexample`] per dead transition, with an empty
+/// trace and the initial state as placeholder for `final_state`, since
+/// dead transitions have no witness.
+pub fn find_dead_transitions(net: &CvnNet, result: &AnalysisResult) -> Vec<Counterexample> {
+    use rustc_hash::FxHashSet;
+
+    let mut fired: FxHashSet<TransitionId> = FxHashSet::default();
+    for edge_idx in result.reachability_graph.edge_indices() {
+        if let Some(tid) = result.reachability_graph.edge_weight(edge_idx) {
+            fired.insert(tid.clone());
+        }
+    }
+
+    let initial = net.initial_state();
+    let mut dead = Vec::new();
+    for t in net.transitions() {
+        if fired.contains(&t.id) {
+            continue;
+        }
+        dead.push(Counterexample {
+            kind: PropertyViolation::DeadTransition {
+                transition_id: t.id.clone(),
+                #[cfg(feature = "cir-anchor")]
+                anchor_sids: t.anchor_sids.clone(),
+            },
+            trace: Vec::new(),
+            final_state: initial.clone(),
+        });
+    }
+    dead.sort_by(|a, b| dead_transition_key(&a.kind).cmp(&dead_transition_key(&b.kind)));
+    dead
+}
+
+fn dead_transition_key(kind: &PropertyViolation) -> String {
+    match kind {
+        PropertyViolation::DeadTransition { transition_id, .. } => transition_id.0.clone(),
+        _ => String::new(),
+    }
+}
+
 /// Check whether any path exists where a specific condition holds.
 ///
 /// Returns `true` if any reachable state satisfies the predicate.
@@ -235,4 +285,60 @@ pub fn exists_path(
         }
     }
     Ok(false)
+}
+
+#[cfg(test)]
+mod dead_transition_tests {
+    use super::*;
+    use crate::builder::CvnNetBuilder;
+    use crate::model::{BoolExpr, TransitionKind};
+
+    /// Build a net that has a transition `t_dead` whose input place has
+    /// zero initial tokens and no producer, plus a live transition
+    /// `t_live` that does fire. Expect exactly `t_dead` to be flagged.
+    fn net_with_dead_transition() -> CvnNet {
+        CvnNetBuilder::new()
+            .add_control_place("p0", "main", "s0")
+            .add_control_place("p1", "main", "s1")
+            .set_return("p1")
+            .add_control_place("p_unreached", "main", "s_unreached")
+            .add_transition("t_live", TransitionKind::Sequential)
+            .add_transition("t_dead", TransitionKind::Sequential)
+            .add_input_arc("p0", "t_live", 1, BoolExpr::True)
+            .add_output_arc("t_live", "p1", 1, None)
+            .add_input_arc("p_unreached", "t_dead", 1, BoolExpr::True)
+            .add_output_arc("t_dead", "p1", 1, None)
+            .set_initial_tokens("p0", 1)
+            .build()
+            .unwrap()
+    }
+
+    #[test]
+    fn reports_transition_never_enabled() {
+        let net = net_with_dead_transition();
+        let result = explore(&net, &AnalysisConfig::default()).unwrap();
+        let dead = find_dead_transitions(&net, &result);
+        assert_eq!(dead.len(), 1, "expected exactly one dead transition");
+        match &dead[0].kind {
+            PropertyViolation::DeadTransition { transition_id, .. } => {
+                assert_eq!(transition_id.0, "t_dead");
+            }
+            other => panic!("expected DeadTransition, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn live_transition_not_reported_as_dead() {
+        let net = net_with_dead_transition();
+        let result = explore(&net, &AnalysisConfig::default()).unwrap();
+        let dead = find_dead_transitions(&net, &result);
+        for ce in &dead {
+            if let PropertyViolation::DeadTransition { transition_id, .. } = &ce.kind {
+                assert_ne!(
+                    transition_id.0, "t_live",
+                    "t_live fires, must not be reported as dead"
+                );
+            }
+        }
+    }
 }
