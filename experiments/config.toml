@@ -94,8 +94,13 @@ api_key_env = "DEEPSEEK_API_KEY"
 base_url    = "https://api.deepseek.com/v1"
 
 [[models]]
-name        = "qwen3-235b-a22b"
+# Swapped out of the open-source qwen3-235b-a22b because its DashScope
+# channel pathologically times out (120–180 s/call) on long repair
+# prompts, making the full RQ2 sweep unreliable. qwen3-max is the
+# closed-source flagship of the same family and returns in < 30 s
+# under identical prompts.
+name        = "qwen3-max"
 provider    = "openai"                  # DashScope is OpenAI-compatible
-model_id    = "qwen3-235b-a22b"
+model_id    = "qwen3-max"
 api_key_env = "DASHSCOPE_API_KEY"
 base_url    = "https://dashscope.aliyuncs.com/compatible-mode/v1"
