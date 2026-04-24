@@ -28,7 +28,7 @@ import re
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, field, asdict, replace
+from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any
 
@@ -620,6 +620,8 @@ def _run_rq2_repair(
 
     for round_num in range(1, config.max_repair_rounds + 1):
         repair_prompt = _build_repair_prompt(current_json, report_text)
+        t_round_start = time.perf_counter()
+        print(f"\n      r{round_num} calling {model.name}...", end="", flush=True)
 
         try:
             content, _ = call_llm(
@@ -627,10 +629,13 @@ def _run_rq2_repair(
                 config.temperature, config.max_tokens,
             )
         except Exception as e:
-            last_error = f"Round {round_num}: API error: {type(e).__name__}: {str(e)[:200]}"
+            elapsed = (time.perf_counter() - t_round_start) * 1000
+            last_error = f"Round {round_num}: API error ({elapsed:.0f}ms): {type(e).__name__}: {str(e)[:200]}"
             round_diagnostics.append(f"r{round_num}=api_err")
-            print(f"\n      {last_error}", flush=True)
+            print(f" API_ERR {elapsed:.0f}ms [{type(e).__name__}]", flush=True)
             continue
+        llm_ms = (time.perf_counter() - t_round_start) * 1000
+        print(f" llm={llm_ms:.0f}ms", end="", flush=True)
 
         candidate_json = extract_json(content)
         valid, errors = validate_cir(candidate_json)
@@ -640,6 +645,7 @@ def _run_rq2_repair(
             round_diagnostics.append(f"r{round_num}=static_err[{err_summary[:150]}]")
             report_text = "Static check errors:\n" + "\n".join(errors)
             current_json = candidate_json
+            print(" static_err", flush=True)
             continue
 
         analysis = translate_and_analyze(candidate_json)
@@ -648,6 +654,7 @@ def _run_rq2_repair(
             round_diagnostics.append(f"r{round_num}=xlate_err[{str(analysis['error'])[:150]}]")
             report_text = f"Translation error: {analysis['error']}"
             current_json = candidate_json
+            print(" xlate_err", flush=True)
             continue
 
         new_bugs = analysis.get("bugs", [])
@@ -666,8 +673,11 @@ def _run_rq2_repair(
                     deadlock_was_present=bool(bugs),
                 )
                 current_json = candidate_json
+                round_diagnostics.append(f"r{round_num}=goal_unmet")
+                print(" goal_unmet", flush=True)
                 continue
 
+            print(" SUCCESS", flush=True)
             return RQ2Result(
                 model=model.name, pattern=pattern,
                 places=initial_analysis.get("places", 0),
@@ -684,6 +694,7 @@ def _run_rq2_repair(
         if new_kind != bug_kind:
             regressions += 1
         round_diagnostics.append(f"r{round_num}=bug_{new_kind}")
+        print(f" bug={new_kind}", flush=True)
 
         new_reports = analysis.get("bug_reports", [])
         report_text = new_reports[0].get("text", "") if new_reports else ""
@@ -849,52 +860,6 @@ def run_rq4(config: ExperimentConfig) -> list[RQ4Result]:
 
 # ── Output ────────────────────────────────────────────────────
 
-def _merge_rq2_results(
-    existing_json_path: Path,
-    new_results: list[RQ2Result],
-    pattern_filter: list[str] | None,
-    model_filter: str | None,
-) -> list[RQ2Result]:
-    """Merge newly-computed RQ2 rows with rows from an existing JSON file.
-
-    Rows from the existing JSON are kept *unless* they match the current run's
-    (pattern, model) filter (those are considered re-runs and replaced by the
-    new rows). This is used when selectively re-running a subset of cells that
-    failed for transient / network reasons in a previous invocation.
-    """
-    if not existing_json_path.exists():
-        print(f"  [merge] existing rq2 JSON not found: {existing_json_path}")
-        return new_results
-
-    raw = json.loads(existing_json_path.read_text())
-    field_names = {f for f in RQ2Result.__dataclass_fields__}
-
-    model_filter_set: set[str] | None = None
-    if model_filter:
-        model_filter_set = {m.strip() for m in model_filter.split(",") if m.strip()}
-
-    merged: list[RQ2Result] = []
-    for entry in raw:
-        pat = entry.get("pattern")
-        mod = entry.get("model")
-        # A row is considered "re-run" (and therefore dropped from the prior
-        # JSON) only if BOTH the pattern filter AND the model filter match.
-        # If a filter is None it matches everything.
-        pat_match = pattern_filter is None or pat in pattern_filter
-        mod_match = model_filter_set is None or mod in model_filter_set
-        if pat_match and mod_match:
-            continue
-        kwargs = {k: v for k, v in entry.items() if k in field_names}
-        try:
-            merged.append(RQ2Result(**kwargs))
-        except TypeError as e:
-            print(f"  [merge] skipping malformed row {pat}/{mod}: {e}")
-    merged.extend(new_results)
-    print(f"  [merge] kept {len(merged) - len(new_results)} prior rows, "
-          f"added {len(new_results)} new rows")
-    return merged
-
-
 def save_results(
     output_dir: Path,
     rq1: list[RQ1Result] | None = None,
@@ -949,11 +914,10 @@ def _filter_models(
 ) -> list[ModelConfig]:
     if name is None:
         return models
-    wanted = {n.strip() for n in name.split(",") if n.strip()}
-    filtered = [m for m in models if m.name in wanted]
+    filtered = [m for m in models if m.name == name]
     if not filtered:
         available = ", ".join(m.name for m in models)
-        raise ValueError(f"Model(s) '{name}' not found. Available: {available}")
+        raise ValueError(f"Model '{name}' not found. Available: {available}")
     return filtered
 
 
@@ -974,16 +938,6 @@ def main():
     parser.add_argument(
         "--model", type=str, default=None,
         help="Run only a specific model by name.",
-    )
-    parser.add_argument(
-        "--patterns", type=str, default=None,
-        help="Comma-separated list of pattern names to run (RQ2 only).",
-    )
-    parser.add_argument(
-        "--merge-rq2", type=str, default=None,
-        help="Path to an existing rq2 JSON; its (model, pattern) rows "
-             "that are NOT regenerated by the current run are preserved in "
-             "the output (used for selective re-runs).",
     )
     args = parser.parse_args()
 
@@ -1007,22 +961,7 @@ def main():
         print("\n" + "=" * 60)
         print("  RQ2: Bug Detection & Repair")
         print("=" * 60)
-        pattern_filter = (
-            [p.strip() for p in args.patterns.split(",") if p.strip()]
-            if args.patterns else None
-        )
-        if pattern_filter is not None:
-            filtered_cfg = replace(config, buggy_cirs={
-                k: v for k, v in config.buggy_cirs.items()
-                if k in pattern_filter
-            })
-            rq2_results = run_rq2(filtered_cfg, args.model)
-        else:
-            rq2_results = run_rq2(config, args.model)
-        if args.merge_rq2:
-            rq2_results = _merge_rq2_results(
-                Path(args.merge_rq2), rq2_results, pattern_filter, args.model,
-            )
+        rq2_results = run_rq2(config, args.model)
 
     if run_all or args.rq == 3:
         print("\n" + "=" * 60)
