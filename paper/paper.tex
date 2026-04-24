@@ -999,7 +999,7 @@ $|\Gamma|$: number of business goals checked after repair.}
 \end{tabular}
 \end{table*}
 
-We evaluate five LLMs spanning three capability tiers: GPT-5 and Claude~4.6~Opus (\emph{frontier}), Qwen and Gemini~3~Pro (\emph{strong}), and DeepSeek-V3 (\emph{compact}). All models use temperature\,0 with a 4\,096-token output limit. For each pattern a short natural-language concurrency specification serves as the generation input. Buggy and fixed Rust programs are maintained as reference implementations but are \emph{not} input to \textsc{Cir} generation. At most $K_{\mathit{gen}}=5$ generation rounds~(RQ2a) and $K_{\mathit{rep}}=5$ repair rounds~(RQ2c) per model per pattern. All experiments run on Apple~M4~Pro\,/\,24\,GB RAM; times are wall-clock averages over 3~runs. The front-end is evaluated on Rust synchronization idioms, but the \textsc{Cir}/\textsc{Cvn} back-end is defined over language-level synchronization semantics rather than Rust-specific syntax.
+We evaluate five LLMs spanning three capability tiers: GPT-5 and Claude~4.7~Opus (\emph{frontier}), Qwen and Gemini~3~Pro (\emph{strong}), and DeepSeek-V3 (\emph{compact}). All models use temperature\,0 with a 4\,096-token output limit. For each pattern a short natural-language concurrency specification serves as the generation input. Buggy and fixed Rust programs are maintained as reference implementations but are \emph{not} input to \textsc{Cir} generation. At most $K_{\mathit{gen}}=5$ generation rounds~(RQ2a) and $K_{\mathit{rep}}=5$ repair rounds~(RQ2c) per model per pattern. All experiments run on Apple~M4~Pro\,/\,24\,GB RAM; times are wall-clock averages over 3~runs. The front-end is evaluated on Rust synchronization idioms, but the \textsc{Cir}/\textsc{Cvn} back-end is defined over language-level synchronization semantics rather than Rust-specific syntax.
 
 \subsection{RQ1: Translation Correctness}
 \label{subsec:rq1}
@@ -1109,7 +1109,7 @@ Table~\ref{tab:rq2a} reports the number of iterative rounds each model requires 
 \end{tabular}
 \end{table*}
 
-Frontier models generate valid \textsc{Cir} in 1--2~rounds for all patterns. Claude~4.6~Opus achieves the lowest average (1.1~rounds) with first-attempt success on 7 of 9~patterns. The strong models succeeds on all patterns but requires additional rounds for Pattern~6 and Pattern~5. DeepSeek-V3 fails on Pattern~6, the most structurally complex pattern requiring two condvars, two mutexes, and cross-thread notification dependencies. The most common errors are malformed condvar declarations, incorrect branch conditions, and omitted protection mappings. All are caught by the static checker and typically corrected within one additional feedback round.
+Frontier models generate valid \textsc{Cir} in 1--2~rounds for all patterns. Claude~4.7~Opus achieves the lowest average (1.1~rounds) with first-attempt success on 7 of 9~patterns. The strong models succeeds on all patterns but requires additional rounds for Pattern~6 and Pattern~5. DeepSeek-V3 fails on Pattern~6, the most structurally complex pattern requiring two condvars, two mutexes, and cross-thread notification dependencies. The most common errors are malformed condvar declarations, incorrect branch conditions, and omitted protection mappings. All are caught by the static checker and typically corrected within one additional feedback round.
 
 \subsubsection{Bug Fidelity}
 \label{subsubsec:rq2b}
@@ -1208,7 +1208,7 @@ For each of the 5~definite-bug patterns we invoke the repair loop with each mode
 \footnotetext{Lower is better. Superscript~${}^{+n}$: intermediate regressions.}
 \end{table*}
 
-Frontier models repair all 5~definite bugs with an average of 1.0--1.4~rounds and zero regressions. Claude~4.6~Opus achieves single-round repair on all 5~patterns; GPT-5 requires two rounds on Patterns~4 and~6,where coordinated edits across multiple threads are needed. The strong models succeeds on all
+Frontier models repair all 5~definite bugs with an average of 1.0--1.4~rounds and zero regressions. Claude~4.7~Opus achieves single-round repair on all 5~patterns; GPT-5 requires two rounds on Patterns~4 and~6,where coordinated edits across multiple threads are needed. The strong models succeeds on all
 patterns but introduces occasional regressions. Gemini~3~Pro introduces a transient missing-\textsf{drop}
 error while resolving the dual-condvar cross-wait (Pattern~6); the regression is caught by the Layer-1 static
 checker and corrected in the next round. Qwen~3.5 introduces a misplaced \textsf{notify} while fixing the dual-condvar deadlock (Pattern~6), likewise caught and corrected within one additional round.

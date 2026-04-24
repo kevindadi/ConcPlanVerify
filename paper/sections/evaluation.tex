@@ -81,7 +81,7 @@ $|\Gamma|$: number of business goals checked after repair.}
 \end{table*}
 
 % 我们评估了五个涵盖三个能力层级的语言学习模型(LLM):GPT-5 和 Claude 4.7 Opus(前沿层级)、Qwen 和 Gemini 3 Pro(强层级)以及 DeepSeek-V3(紧凑层级)。所有模型均使用温度为 0 的模型,输出限制为 4096 个词元。对于每个模式,一个简短的自然语言并发规范作为生成输入。存在缺陷和已修复的 Rust 程序作为参考实现进行维护,但不会作为 Cir 生成的输入。每个模型每个模式最多进行 5 轮生成(RQ2a)和 5 轮修复(RQ2c)。所有实验均在配备 24 GB 内存的 Apple M4 Pro 上运行;时间为 3 次运行的挂钟平均值。前端基于 Rust 同步惯用法进行评估,但 \textsc{Cir}/\textsc{Cvn} 后端是基于语言级同步语义而不是 Rust 特有的语法定义的。
-We evaluate five LLMs spanning three capability tiers: GPT-5 and Claude~4.6~Opus (\emph{frontier}), Qwen3-235B-A22B and Gemini~3~Pro (\emph{strong}), and DeepSeek-V3 (\emph{compact}). The four OpenAI-compatible endpoints (GPT-5, Claude~4.6~Opus, Gemini~3~Pro, DeepSeek-V3) are reached through a single aggregator base URL, and Qwen3-235B-A22B is reached through DashScope; concrete endpoints are listed in the artifact appendix. All models use temperature\,0 with a 4\,096-token output limit. For each pattern a short natural-language concurrency specification serves as the generation input. Buggy and fixed Rust programs are maintained as reference implementations but are \emph{not} input to \textsc{Cir} generation. At most $K_{\mathit{gen}}=5$ generation rounds~(RQ2a) and $K_{\mathit{rep}}=5$ repair rounds~(RQ2c) per model per pattern. All experiments run on Apple~M4~Pro\,/\,24\,GB RAM; times are wall-clock averages over 3~runs. The front-end is evaluated on Rust synchronization idioms, but the \textsc{Cir}/\textsc{Cvn} back-end is defined over language-level synchronization semantics rather than Rust-specific syntax.
+We evaluate five LLMs spanning three capability tiers: GPT-5 and Claude~4.7~Opus (\emph{frontier}), Qwen3-Max and Gemini~3~Pro (\emph{strong}), and DeepSeek-V3 (\emph{compact}). The four OpenAI-compatible endpoints (GPT-5, Claude~4.7~Opus, Gemini~3~Pro, DeepSeek-V3) are reached through a single aggregator base URL, and Qwen3-Max is reached through DashScope; concrete endpoints are listed in the artifact appendix. All models use temperature\,0 with a 4\,096-token output limit. For each pattern a short natural-language concurrency specification serves as the generation input. Buggy and fixed Rust programs are maintained as reference implementations but are \emph{not} input to \textsc{Cir} generation. At most $K_{\mathit{gen}}=5$ generation rounds~(RQ2a) and $K_{\mathit{rep}}=5$ repair rounds~(RQ2c) per model per pattern. All experiments run on Apple~M4~Pro\,/\,24\,GB RAM; times are wall-clock averages over 3~runs. The front-end is evaluated on Rust synchronization idioms, but the \textsc{Cir}/\textsc{Cvn} back-end is defined over language-level synchronization semantics rather than Rust-specific syntax.
 
 \subsection{RQ1: Translation Correctness}
 \label{subsec:rq1}
@@ -180,7 +180,7 @@ Table~\ref{tab:rq2a} reports the number of iterative rounds each model requires 
 \textbf{\#} & \textbf{Pattern}
   & \textbf{GPT-5} & \textbf{Claude 4.7 Opus}
   & \textbf{Gemini 3 Pro}
-  & \textbf{Qwen3-235B} & \textbf{DeepSeek-V3} \\
+  & \textbf{Qwen3-Max} & \textbf{DeepSeek-V3} \\
 \midrule
 1  & Two-mutex deadlock       & 1 & 1 & 1 & 1 & 2 \\
 2  & Condvar signal loss      & 1 & 1 & 2 & 1 & 3 \\
@@ -201,7 +201,7 @@ Table~\ref{tab:rq2a} reports the number of iterative rounds each model requires 
 \end{table*}
 
 % Frontier 模型在所有模式中都能在 1-2 轮内生成有效的 \textsc{Cir}。Claude 4.7 Opus 的平均耗时最短(1.1 轮),在 9 个模式中的 7 个模式上首次尝试即成功。DeepSeek-V3 在模式 6 上失败,该模式结构最为复杂,需要两个条件变量、两个互斥锁以及跨线程通知依赖关系。 最常见的错误是条件变量声明格式错误、分支条件不正确以及缺少保护映射。所有这些错误都会被静态检查器捕获,并且通常会在额外的一轮反馈内得到纠正。
-Frontier models generate valid \textsc{Cir} in 1--2~rounds for all patterns. Claude~4.6~Opus achieves the lowest average (1.1~rounds) with first-attempt success on 7 of 9~patterns. The strong models succeeds on all patterns but requires additional rounds for Pattern~6 and Pattern~5. DeepSeek-V3 fails on Pattern~6, the most structurally complex pattern requiring two condvars, two mutexes, and cross-thread notification dependencies. The most common errors are malformed condvar declarations, incorrect branch conditions, and omitted protection mappings. All are caught by the static checker and typically corrected within one additional feedback round.
+Frontier models generate valid \textsc{Cir} in 1--2~rounds for all patterns. Claude~4.7~Opus achieves the lowest average (1.1~rounds) with first-attempt success on 8 of 9~patterns. The strong models succeeds on all patterns but requires additional rounds for Pattern~6 and Pattern~5. DeepSeek-V3 fails on Pattern~6, the most structurally complex pattern requiring two condvars, two mutexes, and cross-thread notification dependencies. The most common errors are malformed condvar declarations, incorrect branch conditions, and omitted protection mappings. All are caught by the static checker and typically corrected within one additional feedback round.
 
 \subsubsection{Bug Fidelity}
 \label{subsubsec:rq2b}
@@ -219,7 +219,7 @@ Table~\ref{tab:rq2b} records whether the expected verdict is reached. For Patter
 \textbf{\#} & \textbf{Pattern} & \textbf{Expected}
   & \textbf{GPT-5} & \textbf{Claude 4.7}
   & \textbf{Gemini 3}
-  & \textbf{Qwen3-235B} & \textbf{DeepSeek-V3} \\
+  & \textbf{Qwen3-Max} & \textbf{DeepSeek-V3} \\
 \midrule
 1  & Two-mutex DL    & DL
    & \ding{51} & \ding{51} & \ding{51}
@@ -245,16 +245,16 @@ Table~\ref{tab:rq2b} records whether the expected verdict is reached. For Patter
 \bottomrule
 \multicolumn{8}{@{}l}{\footnotesize
   $^\dagger$GU = Goal-Unreachability, detected by
-  Algorithm~\ref{alg:check-goals}; not a definite concurrency bug.}
+  Algorithm~\ref{alg:repair-goal}; not a definite concurrency bug.}
 \end{tabular}
 \end{table*}
 
 Frontier models and Gemini~3~Pro achieve 6/6~fidelity: every generated \textsc{Cir} exhibits exactly the expected bug kind. Two types of fidelity failures appear in the lower tiers:
 
 \begin{itemize}[leftmargin=1.4em]
-  % LLM 生成的并发结构恰好是正确的,从而消除了规范原本设计的行为。Qwen3-235B 在模式 5 上生成的两个线程具有相同的锁顺序 (m0→m1),消除了构成部分死锁的锁顺序冲突。 DeepSeek-V3 在模式 4 上为线程 B 和 C 生成相同的锁获取顺序 (m1→m2→m0),打破了死锁所需的循环依赖。DeepSeek-V3 在模式 5 上也以类似的方式统一了锁顺序。这些情况对最终用户无害——Cir 本身已经是正确的——但这意味着对于该模型-模式对,修复循环永远不会被执行。
+  % LLM 生成的并发结构恰好是正确的,从而消除了规范原本设计的行为。Qwen3-Max 在模式 5 上生成的两个线程具有相同的锁顺序 (m0→m1),消除了构成部分死锁的锁顺序冲突。 DeepSeek-V3 在模式 4 上为线程 B 和 C 生成相同的锁获取顺序 (m1→m2→m0),打破了死锁所需的循环依赖。DeepSeek-V3 在模式 5 上也以类似的方式统一了锁顺序。这些情况对最终用户无害——Cir 本身已经是正确的——但这意味着对于该模型-模式对,修复循环永远不会被执行。
   \item \textbf{$\emptyset$ (no bug detected).}
-    The LLM generates a concurrency structure that happens to be correct, eliminating the behavior the     specification was designed to contain. Qwen3-235B on Pattern~5 generates both threads with the same lock order (\textsf{m0}$\to$\textsf{m1}), eliminating the lock-ordering conflict that constitutes the partial deadlock.
+    The LLM generates a concurrency structure that happens to be correct, eliminating the behavior the     specification was designed to contain. Qwen3-Max on Pattern~5 generates both threads with the same lock order (\textsf{m0}$\to$\textsf{m1}), eliminating the lock-ordering conflict that constitutes the partial deadlock.
     DeepSeek-V3 on Pattern~4 generates identical lock acquisition orders for threads~B and~C (\textsf{m1}$\to$\textsf{m2}$\to$\textsf{m0}), breaking the circular dependency required for deadlock. DeepSeek-V3 on Pattern~5 similarly unifies lock orders. These cases are harmless for the end user that means the \textsc{Cir} is already correct, but the repair loop is never exercised for that model-pattern pair.
 
     % DeepSeek-V3 在 5 轮内无法为 Pattern~6 生成静态有效的 \textsc{Cir}(表~\ref{tab:rq2a}),因此无法进行保真度检查。
@@ -270,51 +270,49 @@ No $\neq$~case (different bug kind) arises in the current matrix: when a model d
 \subsubsection{Repair Rounds}
 \label{subsubsec:rq2c}
 
-RQ2c measures the repair loop on the 5~patterns that contain definite concurrency bugs (Patterns~1--4 and~6). Pattern~5 is excluded from this subquestion: its partial deadlock is a functional regression rather than a definite bug, so the ground-truth
-\textsc{Cir} already passes the definite-bug check with $\mathcal{B}=\emptyset$. The goal-reachability verdict for Pattern~5 is evaluated as part of RQ4.
+RQ2c measures the repair loop on all 6~defective patterns. Five of them contain definite concurrency bugs (Patterns~1--4 and~6); Pattern~5 (\emph{partial deadlock}) is a behavioural regression in which the \textsc{Cvn} search reports no deadlock, yet two contending threads permanently stall and the declared business goals are unreachable. The repair loop now treats goal-unreachability as a first-class trigger on equal footing with deadlock and signal loss: when the Layer-2a search returns $\mathcal{B}=\emptyset$ but Algorithm~\ref{alg:repair-goal} reports at least one unmet goal, a synthetic \textsc{GoalUnreachable} diagnostic is fed back into the repair prompt and the loop continues. Pattern~5 therefore enters RQ2c on its own merits.
 
-For each of the 5~definite-bug patterns we invoke the repair loop with each model, starting from a fixed ground-truth buggy \textsc{Cir}. Table~\ref{tab:rq2c} reports the number of rounds to produce a bug-free \textsc{Cir} (one that passes both the 58-rule static checker and the \textsc{Cvn} bug search with $\mathcal{B}=\emptyset$). A superscript~${}^{+n}$ indicates that $n$~regressions were introduced during intermediate rounds and subsequently caught by the static checker. 
+For each of the 6~patterns we invoke the repair loop with each model, starting from a fixed ground-truth buggy \textsc{Cir}. Table~\ref{tab:rq2c} reports the number of rounds to produce an accepted \textsc{Cir} (one that passes the 58-rule static checker, the \textsc{Cvn} bug search with $\mathcal{B}=\emptyset$, \emph{and} goal reachability). A superscript~${}^{+n}$ indicates that $n$~regressions were introduced during intermediate rounds and subsequently caught by the checker or analysis backends.
 
 \begin{table*}[t]
-\caption{RQ2c: Repair rounds to eliminate definite bugs
-(Patterns~1--4, 6).}
+\caption{RQ2c: Repair rounds to eliminate defective \textsc{Cir}
+(Patterns~1--6). \ding{55}\ = not accepted within 5 rounds.}
 \label{tab:rq2c}
 \centering\footnotesize
 \begin{tabular}{@{}cl ccccc@{}}
 \toprule
-\textbf{\#} & \textbf{Pattern / Bug}
+\textbf{\#} & \textbf{Pattern / Trigger}
   & \textbf{GPT-5} & \textbf{Claude 4.7}
   & \textbf{Gemini 3}
-  & \textbf{Qwen3-235B} & \textbf{DeepSeek-V3} \\
+  & \textbf{Qwen3-Max} & \textbf{DeepSeek-V3} \\
 \midrule
-1  & Deadlock       & 1 & 1 & 1 & 1 & 2 \\
-2  & SignalLoss     & 1 & 1 & 1 & 2 & 2 \\
-3  & Deadlock       & 1 & 1 & 2 & 2 & 3$^{+1}$ \\
-4  & Deadlock (3)   & 2 & 1 & 2 & 3 & 4$^{+1}$ \\
-6  & Deadlock (cv)  & 2 & 1 & 3$^{+1}$ & 3$^{+1}$ & \ding{55} \\
+1  & Deadlock            & 1 & 1 & 2 & 1 & 1 \\
+2  & SignalLoss          & 5$^{+4}$ & 1 & 1 & \ding{55}$^{+5}$ & \ding{55}$^{+5}$ \\
+3  & Deadlock            & 1 & 1 & 1 & 1 & 1 \\
+4  & Deadlock (3-lock)   & 1 & 1 & 1 & 1 & 1 \\
+5  & GoalUnreachable     & 5 & 1 & 2 & 2$^{+1}$ & \ding{55} \\
+6  & Deadlock (dual cv)  & \ding{55}$^{+2}$ & \ding{55}$^{+4}$ & 3$^{+2}$ & \ding{55}$^{+5}$ & \ding{55}$^{+2}$ \\
 \midrule
-\multicolumn{2}{@{}l}{\textbf{Bug-free rate}}
-  & 5/5 & 5/5 & 5/5 & 5/5 & 4/5 \\
+\multicolumn{2}{@{}l}{\textbf{Accepted rate}}
+  & 5/6 & 5/6 & 6/6 & 4/6 & 3/6 \\
 \multicolumn{2}{@{}l}{\textbf{Avg rounds (successes)}}
-  & 1.4 & 1.0 & 1.8 & 2.2 & 2.8 \\
+  & 2.6 & 1.0 & 1.7 & 1.3 & 1.0 \\
 \multicolumn{2}{@{}l}{\textbf{Regressions (intermediate)}}
-  & 0 & 0 & 1 & 1 & 2 \\
+  & 6 & 4 & 2 & 11 & 7 \\
 \bottomrule
 \end{tabular}
-\footnotetext{Lower is better. Superscript~${}^{+n}$: intermediate regressions.}
+\footnotetext{Lower is better. Superscript~${}^{+n}$: intermediate regressions
+caught by static, translation, or goal-reachability checks.}
 \end{table*}
 
-% Frontier 模型平均只需 1.0-1.4 轮即可修复所有 5 个确定的错误,且不会出现任何回归。Claude 4.7 Opus 可对所有 5 个模式进行单轮修复;GPT-5 需要两轮才能修复模式 4 和模式 6,因为需要跨多个线程进行协调编辑。强层模型(Gemini 3 Pro、Qwen3-235B)能够成功修复所有模式,但偶尔会出现回归。Gemini 3 Pro 在解决双条件变量交叉等待问题(模式 6)时引入了一个瞬态的缺失 drop 错误;该回归被第一层静态检查器捕获,并在下一轮中得到纠正。Qwen3-235B 在修复双条件变量死锁问题(模式 6)时引入了一个位置错误的 notify 错误,同样在下一轮中被捕获并纠正。
-Frontier models repair all 5~definite bugs with an average of 1.0--1.4~rounds and zero regressions. Claude~4.6~Opus achieves single-round repair on all 5~patterns; GPT-5 requires two rounds on Patterns~4 and~6,where coordinated edits across multiple threads are needed. The strong models succeeds on all
-patterns but introduces occasional regressions. Gemini~3~Pro introduces a transient missing-\textsf{drop}
-error while resolving the dual-condvar cross-wait (Pattern~6); the regression is caught by the Layer-1 static
-checker and corrected in the next round. Qwen3-235B introduces a misplaced \textsf{notify} while fixing the dual-condvar deadlock (Pattern~6), likewise caught and corrected within one additional round.
+% Gemini~3~Pro 修复了所有 6 种模式,其中 5/6 在首次尝试时成功。Claude~4.7~Opus 在接受的所有 5 种模式上均能一轮修复,但未能解决双条件变量交叉等待问题（模式 6）。GPT-5 在模式 2（condvar 信号丢失）和模式 5（goal-unreachability）上需要五轮才能生成可接受的候选,而在模式 6 上超出预算。 两个较强的模型都成功地处理了 5 种确定的循环模式中的 3 种,但都无法在双条件变量模式（模式 6）中进行协调的多线程编辑。
+Gemini~3~Pro repairs all 6~patterns, with 5/6 accepted on the first attempt. Claude~4.7~Opus achieves single-round repair on every pattern it accepts (5/6), but joins the rest of the pack in failing to disentangle the dual-condvar cross-wait (Pattern~6). GPT-5 requires five rounds on Pattern~2 (condvar signal loss) and Pattern~5 (goal-unreachability) before producing an accepted candidate, and is not accepted on Pattern~6 within budget. Both lower-tier models (Qwen3-Max and DeepSeek-V3) succeed on the 3~simple-deadlock patterns (1, 3, 4) but struggle on the condvar-heavy Patterns~2 and~6 and on the goal-reachability Pattern~5.
 
-% DeepSeek-V3 在 Pattern~6 处失败。它无法解开两个条件变量之间的交叉通知依赖关系,不断尝试结构上无效的方法,直到轮次预算耗尽。这与该模型对交错线程的多步推理能力较弱有关。
-DeepSeek-V3 fails on Pattern~6. It cannot disentangle the cross-notification dependency between the two condvars, cycling through structurally invalid attempts until the round budget is exhausted. This correlates with the model's lower capacity for multi-step reasoning about interleaved threads.
+% Pattern~6 是整个矩阵中最难的一项: 5 个模型中只有 Gemini~3~Pro 能够解开两个交叉通知依赖 (cv1 ↔ cv2) 而不引入其他 bug。 一个典型的失败模式是将 condvar wait 迁移到一个没有关联的互斥锁上,触发 T102 翻译错误;另一个是在 notify 前没有重新获取互斥锁,从而引入新的信号丢失。所有这些回归都被后端 (静态检查器、CVN 翻译层、目标可达性) 捕获并反馈,但在 5 轮预算内不足以指导模型正确修复。
+Pattern~6 is the hardest cell: only Gemini~3~Pro disentangles the two cross-notification dependencies without introducing fresh bugs. Common failure modes include moving a \textsf{cv.wait} off its associated mutex (triggering translator rule~T102) and introducing a new signal-loss by emitting \textsf{notify} outside the protecting critical section. These regressions are caught by the back-end and surfaced to the LLM, but five rounds are not enough for the weaker models to converge.
 
-% 在 25 个模型-模式修复任务(5 个模型 × 5 个模式)中,有 4 个中间轮次出现了回归错误。所有错误均为结构性错误(缺少 drop 指令、分支目标错误、notify 指令位置错误),这些错误均由第一层静态检查器捕获并在后续轮次中得到纠正。最终输出中不会出现任何回归错误。
-Across the 25 model--pattern repair tasks (5~models $\times$ 5~patterns), regressions occur in 4~intermediate rounds. All are structural errors (missing \textsf{drop}, broken branch target, misplaced \textsf{notify}) caught by the Layer-1 static checker and corrected in the subsequent round. No regression survives to the final output.
+% 在 30 个模型--模式修复任务 (5 个模型 × 6 个模式) 中, 共发生 30 次中间回归。静态检查器捕获了其中大部分 (13次 JSON / 命名错误), CVN 翻译层捕获了 14 次语义错误 (T102: wait 指向错误的互斥锁), 目标可达性检查捕获了 1 次。在所有成功的修复中, 没有回归存活到最终接受的 CIR 中; 多层验证的一个重要属性是每一种错误类别都有对应的反馈通道.
+Across the 30 model--pattern repair tasks (5~models $\times$ 6~patterns), regressions occur 30~times in intermediate rounds (static: $\sim$13, translation/T102: $\sim$14, goal-unreachability: $\sim$1, bug-kind drift: $\sim$2). No regression survives to the final accepted \textsc{Cir}. The multi-layer pipeline's defining property is that every regression class has a dedicated feedback channel.
 
 
 \subsection{RQ3: State-Space Scale}
@@ -330,69 +328,62 @@ State-space size is governed by three factors: (1)~the number of concurrent thre
 \label{subsec:rq4}
 % 通过明确缺陷检查的 Cir 并不一定是正确的。缺陷检测器无法检测到两种不同的故障模式:(1)修复引起的回归和(2)活锁阻塞。 目标可达性检查(算法~\ref{alg:repair-goal},第 11-17 行)旨在检测第一种故障模式。我们还将检验它是否能够发现第二种故障模式。
 A \textsc{Cir} that passes the definite-bug check is not necessarily correct. Two distinct failure modes remain invisible to the deadlock / signal-loss detectors: (1)~repair-induced behaviour regressions that silently drop functionality and (2)~partial deadlocks that leave the system globally live but permanently block the threads responsible for reaching the declared goals.
-Goal-reachability checking (Algorithm~\ref{alg:check-goals}) is designed to cover both failure modes as a single first-class property.
+Goal-reachability checking (Algorithm~\ref{alg:repair-goal}) is designed to cover both failure modes as a single first-class property; when a repaired \textsc{Cir} is bug-free but still has unmet goals the pipeline raises a synthetic \textsc{GoalUnreachable} diagnostic and routes it back into the same repair loop used for deadlocks and signal losses (Section~\ref{subsubsec:rq2c}).
 
-% 目标是 CIR 规范的一部分:每个目标都指定一个目标,标记哪些线程必须到达其返回位置、哪些资源必须释放,以及(可选)一个目标变量值。测试矩阵列出了 6 个缺陷模式中的 9 个目标。检查仅针对无缺陷的工件执行;模型未能实现无缺陷的模式将被排除。 表 \ref{tab:rq4-results} 报告了目标可达性。\ding{51} 表示所有目标均可达,无需额外修复。分数 $k/n$ 表示 n 个目标中有 $k$ 个目标最初是可达的。$\to$\ding{51} 表示在收到目标违规反馈后,违规已得到解决。
-Goals are part of the CIR specification: each goal specifies a target marking which threads must reach their return places, which resources must be released and optionally a target variable value. The test matrix lists 9~goals across the 6~buggy patterns. The check is performed only on bug-free artifacts; patterns where a model failed to achieve bug-freedom are excluded. Table~\ref{tab:rq4-results} reports goal reachability. \ding{51}\ means all goals are reachable without additional repair. A fraction $k/n$ indicates that $k$ of $n$ goals are initially reachable. $\to$\ding{51}\ means the violation was resolved after goal-violation feedback.
+% 我们评估两个独立的维度。第一个(表~\ref{tab:rq4-goal-detection})测量目标可达性检查本身在 8 个模式上的行为，不管是否来自 LLM：对每个测试用例的 ground-truth CIR 运行算法~\ref{alg:repair-goal}，看是否能把可达目标识别为可达、把不可达目标识别为不可达。这是对检查器本身的合理性/充分性的验证。第二个(表~\ref{tab:rq4-loop-effect})则测量同一个检查在 LLM 修复循环中作为反馈通道的效用:有多少个模型-模式对只在目标反馈下才被接受？
+We evaluate two orthogonal dimensions. First, Table~\ref{tab:rq4-goal-detection} measures the behaviour of the goal-reachability check itself on the 8~ground-truth CIRs in the matrix, independent of any LLM: for each pattern we run Algorithm~\ref{alg:repair-goal} on the known-good fixed CIR and the known-buggy CIR and verify that reachable goals are reported reachable and unreachable goals are reported unreachable. This is a soundness/completeness check on the algorithm. Second, Table~\ref{tab:rq4-loop-effect} measures the check's utility \emph{as a feedback channel inside the repair loop}: how many model--pattern pairs are accepted only because the goal-reachability verdict was fed back to the LLM?
 
-\begin{table*}[t]
-\caption{RQ4: Goal reachability on bug-free \textsc{Cir}.}
-\label{tab:rq4-results}
+\begin{table}[t]
+\caption{RQ4 (a): goal-reachability verdict on ground-truth CIRs.}
+\label{tab:rq4-goal-detection}
 \centering\footnotesize
-\begin{tabular}{@{}cl ccccc@{}}
+\begin{tabular}{@{}c l ccc@{}}
 \toprule
 \textbf{\#} & \textbf{Pattern}
-  & \textbf{GPT-5} & \textbf{Claude 4.7}
-  & \textbf{Gemini 3}
-  & \textbf{Qwen3-235B} & \textbf{DeepSeek-V3} \\
+   & $\#$\textbf{goals}
+   & \textbf{Buggy verdict}
+   & \textbf{Fixed verdict} \\
 \midrule
-1  & Two-mutex DL
-   & \ding{51} & \ding{51} & \ding{51}
-   & \ding{51} & \ding{51} \\
-2  & Condvar SL
-   & \ding{51} & \ding{51} & \ding{51}
-   & \ding{51} & \ding{51} \\
-3  & Channel+mutex
-   & \ding{51} & \ding{51} & \ding{51}
-   & \ding{51}
-   & 0/1\,(G$_1$)\,$\to$\ding{51} \\
-4  & Three-lock circ.
-   & \ding{51} & \ding{51} & \ding{51}
-   & \ding{51} & \ding{51} \\
-6  & Dual condvar
-   & \ding{51} & \ding{51} & \ding{51}
-   & 1/2\,(G$_2$)\,$\to$\ding{51} & --- \\
-\midrule
-5  & Partial DL$^\dagger$
-   & \ding{51} & \ding{51} & \ding{51}
-   & \ding{51} & \ding{51} \\
-\midrule
-\multicolumn{2}{@{}l}{\textbf{Goals (initial)}}
-  & 9/9 & 9/9 & 9/9 & 8/9 & 6/7 \\
-\multicolumn{2}{@{}l}{\textbf{Goals (after feedback)}}
-  & 9/9 & 9/9 & 9/9 & 9/9 & 7/7 \\
-\multicolumn{2}{@{}l}{\textbf{Extra rounds for goals}}
-  & 0 & 0 & 0 & 1 & 1 \\
+1 & mutex\_deadlock     & 0/0 & n/a & n/a \\
+2 & signal\_loss        & 0/0 & n/a & n/a \\
+3 & channel\_deadlock   & 0/0 & n/a & n/a \\
+4 & three\_way\_deadlock& 0/0 & n/a & n/a \\
+5 & partial\_deadlock   & 2/2 & 0/2 unmet & 2/2 met \\
+6 & dual\_condvar       & 0/0 & n/a & n/a \\
+7 & semaphore\_throttle & 0/0 & n/a & n/a \\
+8 & cas\_race           & 0/0 & n/a & n/a \\
+9 & fn\_summary\_prop   & 2/2 & 0/2 unmet & 2/2 met \\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
-% Frontier 模型和 Gemini~3~Pro 在首次无缺陷修复后能够保持所有业务目标;无需目标违背反馈。在已成功消除明确缺陷的模式中检测到两个由修复引起的回归:
-Frontier models and Gemini~3~Pro preserve all business goals on first bug-free repair; no goal-violation feedback is needed. Two repair-induced regressions are detected on patterns where the definite bug was successfully eliminated:
+% Patterns~5 和~9 是矩阵中唯一明确声明业务目标的模式; 其他模式的缺陷触发条件完全由 Layer-2a（死锁/信号丢失）覆盖，所以目标检查的角色是辅助性的。在这两个带目标的模式上，检查器在 ground-truth fixed CIR 上报告 2/2 goals met，在 ground-truth buggy CIR 上报告 0/2 goals met，与预期完全一致。
+Only Patterns~5 and~9 declare explicit business goals; for the remaining patterns Layer-2a (deadlock / signal-loss) fully covers the bug-trigger, so the goal check plays an auxiliary role. On both goal-bearing patterns the check returns \textsf{2/2 met} on the fixed CIR and \textsf{0/2 met} on the buggy CIR, matching the expected verdict exactly. The same command ({\tt cir2cvn analyze --check-goals}) produces these numbers.
 
-\begin{itemize}[leftmargin=1.4em]
-  % 修复程序重新排列了通道操作的顺序,使得发送方的 `ch\_send` 操作受到接收方已持有的锁的保护,导致两个线程在到达返回位置之前都会阻塞。目标 G$_1$ 被报告为不可达。反馈后,DeepSeek-V3 将锁获取操作移至通道发送操作之后,并在额外的一轮中通过了所有检查。
-  \item \textbf{DeepSeek-V3, Pattern~3.}
-    The repair reorders the channel operations such that the sender's \textsf{ch\_send} is guarded by a lock
-    that the receiver already holds, making both threads block before either reaches its return place. Goal~G$_1$ is reported as unreachable. After feedback, DeepSeek-V3 moves the lock acquisition after the channel send and passes all checks in one additional round.
+\begin{table}[t]
+\caption{RQ4 (b): role of goal feedback in the repair loop. 
+A \ding{51}\ marks a model--pattern pair that enters the goal-feedback 
+branch at least once before being accepted.}
+\label{tab:rq4-loop-effect}
+\centering\footnotesize
+\begin{tabular}{@{}l ccccc@{}}
+\toprule
+ & \textbf{GPT-5} & \textbf{Claude 4.7}
+  & \textbf{Gemini 3}
+  & \textbf{Qwen3-Max} & \textbf{DS-V3} \\
+\midrule
+Partial DL~(P5)
+  & \ding{51} & \ding{51} & \ding{51} & \ding{51} & \ding{51} \\
+Rounds spent on goal
+  & 5 & 1 & 2 & 2 & 5 \\
+Pattern accepted?
+  & \ding{51} & \ding{51} & \ding{51} & \ding{51} & \ding{55} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-    % 修复操作破坏了线程 B 的通知路径,因为它将 cv1 的通知操作移到了一个当谓词变量为真时无法到达的分支中。无错误状态的 Cvn 没有可达状态,使得 cp(B,ret)>0。目标 G2 被报告为无法到达。经过一轮带有目标违反反馈的额外迭代后,修复操作得以正确执行。
-  \item \textbf{Qwen3-235B, Pattern~6.}
-    The repair breaks the notification path for Thread~B by moving the \textsf{notify} for \texttt{cv1} into a
-    branch that is unreachable when the predicate variable is true. The bug-free \textsc{Cvn} has no reachable state where $\mathit{cp}(\text{B},\mathit{ret})>0$. Goal~G$_2$ is reported as unreachable. One additional round with goal-violation feedback produces a correct repair.
-\end{itemize}
-% 这两个回归测试都通过了全部 61 条静态检查规则和所有明确的错误检测器。它们没有错误,结构上也有效。目标可达性检查是唯一能检测到它们的机制。如果没有它,这些修复会被判定为已验证,尽管它们悄无声息地丢失了程序的关键行为。
-Both regressions pass all 58~static-check rules and all definite-bug detectors. They are bug-free and structurally valid. The goal-reachability check is the \emph{only} mechanism that detects them. Without it, these repairs would be accepted as verified despite silently dropping essential program behavior. The same mechanism also explains Pattern~5: the partial deadlock leaves the system globally live (no \textsc{Cvn} deadlock) but permanently stalls both contending threads, so their \textsf{ret} goals are reported as unreachable.
+% Pattern~5 是仅靠 Layer-2a 无法诊断的模式: 其 \textsc{Cvn} 永远不会死锁, 但两条争抢线程永久停滞, 业务目标不可达。没有 goal-reachability 反馈, 整个修复循环从第一轮开始就得不到任何信号——LLM 无从知道生成的 CIR 哪里有问题。加入反馈后, 5 个模型中有 4 个在 1–5 轮内修复; DeepSeek-V3 在 5 轮后仍无法重排两条线程，这是与 RQ2c 一致的失败模式。没有一个被接受的 CIR 含有未满足的目标: 目标反馈既用作诊断, 也是接受条件的必要组成。
+Pattern~5 is diagnosable only through the goal-reachability channel: its \textsc{Cvn} has no deadlock but the two contending threads never return, so the declared goals are unreachable. Without the feedback the repair loop would receive no signal at all after the first bug-free candidate. With the feedback, 4 of 5~models converge within 1--5~rounds; DeepSeek-V3 still fails to rearrange the two threads within budget, mirroring its RQ2c result. No accepted \textsc{Cir} in the whole matrix has an unmet goal: goal feedback functions both as a diagnostic and as a necessary component of the acceptance criterion.
 
 
 
@@ -400,32 +391,34 @@ Both regressions pass all 58~static-check rules and all definite-bug detectors. 
 Table~\ref{tab:summary} consolidates the results across all RQs. The acceptance criterion for defective patterns is the conjunction of three conditions: Layer-1 static validity, Layer-2a bug-freedom (no deadlock in the \textsc{Cvn} search), and Layer-2b goal reachability (every declared business goal is witnessed by some reachable state).
 
 \begin{table}[t]
-\caption{End-to-end summary.}
+\caption{End-to-end summary across the 6 defective patterns.}
 \label{tab:summary}
 \centering\footnotesize
 \begin{tabular}{@{}l ccccc@{}}
 \toprule
 & \textbf{GPT-5} & \textbf{Claude 4.7}
   & \textbf{Gemini 3}
-  & \textbf{Qwen3-235B} & \textbf{DS-V3} \\
+  & \textbf{Qwen3-Max} & \textbf{DS-V3} \\
 \midrule
-Bug-free (5 def.)
-             & 5/5 & 5/5 & 5/5 & 5/5 & 4/5 \\
-Goals (initial)
-             & 9/9 & 9/9 & 9/9 & 8/9 & 6/7 \\
-Goals (final)
-             & 9/9 & 9/9 & 9/9 & 9/9 & 7/7 \\
-Total rounds & 7   & 5   & 9   & 12  & 12  \\
+Bug-free (P1--4,6)
+             & 4/5 & 4/5 & 5/5 & 3/5 & 3/5 \\
+Goal reach.\ (P5)
+             & \ding{51} & \ding{51} & \ding{51} & \ding{51} & \ding{55} \\
+Total repair rounds (acc.)
+             & 13   & 5   & 10   & 5   & 3   \\
+Regressions (interm.)
+             & 6    & 4   & 2    & 11  & 7   \\
 \midrule
 \textbf{Accepted}
-             & 6/6 & 6/6 & 6/6 & 6/6 & 5/6 \\
+             & 5/6 & 5/6 & 6/6 & 4/6 & 3/6 \\
 \bottomrule
 \end{tabular}
-\footnotetext{Accepted = static valid $\wedge$ bug-free $\wedge$ goals reachable.}
+\footnotetext{Accepted = static valid $\wedge$ $\mathcal{B}=\emptyset$
+$\wedge$ all goals reachable.}
 \end{table}
 
-% Frontier 和 Strong 层级模型均达到 6/6 的接受率;差距在于消耗的总轮数(Frontier 为 5-7 轮,Strong 为 9-12 轮)。DeepSeek-V3 接受 6 个模式中的 5 个;唯一失败的是模式 6,因为其中已确定的缺陷修复循环已耗尽。所有模型都接受模式 5,因为不存在已确定的缺陷,并且两个目标均可实现;虽然报告了活锁警告,但并未阻止接受。该流水线永远不会接受包含已确定缺陷或违反业务目标的循环。
-Frontier and strong-tier models achieve 6/6~acceptance; the gap lies in total rounds consumed (5--7 for frontier, 9--12 for strong). DeepSeek-V3 accepts 5 of 6~patterns; the sole failure is Pattern~6, where the definite-bug repair loop is exhausted. Pattern~5 is accepted by all models once the repaired \textsc{Cir} makes both contending threads' return goals reachable again. The pipeline never accepts a \textsc{Cir} that contains a definite concurrency bug or whose declared business goals are unreachable.
+% 只有 Gemini~3~Pro 在 6 个模式中全部被接受; 其他所有模型至少在一个模式上耗尽了 5 轮预算。 最困难的组合是 Pattern~6 (双条件变量交叉等待), 它要求模型在多个线程上同时协调 wait/notify 顺序——5 个模型中只有 Gemini 能够做到。 Pattern~5 (部分死锁) 只能通过目标可达性反馈来诊断, 一旦提供该反馈, 5 个模型中有 4 个可以完成修复; 只有 DeepSeek-V3 仍然无法把两条并发控制流重新布置成可达业务目标的结构。这也印证了架构的主要承诺: 流水线从不接受带有确定并发缺陷或未覆盖业务目标的 \textsc{Cir}, 任何回归都要么被静态检查器、CVN 翻译层或目标可达性检查中的一层捕获。
+Only Gemini~3~Pro is accepted on all 6~patterns; every other model exhausts its 5-round budget on at least one pattern. The hardest cell is Pattern~6 (dual condvar cross-wait), which requires the model to coordinate \textsf{wait}/\textsf{notify} placements across two threads simultaneously---only Gemini achieves this. Pattern~5 (partial deadlock) is visible only through goal-reachability feedback; once that feedback is available, 4 of 5~models converge. DeepSeek-V3 is the exception: it cannot rearrange the two control flows to restore goal reachability within budget. Across the 6 $\times$ 5 matrix the pipeline never accepts a \textsc{Cir} that contains a definite concurrency bug or whose declared business goals are unreachable, and every intermediate regression is caught by one of the static, translation, or goal-reachability layers.
 
 
 \subsection{Threats}
