@@ -88,7 +88,7 @@
 \begin{abstract}
 % 直接从源代码中恢复并发结构十分困难,因为共享资源的身份和保护关系常常被别名、所有权和特定于 API 的惯用法所掩盖.因此,我们研究了一种规范驱动、模型优先的验证架构,用于 LLM 辅助的并发程序构建.该架构并非直接验证任意源代码,而是首先利用大型语言模型从自然语言需求或系统规范中合成一个面向验证的并发工件.第一个形式化模型是并发中间表示(Cir),它是一个语句级的、无别名的模型,其中共享资源被全局命名,保护关系是显式的,并且每个语句都携带一个稳定的标识符.第二个形式化模型是并发验证网(Cvn),它是一个加权的位置/转换 Petri 网,具有有限的全局存储和用于数据相关分支的三值守卫.经过验证的 Cir 工件被机械地转换为 Cvn,并进行穷举探索,任何反例都会被映射回语句标识符,以指导有针对性的修复.为了降低修复过程中出现无缺陷但行为丢失的风险,验收过程还会对指定的关键结果应用轻量级的目标可达性检查.我们对这两种表示形式化,证明了死锁和信号丢失分析的转换对应关系,定义了一个包含 61 条静态规则和 5 个分析谓词的双层检查架构,并在 9 个具有代表性的有界并发模式下评估了该流水线.结果表明,该方法支持对 Cir 工件进行迭代式缺陷检测和修复,并且目标可达性有助于过滤语义不完整的修复.本文的信任边界是生成的 Cir 工件,而不是任意源代码.
 
-Recovering concurrency structure directly from source code is difficult because shared-resource identity and protection relations are often obscured by aliasing, ownership, and API-specific idioms. We therefore study a specification-driven, model-first verification architecture for LLM-assisted concurrent program construction. Instead of verifying arbitrary source code, a large language model first synthesizes a verification-oriented concurrency artifact from a natural-language requirement or system specification. The first formalism, the Concurrency Intermediate Representation (\textsc{Cir}), is a statement-level, alias-free model in which shared resources are globally named, protection relations are explicit, and each statement carries a stable identifier. The second formalism, the Concurrency Verification Net (\textsc{Cvn}), is a weighted place/transition Petri net with a finite global store and three-valued guards for data-dependent branching. A validated \textsc{Cir} artifact is translated mechanically to \textsc{Cvn}, explored exhaustively, and any counterexample is mapped back to statement identifiers to guide targeted repair. To reduce the risk of bug-free but behavior-dropping repairs, acceptance additionally applies a lightweight goal-reachability check over designated critical outcomes. We formalize both representations, prove translation-correspondence results for deadlock and signal-loss analysis, define a two-layer checking architecture with 58 static rules and a goal-reachability oracle, and evaluate the pipeline on 9 representative bounded-concurrency patterns. The results show that the method supports iterative bug detection and repair on \textsc{Cir} artifacts and that goal reachability helps filter semantically incomplete repairs. The trust boundary of the present work is the generated \textsc{Cir} artifact rather than arbitrary source code.
+Recovering concurrency structure directly from source code is difficult because shared-resource identity and protection relations are often obscured by aliasing, ownership, and API-specific idioms. We therefore study a specification-driven, model-first verification architecture for LLM-assisted concurrent program construction. Instead of verifying arbitrary source code, a large language model first synthesizes a verification-oriented concurrency artifact from a natural-language requirement or system specification. The first formalism, the Concurrency Intermediate Representation (\textsc{Cir}), is a statement-level, alias-free model in which shared resources are globally named, protection relations are explicit, and each statement carries a stable identifier. The second formalism, the Concurrency Verification Net (\textsc{Cvn}), is a weighted place/transition Petri net with a finite global store and three-valued guards for data-dependent branching. A validated \textsc{Cir} artifact is translated mechanically to \textsc{Cvn}, explored exhaustively, and any counterexample is mapped back to statement identifiers to guide targeted repair. To reduce the risk of bug-free but behavior-dropping repairs, acceptance additionally applies a lightweight goal-reachability check over designated critical outcomes. We formalize both representations, prove translation-correspondence results for deadlock and signal-loss analysis, define a two-layer checking architecture with 61 static rules and 5 analysis predicates, and evaluate the pipeline on 9 representative bounded-concurrency patterns. The results show that the method supports iterative bug detection and repair on \textsc{Cir} artifacts and that goal reachability helps filter semantically incomplete repairs. The trust boundary of the present work is the generated \textsc{Cir} artifact rather than arbitrary source code.
 \end{abstract}
 
 
@@ -106,6 +106,7 @@ alias analysis, intermediate representation, deadlock detection}
 \input{sections/analysis-repair}
 \input{sections/properties}
 \input{sections/evaluation}
+\input{sections/limitations}
 \input{sections/related}
 \input{sections/conclusion}
 \bibliographystyle{ACM-Reference-Format}
@@ -113,11 +114,12 @@ alias analysis, intermediate representation, deadlock detection}
 
 
 \appendix
+\input{sections/appendix-proofs}
 \section{Reference Tables}
 \label{app:tables}
 
 \begin{table}[h]
-\caption{\textsc{Cir} error categories (58 rules total).}
+\caption{\textsc{Cir} error categories (61 rules total).}
 \label{tab:cir-errors}
 \centering\footnotesize
 \begin{tabular}{@{}llp{4.0cm}@{}}

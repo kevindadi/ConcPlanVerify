@@ -1,0 +1,16 @@
+\section{Limitations and Broader Impact}
+\label{sec:limitations}
+
+\subsection{Limitations}
+\label{subsec:limitations}
+
+The present trust boundary is the generated \textsc{Cir} artifact rather than arbitrary source code. We do not prove a general source-to-\textsc{Cir} correspondence, so the guarantees established in Sections~\ref{sec:properties} and~\ref{sec:evaluation} apply to the verification-oriented concurrency model that the LLM produces, not to every concrete implementation that could be written from the same specification. This is why the current workflow still requires the generated source program to pass language-level compilation checks and why source-to-model conformance remains future work.
+
+The evaluation is intentionally bounded. The current benchmark suite contains 9 representative patterns, with at most 3 concurrent entities, lock-nesting depth at most 2, and small finite data domains. These choices make exhaustive state-space exploration tractable and expose the repair-loop dynamics clearly, but they do not by themselves establish scalability to larger industrial code bases, richer data abstractions, or unbounded thread creation. In addition, the three-valued guard semantics preserve soundness through over-approximation, which means completeness can be lost once unknown values are introduced.
+
+\subsection{Broader Impact}
+\label{subsec:broader-impact}
+
+The positive motivation of this work is to make concurrency-oriented software generation and review more reliable. By forcing shared-resource identities, synchronization structure, and repair diagnostics into a machine-checkable representation, the pipeline can help developers detect deadlocks, signal-loss bugs, and behavior-dropping repairs before deployment.
+
+The same workflow can also be misused or over-trusted. An LLM-backed front-end may encourage users to treat a verified \textsc{Cir} artifact as a blanket guarantee about arbitrary source code, even though the present guarantees stop at the model boundary. More broadly, improving the efficiency of LLM-assisted software construction may lower the cost of generating concurrent code whose surrounding application context has not been validated. Our mitigation is procedural rather than access-based: we make the trust boundary explicit, keep the verifier in the acceptance loop, and avoid claims of source-level correctness, fairness, privacy, or deployment readiness that the current evidence does not support. The study uses only program benchmarks and API-based model calls, with no human subjects, personal data, or released high-risk model weights.
