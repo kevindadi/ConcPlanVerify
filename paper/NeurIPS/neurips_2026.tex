@@ -135,47 +135,38 @@ Recovering concurrency structure directly from source code is difficult because 
 
 \section{Introduction}
 \label{sec:introduction}
-% 并发错误（例如死锁、丢失通知和阻塞协议错误）难以检测和修复，因为它们源于线程间的交互，而非单一的局部控制路径。动态工具可以暴露具体的失败调度，但无法排除未探索的交错执行~\cite{Godefroid1997VeriSoft,Flanagan2005DPOR,Musuvathi2008Heisenbugs,Burckhardt2010RandomizedScheduler}。基于锁序分析、类型系统和所有权规则的静态技术可以提供更广泛的保证~\cite{Engler2003RacerX,Flanagan2000TypeBasedRace,Flanagan2003Atomicity,Boyapati2002Ownership,Pratikakis2006Locksmith,Naik2006StaticRaceJava}，但它们必须首先确定哪些操作引用了相同的共享资源，以及哪些同步原语保护了哪些共享状态。实际上，这需要追踪堆分配、别名、闭包捕获和过程间流程中的值。这一重构步骤成本高昂、精度不高，在自动化修复工作流程中尤其棘手，因为诊断结果必须既精确又可操作。
+
 Concurrency bugs such as deadlocks, lost notifications, and blocking protocol errors remain difficult to detect and repair because they arise from interactions among threads rather than from a single local control path. Dynamic tools can expose concrete failing schedules but do not rule out unexplored interleavings~\cite{Godefroid1997VeriSoft,Flanagan2005DPOR,Musuvathi2008Heisenbugs,Burckhardt2010RandomizedScheduler}. Static techniques based on lock-order analysis, type systems, and ownership disciplines can provide broader guarantees~\cite{Engler2003RacerX,Flanagan2000TypeBasedRace,Flanagan2003Atomicity,Boyapati2002Ownership,Pratikakis2006Locksmith,Naik2006StaticRaceJava}, but they must first determine which operations refer to the same shared resource and which synchronization primitives protect which shared state. In practice this requires tracing values through heap allocation, aliasing, closure capture, and interprocedural flow. This reconstruction step is expensive, imprecise, and especially painful in automated repair workflows where diagnostics must be both precise and actionable.
 
-% 我们并非验证任意源代码，而是探讨能否将并发验证提前到流程的早期阶段，即LLM根据自然语言规范构建程序的阶段。近期研究表明，LLM能够发现缺陷、推断不变量、生成测试用例并驱动程序自动修复~\cite{Chen2021CodeLLMs,Fan2023RepairFromLLMs,Xia2023APRLLMs,Bouzenia2025RepairAgent,Li2025ContextAwarePrompting}。然而，LLM本身无法提供关于线程交错组合空间的穷举推理。我们的工作以一种更为狭义的方式使用LLM：LLM生成一个无别名的并发模型，随后利用结构化的反例进行修复，而穷举式缺陷发现仍然由形式化验证引擎负责。在构建过程中，可以要求模型显式地声明预期的共享资源和同步结构，从而将问题从别名恢复转化为意图恢复。
 Rather than verifying arbitrary source code, we ask whether concurrency verification can be moved earlier in the pipeline, to the stage where an LLM constructs a program from a natural-language specification. Recent work has shown that LLMs can find bugs, infer invariants, generate tests, and drive automated program repair~\cite{Chen2021CodeLLMs,Fan2023RepairFromLLMs,Xia2023APRLLMs,Bouzenia2025RepairAgent,Li2025ContextAwarePrompting}. However, LLMs alone cannot provide exhaustive reasoning about the combinatorial space of thread interleavings. Our work uses LLMs in a narrower way that LLM generates an alias-free concurrency model and later consumes structured counterexamples to repair it, while exhaustive bug discovery remains the responsibility of a formal verification engine. During construction the model can be asked to state the intended shared resources and synchronization structure explicitly, turning the problem from alias recovery into intent recovery.
 
-% 这引出了我们的第一个形式化模型，即并发中间表示（Cir）。Cir 是一个语句级、无别名的并发模型，其中每个共享资源都有一个唯一的全局名称，锁到变量的保护关系被显式记录，并且每个语句都携带一个用于诊断和修复的稳定标识符（sid）。在更耗时的验证阶段之前，确定性检查器会根据结构和语义规则验证每个生成的工件。
-This leads to our first formalism, the \emph{Concurrency Intermediate Representation}(\textsc{Cir}).  \textsc{Cir} is a statement-level, alias-free concurrency model in which every shared resource has a unique global name, lock-to-variable protection relations are recorded explicitly, and every statement carries a stable identifier~($\mathsf{sid}$) for diagnostics and repair. A deterministic checker validates each generated artifact against structural and semantic rules before the more expensive verification phase.
+This leads to our first formalism, the \emph{Concurrency Intermediate Representation}(\textsc{Cir}). \textsc{Cir} is a statement-level, alias-free concurrency model in which every shared resource has a unique global name, lock-to-variable protection relations are recorded explicitly, and every statement carries a stable identifier~($\mathsf{sid}$) for diagnostics and repair. A deterministic checker validates each generated artifact against structural and semantic rules before the more expensive verification phase.
 
-% 第二种形式化方法，并发验证网（Cvn），提供了详尽的交错分析。Petri网是并发验证的天然基础，因为因果关系、资源争用和并行性直接体现在网结构中~\cite{Murata1989PetriNets,Esparza2008Unfoldings}。标准的Petri网缺乏数据相关的分支。经典的着色Petri网支持完整的令牌携带数据，但代价相当高昂~\cite{Jensen2007CPNTools}。Cvn则介于两者之间，它是一个加权的Petri网，并添加了有限的全局变量存储和三值守卫。当守卫的值为“未知”时，会探索其后继分支，从而通过保守的过近似来保证可靠性。与以往基于Petri网的方法（需要手动建模或特定语言的提取流程）不同，Cvn 是从LLM生成的Cir中自动构建的，其中资源标识已经明确。网络层面无需进行别名重建。
-The second formalism, the \emph{Concurrency Verification Net}(\textsc{Cvn}), provides the exhaustive interleaving analysis. Petri nets are a natural foundation for concurrency verification
-because causality, resource contention, and parallelism are represented directly in the net structure~\cite{Murata1989PetriNets,Esparza2008Unfoldings}. Standard P/T nets lack data-dependent branching. Classical colored Petri nets support full token-carried data but at considerable cost~\cite{Jensen2007CPNTools}. \textsc{Cvn} occupies a middle ground that it is a weighted P/T net augmented with a finite global variable store and three-valued guards. A guard that evaluates to \emph{unknown} causes both successor branches to be explored, preserving soundness through conservative over-approximation. Unlike prior Petri-net-based approaches that require manual modeling or language-specific extraction pipelines~\cite{Ball2002SLAM,Henzinger2003BLAST,Beyer2011CPAchecker}, \textsc{Cvn} is constructed mechanically from an LLM-generated \textsc{Cir} in which resource identity is already explicit. No
-alias reconstruction is needed at the net level.
+The second formalism, the \emph{Concurrency Verification Net}(\textsc{Cvn}), provides the exhaustive interleaving analysis. Petri nets are a natural foundation for concurrency verification because causality, resource contention, and parallelism are represented directly in the net structure~\cite{Murata1989PetriNets,Esparza2008Unfoldings}. Standard P/T nets lack data-dependent branching. Classical colored Petri nets support full token-carried data but at considerable cost~\cite{Jensen2007CPNTools}. \textsc{Cvn} occupies a middle ground that it is a weighted P/T net augmented with a finite global variable store and three-valued guards. A guard that evaluates to \emph{unknown} causes both successor branches to be explored, preserving soundness through conservative over-approximation. Unlike prior Petri-net-based approaches that require manual modeling or language-specific extraction pipelines~\cite{Ball2002SLAM,Henzinger2003BLAST,Beyer2011CPAchecker}, \textsc{Cvn} is constructed mechanically from an LLM-generated \textsc{Cir} in which resource identity is already explicit. No alias reconstruction is needed at the net level.
 
-% 经过验证的 Cir 被转换为 Cvn 并进行详尽的探索。任何反例都会被映射回 sid 值，并组装成结构化的诊断信息。然后，LLM 使用此诊断信息来修改受影响的同步逻辑，形成一个生成-验证-修复循环~\cite{Clarke2000CEGAR,Bouzenia2025RepairAgent}。验收要求既无缺陷，又能达到用户的业务目标。通过静默删除所需行为来实现安全性的修复方案将被拒绝。信任边界是生成的 Cir 工件：我们验证的是 LLM 生成的模型，而不是源代码。源代码级提取和一致性检查~\cite{Necula2000TranslationValidation} 是对我们方法的补充。将信任边界扩展到生成的源代码是未来工作的一个重要方向。
-A validated \textsc{Cir} is translated to \textsc{Cvn} and explored exhaustively. Any counterexample is mapped back to $\mathsf{sid}$ values and assembled into a structured diagnostic.  The LLM then uses this diagnostic to revise the affected synchronization logic, forming a generate-verify-repair loop~\cite{Clarke2000CEGAR,Bouzenia2025RepairAgent}. Acceptance requires both bug-freedom \emph{and} reachability of user's business goals. A repair that achieves safety by silently deleting required behavior is rejected. The trust boundary is the generated \textsc{Cir} artifact that we verify the model the LLM produces, not source code. Source-level extraction and conformance checking~\cite{Necula2000TranslationValidation,zhang2025petrinetsbasedmethodsautomatically} are complementary to our method. Extending the trust boundary to generated source code is an important direction for future work.
+A validated \textsc{Cir} is translated to \textsc{Cvn} and explored exhaustively. Any counterexample is mapped back to $\mathsf{sid}$ values and assembled into a structured diagnostic.  The LLM then uses this diagnostic to revise the affected synchronization logic, forming a generate-verify-repair loop~\cite{Clarke2000CEGAR,Bouzenia2025RepairAgent}. Acceptance requires both bug-freedom \emph{and} reachability of user's business goals. A repair that achieves safety by silently deleting required behavior is rejected. The trust boundary is the generated \textsc{Cir} artifact: we verify the model the LLM produces, not source code. Source-level extraction and conformance checking~\cite{Necula2000TranslationValidation, zhang2025petrinetsbasedmethodsautomatically} are complementary to our method. Extending the trust boundary to generated source code is an important direction for future work.
 
 \medskip\noindent
 The contributions of this paper are:
 \begin{enumerate}[leftmargin=*,itemsep=2pt]
-% Cir 是一种面向验证的并发中间表示，它具有全局资源命名、显式保护映射和稳定的语句标识符。它嵌入在模型优先的生成-验证-修复范式中，并带有一个轻量级的目标可达性过滤器，从而降低了语义不完整修复的风险。
+
 \item \textsc{Cir}, a verification-oriented concurrency intermediate representation with global resource naming, explicit protection mappings, and stable statement identifiers. It is embedded in a model-first generate-verify-repair paradigm with a lightweight goal-reachability filter that reduces the risk of semantically incomplete repairs.
-% Cvn 是一种加权的 P/T Petri 网，它具有有限的全局存储和三值守卫，并带有从 Cir 机械转换的结构。我们证明了模拟风格的对应结果，表明网络上的死锁和信号丢失判决准确反映了 Cir 工件的属性。
+
 \item \textsc{Cvn}, a weighted P/T Petri net with a finite global store and three-valued guards, together with a mechanical translation from \textsc{Cir}. We prove correspondence results showing that deadlock and signal-loss verdicts on the net faithfully reflect properties of the \textsc{Cir} artifact.
 
-% 在一个包含 9 个有界并发模式和 5 个 LLM 的实验中，展示了迭代式缺陷检测和修复。结果表明，目标可达性检查过滤掉了语义不完整的修复，这些修复原本可以通过安全验证。
 \item An experimental evaluation on 9~bounded-concurrency patterns and 5~LLMs demonstrating iterative bug detection and repair. The results show that goal-reachability checks filter semantically incomplete repairs that would otherwise pass safety verification.
+
 \end{enumerate}
 
+\section{Overview}
+\label{sec:overview}
 
-\section{Motivation}
-\label{sec:motivation}
-% 条件变量示例介绍了问题设置,并说明了管道如何检测错误并指导修复.
-A condition-variable example introduces the problem setting and illustrates how the pipeline detects bugs and guides repair.
+We introduce the method through a concrete example, then present the full pipeline.
 
-% ─────────────────────────────────────────────────────
-\subsection{A Signal-Loss Example}
+\subsection{A signal-loss example}
 \label{subsec:running-example}
 
-% 图~\ref{fig:example-a} 展示了一个存在信号丢失 bug 的 Rust 程序.工作进程在没有循环的情况下调用了 `wait` 函数;通知器在设置标志之前调用了 `notify\_one` 函数.这两个操作都位于同一个临界区内.如果通知器先获取了锁,则在没有等待者的情况下触发信号,导致信号丢失;工作进程随后进入 `wait` 循环并无限期阻塞,因为不会收到第二个通知.
-Figure~\ref{fig:example-a} shows a Rust program with a signal-loss bug. The worker calls \texttt{wait} without a surrounding loop; the notifier calls \texttt{notify\_one} before setting the flag. Both operations reside in the same critical section. If the notifier acquires the lock first, the signal fires with no waiter present and is lost; the worker then enters \texttt{wait} and blocks indefinitely because no second notification will arrive.
+Figure~\ref{fig:example-a} shows a Rust program with a signal-loss bug. The worker calls \texttt{wait} without a surrounding loop. The notifier calls \texttt{notify\_one} before setting the flag. If the notifier acquires the lock first, the signal fires with no waiter present and is lost. The worker then enters \texttt{wait} and blocks indefinitely.
 
 \begin{figure}[t]
 \begin{lstlisting}[language=rust]
@@ -195,8 +186,7 @@ fn notifier(shared: Arc<(Mutex<bool>, Condvar)>) {
 \label{fig:example-a}
 \end{figure}
 
-% 图~\ref{fig:cir-a} 显示了相应的 \textsc{Cir} 工件——它并非从源代码中提取,而是由 LLM 根据自然语言规范生成.别名分析是不必要的:\texttt{m0}、\texttt{cv0} 和 \texttt{ready} 是唯一的全局名称;声明 \texttt{protection:\ready:\[m0]} 明确地定义了保护关系;并且每个语句都带有一个稳定的 $\mathsf{sid}$,该 id 可在修复迭代中锚定诊断信息.
-Figure~\ref{fig:cir-a} shows the corresponding \textsc{Cir} artifact---not extracted from source code, but produced by an LLM from a natural-language specification. Alias analysis is unnecessary: \texttt{m0}, \texttt{cv0}, and \texttt{ready} are unique global names; the declaration \texttt{protection:\ ready:\ [m0]} makes the guarding relation explicit; and every statement carries a stable $\mathsf{sid}$ that anchors diagnostics across repair iterations.
+Figure~\ref{fig:cir-a} shows the corresponding \textsc{Cir} artifact. It is not extracted from source code but produced by an LLM from a natural-language specification. Alias analysis is unnecessary: \texttt{m0}, \texttt{cv0}, and \texttt{ready} are unique global names. The declaration \texttt{protection:\ ready:\ [m0]} makes the guarding relation explicit. Every statement carries a stable $\mathsf{sid}$ that anchors diagnostics across repair iterations.
 
 \begin{figure}[t]
 \begin{lstlisting}[basicstyle=\small\ttfamily, frame=single]
@@ -222,12 +212,7 @@ threads:
 \label{fig:cir-a}
 \end{figure}
 
-% ─────────────────────────────────────────────────────
-\subsection{Bug Detection and Repair Guidance}
-\label{subsec:repair-demo}
-
-% Cir 工件被机械地转换为 Cvn,并进行详尽的探索.验证器检测到信号丢失错误,并生成如图 1 所示的结构化修复报告.该报告识别错误类型,将根本原因锚定到特定的 sid 值,总结最终状态,并提供具体的修复建议——所有这些都以 Cir 构造而非 Petri 网内部结构来表达.
-The \textsc{Cir} artifact is translated mechanically into a \textsc{Cvn} and explored exhaustively. The verifier detects the signal-loss bug and emits the structured repair report shown in Figure~\ref{fig:repair-report}. The report identifies the bug kind, anchors the root cause to specific $\mathsf{sid}$ values, summarizes the end-state, and provides a concrete repair suggestion---all expressed in terms of \textsc{Cir} constructs rather than Petri-net internals.
+The \textsc{Cir} artifact is translated mechanically into a \textsc{Cvn} and explored exhaustively. The verifier detects the signal-loss bug and emits the structured repair report shown in Figure~\ref{fig:repair-report}. The report identifies the bug kind, anchors the root cause to $\mathsf{sid}$ values \texttt{n2} and \texttt{w2}, and provides a concrete repair suggestion expressed in \textsc{Cir} constructs rather than Petri-net internals. The goal check additionally verifies that the worker can still reach its completion state after repair.  A fix that achieves safety by deleting behavior (e.g., removing all \texttt{notify} calls) would be rejected as behaviorally incomplete.
 
 \begin{figure}[t]
 \begin{lstlisting}[basicstyle=\small\ttfamily, frame=single]
@@ -252,214 +237,441 @@ repair_suggestion:
 goal_check:
   critical_outcome: "worker exits synchronization"
   status: UNREACHABLE in current artifact
-  note: bare wait at w2 depends on notification
-        that may never arrive.
 \end{lstlisting}
 \caption{Structured repair report for the signal-loss example.}
 \label{fig:repair-report}
 \end{figure}
 
-% 本报告有三个方面值得关注.首先,$\textbf{blame anchors} $\mathsf{sid}{=}n2$ 和 $\mathsf{sid}{=}w2$ 明确地告诉 LLM 要修改哪些语句,从而避免重新生成整个工件.其次,修复建议以结构化的 Cir 编辑(插入一个读取分支节点,添加一个回溯边)的形式表达,LLM 可以直接应用.第三,目标检查验证了指定的关键结果——即工作进程最终退出同步点——在修复后是否可行;通过删除行为(例如,移除 `\texttt{notify\_one}`)来实现安全性的修复方案会因行为不完整而被拒绝.
-Three aspects of this report merit attention. First, the \emph{blame anchors} $\mathsf{sid}{=}n2$ and $\mathsf{sid}{=}w2$ tell the LLM exactly which statements to modify, avoiding regeneration of the entire artifact. Second, the \emph{repair suggestion} is expressed as a structural \textsc{Cir} edit (insert a read-and-branch node, add a back-edge), which the LLM can apply directly. Third, the \emph{goal check} verifies that the designated critical outcome is reachable after repair; a fix that achieves safety by deleting behavior (e.g., removing \texttt{notify}) is rejected as behaviorally incomplete.
-
-% 同一条流水线处理其他反模式,但诊断结果各不相同.例如,如果工作进程使用 `if` 而不是 `while`,但通知器使用了正确的先写后通知顺序,则验证器会报告一个"虚假唤醒违规”:非确定性唤醒(POSIX 和 Rust 语义允许这种唤醒)会导致工作进程在未重新检查谓词的情况下退出 `if` 代码块.此时,问题锚点会转移到 `if` 分支和唤醒后的代码点,修复建议变为"通过添加回溯边将 `if` 替换为 `while`”.目标检查确认工作进程仍然可以到达满足谓词的同步后代码.
-The same pipeline handles other anti-patterns with different diagnostics. For instance, if the worker uses \texttt{if} instead of \texttt{while} but the notifier uses the correct write-before-notify order, the verifier reports a \emph{spurious-wakeup violation}: a
-non-deterministic wakeup causes the worker to exit the \texttt{if} block without re-checking the predicate. The blame anchors shift to the \texttt{if} branch and the post-wakeup point, and the repair suggestion becomes replace \texttt{if} with \texttt{while} by adding a back-edge. The goal check confirms that the worker can still reach the post-synchronization code with the predicate satisfied.
-
-\medskip
-\noindent
-% 总而言之,\textsc{Cir} 通过全局命名消除别名重建;\textsc{Cvn} 通过穷举探索检测错误;而带有目标可达性检查的 $\mathsf{sid}$ 锚定报告指导有针对性的、语义完整的修复.
-In summary, \textsc{Cir} eliminates alias reconstruction through global naming; \textsc{Cvn} detects bugs through exhaustive exploration; and $\mathsf{sid}$-anchored reports with goal-reachability checks guide targeted, semantically complete repairs.
-
-
-
-
-\section{System Architecture}
-\label{sec:architecture}
-% 该架构将流程分为五个阶段,包括两个验证层和三个修复层.第一层(第二阶段)通过确定性静态检查验证模型质量;第二层(第四阶段)通过穷举状态空间搜索分析并发行为;此外,还有一个专门的目标可达性检查(第五阶段)来防止行为丢失型修复.图~\ref{fig:pipeline}展示了完整的流程.
-The architecture organizes five stages into two verification layers and three repair tiers.
-Layer~1 (Stage~2) validates model quality through deterministic static checking; Layer~2 analyzes behaviour on the \textsc{Cvn} through two complementary searches on the same reachability graph, namely Layer~2a (Stage~4) which reports deadlocks (with signal-loss and channel-block sub-classifications) and behavioral dead transitions, and Layer~2b (Stage~5) which reports unmet business goals. Figure~\ref{fig:pipeline} shows the complete pipeline.
-
-\begin{figure}[t]
-\centering
-\begin{tikzpicture}[
-  box/.style={rectangle, draw, rounded corners=2pt, thick,
-    text width=3.4cm, minimum height=0.7cm, align=center,
-    font=\footnotesize},
-  acc/.style={box, fill=black!8},
-  node distance=0.8cm
-]
-
-% ── Nodes ──
-\node[box]               (s1) {Stage 1: \textsc{Cir} Generation};
-\node[box, below=of s1]  (s2) {Stage 2: Static Checking};
-\node[box, below=of s2]  (s3) {Stage 3: \textsc{Cir}$\;\to\;$\textsc{Cvn}};
-\node[box, below=of s3]  (s4) {Stage 4: State-Space Analysis};
-\node[box, below=of s4]  (s5) {Stage 5: Goal Reachability};
-\node[acc, below=of s5]  (ok) {Accepted};
-
-% ── Main flow ──
-\draw[->] (s1.south) -- (s2.north);
-\draw[->] (s2.south) -- (s3.north)
-  node[midway, right, font=\scriptsize] {pass};
-\draw[->] (s3.south) -- (s4.north);
-\draw[->] (s4.south) -- (s5.north)
-  node[midway, right, font=\scriptsize] {no bug};
-\draw[->] (s5.south) -- (ok.north)
-  node[midway, right, font=\scriptsize] {reachable};
-
-% ── Tier 1: auto-fix self-loop on Stage 2 ──
-\draw[->, dashed] ([yshift=2pt]s2.east)
-  .. controls +(0.7,0.35) and +(0.7,-0.35) ..
-  ([yshift=-2pt]s2.east);
-\node[font=\scriptsize] at ([xshift=10mm]s2.east) {Tier 1};
-
-% ── Tier 2: Stage 2 → Stage 1 (left) ──
-\draw[->, dashed] (s2.west) -- ++(-6mm,0) |- (s1.west);
-\node[font=\scriptsize, anchor=east]
-  at ([xshift=-6mm, yshift=4.5mm]s2.west) {Tier 2};
-
-% ── Tier 3: Stage 4 → Stage 1 (right, inner) ──
-\draw[->, dashed] (s4.east) -- ++(11mm,0)
-  |- ([yshift=-1mm]s1.east);
-\node[font=\scriptsize, anchor=west]
-  at ([xshift=11mm, yshift=5mm]s4.east) {Tier 3};
-
-% ── Goal fail: Stage 5 → Stage 1 (right, outer) ──
-\draw[->, dashed] (s5.east) -- ++(16mm,0)
-  |- ([yshift=1mm]s1.east);
-\node[font=\scriptsize, anchor=west]
-  at ([xshift=16mm, yshift=5mm]s5.east) {goal fail};
-
-\end{tikzpicture}
-\caption{The generate--verify--repair pipeline.}
-\label{fig:pipeline}
-\end{figure}
 % ─────────────────────────────────────────────────────
-\subsection{Pipeline Stages}
-\label{subsec:pipeline-overview}
-% LLM 读取自然语言需求或系统规范,并生成一个 \textsc{Cir} 工件.LLM 的任务是恢复预期的共享资源、保护映射和语句级控制流,而不是生成可执行程序.
-\emph{Stage~1: \textsc{Cir} generation.}
-An LLM reads a natural-language requirement or system specification and produces a \textsc{Cir} artifact. The LLM is asked to recover the intended shared resources, protection mappings, and statement-level control flow rather than to emit an executable program.
+\subsection{Pipeline and repair hierarchy}
+\label{subsec:pipeline}
 
-% 确定性检查器根据分为 9 个类别的 61 条格式良好性规则来验证 \textsc{Cir}.此阶段可以及早发现格式错误的工件:缺少字段、未定义的资源、不兼容的操作、损坏的 spawn/join 结构以及保护映射错误.
-\emph{Stage~2: Static checking (Layer~1).}
-A deterministic checker validates the \textsc{Cir} against 61~well-formedness rules organized in 9~categories. This stage catches malformed artifacts early: missing fields, undefined resources, incompatible operations, broken spawn/join structure, and protection-mapping errors.
+The architecture organizes the workflow into five stages, two verification layers, and three repair tiers.
 
-% 无状态转换器将已验证的 Cir 语句转换为 Cvn 语句.每个 Cir 语句至少会产生一个锚定转换;不进行任何优化或转换合并.这既简化了正确性论证,又保留了诊断可追溯性.
-\emph{Stage~3: Translation to \textsc{Cvn}.}
-A stateless translator converts the validated \textsc{Cir} into a \textsc{Cvn}. Each \textsc{Cir} statement gives rise to at least one anchored transition; no optimization or transition merging is performed. This keeps the correctness argument simple and preserves diagnostic traceability.
+% \begin{figure}[t]
+% \centering
+% \begin{tikzpicture}[
+%   box/.style={rectangle, draw, rounded corners=2pt, thick,
+%     text width=3.4cm, minimum height=0.7cm, align=center,
+%     font=\footnotesize},
+%   acc/.style={box, fill=black!8},
+%   node distance=0.8cm
+% ]
 
-% 状态空间分析器通过穷举可达性检查来探索 \textsc{Cvn};该阶段完全离线运行,不消耗 LLM 预算.可达图上仅产出一等性质死锁,其余(SignalLoss/ChannelBlock)是死锁反例的二次分类,而非独立可检测错误.
-\emph{Stage~4: State-space analysis (Layer~2a).}
-The \textsc{Cvn} is explored through exhaustive reachability search.
-Two first-class concurrency-bug verdicts are produced from the same
-reachability graph: deadlock (Section~\ref{subsubsec:deadlock}) and
-behavioral dead transition
-(Section~\ref{subsubsec:dead-transition}), the latter flagging any
-transition that never fires on any feasible interleaving. Signal loss
-and channel block are reported only as sub-classifications of an
-already-detected deadlock counterexample
-(Section~\ref{subsubsec:deadlock-subclass}), so they inherit the
-soundness of the deadlock oracle and do not broaden the set of
-reported bugs. This stage runs entirely off-prompt and does not
-consume LLM budget.
+% % ── Nodes ──
+% \node[box]               (s1) {Stage 1: \textsc{Cir} Generation};
+% \node[box, below=of s1]  (s2) {Stage 2: Static Checking};
+% \node[box, below=of s2]  (s3) {Stage 3: \textsc{Cir}$\;\to\;$\textsc{Cvn}};
+% \node[box, below=of s3]  (s4) {Stage 4: State-Space Analysis};
+% \node[box, below=of s4]  (s5) {Stage 5: Goal Reachability};
+% \node[acc, below=of s5]  (ok) {Accepted};
 
-% 目标可达性检查器检查每个用户指定的关键结果是否在探索的状态空间中保持可达.只有当工件既没有并发违规又没有目标不可达时,它才会被接受.一种看似安全的修复,通过删除所需的行为来实现无 bug,在此阶段会被拒绝.
-\emph{Stage~5: Goal-reachability check (Layer~2b).}
-If Stage~4 finds no concurrency violation, the verifier checks whether each user-designated critical outcome remains reachable in the explored state space. An artifact is accepted only if it is both violation-free and goal-reachable. An apparently safe repair that achieves bug-freedom by deleting required behavior is rejected at this stage. The loop iterates until the artifact passes all stages, or until a configurable iteration budget (default: 5~rounds) is exhausted, in which case the pipeline reports failure.
+% % ── Main flow ──
+% \draw[->] (s1.south) -- (s2.north);
+% \draw[->] (s2.south) -- (s3.north)
+%   node[midway, right, font=\scriptsize] {pass};
+% \draw[->] (s3.south) -- (s4.north);
+% \draw[->] (s4.south) -- (s5.north)
+%   node[midway, right, font=\scriptsize] {no bug};
+% \draw[->] (s5.south) -- (ok.north)
+%   node[midway, right, font=\scriptsize] {reachable};
 
-% ─────────────────────────────────────────────────────
-\subsection{Verification and Repair Hierarchy}
-\label{subsec:repair-tier}
-% 两个验证层将模型质量与并发行为分开.三个修复层确定适当的响应.    
-The two verification layers separate model quality from concurrency behavior. Three repair tiers determine the appropriate response.
+% % ── Tier 1: auto-fix self-loop on Stage 2 ──
+% \draw[->, dashed] ([yshift=2pt]s2.east)
+%   .. controls +(0.7,0.35) and +(0.7,-0.35) ..
+%   ([yshift=-2pt]s2.east);
+% \node[font=\scriptsize] at ([xshift=10mm]s2.east) {Tier 1};
 
-% 第一层(Tier~1)在确定性检查器检测到非语义问题时,应用预定义的重写,而无需调用 LLM.
-\emph{Tier~1: deterministic auto-fix.}
-When Layer~1 detects a non-semantic issue: a missing \texttt{unlock} at function exit, a duplicate $\mathsf{sid}$, an omitted \texttt{transfer} field, or a similar mechanical defect, the checker applies a pre-defined rewrite directly without involving the LLM.
+% % ── Tier 2: Stage 2 → Stage 1 (left) ──
+% \draw[->, dashed] (s2.west) -- ++(-6mm,0) |- (s1.west);
+% \node[font=\scriptsize, anchor=east]
+%   at ([xshift=-6mm, yshift=4.5mm]s2.west) {Tier 2};
 
-% 第二层(Tier~2)在确定性检查器检测到语义结构问题时,将诊断信息发送到 LLM 以局部重新生成受影响的 \textsc{Cir} 片段.
-\emph{Tier~2: structural re-generation.}
-When Layer~1 detects a semantic structural problem such as an undefined resource, a broken spawn/join topology, or an inconsistent protection mapping, the diagnostic is sent to the LLM for localized regeneration of the affected \textsc{Cir} fragment.
+% % ── Tier 3: Stage 4 → Stage 1 (right, inner) ──
+% \draw[->, dashed] (s4.east) -- ++(11mm,0)
+%   |- ([yshift=-1mm]s1.east);
+% \node[font=\scriptsize, anchor=west]
+%   at ([xshift=11mm, yshift=5mm]s4.east) {Tier 3};
 
-% 第三层(Tier~3)在状态空间分析器检测到并发违规时,从错误证据中构建结构化诊断,包括责任锚点、最终状态摘要和修复建议,并要求 LLM 修改受影响的同步逻辑.这是最昂贵的修复层,也是主要的方法论创新.
-\emph{Tier~3: logic-driven repair.}
-When Layer~2 finds a concurrency violation, the verifier constructs a structured diagnostic from the bug witness including blame anchors, end-state summary, and repair suggestion and asks the
-LLM to revise the affected synchronization logic. This is the most expensive repair tier and carries the main methodological novelty.
+% % ── Goal fail: Stage 5 → Stage 1 (right, outer) ──
+% \draw[->, dashed] (s5.east) -- ++(16mm,0)
+%   |- ([yshift=1mm]s1.east);
+% \node[font=\scriptsize, anchor=west]
+%   at ([xshift=16mm, yshift=5mm]s5.east) {goal fail};
+
+% \end{tikzpicture}
+% \caption{The generate-verify-repair pipeline.}
+% \label{fig:pipeline}
+% \end{figure}
+
+\textbf{Stage~1} generates a \textsc{Cir} artifact from a natural-language specification using an LLM.
+\textbf{Stage~2} validates the artifact against 61~well-formedness rules organized in 9~categories, catching malformed or semantically inconsistent artifacts before the more expensive verification phase.
+\textbf{Stage~3} translates the validated \textsc{Cir} into a \textsc{Cvn} through a stateless, deterministic translator. 
+\textbf{Stage~4} explores the \textsc{Cvn} through exhaustive reachability search and reports two primary properties: deadlock and behavioral dead transition.  Signal loss and channel block are reported only as sub-classifications of an already-detected deadlock. This stage runs entirely offline and does not consume LLM budget.
+\textbf{Stage~5} checks whether each user-declared business goal remains reachable.  An artifact is accepted only if it is both violation-free and goal-reachable.
+
+Three repair tiers determine the response when a problem is found. \emph{Tier~1} applies deterministic rewrites for mechanical defects such as a missing \texttt{unlock} or a duplicate $\mathsf{sid}$, without involving the LLM. \emph{Tier~2} sends structural problems such as undefined resources or broken spawn/join topology to the LLM for localized regeneration. \emph{Tier~3} constructs a structured diagnostic from a concurrency violation or an unmet goal, including blame anchors, end-state summary, and repair suggestion, and asks the LLM to revise the affected synchronization logic. The loop iterates until the artifact passes all stages or a configurable budget (default: 5~rounds) is exhausted.
+
+
+\section{Method}
+\label{sec:method}
+
+This section defines the two core formalisms (\textsc{Cir} and \textsc{Cvn}), describes the translation between them, and presents the bug-detection and repair machinery.
+
+\subsection{Concurrency intermediate representation}
+\label{subsec:cir-def}
+
+A \textsc{Cir} artifact is a statement-level concurrency model designed to be generated by an LLM and consumed by a formal analysis engine.
+
+\begin{definition}[\textsc{Cir} artifact]
+\label{def:cir}
+A \textsc{Cir} artifact is a 6-tuple $\mathcal{I}=(R,\;G,\;F,\;\Sigma,\;e,\;\Gamma)$, where $R$ is a finite resource table mapping names to kinds and
+configurations, $G:\mathit{VarName}\rightharpoonup\mathcal{P}(\mathit{LockName})$ is a protection mapping, $F$ is a finite set of function definitions, $\Sigma$ is a partial function-summary map for external calls, $e\in F$ is the designated entry function, and $\Gamma$ is a finite set of business goals.
+\end{definition}
+
+Every resource in $R$ has a unique global name. Pointers, heap indirection, and aliasing are strictly forbidden. Functions reference resources directly by name.  Each function body is a sequence of \emph{statements} $s=(\mathit{sid},\,\mathit{op},\,\mathit{transfer})$, where $\mathit{sid}$ is a globally unique identifier, $\mathit{op}$ is a concurrency or data operation (lock, wait, notify, send, recv, read, write, spawn, join, etc.), and $\mathit{transfer}$ specifies the control-flow successor. The complete operation catalogue and statement grammar are given in Appendix~\ref{app:cir-details}.
+
+The protection mapping $G$ records which locks guard which variables. It is used exclusively for static checking and does not produce \textsc{Cvn} structure.  The summary map $\Sigma$ provides effect summaries for external functions whose bodies are not modeled. The static checker validates each artifact against 61~well-formedness rules organized in 9~categories before the verification phase.
+
+A \emph{business goal} $\gamma=(C_\gamma,\,V_\gamma)$ specifies what the program is supposed to achieve: $C_\gamma$ contains completion and availability requirements (e.g., function $f$ must have returned, resource $r$ must be free), and $V_\gamma$ specifies required variable values. Goals are expressed entirely in \textsc{Cir} vocabulary. A repair is accepted only if no concurrency bug is detected \emph{and} every goal is reachable.
+
+% ═══════════════════════════════════════════════════════
+\subsection{Concurrency verification net}
+\label{subsec:cvn-def}
+
+\begin{definition}[\textsc{Cvn}]
+\label{def:cvn}
+A Concurrency Verification Net is an 8-tuple $\mathcal{N}=(P,\;T,\;W_{\!\mathit{in}},\;W_{\!\mathit{out}},\;G,\;U,\;\mathit{Var},\;\mu)$, where $P=P_c\uplus P_r\uplus P_a$ is a finite set of places partitioned into control places, resource places, and auxiliary places, $T$ is a finite set of transitions, $W_{\!\mathit{in}}$ and $W_{\!\mathit{out}}$ are input and output weight functions, $G:T\to\mathit{BoolExpr}$ assigns a guard to each transition, $U:T\to(\mathit{Var}\rightharpoonup\mathit{Expr})$ assigns variable updates, $\mathit{Var}$ is a finite set of variable names, and $\mu:T\to\mathit{SID}$ is an anchor mapping that traces every transition back to its originating \textsc{Cir} statement.
+\end{definition}
+
+A \textsc{Cvn} state is a pair $S=(M,V)$ of a marking $M:P\to\mathbb{N}_0$ and a valuation $V:\mathit{Var}\to\mathit{Val}$. The value domain extends concrete
+values with an absorbing element $\top$ (unknown): any comparison involving $\top$ evaluates to the truth value $\mathsf{unknown}$. A transition $t$ is enabled at $S$ iff every input place has enough tokens and its guard does not evaluate to $\mathsf{false}$. When a guard evaluates to $\mathsf{unknown}$, the transition is treated as enabled.  For a branch, both successors are explored simultaneously. This over-approximation ensures that no reachable state is missed. The standard Petri-net firing rule applies to tokens. Variable updates are evaluated against the pre-firing valuation. The complete firing semantics, place taxonomy, and initial token assignments are given in Appendix~\ref{app:cvn-details}.
+
+\subsection{Translation from CIR to CVN}
+\label{subsec:translation}
+Let $\textsc{Cir}_v$ denote the subset of \textsc{Cir} artifacts that pass all static-checking rules. The translator is a pure, total function $\mathit{translate}:\textsc{Cir}_v\to\textsc{Cvn}$ executed in three phases. \textbf{Phase~1} scans the resource table and generates resource places with their initial token counts (e.g., Mutex $\mapsto 1$, Semaphore$(n)\mapsto n$). \textbf{Phase~2} translates each function body: every statement produces at least one anchored transition, preserving diagnostic traceability. \textbf{Phase~3} translates function summaries: each summarized call becomes a single transition that sets all written variables to $\top$. The translation also maps each business goal to a \textsc{Cvn} reachability query. A state $(M,V)$ \emph{satisfies} a goal $\gamma$ iff all completion and availability requirements hold in $M$ and all required variable values match in $V$. A goal is \emph{reachable} if at least one reachable state satisfies it. The full translation rules are given in Appendix~\ref{app:translation-rules}.
+
+\subsection{Bug detection}
+\label{subsec:bug-detection}
+
+Given a translated \textsc{Cvn} $(\mathcal{N},S_0)$, the verifier performs exhaustive state-space exploration from $S_0$. Two primary properties are reported.
+
+\textbf{Deadlock.}\;
+A state $S$ is a deadlock iff no transition is enabled and at least one control token remains on a non-return place. Every such state is reported with its full firing sequence from $S_0$. Two refinements can further classify a deadlock witness. A \emph{signal-loss} refinement applies when blocked tokens reside on condvar wait-places or when the witness contains a notification that fired with no waiter present. A \emph{channel-block} refinement applies when a blocked
+consumer requires tokens from an empty channel place. Both refinements are applied strictly after a deadlock has been confirmed, so they never enlarge the reported bug set.
+
+\textbf{Behavioral dead transition.}\;
+A transition $t$ is behaviorally dead iff it never fires on any edge of the reachability graph. Such a transition corresponds to a \textsc{Cir} statement that can never execute under any feasible interleaving.  This property is computed from the same reachability graph used for deadlock detection, so it requires no additional search budget. 
+
+The verifier deliberately avoids scheduler-dependent properties such as livelock and starvation, which cannot be decided soundly on scheduler-agnostic Petri-net semantics.
+
+\subsection{Goal reachability}
+\label{subsec:goal-reach}
+
+A \textsc{Cir} that passes the deadlock check may still fail to implement its declared behavior. We promote business-goal reachability to a first-class property checked with the same state-space engine. Each goal $\gamma\in\Gamma$ is compiled into a conjunctive predicate over \textsc{Cvn} states. A goal is
+\emph{reachable} iff some reachable state simultaneously satisfies all its predicates. The verifier returns the set $\mathcal{U}\subseteq\Gamma$ of unmet goals. Because $\top$ never equals a concrete value, unresolved branches cannot spuriously satisfy a goal. The formal soundness statement is given in Theorem~\ref{thm:goal-soundness}.
+
+\subsection{Goal-aware repair loop}
+\label{subsec:repair-loop}
+
+The repair loop implements the three-tier hierarchy. Algorithm~\ref{alg:repair-goal} gives the process.
+
+\begin{algorithm}[t]
+\caption{Goal-Aware Generate-Verify-Repair Loop}
+\label{alg:repair-goal}
+\begin{algorithmic}[1]
+\Require Specification $\Psi$, iteration budget $K$
+\Ensure  Verified \textsc{Cir} $\mathcal{I}$ or Failure
+\State $\mathcal{I} \gets \text{LLM.Generate}(\Psi)$
+\For{$\mathit{round}=1$ \textbf{to} $K$}
+    \State $\mathcal{E} \gets \text{StaticCheck}(\mathcal{I})$
+    \If{$\mathcal{E} \neq \emptyset$}
+        \State Apply Tier-1 or Tier-2 repair; \textbf{continue}
+    \EndIf
+    \State $\mathcal{N} \gets \text{Translate}(\mathcal{I})$
+    \State $(\mathcal{R},\,\mathcal{B})
+      \gets \text{Analyze}(\mathcal{N})$
+    \If{$\mathcal{B} \neq \emptyset$}
+        \State $\mathcal{D} \gets
+          \text{BuildDiag}(\text{SelectBug}(\mathcal{B}),
+            \mathcal{R},\mathcal{I})$
+        \State $\mathcal{I} \gets
+          \text{LLM.Repair}(\mathcal{I},\mathcal{D})$;
+          \textbf{continue}
+    \EndIf
+    \State $\mathcal{U} \gets
+      \text{CheckGoals}(\mathcal{N},\Gamma,\mathcal{R})$
+    \If{$\mathcal{U}=\emptyset$}
+        \Return $\mathcal{I}$
+    \EndIf
+    \State $\mathcal{I} \gets
+      \text{LLM.Repair}\bigl(\mathcal{I},\,
+        \text{BuildGoalDiag}(\mathcal{U})\bigr)$
+\EndFor
+\State \Return Failure
+\end{algorithmic}
+\end{algorithm}
+
+$\text{Analyze}$ returns the reachable state set $\mathcal{R}$ and the bug set $\mathcal{B}$, which contains detected deadlocks (already refined to signal-loss or channel-block where applicable) and behavioral dead transitions. When multiple bugs are found, $\text{SelectBug}$ picks one by priority ($\text{deadlock}>\text{signal-loss}>\text{channel-block}> \text{dead-transition}$), preferring the shortest witness.
+
+The key ordering invariant is that goal reachability is checked only after the bug set is empty. If a goal is unreachable because a deadlock blocks its producer, the deadlock is repaired first. This gives every round a single semantic target: either remove a bug or restore missing behavior.
+
+When a bug is found, the verifier constructs a structured diagnostic containing the bug kind, a witness trace expressed in $\mathsf{sid}$ values, a state summary (thread positions, held resources, waiting relations), a bounded \textsc{Cir} slice around implicated statements, preservation constraints, and a repair hint.  The diagnostic provides both \emph{causality} (how the system reached the bug) and \emph{locality} (where it is stuck). The full diagnostic format and
+prompt assembly are described in Appendix~\ref{app:repair-details}.
+
+\section{Evaluation}
+\label{sec:evaluation}
+
+\subsection{Setup}
+\label{subsec:setup}
+
+\paragraph{Benchmark.}
+Table~\ref{tab:test-matrix} lists 9~bounded-concurrency patterns used throughout the evaluation. Six patterns contain known defects: five are definite concurrency bugs and one (\textsc{partial\_deadlock}) is a behavioural regression in which two threads stall each other while a bystander keeps the system globally live. The bystander prevents a global deadlock, so the defect is visible only through the goal-reachability layer. Three patterns are bug-free baselines used to confirm the absence of false positives.
+
+\begin{table*}[t]
+\caption{Benchmark patterns.
+$|\Gamma|$: number of business goals checked after repair.}
+\label{tab:test-matrix}
+\centering\footnotesize
+\begin{tabular}{@{}clll c p{3.6cm}@{}}
+\toprule
+\textbf{\#} & \textbf{Pattern} & \textbf{Bug kind}
+  & \textbf{Typical repair}
+  & $|\Gamma|$
+  & \textbf{Goal summary} \\
+\midrule
+1  & Two-mutex deadlock & Deadlock
+   & Unify lock order
+   & 1 & Both threads ret; mutexes released \\[2pt]
+2  & Condvar signal loss
+   & SignalLoss 
+   & Write pred.\ before notify
+   & 2 & Worker ret; \texttt{V[ready]=true} \\[2pt]
+3  & Channel\,+\,mutex DL
+   & Deadlock
+   & Release lock before ch.\ op
+   & 1 & Both threads ret; mutex released \\[2pt]
+4  & Three-lock circular
+   & Deadlock 
+   & Global lock order
+   & 1 & All three threads ret \\[2pt]
+5  & Partial deadlock
+   & GoalUnreach$^\dagger$ 
+   & Unify lock order
+   & 2 & Thread\,A ret; Thread\,B ret \\[2pt]
+6  & Dual condvar cross
+   & Deadlock 
+   & Break circular wait
+   & 2 & Thread\,A ret; Thread\,B ret \\[2pt]
+\midrule
+7  & Semaphore throttle 
+   & (none) 
+   & --- & --- & --- \\[2pt]
+8  & CAS contention 
+   & (none) 
+   & --- & --- & --- \\[2pt]
+9  & FnSummary prop.\ 
+   & (none)
+   & --- & --- & --- \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+We evaluate five LLMs: GPT-5, Claude~4.7~Opus, Gemini~3~Pro, Qwen3-Max, and DeepSeek-V3.  All models use temperature\,0 with a 4\,096-token output limit. For each pattern a short natural-language concurrency specification serves as the generation input. Buggy and fixed Rust programs are maintained as reference implementations but are \emph{not} input to \textsc{Cir} generation. Generation and repair budgets are each capped at 5~rounds.  All experiments run on
+Apple~M4~Pro\,/\,24\,GB; times are wall-clock averages over 3~runs.
+
+\subsection{Translation Correctness and State-Space Scale}
+\label{subsec:translation-results}
+
+We verify two aspects of the \textsc{Cir}-to-\textsc{Cvn} translation: structural invariants and bug-detection accuracy. Nine invariants are checked on every translated \textsc{Cvn} (e.g., every CIR statement produces $\geq 1$ transition, initial marking matches resource declarations, spawn/join arcs are well-formed). All 81 checks (9~invariants $\times$ 9~patterns) pass.
+
+Table~\ref{tab:translation} reports the translation size and bug-detection result for each pattern. Each buggy pattern uses a fixed ground-truth \textsc{Cir}, making results model-independent. All 5~definite bugs are detected with the correct bug kind. Pattern~5 contains no definite bug: the bystander thread keeps the system live, so the deadlock search correctly reports no deadlock. Instead, the goal-reachability layer flags that neither contending thread can reach its return place.  The 3~baselines produce zero false positives.
 
 \begin{table}[t]
-\caption{Verification and repair hierarchy.}
-\label{tab:two-layer}
+\caption{Translation size and detection result on ground-truth \textsc{Cir}.}
+\label{tab:translation}
 \centering\footnotesize
-\begin{tabular}{@{}p{2.8cm}ll@{}}
+\begin{tabular}{@{}clcccrl@{}}
 \toprule
-\textbf{Issue} & \textbf{Layer} & \textbf{Tier} \\
+\textbf{\#} & \textbf{Pattern}
+  & \textbf{Stmts} & $|P|$ & $|T|$
+  & \textbf{States} & \textbf{Result} \\
 \midrule
-\multicolumn{3}{@{}l}{\textit{Structural (Layer~1)}} \\
-\quad Missing unlock/drop       & \textsc{Cir} & 1 (auto-fix) \\
-\quad Duplicate $\mathsf{sid}$  & \textsc{Cir} & 1 (auto-fix) \\
-\quad Undefined resource        & \textsc{Cir} & 2 (LLM) \\
-\quad Spawn/join mismatch       & \textsc{Cir} & 2 (LLM) \\
-\quad Protection inconsistency  & \textsc{Cir} & 2 (LLM) \\
+1  & Two-mutex DL       & 15 & 22 & 17 &  60  & Deadlock \\
+2  & Condvar SL         & 15 & 24 & 21 &  47  & SignalLoss \\
+3  & Channel+mutex      & 13 & 20 & 15 &  37  & ChannelBlock \\
+4  & Three-lock circ.   & 22 & 32 & 25 & 396  & Deadlock \\
+5  & Partial DL         & 22 & 33 & 25 &  81  & GoalUnreach \\
+6  & Dual condvar       & 19 & 32 & 29 &  21  & SignalLoss \\
 \midrule
-\multicolumn{3}{@{}l}{\textit{Concurrency bugs (Layer~2a, deadlock search)}} \\
-\quad Deadlock                                     & \textsc{Cvn} & 3 (LLM) \\
-\quad \;\;$\hookrightarrow$ Signal-loss refinement & \textsc{Cvn} & 3 (LLM) \\
-\quad \;\;$\hookrightarrow$ Channel-block refinement & \textsc{Cvn} & 3 (LLM) \\
-\quad Cross-primitive deadlock                     & \textsc{Cvn} & 3 (LLM) \\
-\quad Behavioral dead transition                    & \textsc{Cvn} & 3 (LLM) \\
-\midrule
-\multicolumn{3}{@{}l}{\textit{Functional regressions (Layer~2b, goal reachability)}} \\
-\quad Unreachable business goal & \textsc{Cvn} & 3 (LLM) \\
+7  & Semaphore (BL)     & 16 & 24 & 19 & 187  & Verified \\
+8  & CAS (BL)           & 11 & 16 & 15 &  31  & Verified \\
+9  & FnSummary (BL)     & 15 & 21 & 17 &  57  & Verified \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-% 这个层次结构有两个目的.首先,它防止昂贵的 Layer~2 分析浪费在应该被早期拒绝的格式错误的工件上.其次,它确保 LLM 在适当的抽象级别接收反馈:机械修正被静默应用,结构反馈在模型格式错误时提供,执行导向反馈在并发逻辑错误时提供,目标违反反馈仅在 bug-freedom 建立后提供.
-This hierarchy serves two purposes. First, it prevents expensive Layer~2 analysis from being wasted on malformed artifacts that should have been rejected earlier. Second, it ensures that the LLM receives feedback at the appropriate level of abstraction: mechanical corrections are applied silently, structural feedback is provided when the model is malformed, execution-grounded feedback is provided when the concurrency logic is wrong, and goal-violation feedback is provided
-only after bug-freedom has been established.
+All patterns remain below 400~reachable states. The largest (Pattern~4, three threads with three mutexes) completes analysis in under 1\,ms.  The average ratio is 1.6~places and 1.3~transitions per \textsc{Cir} statement. Condvar patterns exhibit a higher transition ratio ($\sim$1.5) due to the wait/notify decomposition. Goal-reachability checking adds negligible overhead by reusing the already-computed reachable set. Moving to $k \geq 4$ threads or richer data domains will increase the state space exponentially; partial-order reduction and symmetry breaking are planned future work.
+
+\subsection{Generation and Repair}
+\label{subsec:gen-repair}
+
+Table~\ref{tab:gen-repair} reports two numbers per cell: the rounds needed to produce a statically valid \textsc{Cir} (generation) and the subsequent rounds needed to reach an accepted artifact (repair). Acceptance requires static validity, bug-freedom in the \textsc{Cvn} search, \emph{and} reachability of all declared business goals.
+
+\begin{table*}[t]
+\caption{Generation rounds / repair rounds per model per pattern.}
+\label{tab:gen-repair}
+\centering\footnotesize
+\begin{tabular}{@{}cl ccccc@{}}
+\toprule
+\textbf{\#} & \textbf{Pattern}
+  & \textbf{GPT-5} & \textbf{Claude 4.7 Opus}
+  & \textbf{Gemini 3 Pro}
+  & \textbf{Qwen3-Max} & \textbf{DeepSeek-V3} \\
+\midrule
+1  & Two-mutex DL
+   & 1\,/\,1 & 1\,/\,1 & 1\,/\,2
+   & 1\,/\,1 & 2\,/\,1 \\
+2  & Condvar SL
+   & 1\,/\,5$^{+4}$ & 1\,/\,1 & 2\,/\,1
+   & 1\,/\,\ding{55}$^{+5}$ & 3\,/\,\ding{55}$^{+5}$ \\
+3  & Channel+mutex
+   & 1\,/\,1 & 1\,/\,1 & 1\,/\,1
+   & 2\,/\,1 & 2\,/\,1 \\
+4  & Three-lock circ.
+   & 2\,/\,1 & 1\,/\,1 & 2\,/\,1
+   & 2\,/\,1 & 3\,/\,1 \\
+5  & Partial DL
+   & 2\,/\,5 & 1\,/\,1 & 2\,/\,2
+   & 3\,/\,2$^{+1}$ & 4\,/\,\ding{55} \\
+6  & Dual condvar
+   & 2\,/\,\ding{55}$^{+2}$ & 2\,/\,\ding{55}$^{+4}$
+   & 3\,/\,3$^{+2}$
+   & 3\,/\,\ding{55}$^{+5}$ & \ding{55}\,/\,---  \\
+\midrule
+7  & Semaphore (BL)
+   & 1\,/\,--- & 1\,/\,--- & 1\,/\,---
+   & 1\,/\,--- & 1\,/\,--- \\
+8  & CAS (BL)
+   & 1\,/\,--- & 1\,/\,--- & 1\,/\,---
+   & 2\,/\,--- & 2\,/\,--- \\
+9  & FnSummary (BL)
+   & 1\,/\,--- & 1\,/\,--- & 1\,/\,---
+   & 2\,/\,--- & 2\,/\,--- \\
+\midrule
+\multicolumn{2}{@{}l}{Gen.\ success}
+   & 9/9 & 9/9 & 9/9 & 9/9 & 8/9 \\
+\multicolumn{2}{@{}l}{Repair accepted}
+   & 5/6 & 5/6 & 6/6 & 4/6 & 3/6 \\
+\multicolumn{2}{@{}l}{Regressions}
+   & 6 & 4 & 2 & 11 & 7 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\paragraph{Generation.}
+$\ding{55}=$ not achieved within 5~rounds. Superscript~${}^{+n}$: intermediate regressions caught by the back-end. Baselines (Patterns 7--9) require generation only that no bugs to repair. All models except DeepSeek-V3 produce a valid \textsc{Cir} for every pattern.  DeepSeek-V3 fails on Pattern~6, the most structurally complex pattern requiring two condvars, two mutexes, and cross-thread notification dependencies. Claude~4.7~Opus achieves the lowest average generation cost (1.1~rounds), with first-attempt success on 8 of 9~patterns. The most common generation errors are malformed condvar declarations, incorrect branch conditions, and omitted protection mappings. All are caught by the static checker and typically corrected within one feedback round.
+
+\paragraph{Bug fidelity.}
+Before entering repair, we verify that each model's first valid \textsc{Cir} actually contains the intended bug. GPT-5, Claude~4.7~Opus, and Gemini~3~Pro achieve 6/6 fidelity: every generated \textsc{Cir} exhibits exactly the expected bug kind. Two fidelity failures occur in the remaining models. Qwen3-Max on Pattern~5 generates both threads with the same lock order, eliminating the intended conflict. DeepSeek-V3 on Pattern~4 similarly unifies lock acquisition orders, breaking the circular dependency. These cases are harmless for end users (the \textsc{Cir} is already correct), but the repair loop is never exercised for that model-pattern pair. No case arises in which a model captures a bug of a \emph{different} kind than specified.
+
+\paragraph{Repair.}
+Gemini~3~Pro is the only model that repairs all 6~defective patterns, with 5/6 accepted on the first attempt. Claude~4.7~Opus achieves single-round repair on every accepted pattern (5/6) but fails on the dual-condvar cross-wait (Pattern~6). GPT-5 requires five rounds on Pattern~2 (signal loss) and Pattern~5 (goal-unreachability). Qwen3-Max and DeepSeek-V3 succeed on the three simple-deadlock patterns but struggle with condvar-heavy patterns and the goal-reachability pattern.
+
+Pattern~6 is the hardest cell: only Gemini~3~Pro disentangles the two cross-notification dependencies without introducing fresh bugs. Common failure modes include moving a \textsf{wait} off its associated mutex and introducing a new signal-loss by emitting \textsf{notify} outside the protecting critical section.  These regressions are caught by the back-end and surfaced to the LLM, but five rounds are not enough for the other models to converge.
+
+Across the 30 model-pattern repair tasks, 30~intermediate regressions occur (static errors: $\sim$13, translation violations: $\sim$14, goal-unreachability: $\sim$1, bug-kind drift: $\sim$2).  No regression survives to a final accepted \textsc{Cir}.
+
+\subsection{Goal-Reachability Effectiveness}
+\label{subsec:goal-results}
+
+Goal-reachability checking serves two roles: it catches repair-induced regressions that silently drop functionality, and it detects partial deadlocks that leave the system globally live but permanently block the threads responsible for reaching declared goals.
+
+On the ground-truth \textsc{Cir}s, the checker correctly reports all goals as met on fixed patterns and all goals as unmet on buggy patterns (4/4 verdicts correct on the two goal-bearing patterns, 5 and~9). On bug-free baselines no false alarms arise.
+
+The more revealing test is the checker's role inside the repair loop. Pattern~5 is invisible to the deadlock search because a bystander thread keeps the system live. Without goal feedback the loop would receive no signal after the first bug-free candidate. With goal feedback, 4 of 5~models converge: Claude~4.7~Opus in 1~round, Gemini~3~Pro in 2, Qwen3-Max in 2, and GPT-5 in 5. DeepSeek-V3 fails to rearrange the control flows within budget. No accepted \textsc{Cir} in the entire evaluation has an unmet goal.
+
+Table~\ref{tab:summary} consolidates the results. Acceptance requires static validity, bug-freedom, and goal reachability.
+
+\begin{table}[t]
+\caption{End-to-end summary across the 6 defective patterns.}
+\label{tab:summary}
+\centering\footnotesize
+\begin{tabular}{@{}l ccccc@{}}
+\toprule
+& \textbf{GPT-5} & \textbf{Cl.~4.7}
+  & \textbf{Gem.~3}
+  & \textbf{Qwen3} & \textbf{DS-V3} \\
+\midrule
+Bug-free (P1--4,6)
+             & 4/5 & 4/5 & 5/5 & 3/5 & 3/5 \\
+Goal reach.\ (P5)
+             & \ding{51} & \ding{51} & \ding{51}
+             & \ding{51} & \ding{55} \\
+Total repair rounds
+             & 13   & 5   & 10   & 5   & 3   \\
+Regressions
+             & 6    & 4   & 2    & 11  & 7   \\
+\midrule
+\textbf{Accepted}
+             & 5/6 & 5/6 & 6/6 & 4/6 & 3/6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Only Gemini~3~Pro is accepted on all 6~patterns. The hardest pattern (dual condvar cross-wait) requires coordinating wait/notify placements across two threads simultaneously. Pattern~5 (partial deadlock) is visible only through goal-reachability feedback. Once that feedback is available, 4 of 5~models converge.  Across the entire matrix the pipeline never accepts a \textsc{Cir} that contains a definite concurrency bug or whose declared business goals are unreachable. Every intermediate regression is caught by one of the three verification layers: static checking, \textsc{Cvn} analysis, or goal reachability.
 
 
-% !TeX root = ../main.tex
-\section{Formal Definitions}
-\label{sec:formal-defs}
+\section{Conclusion}
+\label{sec:conclusion}
 
-% 本节定义了三个核心形式:并发中间表示(\textsc{Cir})、并发验证网(\textsc{Cvn})以及从\textsc{Cir}到\textsc{Cvn}的转换.
-Three core formalisms underlie the method: \textsc{Cir}, \textsc{Cvn}, and the translation from \textsc{Cir} to \textsc{Cvn}.
+This paper shifts concurrency verification from source-level alias recovery to a closed loop over \textsc{Cir}, an explicit, alias-free concurrency model constructed by LLMs from natural-language specifications. A deterministic translation to \textsc{Cvn} provides sound and complete detection of deadlock and signal loss under concrete valuation; livelock is flagged as an advisory structural warning with a contrapositive impossibility guarantee. Goal-reachability checking catches semantic regressions that escape all other verification layers. Across 9~patterns and 5~LLMs, no \textsc{Cir} containing a definite bug or violating a business goal is ever accepted.
 
-\subsection{CIR: Concurrency Intermediate Representation}
-\label{subsec:cir-def}
+% ═══════════════════════════════════════════════════════════════
+% APPENDIX
+% ═══════════════════════════════════════════════════════════════
+\appendix
+
+\section{CIR Details}
+\label{app:cir-details}
 
 \begin{definition}[Function and statement]
 \label{def:statement}
-A \emph{function definition} is a triple $(f,\,k,\,B)$ where $f$ is the name, $k\in\{\textsf{normal},\textsf{async},\textsf{closure}\}$ is the kind, and $B=(s_1,\dots,s_n)$ is a body of statements.
-A \emph{statement} is a triple $s=(\mathit{sid},\;\mathit{op},\;\mathit{transfer})$, where $\mathit{sid}\in\mathit{SID}$ is a unique identifier, $\mathit{op}$ is an operation from Table~\ref{tab:cir-ops} or the distinguished no-operation $\textsf{nop}$, and $\mathit{transfer}$ specifies the control-flow successor:
-   \[
-      \mathit{transfer} \in
-      \bigl\{\,
-        \textsf{next}(s'),\;
-        \textsf{branch}(\beta,s_t,s_f),\;
-        \textsf{switch}(x,\langle v_i\!\to\!s_i\rangle_{i},s_d),\;
-        \textsf{return}
-      \,\bigr\}
-    \]
-    where $\beta\in\mathit{BoolExpr}$ (Definition~\ref{def:expressions}). The operation and transfer are orthogonal: $\mathit{op}$ specifies the resource or concurrency action; $\mathit{transfer}$ specifies the successor.
+A \emph{function definition} is a triple $(f,\,k,\,B)$ where $f$ is
+the name,
+$k\in\{\textsf{normal},\textsf{async},\textsf{closure}\}$ is the
+kind, and $B=(s_1,\dots,s_n)$ is a body of statements.
+A \emph{statement} is a triple
+$s=(\mathit{sid},\;\mathit{op},\;\mathit{transfer})$, where
+$\mathit{sid}\in\mathit{SID}$ is a unique identifier, $\mathit{op}$ is
+an operation from Table~\ref{tab:cir-ops} or the distinguished
+no-operation $\textsf{nop}$, and $\mathit{transfer}$ specifies the
+control-flow successor:
+\[
+  \mathit{transfer} \in
+  \bigl\{\,
+    \textsf{next}(s'),\;
+    \textsf{branch}(\beta,s_t,s_f),\;
+    \textsf{switch}(x,\langle v_i\!\to\!s_i\rangle_{i},s_d),\;
+    \textsf{return}
+  \,\bigr\}
+\]
+where $\beta\in\mathit{BoolExpr}$ (Definition~\ref{def:expressions}).
+The operation and transfer are orthogonal: $\mathit{op}$ specifies the
+resource or concurrency action, and $\mathit{transfer}$ specifies the
+successor.
 \end{definition}
 
-% $\mathit{SID}$ 表示语句标识符的集合.每个函数 $(f,k,B)$ 都有一个特殊的入口标识符 $\mathit{sid}^{0}_{f}$($B$ 中第一个语句的 $\mathit{sid}$)和一个特殊的返回标识符 $\mathit{ret}_{f}\notin\{\mathit{sid}\mid(\mathit{sid},\_,\_)\in B\}$.当没有歧义时,我们省略函数下标,直接写 $\mathit{sid}^{0}$ 和 $\mathit{ret}$.哨兵标识符 $\mathit{sid}_{\bot}$ 保留给由函数摘要生成的合成转换.
-$\mathit{SID}$ denotes the universe of statement identifiers. Every function $(f,k,B)$ has a distinguished \emph{entry identifier} $\mathit{sid}^{0}_{f}$ (the $\mathit{sid}$ of the first statement in $B$) and a distinguished \emph{return identifier} $\mathit{ret}_{f}\notin\{\mathit{sid}\mid(\mathit{sid},\_,\_)\in B\}$. When unambiguous we write $\mathit{sid}^{0}$ and $\mathit{ret}$ without the function subscript. The sentinel $\mathit{sid}_{\bot}$ is reserved for synthetic transitions generated from function summaries.
+$\mathit{SID}$ denotes the universe of statement identifiers.  Every
+function $(f,k,B)$ has a distinguished \emph{entry identifier}
+$\mathit{sid}^{0}_{f}$ (the $\mathit{sid}$ of the first statement
+in~$B$) and a distinguished \emph{return identifier}
+$\mathit{ret}_{f}\notin\{\mathit{sid}\mid(\mathit{sid},\_,\_)\in B\}$.
+When unambiguous we write $\mathit{sid}^{0}$ and $\mathit{ret}$
+without the function subscript.  The sentinel $\mathit{sid}_{\bot}$ is
+reserved for synthetic transitions generated from function summaries.
 
-\begin{definition}[\textsc{Cir} artifact]
-\label{def:cir}
-A \textsc{Cir} artifact is a 6-tuple
-$\mathcal{I}=(R,\;G,\;F,\;\Sigma,\;e,\;\Gamma)$, where $R$ is a finite resource table mapping names to kinds and configurations, $G:\mathit{VarName}\rightharpoonup\mathcal{P}(\mathit{LockName})$ is a protection mapping, $F$ is a finite set of function definitions $(f,k,B)$, $\Sigma$ is a partial function-summary map for external calls, $e\in F$ is the designated entry function, and $\Gamma$ is a finite set of \textsc{Cir} business goals in Definition~\ref{def:cir-goal}.
-\end{definition}
-
-% $R$ 中的每个资源都有一个唯一的全局名称.指针、堆间接寻址和别名均被严格禁止;函数必须直接通过名称引用资源.保护映射~$G$ 仅用于静态检查,不会生成 \textsc{Cvn} 结构.
-Every resource in $R$ has a unique global name. Pointers, heap indirection, and aliasing are strictly forbidden; functions reference resources directly by name. The protection mapping~$G$ is used exclusively for static checking and does not produce \textsc{Cvn} structures.
-
-\begin{table}[t]
+\begin{table}[h]
 \caption{\textsc{Cir} operations.}
 \label{tab:cir-ops}
 \centering\footnotesize
@@ -497,17 +709,28 @@ Every resource in $R$ has a unique global name. Pointers, heap indirection, and 
 \end{tabular}
 \end{table}
 
-% 摘要映射表 Σ 为每个函数提供摘要,这些函数的函数体未在 F 中建模.摘要是一个元组 Σ(f)=(reads, writes, calls, has_concurrency),其中 reads 和 writes 是资源名称的集合,calls 是被调用者名称的集合,has_concurrency 是一个布尔值.只有 writes 字段会影响 Cvn 转换;其余字段供静态检查器使用.静态检查器强制执行 61 条格式良好性规则,这些规则分为 9 个类别(代码 \texttt{E0xx}--\texttt{E8xx}),涵盖结构完整性、名称解析、类型兼容性、资源配对、锁安全、控制流、保护映射和函数摘要一致性.完整目录请参见 \S\ref{sec:analysis-repair}.
-The summary map~$\Sigma$ provides a summary for each function whose body is not modeled in~$F$. A summary is a tuple $\Sigma(f)=(\mathit{reads},\mathit{writes},\mathit{calls},\mathit{has\_concurrency})$, where $\mathit{reads}$ and $\mathit{writes}$ are sets of resource names, $\mathit{calls}$ is a set of callee names, and $\mathit{has\_concurrency}$ is a boolean. Only the $\mathit{writes}$ field affects the \textsc{Cvn} translation; the remaining fields serve the static checker. The static checker enforces 61 well-formedness rules organized in 9~categories (codes \texttt{E0xx}--\texttt{E8xx}) covering structural integrity, name resolution, type compatibility, resource pairing, lock safety, control flow, protection mapping, and function-summary consistency. The full catalogue appears in Table~\ref{tab:cir-errors} (Appendix~\ref{app:tables}).
+The summary map $\Sigma$ provides a summary for each function whose
+body is not modeled in $F$.  A summary is a tuple
+$\Sigma(f)=(\mathit{reads},\mathit{writes},\mathit{calls},
+\mathit{has\_concurrency})$, where $\mathit{reads}$ and
+$\mathit{writes}$ are sets of resource names, $\mathit{calls}$ is a
+set of callee names, and $\mathit{has\_concurrency}$ is a boolean.
+Only the $\mathit{writes}$ field affects the \textsc{Cvn} translation.
+The remaining fields serve the static checker.
 
 \begin{definition}[\textsc{Cir} business goal]
-  \label{def:cir-goal}
-  A \textsc{Cir} business goal is a pair $\gamma=(C_\gamma,\,V_\gamma)$, where $C_\gamma$ is a set of \emph{completion} and
-  \emph{availability} requirements that $(f,\textsf{completed})$ requires function~$f$ to have returned, $(r,\textsf{available})$ requires resource~$r$ to be in its initial (free) state, and $V_\gamma:\mathit{VarName}\rightharpoonup\mathit{Val}$ specifies required variable values. Goals are expressed entirely in \textsc{Cir} vocabulary and do not
-  reference \textsc{Cvn} places or markings.
+\label{def:cir-goal}
+A \textsc{Cir} business goal is a pair $\gamma=(C_\gamma,\,V_\gamma)$,
+where $C_\gamma$ is a set of \emph{completion} and \emph{availability}
+requirements: $(f,\textsf{completed})$ requires function $f$ to have
+returned, and $(r,\textsf{available})$ requires resource $r$ to be in
+its initial (free) state.
+$V_\gamma:\mathit{VarName}\rightharpoonup\mathit{Val}$ specifies
+required variable values.  Goals are expressed entirely in \textsc{Cir}
+vocabulary and do not reference \textsc{Cvn} places or markings.
 \end{definition}
 
-\begin{figure}[t]
+\begin{figure}[h]
 \begin{lstlisting}[basicstyle=\small\ttfamily,frame=single]
 goals:
   - id: G1
@@ -526,30 +749,45 @@ goals:
       - [worker, completed]
 \end{lstlisting}
 \caption{Business goals expressed in \textsc{Cir} vocabulary.}
-\Description{Two CIR business goals using completion and availability requirements.}
 \label{fig:goals-example}
 \end{figure}
 
-% 业务目标描述的是程序应该实现的目标,而不仅仅是它应该避免的问题。一个存在缺陷的程序可能无法实现其目标,因为死锁或信号丢失会阻塞执行路径。反之,即使修复消除了所有并发缺陷,如果无意中移除了关键操作,也可能无法实现目标。因此,已验证的 Cir 的验收标准是以下两个条件的合取:(1) 未检测到并发缺陷,且 (2) 每个业务目标均可达标。只有在确认程序无缺陷后才会检查目标的可达性,因为缺陷本身可能会阻塞目标的可达性。目标可以通过两种方式指定:用户可以将其作为自然语言规范的一部分显式声明,或者 LLM 可以在生成 Cir 工件时自动推导出目标。无论哪种方式,目标都会成为 I 的一部分,并贯穿整个流程。
-Business goals capture what the program is \emph{supposed to achieve}, not merely what it should avoid. A buggy program may fail to reach its goals because a deadlock or signal loss blocks the execution path. Conversely, a repair that eliminates all concurrency bugs may still fail to reach a goal if it inadvertently removes a critical operation. The acceptance criterion for a verified \textsc{Cir} is therefore the conjunction: (1)~no concurrency bug is detected, and (2)~every business goal is reachable. Goal reachability is checked only after bug-freedom is established, because bugs themselves can block reachability. Goals can be specified in two ways. The user can state them explicitly as part of the natural-language specification, or the LLM can derive them automatically when generating the \textsc{Cir} artifact. In either case the goals become part of~$\mathcal{I}$ and travel through the entire pipeline.
+Business goals capture what the program is \emph{supposed to achieve},
+not merely what it should avoid.  A buggy program may fail to reach
+its goals because a deadlock or signal loss blocks the execution path.
+Conversely, a repair that eliminates all concurrency bugs may still
+fail to reach a goal if it inadvertently removes a critical operation.
+The acceptance criterion for a verified \textsc{Cir} is therefore the
+conjunction: (1)~no concurrency bug is detected, and (2)~every
+business goal is reachable.  Goal reachability is checked only after
+bug-freedom is established, because bugs themselves can block
+reachability.  Goals can be specified in two ways: the user can state
+them explicitly as part of the natural-language specification, or the
+LLM can derive them automatically when generating the \textsc{Cir}
+artifact.  In either case the goals become part of $\mathcal{I}$ and
+travel through the entire pipeline.
 
-
-\subsection{CVN: Concurrency Verification Net}
-\label{subsec:cvn-def}
+% ═══════════════════════════════════════════════════════════════
+\section{CVN Details}
+\label{app:cvn-details}
 
 \begin{definition}[Value domain]
 \label{def:val}
-The value domain is $\mathit{Val}=\mathit{Concrete}(\tau)\cup\{\top\}$, where $\tau$ ranges over the base types $\{\textsf{Bool},\textsf{Int},\textsf{Float},\textsf{String},\textsf{Enum}\}$. The element~$\top$ (\emph{unknown}) is absorbing: any arithmetic operation receiving~$\top$ as an operand produces~$\top$; any comparison receiving~$\top$ produces the truth value $\mathsf{unknown}$. A literal write overwrites~$\top$ unconditionally.
+The value domain is
+$\mathit{Val}=\mathit{Concrete}(\tau)\cup\{\top\}$, where $\tau$
+ranges over the base types
+$\{\textsf{Bool},\textsf{Int},\textsf{Float},\textsf{String},
+\textsf{Enum}\}$.  The element $\top$ (\emph{unknown}) is absorbing:
+any arithmetic operation receiving $\top$ as an operand
+produces $\top$, and any comparison receiving $\top$ produces the
+truth value $\mathsf{unknown}$.  A literal write overwrites $\top$
+unconditionally.
 \end{definition}
-
-% \begin{assumption}[Bounded value domain]
-% \label{asmp:bounded-val}
-% Each base type~$\tau$ is interpreted over a finite set: $\textsf{Bool}=\{\mathsf{true},\mathsf{false}\}$; $\textsf{Int}$ and $\textsf{Float}$ are abstracted to $\{\top\}$ unless a literal appears in the \textsc{Cir}, in which case only the occurring literals and~$\top$ are tracked; $\textsf{String}$ and $\textsf{Enum}$ are similarly restricted.
-% \end{assumption}
 
 \begin{definition}[Expressions]
 \label{def:expressions}
-\emph{Value expressions} and \emph{boolean expressions} over the value domain are defined by:
+\emph{Value expressions} and \emph{boolean expressions} over the value
+domain are defined by:
 \begin{align*}
   \mathit{Expr} &::=
     \mathit{Lit}(v) \mid
@@ -560,74 +798,94 @@ The value domain is $\mathit{Val}=\mathit{Concrete}(\tau)\cup\{\top\}$, where $\
     \mathit{Cmp}(\mathit{Expr},\mathit{cmp},\mathit{Expr}) \\
     &\quad\mid\;
     \mathit{And}(\mathit{BoolExpr},\mathit{BoolExpr}) \mid
-    \mathit{Or}(\mathit{BoolExpr},\mathit{BoolExpr}) 
+    \mathit{Or}(\mathit{BoolExpr},\mathit{BoolExpr}) \\
     &\quad\mid\;
     \mathit{Not}(\mathit{BoolExpr})
 \end{align*}
-Given a valuation~$V$, $\mathit{eval}(e,V)$ evaluates a value expression to an element of $\mathit{Val}$; $\mathit{Ref}(x)$ evaluates to $V(x)$ and $\mathit{BinOp}$ follows the absorbing rule for~$\top$.
+Given a valuation $V$, $\mathit{eval}(e,V)$ evaluates a value
+expression to an element of $\mathit{Val}$.  $\mathit{Ref}(x)$
+evaluates to $V(x)$ and $\mathit{BinOp}$ follows the absorbing rule
+for $\top$.
 \end{definition}
 
 \begin{definition}[Guard evaluation]
-  \label{def:guard-eval}
-  A \emph{guard} is a $\mathit{BoolExpr}$. Given a valuation~$V$, the evaluation $\mathit{eval}(g,V)\in\{\mathsf{true},\mathsf{false},\mathsf{unknown}\}$ is defined by the absorbing rules: a comparison with a~$\top$ operand evaluates to $\mathsf{unknown}$; $\mathsf{unknown}\wedge\mathsf{false}=\mathsf{false}$;\; $\mathsf{unknown}\wedge\mathsf{true}=\mathsf{unknown}$;\; $\mathsf{unknown}\vee\mathsf{true}=\mathsf{true}$;\; $\mathsf{unknown}\vee\mathsf{false}=\mathsf{unknown}$. When a guard evaluates to~$\mathsf{unknown}$ the transition is treated as enabled; for a branch, both successors are enabled   simultaneously. This over-approximation ensures no reachable state is missed at the cost of exploring potentially infeasible paths.
-\end{definition}
-
-\begin{definition}[\textsc{Cvn}]
-\label{def:cvn}
-A Concurrency Verification Net is an 8-tuple
-\[
-  \mathcal{N}=(P,\;T,\;W_{\!\mathit{in}},\;W_{\!\mathit{out}},\;
-    G,\;U,\;\mathit{Var},\;\mu)
-\]
-where
-\begin{itemize}
-  \item $P=P_c\uplus P_r\uplus P_a$ is a finite set of \emph{places}, partitioned into control places~$P_c$, resource places~$P_r$, and auxiliary places~$P_a$;
-  \item $T$ is a finite set of \emph{transitions};
-  \item $W_{\!\mathit{in}}:P\times T\to\mathbb{N}_0$ is the \emph{input weight function}($W_{\!\mathit{in}}(p,t)=0$ means no arc from $p$ to $t$);
-  \item $W_{\!\mathit{out}}:T\times P\to\mathbb{N}_0$ is the \emph{output weight function};
-  \item $G:T\to\mathit{BoolExpr}$ is the \emph{guard function} (default $\textsf{True}$);
-  \item $U:T\to(\mathit{Var}\rightharpoonup\mathit{Expr})$ is the \emph{update function}, assigning each transition a
-        partial map from variables to expressions (default~$\emptyset$);
-  \item $\mathit{Var}$ is a finite set of variable names; and
-  \item $\mu:T\to\mathit{SID}$ is the \emph{anchor mapping}.
-\end{itemize}
+\label{def:guard-eval}
+A \emph{guard} is a $\mathit{BoolExpr}$.  Given a valuation $V$, the
+evaluation
+$\mathit{eval}(g,V)\in\{\mathsf{true},\mathsf{false},\mathsf{unknown}\}$
+is defined by the following absorbing rules: a comparison with a $\top$
+operand evaluates to $\mathsf{unknown}$.  The connectives propagate
+$\mathsf{unknown}$ as follows:
+$\mathsf{unknown}\wedge\mathsf{false}=\mathsf{false}$,
+$\mathsf{unknown}\wedge\mathsf{true}=\mathsf{unknown}$,
+$\mathsf{unknown}\vee\mathsf{true}=\mathsf{true}$,
+$\mathsf{unknown}\vee\mathsf{false}=\mathsf{unknown}$.
+When a guard evaluates to $\mathsf{unknown}$ the transition is treated
+as enabled.  For a branch, both successors are enabled simultaneously.
+This over-approximation ensures no reachable state is missed at the
+cost of exploring potentially infeasible paths.
 \end{definition}
 
 \begin{remark}[Place taxonomy and initial tokens]
 \label{rem:places}
 The three place classes and their initial token counts are:
 \begin{enumerate}
-  \item \textbf{Control places} $P_c$. One place $\mathit{cp}(f,\mathit{sid})$ per statement per function, plus a return place $\mathit{cp}(f,\mathit{ret})$. A token in $\mathit{cp}(f,\mathit{sid})$ means a thread is at statement $\mathit{sid}$ in~$f$. Initially, each spawned function's entry place $\mathit{cp}(f,\mathit{sid}^{0}_{f})$ holds one token; all other control places hold zero.
+  \item \textbf{Control places} $P_c$.  One place
+    $\mathit{cp}(f,\mathit{sid})$ per statement per function, plus a
+    return place $\mathit{cp}(f,\mathit{ret})$.  A token in
+    $\mathit{cp}(f,\mathit{sid})$ means a thread is at statement
+    $\mathit{sid}$ in $f$.  Initially, each spawned function's entry
+    place $\mathit{cp}(f,\mathit{sid}^{0}_{f})$ holds one token.
+    All other control places hold zero.
 
-  \item \textbf{Resource places} $P_r$. One place $\mathit{rp}(r)$ per synchronization primitive. Initial token counts:
-    Mutex~$\mapsto1$;\; RwLock~$\mapsto N$ where $N$ is the total number of concurrent entities;\; Semaphore$(n)\mapsto n$;\;
-    Channel~$\mapsto 0$;\; Condvar signal place~$\mapsto 0$. \textsf{Var} and \textsf{Atomic} resources have no resource
-    places; their state resides in the valuation~$V$.
+  \item \textbf{Resource places} $P_r$.  One place $\mathit{rp}(r)$
+    per synchronization primitive.  Initial token counts:
+    Mutex $\mapsto 1$,
+    RwLock $\mapsto N$ where $N$ is the total number of concurrent
+    entities,
+    Semaphore$(n)\mapsto n$,
+    Channel $\mapsto 0$,
+    Condvar signal place $\mapsto 0$.
+    \textsf{Var} and \textsf{Atomic} resources have no resource
+    places.  Their state resides in the valuation $V$.
 
-  \item \textbf{Auxiliary places} $P_a$. For each \textsf{wait} site~$\mathit{sid}$ on a condition variable: a \emph{wait place}~$\mathit{wp}(\mathit{sid})$ (token = thread blocked) and a \emph{reacquire place}~$\mathit{ra}(\mathit{sid})$ (token = thread woken, awaiting mutex). All auxiliary places start at zero.
+  \item \textbf{Auxiliary places} $P_a$.  For each \textsf{wait}
+    site $\mathit{sid}$ on a condition variable: a \emph{wait place}
+    $\mathit{wp}(\mathit{sid})$ (token = thread blocked) and a
+    \emph{reacquire place} $\mathit{ra}(\mathit{sid})$ (token =
+    thread woken, awaiting mutex).  All auxiliary places start at
+    zero.
 \end{enumerate}
 \end{remark}
 
-% \begin{remark}[Condvar auxiliary variables]
-% \label{rem:condvar-vars}
-% Each condition variable $\mathit{cv}$ with wait sites $\{w_1,\dots,w_k\}$ introduces auxiliary variables in $\mathit{Var}$:
-% \begin{itemize}
-%   \item a waiter-count variable $nw_{\mathit{cv}}\in\mathit{Var}$
-%         with initial value~$0$, and
-%   \item a per-site notify-all flag
-%         $na_{w_i}\in\mathit{Var}$ with initial value
-%         $\mathsf{false}$ for each $i\in\{1,\dots,k\}$.
-% \end{itemize}
-% \end{remark}
+\begin{remark}[Condvar auxiliary variables]
+\label{rem:condvar-vars}
+Each condition variable $\mathit{cv}$ with wait sites
+$\{w_1,\dots,w_k\}$ introduces auxiliary variables in $\mathit{Var}$:
+a waiter-count variable $nw_{\mathit{cv}}\in\mathit{Var}$ with initial
+value $0$, and a per-site notify-all flag
+$na_{w_i}\in\mathit{Var}$ with initial value $\mathsf{false}$ for each
+$i\in\{1,\dots,k\}$.
+\end{remark}
 
 \begin{remark}[Anchor mapping]
 \label{rem:anchor}
-$\mu$ is total on transitions generated from \textsc{Cir} statements. For compound operations such as \textsf{wait}, which generates multiple transitions (WaitEnter, Wake1, WakeA, Reacquire), each transition is anchored to the originating \textsf{wait} statement's $\mathit{sid}$. Transitions synthesized from summaries are anchored to $\mathit{sid}_{\bot}$ and excluded from witness traces.
+$\mu$ is total on transitions generated from \textsc{Cir} statements.
+For compound operations such as \textsf{wait}, which generates
+multiple transitions (WaitEnter, Wake1, WakeA, Reacquire), each
+transition is anchored to the originating \textsf{wait} statement's
+$\mathit{sid}$.  Transitions synthesized from summaries are anchored
+to $\mathit{sid}_{\bot}$ and excluded from witness traces.
 \end{remark}
 
 \begin{definition}[\textsc{Cvn} state]
 \label{def:cvn-state}
-A \textsc{Cvn} state is a pair $S=(M,V)$ where $M:P\to\mathbb{N}_0$ is a marking and $V:\mathit{Var}\to\mathit{Val}$ is a valuation. The initial state $S_0=(I_m,I_v)$ assigns token counts per Remark~\ref{rem:places} and initial values per the \textsc{Cir} resource table~$R$. The pair $(\mathcal{N},S_0)$ fully determines the reachable state space.
+A \textsc{Cvn} state is a pair $S=(M,V)$ where
+$M:P\to\mathbb{N}_0$ is a marking and
+$V:\mathit{Var}\to\mathit{Val}$ is a valuation.  The initial state
+$S_0=(I_m,I_v)$ assigns token counts per Remark~\ref{rem:places} and
+initial values per the \textsc{Cir} resource table $R$.  The pair
+$(\mathcal{N},S_0)$ fully determines the reachable state space.
 \end{definition}
 
 \begin{definition}[Enabling and firing]
@@ -650,371 +908,214 @@ Upon firing, the successor state $S'=(M',V')$ is:
     V(x) & \text{otherwise.}
   \end{cases}
 \]
-All expressions in $U(t)$ are evaluated with respect to the pre-firing valuation~$V$.
-If multiple transitions are simultaneously enabled, the search explores all resulting interleavings.
+All expressions in $U(t)$ are evaluated with respect to the
+pre-firing valuation $V$.  If multiple transitions are simultaneously
+enabled, the search explores all resulting interleavings.
 \end{definition}
 
-Each transition also carries a classification tag (Lock, Unlock, Spawn, etc.) for diagnostics and visualization; the tag does not affect firing semantics.
-
-
-\subsection{CIR to CVN Translation}
-\label{subsec:translation}
-
-
-Let $\textsc{Cir}_v$ denote the subset of \textsc{Cir} artifacts that pass all 61 static-checking rules. The translator is a pure, total function $\mathit{translate}:\textsc{Cir}_v\to\textsc{Cvn}$
-executed in three phases.
-
-\paragraph{Phase 1: Resource scanning.}
-For each synchronization primitive in~$R$, generate a resource place $\mathit{rp}(r)$ and set its initial token count per Remark~\ref{rem:places}. Compute the RwLock concurrency bound~$N$ as the total number of concurrent entities. For each \textsf{Var} and \textsf{Atomic} resource, initialize the corresponding entry in the valuation~$I_v$. For each \textsf{Condvar}, generate the auxiliary places and variables described in Remarks~\ref{rem:places} and~\ref{rem:condvar-vars}.
-
-\paragraph{Phase 2: Function-body translation.}
-For each function in~$F$ and each statement in its body, generate control places, transitions, weights, guards, and updates
-according to Table~\ref{tab:translation-rules} (Appendix~\ref{app:tables}).
-
-\paragraph{Phase 3: Summary translation.}
-For each function referenced by a \textsf{call} that has a summary in~$\Sigma$ but no body in~$F$, generate a single atomic
-transition. For each resource~$x$ in the $\mathit{writes}$ set, the update sets $x:=\top$.
-
-% Table~\ref{tab:translation-rules} defines the translation of each \textsc{Cir} operation into \textsc{Cvn} structure. $\mathit{cp}(f,s)$ is the control place for statement~$s$ in function~$f$; $\mathit{rp}(r)$ is the resource place for resource~$r$; $\mathit{wp}(s)$ and $\mathit{ra}(s)$ are the wait and reacquire places for wait site~$s$. An arrow~``$\to$'' separates input arcs from output arcs.
-
-$\mathit{translate}$ also maps each \textsc{Cir} goal $\gamma=(C_\gamma,V_\gamma)$ to a \textsc{Cvn} reachability query: $(f,\textsf{completed})$ maps to $M(\mathit{cp}(f,\mathit{ret}))\geq 1$; $(r,\textsf{available})$ maps to $M(\mathit{rp}(r))\geq I_m(\mathit{rp}(r))$; variable requirements pass through unchanged. The mapping is purely internal: users specify and receive results in \textsc{Cir} vocabulary.
+Each transition also carries a classification tag (Lock, Unlock,
+Spawn, etc.) for diagnostics and visualization.  The tag does not
+affect firing semantics.
 
 \begin{definition}[Goal satisfaction]
 \label{def:goal-sat}
-A \textsc{Cvn} state $(M,V)$ \emph{satisfies} a \textsc{Cir} goal $\gamma=(C_\gamma,V_\gamma)$, written $(M,V)\models\gamma$, iff every completion and availability requirement holds in~$M$ and $\forall x\in\mathrm{dom}(V_\gamma):\;V(x)=V_\gamma(x)$.
-A goal is \emph{reachable} if at least one reachable state satisfies it. The existential criterion is appropriate because concurrent programs naturally admit multiple valid terminal configurations; the check answers 'is the program still \emph{capable} of achieving its intended outcome.'
+A \textsc{Cvn} state $(M,V)$ \emph{satisfies} a \textsc{Cir} goal
+$\gamma=(C_\gamma,V_\gamma)$, written $(M,V)\models\gamma$, iff every
+completion and availability requirement holds in $M$ and
+$\forall x\in\mathrm{dom}(V_\gamma):\;V(x)=V_\gamma(x)$.
+A goal is \emph{reachable} if at least one reachable state satisfies
+it.  The existential criterion is appropriate because concurrent
+programs naturally admit multiple valid terminal configurations.  The
+check answers: is the program still \emph{capable} of achieving its
+intended outcome?
 \end{definition}
 
-% !TeX root = ../main.tex
-\section{Analysis and Repair}
-\label{sec:analysis-repair}
+% ═══════════════════════════════════════════════════════════════
+\section{Translation Rules}
+\label{app:translation-rules}
 
-% CVN 分析结果被转换为面向 LLM 的修复反馈。底层可达性分析采用标准方法。本节的贡献在于验证器和 LLM 之间的诊断接口:从缺陷状态中提取的信息、每个字段的修复作用、支持局部修订而非整个模型重新生成的提示汇编,以及把功能正确性下放到 Cvn 的"目标可达性"一等性质。
-\textsc{Cvn} analysis results are converted into repair-oriented feedback for the LLM\@. The underlying reachability analysis is
-standard~\cite{Godefroid1997VeriSoft,Flanagan2005DPOR,
-Musuvathi2008FairStateless,Esparza2008Unfoldings}. The contribution of this section is the diagnostic interface between the verifier and the LLM: the information extracted from a bug state, the repair role of each field, the prompt assembly that supports local revision rather than whole-model regeneration, and the elevation of
-\emph{goal reachability} to a first-class property that checks functional correctness alongside concurrency safety.
+The translator $\mathit{translate}:\textsc{Cir}_v\to\textsc{Cvn}$ is
+executed in three phases as described in
+Section~\ref{subsec:translation}.  The detailed rules for Phase~2
+(function-body translation) are given below.
 
+\paragraph{Phase 1: Resource scanning.}
+For each synchronization primitive in $R$, generate a resource place
+$\mathit{rp}(r)$ and set its initial token count per
+Remark~\ref{rem:places}.  Compute the RwLock concurrency bound $N$ as
+the total number of concurrent entities.  For each \textsf{Var} and
+\textsf{Atomic} resource, initialize the corresponding entry in the
+valuation $I_v$.  For each \textsf{Condvar}, generate the auxiliary
+places and variables described in Remarks~\ref{rem:places}
+and~\ref{rem:condvar-vars}.
 
-\subsection{Reachability-Based Bug Detection}
-\label{subsec:bug-patterns}
+\paragraph{Phase 2: Function-body translation.}
+For each function in $F$ and each statement in its body, generate
+control places, transitions, weights, guards, and updates according
+to Table~\ref{tab:translation-rules}.
 
-% 给定一个翻译后的 Cvn $(\mathcal{N},S_0)$,验证器从 $S_0$ 开始执行穷举状态空间探索。当一个守卫状态的计算结果为 $\mathsf{unknown}$ 时,两个后继分支都会被探索;因此,该搜索是一种保守的过近似,永远不会抑制任何可行的行为。我们只在 Cvn 模型中声称对"死锁"这一种确定性缺陷有可靠性,信号丢失和通道阻塞作为死锁的二次分类出现——它们从不增加新的误报。
-Given a translated \textsc{Cvn} $(\mathcal{N},S_0)$, the verifier
-performs exhaustive state-space exploration from~$S_0$. When a guard
-evaluates to~$\mathsf{unknown}$, both successor branches are explored;
-the search is therefore a conservative over-approximation that never
-suppresses a feasible behavior.
+\paragraph{Phase 3: Summary translation.}
+For each function referenced by a \textsf{call} that has a summary in
+$\Sigma$ but no body in $F$, generate a single atomic transition.
+For each resource $x$ in the $\mathit{writes}$ set, the update sets
+$x:=\top$.
 
-\emph{Two properties are reported directly by the state-space
-search}: \emph{deadlock} and \emph{behavioral dead transition}.
-All other concurrency-bug labels used in the diagnostic layer are
-refinements that \emph{re-classify} a deadlock witness without ever
-enlarging the reported bug set. This design choice keeps the analysis
-sound with zero false positives: we deliberately avoid
-scheduler-dependent properties such as livelock, starvation, or
-standalone signal-loss, all of which cannot be decided on a
-scheduler-agnostic Petri-net semantics without risking spurious alarms
-on interleavings that no real scheduler would ever realise.
+The translation also maps each \textsc{Cir} goal
+$\gamma=(C_\gamma,V_\gamma)$ to a \textsc{Cvn} reachability query:
+$(f,\textsf{completed})$ maps to
+$M(\mathit{cp}(f,\mathit{ret}))\geq 1$,
+$(r,\textsf{available})$ maps to
+$M(\mathit{rp}(r))\geq I_m(\mathit{rp}(r)))$, and variable
+requirements pass through unchanged.  The mapping is purely internal:
+users specify and receive results in \textsc{Cir} vocabulary.
 
-\subsubsection{Primary Property: Deadlock}
-\label{subsubsec:deadlock}
+% ═══════════════════════════════════════════════════════════════
+\section{Bug Detection Details}
+\label{app:bug-detection-details}
 
-A state $S$ is a \emph{deadlock}~$(\kappa_{dl})$ iff
-$\mathsf{enabled}_{\mathcal{N}}(S)=\emptyset$ and $S$ retains at least
-one control token on a non-return control place. Every such state found
-by exploration is reported with its full firing sequence from~$S_0$.
-Deadlock detection is sound and complete within the \textsc{Cvn}
-semantics: the marking graph is finite (guarded by
-Theorem~\ref{thm:forward}) and exploration is exhaustive.
+This appendix provides the full formal definitions of the bug
+detection properties summarized in Section~\ref{subsec:bug-detection}.
 
-\subsubsection{Deadlock Sub-Classification}
-\label{subsubsec:deadlock-subclass}
+\subsection{Deadlock Sub-Classification}
 
-Two refinements specialise a deadlock diagnosis when the evidence is
-unambiguous. Each refinement is applied strictly \emph{after} a
+Two refinements specialize a deadlock diagnosis when the evidence is
+unambiguous.  Each refinement is applied strictly \emph{after} a
 deadlock has already been detected on a concrete witness, so it is
 sound by construction: the set of reclassified states is a subset of
 the set of deadlocks.
 
 \begin{itemize}[leftmargin=1.5em]
-  \item \emph{Signal-loss refinement\/ $(\kappa_{sl})$.}\;
+  \item \emph{Signal-loss refinement $(\kappa_{sl})$.}
     A deadlock witness is relabelled $\kappa_{sl}$ when at least one
     blocked control token resides on a wait-place
     $wp_{cv,f,\mathit{sid}}$, or when the witness's firing sequence
-    contains a \textsc{NotifyLost} (resp.~\textsc{NotifyAllLost})
+    contains a \textsc{NotifyLost} (resp.\ \textsc{NotifyAllLost})
     transition that fired before the waiter entered its wait-place.
     The \textsc{NotifyLost} guard $nw_{cv}=0$ is evaluated on concrete
-    integers only (\,$nw_{cv}$ is updated by literal $\pm 1$ steps\,),
-    so \emph{the firing of this transition is detected precisely};
-    the refinement label, however, is emitted only in conjunction with
-    a confirmed deadlock, because an isolated lost notification is not
-    itself a soundness violation on a scheduler-agnostic model.
+    integers only ($nw_{cv}$ is updated by literal $\pm 1$ steps), so
+    the firing of this transition is detected precisely.  The
+    refinement label is emitted only in conjunction with a confirmed
+    deadlock, because an isolated lost notification is not itself a
+    soundness violation on a scheduler-agnostic model.
 
-  \item \emph{Channel-block refinement\/ $(\kappa_{cb})$.}\;
+  \item \emph{Channel-block refinement $(\kappa_{cb})$.}
     A deadlock witness is relabelled $\kappa_{cb}$ when at least one
     blocked consumer requires a token from a channel resource place
-    whose marking is~$0$. Soundness reduces to the underlying
+    whose marking is $0$.  Soundness reduces to the underlying
     deadlock predicate $\kappa_{dl}$.
 \end{itemize}
 
 \begin{remark}[Scope of soundness]
 \label{rem:soundness-scope}
-In summary: the \textsc{Cvn} state-space search reports two primary
-properties, \emph{deadlock} and \emph{behavioral dead transition}
-(Section~\ref{subsubsec:dead-transition}), both sound inside the model.
-The sub-classifications $\kappa_{sl}$ and $\kappa_{cb}$ are refinements
-of~$\kappa_{dl}$ and inherit its soundness. The system never silently
-misses a deadlock or a dead transition in the modelled \textsc{Cir},
-and it never fabricates a bug that is not already a genuine deadlock
-or a genuinely unreachable transition under \textsc{Cvn} semantics.
+The \textsc{Cvn} state-space search reports two primary properties:
+\emph{deadlock} and \emph{behavioral dead transition}, both sound
+inside the model.  The sub-classifications $\kappa_{sl}$ and
+$\kappa_{cb}$ are refinements of $\kappa_{dl}$ and inherit its
+soundness.  The system never silently misses a deadlock or a dead
+transition in the modelled \textsc{Cir}, and it never fabricates a bug
+that is not already a genuine deadlock or a genuinely unreachable
+transition under \textsc{Cvn} semantics.
 \end{remark}
 
-\subsubsection{Behavioral Dead Transition}
-\label{subsubsec:dead-transition}
+\subsection{Behavioral Dead Transition}
 
 A transition $t\in T$ of the \textsc{Cvn} is \emph{behaviorally dead}
 $(\kappa_{dt})$ with respect to the initial state $S_0$ iff
-$t\notin \mathsf{fired}(\mathcal{R})$, where $\mathsf{fired}(\mathcal{R})$ is
-the set of transitions that appear on any edge of the reachability
-graph produced by exhaustive exploration from~$S_0$. Intuitively, $t$
-corresponds to a \textsc{Cir} statement that the verifier can prove
-will never execute on any feasible interleaving: either its guard is
-unsatisfiable, its input place never receives tokens, or its
-predecessors are themselves dead. Because $\mathsf{fired}(\mathcal{R})$ is
-computed from the very same reachability graph used for deadlock
-detection, reporting $\kappa_{dt}$ requires no additional search
-budget.
+$t\notin \mathsf{fired}(\mathcal{R})$, where
+$\mathsf{fired}(\mathcal{R})$ is the set of transitions that appear on
+any edge of the reachability graph produced by exhaustive exploration
+from $S_0$.  Intuitively, $t$ corresponds to a \textsc{Cir} statement
+that the verifier can prove will never execute on any feasible
+interleaving: either its guard is unsatisfiable, its input place never
+receives tokens, or its predecessors are themselves dead.  Because
+$\mathsf{fired}(\mathcal{R})$ is computed from the same reachability
+graph used for deadlock detection, reporting $\kappa_{dt}$ requires no
+additional search budget.
 
 We report behavioral, not structural, dead transitions: a transition
 that is structurally live but behaviorally dead (e.g., a branch that
 the \textsc{Cvn}'s three-valued guard can statically refute) is still
-reported. Soundness is immediate: if $t$ fires on a real \textsc{Cir}
+reported.  Soundness is immediate: if $t$ fires on a real \textsc{Cir}
 trace, then by Theorem~\ref{thm:forward} $t$ also appears on a
-\textsc{Cvn} firing sequence, hence on an edge of $\mathcal{R}$;
-contrapositively, $t\notin\mathsf{fired}(\mathcal{R})$ implies that no
-\textsc{Cir} execution ever reaches the statement anchored to~$t$.
-The conservative $\mathsf{unknown}$-branching (Section~\ref{subsec:bug-patterns})
-only enlarges $\mathsf{fired}(\mathcal{R})$, so it can only turn a would-be
-dead transition into a live one, never the reverse.
+\textsc{Cvn} firing sequence, hence on an edge of $\mathcal{R}$.
+Contrapositively, $t\notin\mathsf{fired}(\mathcal{R})$ implies that no
+\textsc{Cir} execution ever reaches the statement anchored to $t$.
+The conservative $\mathsf{unknown}$-branching only enlarges
+$\mathsf{fired}(\mathcal{R})$, so it can only turn a would-be dead
+transition into a live one, never the reverse.
 
-
-\subsection{Goal Reachability as a First-Class Property}
-\label{subsec:goal-reach}
-
-% 业务目标可达性在 Cvn 层面与死锁并列,而不再是一个后处理步骤。它的作用不是检测"出错的线程交错",而是检测"LLM 修复把用户要的功能去掉了"这一类回归。
-A verified \textsc{Cir} may be concurrency-safe and yet still fail to
-implement the behavior its author declared. We address this by
-promoting the reachability of user-declared \emph{business goals}
-(Definition~\ref{def:cir-goal}) to a property that is checked with the
-same state-space exploration engine as deadlock, in the same round of
-the repair loop.
+\subsection{Goal Reachability Predicate Shapes}
 
 Each business goal $\gamma\in\Gamma$ is compiled into a \emph{goal
-predicate}
-$\phi_{\gamma}$ over \textsc{Cvn} states. Three predicate shapes are
-supported, chosen so that every field of the CIR goal format maps onto
-a sound, marking-level query:
+predicate} $\phi_{\gamma}$ over \textsc{Cvn} states.  Three predicate
+shapes are supported, chosen so that every field of the CIR goal
+format maps onto a sound, marking-level query:
 
 \begin{itemize}[leftmargin=1.5em]
-  \item $\mathsf{Reachable}(p,k)\;\triangleq\;M(p)\ge k$\; for
-    control-, wait-, or resource-places. Used for "thread $t$ reaches
-    return" ($p=cp_{t,\mathrm{ret}}$, $k=1$) and for "at least $k$
-    permits accumulated".
-  \item $\mathsf{Empty}(p)\;\triangleq\;M(p)=0$\; for resource places
-    whose \emph{initial} marking is~$0$ (channel message counters and
-    condvar signal places). This is the semantically meaningful
-    availability check: asking $M(rp(r))\ge 0$ on a channel is
-    trivially true and therefore worthless, whereas
-    $\mathsf{Empty}(rp(r))$ expresses "no pending messages" and is the
-    condition the paper assumes.
-  \item $\mathsf{GlobalEq}(v,c)\;\triangleq\; V(v)=c$\; for a variable
-    $v$ in the \textsc{Cvn} variable store and a concrete
-    value~$c$. Because the \textsc{Cvn} uses a three-valued domain and
+  \item $\mathsf{Reachable}(p,k)\;\triangleq\;M(p)\ge k$ for
+    control, wait, or resource places.  Used for ``thread $t$ reaches
+    return'' ($p=cp_{t,\mathrm{ret}}$, $k=1$) and for ``at least $k$
+    permits accumulated.''
+
+  \item $\mathsf{Empty}(p)\;\triangleq\;M(p)=0$ for resource places
+    whose initial marking is $0$ (channel message counters and condvar
+    signal places).  This is the semantically meaningful availability
+    check: asking $M(rp(r))\ge 0$ on a channel is trivially true and
+    therefore worthless, whereas $\mathsf{Empty}(rp(r))$ expresses
+    ``no pending messages.''
+
+  \item $\mathsf{GlobalEq}(v,c)\;\triangleq\; V(v)=c$ for a variable
+    $v$ in the \textsc{Cvn} variable store and a concrete value $c$.
+    Because the \textsc{Cvn} uses a three-valued domain and
     $\mathsf{Unknown}$ never equals a concrete value, unresolved
     branches cannot spuriously satisfy a goal, preserving soundness.
 \end{itemize}
 
-A goal $\gamma$ with predicates $\phi_{\gamma}^{1},\dots,\phi_{\gamma}^{n}$
-is \emph{reachable}, written $\mathcal{R}\models\gamma$, iff some
-$s\in\mathcal{R}$ simultaneously satisfies all~$\phi_{\gamma}^{i}$
-(EF-reachability, conjunctive). The analyser returns the subset
+A goal $\gamma$ with predicates
+$\phi_{\gamma}^{1},\dots,\phi_{\gamma}^{n}$ is \emph{reachable},
+written $\mathcal{R}\models\gamma$, iff some $s\in\mathcal{R}$
+simultaneously satisfies all $\phi_{\gamma}^{i}$ (EF-reachability,
+conjunctive).  The analyser returns the subset
 $\mathcal{U}=\{\gamma\in\Gamma\mid\mathcal{R}\not\models\gamma\}$ of
-\emph{unmet goals}. The soundness of this check is captured by
-Theorem~\ref{thm:goal-soundness} in Section~\ref{sec:properties}.
+unmet goals.
 
+\section{Repair Diagnostics and Prompt Assembly}
+\label{app:repair-details}
 
-\subsection{Repair-Oriented Diagnostics}
-\label{subsec:counterexample}
-
-% 当发现违规时,验证器构建紧凑的诊断负载,而不是返回原始状态图或完整的标记转储。
-When a violation is found, the verifier constructs a compact diagnostic
-payload rather than returning the raw state graph or a full marking
-dump.
+\subsection{Diagnostic Format}
 
 \begin{definition}[Repair-oriented diagnostic]
 \label{def:diagnostic}
-A repair-oriented diagnostic is a tuple
-$\mathcal{D}=(\kappa,\;\pi_{\mu},\;\Sigma_{\mathit{state}},\;
-  \Sigma_{\mathit{wait}},\;\Lambda,\;\Gamma_{\mathit{ctx}},\;H)$,
-where
-$\kappa\in\{\kappa_{dl},\kappa_{sl},\kappa_{cb},\kappa_{dt},\kappa_{goal}\}$
-is the bug or goal kind;
-$\pi_{\mu}$ is a bug witness expressed as a sequence of
-$\mathit{sid}$s via the anchor mapping~$\mu$ (for a bug-free but
-goal-unmet report $\pi_{\mu}$ is empty);
-$\Sigma_{\mathit{state}}$ is a marking-derived state summary;
-$\Sigma_{\mathit{wait}}$ is a wait/ownership summary;
-$\Lambda$ is the relevant \textsc{Cir} slice;
-$\Gamma_{\mathit{ctx}}$ is the set of preservation constraints;
-and $H$ is a bug- or goal-specific repair hint.
+A repair-oriented diagnostic is a tuple $\mathcal{D}=(\kappa,\;\pi_{\mu},\;\Sigma_{\mathit{state}},\;\Sigma_{\mathit{wait}},\;\Lambda,\;\Gamma_{\mathit{ctx}},\;H)$, where
+$\kappa\in\{\kappa_{dl},\kappa_{sl},\kappa_{cb},\kappa_{dt}, \kappa_{goal}\}$ is the bug or goal kind, $\pi_{\mu}$ is a bug witness expressed as a sequence of
+$\mathit{sid}$s via the anchor mapping $\mu$ (for a bug-free but goal-unmet report $\pi_{\mu}$ is empty), $\Sigma_{\mathit{state}}$ is a marking-derived state summary, $\Sigma_{\mathit{wait}}$ is a wait/ownership summary, $\Lambda$ is the relevant \textsc{Cir} slice, $\Gamma_{\mathit{ctx}}$ is the set of preservation constraints, and $H$ is a bug- or goal-specific repair hint.
 \end{definition}
 
-Each field serves a distinct repair purpose.
-% 对于死锁及其二次分类,$\pi_{\mu}$ 是一个以错误状态结束的有限触发序列,以 Cir $sid$ 表示。对于单状态错误,它会报告哪个线程位于哪个 $sid$、哪些资源可用、系统是否全局阻塞。对于目标不可达报告,$\pi_{\mu}$ 为空而 $\Sigma_{\mathit{state}}$ 列出每个未达 $\phi_{\gamma}^{i}$。这会提取与修复最相关的关系:哪个线程持有哪个资源、哪个线程正在等待哪个资源或条件、哪个谓词触发了分类。$\Lambda$ 是围绕相关 $\mathit{sid}$ 的有界窗口,用于限制 LLM 的编辑范围。$\Gamma_{\mathit{ctx}}$ 指定修复后必须保留的内容:资源名称、线程结构和业务目标(定义~\ref{def:cir-goal})。提示提供方向,但不强制要求应用任何补丁。
-For deadlock and its sub-classifications, $\pi_{\mu}$ is a finite firing
-sequence ending in the bug state, expressed in \textsc{Cir}
-$\mathit{sid}$s rather than \textsc{Cvn} transition names. For a
-goal-unmet report ($\kappa=\kappa_{goal}$), $\pi_{\mu}$ is empty and
-$\Sigma_{\mathit{state}}$ instead lists each unmet predicate
-$\phi_{\gamma}^{i}$ together with the \textsc{Cvn} place or variable it
-refers to. $\Sigma_{\mathit{state}}$ reports which thread is at which
-$\mathit{sid}$, which resource counts are available, and whether the
-system is globally blocked. $\Sigma_{\mathit{wait}}$ extracts the
-relations most relevant to repair: which thread holds which resource,
-which thread is waiting for which resource or condition, and which
-predicate triggered the classification. $\Lambda$ is a bounded window
-around the implicated $\mathit{sid}$s, restricting the LLM's editing
-scope. $\Gamma_{\mathit{ctx}}$ specifies what must survive the repair:
-resource names, thread structure, and business goals
-(Definition~\ref{def:cir-goal}). Finally $H$ offers a
-bug-specific suggestion such as enforce a consistent lock order or update
-the predicate before notification, or, for goal-unmet reports, the
-likely producer transition that must be re-introduced.
+Each field serves a distinct repair purpose:
 
-\medskip
-\noindent
-Together, the witness and state summary supply both \emph{causality}
-(how the system reached the bug) and \emph{locality} (where it is
-stuck), which the raw marking alone cannot convey in a form the LLM
-can act on.
-For the running example, a signal-loss diagnostic would report that
-the witness reaches \texttt{n2} before the worker reaches \texttt{w3},
-that $nw_{\mathit{cv0}}=0$ at notification time, and that the editable
-slice contains \texttt{n2} and~\texttt{n3}.
+\begin{itemize}[leftmargin=1.5em]
+  \item For deadlock and its sub-classifications, $\pi_{\mu}$ is a finite firing sequence ending in the bug state, expressed in \textsc{Cir} $\mathit{sid}$s rather than \textsc{Cvn} transition names.
 
-\subsection{The Goal-Aware Repair Loop}
-\label{subsec:repair-loop-final}
-The repair loop operationalises the three-tier hierarchy introduced in
-Section~\ref{subsec:repair-tier}.
-Algorithm~\ref{alg:repair-goal} gives the pseudocode.
+  \item For a goal-unmet report ($\kappa=\kappa_{goal}$), $\pi_{\mu}$ is empty and $\Sigma_{\mathit{state}}$ instead lists each unmet predicate together with the \textsc{Cvn} place or variable it refers to.
 
-\begin{algorithm}[t]
-\caption{Goal-Aware Generate--Verify--Repair Loop}
-\label{alg:repair-goal}
-\begin{algorithmic}[1]
-\Require Specification $\Psi$, iteration budget $K$
-\Ensure  Verified \textsc{Cir} $\mathcal{I}$ or Failure
-\State $\mathcal{I} \gets \text{LLM.Generate}(\Psi)$
-  \Comment{CIR with goals $\Gamma$}
-\For{$\mathit{round}=1$ \textbf{to} $K$}
-    \State $\mathcal{E} \gets \text{StaticCheck}(\mathcal{I})$
-      \Comment{Layer-1 errors}
-    \If{$\mathcal{E} \neq \emptyset$}
-        \State Apply Tier-1 or Tier-2 repair;\;
-          \textbf{continue}
-    \EndIf
-    \State $\mathcal{N} \gets \text{Translate}(\mathcal{I})$
-    \State $(\mathcal{R},\,\mathcal{B})
-      \gets \text{Analyze}(\mathcal{N})$
-      \Comment{$\mathcal{R}$: reachable states;\;
-               $\mathcal{B}$: deadlocks $\cup$ dead transitions}
-    \If{$\mathcal{B} \neq \emptyset$}
-        \State $b^{*} \gets \text{SelectBug}(\mathcal{B})$
-          \Comment{priority $+$ shortest witness}
-        \State $\mathcal{D} \gets
-          \text{BuildDiag}(b^{*},\mathcal{R},\mathcal{I})$
-        \State $\mathcal{I} \gets
-          \text{LLM.Repair}(\mathcal{I},\mathcal{D})$
-        \State \textbf{continue}
-    \EndIf
-    \State $\mathcal{U} \gets
-      \text{CheckGoals}(\mathcal{N},\Gamma,\mathcal{R})$
-      \Comment{Sec.~\ref{subsec:goal-reach}}
-    \If{$\mathcal{U}=\emptyset$}
-        \Return $\mathcal{I}$
-          \Comment{bug-free $\wedge$ goals reachable}
-    \EndIf
-    \State $\mathcal{I} \gets
-      \text{LLM.Repair}\bigl(\mathcal{I},\,
-        \text{BuildGoalDiag}(\mathcal{U})\bigr)$
-\EndFor
-\State \Return Failure
-\end{algorithmic}
-\end{algorithm}
+  \item $\Sigma_{\mathit{state}}$ reports which thread is at which $\mathit{sid}$, which resource counts are available, and whether the system is globally blocked.
 
-$\text{Analyze}$ returns the pair $(\mathcal{R},\mathcal{B})$ where
-$\mathcal{R}$ is the set of reachable \textsc{Cvn} states and
-$\mathcal{B}$ is the union of detected deadlocks (already refined to
-$\kappa_{sl}$ or $\kappa_{cb}$ where applicable) and behavioral dead
-transitions ($\kappa_{dt}$), both computed over the same reachability
-graph. $\text{CheckGoals}$
-implements the EF-reachability query of
-Section~\ref{subsec:goal-reach}: it folds over $\mathcal{R}$ and
-returns the subset $\mathcal{U}\subseteq\Gamma$ of unmet goals.
-$\text{BuildDiag}$ assembles the diagnostic tuple from a single
-selected bug, the reachable-state set, and the current \textsc{Cir}
-artifact. $\text{BuildGoalDiag}$ produces an analogous diagnostic for
-unreachable goals, reporting the missing conditions and suggesting
-which operations may need to be added to a reachable path.
+  \item $\Sigma_{\mathit{wait}}$ extracts the relations most relevant to repair: which thread holds which resource, which thread is waiting for which resource or condition, and which predicate triggered the classification.
 
-When $|\mathcal{B}|>1$, $\text{SelectBug}$ picks a single bug in
-priority order
-$\kappa_{dl}>\kappa_{sl}>\kappa_{cb}>\kappa_{dt}$. Within the same
-category the bug with the shortest witness is preferred (dead
-transitions carry an empty witness and are ordered by anchor
-$\mathit{sid}$). This deterministic policy
-ensures reproducibility and avoids overwhelming the LLM with multiple
-simultaneous targets.
+  \item $\Lambda$ is a bounded window around the implicated $\mathit{sid}$s, restricting the LLM's editing scope.
 
-The crucial ordering invariant is that goal reachability
-(lines~14--17) is checked only after the bug set is empty.
-If a goal is unreachable because a deadlock blocks its producer, the
-deadlock is repaired first; goal feedback is given only when no
-concurrency fault remains. This gives every round a single semantic
-target: either remove a bug, or restore missing behavior.
+  \item $\Gamma_{\mathit{ctx}}$ specifies what must survive the repair: resource names, thread structure, and business goals.
 
-\begin{figure}[t]
-\begin{lstlisting}[basicstyle=\small\ttfamily,frame=single]
-=== Goal Violation (Round 3) ===
-Status: No concurrency bugs detected.
+  \item $H$ offers a bug-specific suggestion such as enforce a consistent lock order or update the predicate before notification. For goal-unmet reports, it suggests the likely producer transition that must be re-introduced.
+\end{itemize}
 
-UNREACHABLE GOAL: G1
-  desc: "Both threads complete, lock released,
-         ready flag set"
-  Missing: V[ready] = true
-  No reachable state satisfies V[ready] = true.
-  Hint: Ensure that a write(ready, true)
-        operation exists on a reachable path.
-\end{lstlisting}
-\caption{Goal-violation feedback after bug-free verification.}
-\Description{Structured goal-violation report identifying the
-  missing condition and suggesting a corrective action.}
-\label{fig:goal-violation}
-\end{figure}
+Together, the witness and state summary supply both \emph{causality} and \emph{locality}, which the raw marking alone cannot convey in a form the LLM can act on.
 
-\subsection{Prompt Assembly for Logic-Driven Repair}
-\label{subsec:repair-templates}
+\subsection{Prompt Template}
 
-The diagnostic fields are assembled into a structured prompt whose
-design principle is that every field should either reduce the search
-space or protect intended behavior. Table~\ref{tab:repair-templates}
-maps each field to its repair role; Figure~\ref{fig:repair-prompt}
-shows a concrete prompt skeleton for the running example.
-
-\begin{table*}[t]
-\caption{Prompt template for \textsc{Cir} repair from a
-  \textsc{Cvn} diagnostic.}
+\begin{table}[h]
+\caption{Prompt template for \textsc{Cir} repair from a \textsc{Cvn}
+diagnostic.}
 \label{tab:repair-templates}
 \centering\small
 \begin{tabular}{@{}p{3.0cm}p{4.2cm}p{7.7cm}@{}}
@@ -1025,17 +1126,16 @@ shows a concrete prompt skeleton for the running example.
 \midrule
 Bug or goal kind
   & $\kappa$
-  & Selects the repair mode: deadlock, signal-loss refinement,
-    channel-block refinement, dead-transition, and goal-unmet each
-    require different structural edits. \\
+  & Selects the repair mode: deadlock, signal-loss refinement, channel-block refinement, dead-transition, and goal-unmet each require different structural edits. \\
 \addlinespace[3pt]
 Witness trace
   & $\pi_{\mu}$
-  & Localises the causal path to the bug state in editable $\mathit{sid}$s. Empty for a goal-unmet report. \\
+  & Localises the causal path to the bug state in editable $\mathit{sid}$s.  Empty for a goal-unmet report. \\
 \addlinespace[3pt]
 Bug-state summary
   & $\Sigma_{\mathit{state}}$
-  & Reports where execution is stuck (or which goal predicates were never reached): current $\mathit{sid}$ per thread, blocked status, critical variable values. \\
+  & Reports where execution is stuck: current $\mathit{sid}$ per thread, blocked status,
+    critical variable values. \\
 \addlinespace[3pt]
 Held resources
   & $\Sigma_{\mathit{wait}}$ (ownership)
@@ -1062,726 +1162,59 @@ Output contract
   & Forces return of a complete revised \textsc{Cir}, keeping the loop machine-checkable. \\
 \bottomrule
 \end{tabular}
-\end{table*}
+\end{table}
 
-\begin{figure}[t]
+\subsection{Goal-Violation Feedback}
+
+\begin{figure}[h]
 \begin{lstlisting}[basicstyle=\small\ttfamily,frame=single]
-Repair task: revise the CIR locally.
+=== Goal Violation (Round 3) ===
+Status: No concurrency bugs detected.
 
-Bug kind: SignalLoss (deadlock sub-class)
-Witness trace (sid): n1 -> n2 -> w1 -> w2 -> w3
-
-Bug-state summary:
-  notifier at sid n2 (notify fired)
-  worker not yet at sid w3
-  waiter_count(cv0) = 0 at notification
-
-Relevant resources:
-  mutex m0, condvar cv0, variable ready
-
-Relevant CIR slice:
-  n1: lock(m0)
-  n2: notify(cv0)
-  n3: write(ready, true)
-
-Preserve:
-  resource names, thread structure, goals
-
-Suggested direction:
-  update predicate before notification
-
-Output: the complete revised CIR artifact
+UNREACHABLE GOAL: G1
+  desc: "Both threads complete, lock released,
+         ready flag set"
+  Missing: V[ready] = true
+  No reachable state satisfies V[ready] = true.
+  Hint: Ensure that a write(ready, true)
+        operation exists on a reachable path.
 \end{lstlisting}
-\caption{Prompt skeleton for signal-loss repair.}
-\Description{Structured repair prompt with bug kind, witness,
-  state summary, relevant slice, constraints, and hint.}
-\label{fig:repair-prompt}
+\caption{Goal-violation feedback after bug-free verification.}
+\label{fig:goal-violation}
 \end{figure}
 
-The prompt is intentionally compact. It serialises neither the full
-reachability graph nor every intermediate marking, but provides the
-minimum evidence needed for a local repair: what failed, how the
-execution reached the failure, what the system looks like at the
-failure point, and what must be preserved. This is the interface that
-allows a bounded formal analyser and a token-limited LLM to collaborate
-within a single feedback round.
+The prompt is intentionally compact.  It provides the minimum evidence needed for a local repair: what failed, how the execution reached the failure, what the system looks like at the failure point, and what must be preserved.
 
-% !TeX root = ../main.tex
-\section{Formal Properties}
-\label{sec:properties}
 
-% 本节保留 theorem-level 的主张:翻译正确性、检测可靠性、诊断字段和 bug state 的对应关系,以及 goal 可达性作为一等性质的可靠性.它们不应被实验 RQ 替代.
-The theorem-level guarantees concern three questions: whether the
-translation from \textsc{Cir} to \textsc{Cvn} preserves the concurrency
-behavior relevant to verification; whether the bug reports and repair
-diagnostics extracted from \textsc{Cvn} states are sound with respect
-to the encoded \textsc{Cir} behavior; and whether the goal-reachability
-layer introduced in Section~\ref{subsec:goal-reach} correctly
-distinguishes dropped functionality from concurrency-safe behavior.
-These statements complement the experimental RQs rather than being
-replaced by them. Full proofs proceed by case analysis on \textsc{Cir}
-operations and are provided in the appendix.
+\section{Verification and Repair Hierarchy}
+\label{app:repair-hierarchy}
 
-% ─────────────────────────────────────────────────────────────
-% 先定义 CIR 配置、编码函数,以及 CIR 执行和 CVN 触发之间的模拟关系.
-\subsection{Encoding and Simulation}
-\label{subsec:encoding-simulation}
-
-% CIR configuration 描述某一时刻线程位置、资源可用数量、waiter 信息和变量存储.
-\begin{definition}[\textsc{Cir} configuration]
-\label{def:cir-config}
-A \textsc{Cir} configuration is a tuple
-$C = (\mathit{pc}, L, W, \mathit{NW}, \mathit{NA}, V)$
-where $\mathit{pc}$ maps each thread to its current statement,
-$L$ records the available count of each synchronization resource and each condvar notification token, $W$ records waiters at each wait site, $\mathit{NW}$ records the total waiter count per condvar, $\mathit{NA}$ records the notify-all flag per wait site, and $V$ is the variable store.
-\end{definition}
-
-% 编码函数把 CIR 状态映射为 CVN 的 marking 与变量存储,是后续对应性证明的桥梁.
-\begin{definition}[Encoding]
-\label{def:encoding}
-The encoding $\mathsf{enc}(C) = (M, V')$ maps each thread's
-position to a token in the corresponding control, wait, or
-reacquire place; each resource count to the corresponding resource place; and extends $V$ with the condvar auxiliary variables $\mathit{nw}_{\mathit{cv}}$ and $\mathit{na}_{w_i}$.
-\end{definition}
-
-% 前向模拟说明每一步 CIR 执行都能在 CVN 中找到对应的触发.
-\begin{theorem}[Forward simulation]
-\label{thm:forward}
-For every \textsc{Cir} step $C \xrightarrow{o} C'$, there exists a \textsc{Cvn} transition $t$ such that
-$\mathsf{enc}(C) \xrightarrow{t} \mathsf{enc}(C')$.
-\end{theorem}
-
-% 证明思路是对 CIR 操作分类讨论,逐条对照翻译规则表.
-\begin{proof}[Proof sketch]
-By case analysis on $o$. Each \textsc{Cir} operation has a
-corresponding \textsc{Cvn} transition by construction of the
-translation rules in Table~\ref{tab:translation-rules}. The
-precondition of the \textsc{Cir} operation maps to the enabling
-condition of the \textsc{Cvn} transition. The postcondition maps to the firing effect. The condvar cases decompose into
-four sub-steps, each matching one of the four generated transitions.
-\end{proof}
-
-% 反向模拟只在变量都具体、没有 unknown 的情况下成立;这也反映了论文对 over-approximation 的边界.
-\begin{theorem}[Backward simulation under concrete valuation]
-\label{thm:backward}
-If all variables have concrete values (no $\top$), then for every enabled \textsc{Cvn} transition $t$ at $\mathsf{enc}(C)$, there exists a corresponding \textsc{Cir} step.
-\end{theorem}
-
-% 核心理由是这时 guard 不会产生 unknown,所以启用条件可以与 CIR 前置条件一一对应.
-\begin{proof}[Proof sketch]
-When all variables are concrete, guards evaluate to
-$\mathsf{true}$ or $\mathsf{false}$, never $\mathsf{unknown}$.
-The enabling conditions of \textsc{Cvn} transitions coincide
-exactly with the preconditions of \textsc{Cir} operations.
-The condvar auxiliary variables ($\mathit{nw}$, $\mathit{na}$) are always concrete because they are maintained by precise arithmetic and boolean updates.
-\end{proof}
-
-% ─────────────────────────────────────────────────────────────
-% 接下来讨论更直接与 bug 检测和诊断提取相关的可靠性边界.
-\subsection{Bug Detection Soundness and Precision Boundaries}
-\label{subsec:soundness}
-
-% deadlock correspondence 表示在具体赋值条件下,CIR 死锁与 CVN 死锁是等价的.这是唯一被我们声称 sound 的一等检测性质.
-\begin{theorem}[Deadlock correspondence]
-\label{thm:deadlock-corr}
-Under concrete valuation, a \textsc{Cir} configuration $C$ is a
-deadlock if and only if $\mathsf{enc}(C)$ is a deadlock in the
-\textsc{Cvn}, where deadlock is defined (in both semantics) as a
-non-terminal configuration with no enabled step. The statement is
-confined to the \textsc{Cvn} semantics: we make no claim about
-scheduler-dependent properties such as livelock or starvation, which
-would require fairness assumptions that the scheduler-agnostic
-\textsc{Cvn} cannot establish without risking false positives.
-\end{theorem}
-
-% 这里补充 unknown 存在时的边界:CIR 死锁一定能映到 CVN 死锁,但反过来不一定.
-This follows directly from Theorems~\ref{thm:forward}
-and~\ref{thm:backward}: the enabled sets coincide, so both sides agree on whether the set is empty. Under $\top$-valued variables, the correspondence is one-directional: a \textsc{Cir} deadlock implies a \textsc{Cvn} deadlock, but not vice versa.
-
-% 软化后的 signal-loss 命题:只保证 NotifyLost 事件本身被精确识别,并说明"整个程序有信号丢失"不是我们声称的 sound 检测,因为没有后续死锁时是否会导致用户感知的异常是调度相关的.
-\begin{proposition}[Signal-loss firing precision]
-\label{prop:signal-loss}
-Let $C\xrightarrow{*}C'$ be a \textsc{Cir} execution ending in a
-configuration $C'$ in which a notification on~$cv$ is issued while
-$\mathit{NW}(cv)=0$. Then the corresponding \textsc{Cvn} firing
-sequence enables the transition $t_{\mathit{lost}}(cv)$ at
-$\mathsf{enc}(C')$. Conversely, if $t_{\mathit{lost}}(cv)$ fires in a
-reachable \textsc{Cvn} state, then $\mathit{NW}(cv)=0$ held in the
-corresponding \textsc{Cir} configuration.
-\end{proposition}
-
-% 我们只声称 NotifyLost 的触发可被精确识别;是否把它作为独立 bug 报告是另一回事.
-\begin{proof}[Proof sketch]
-Because $V[\mathit{nw}_{\mathit{cv}}]=\mathit{NW}(\mathit{cv})$ is
-always concrete (Theorem~\ref{thm:backward}), the guard
-$\mathit{nw}_{\mathit{cv}}=0$ evaluates identically in both
-semantics.
-\end{proof}
-
-\begin{remark}[Signal loss as a deadlock refinement, not a standalone oracle]
-\label{rem:signal-loss-scope}
-Proposition~\ref{prop:signal-loss} is a statement about
-\emph{the firing of $t_{\mathit{lost}}$}, not about whether the
-program as a whole exhibits the user-facing pathology "a waiter is
-permanently stuck because a notification arrived too early". The
-latter is scheduler-dependent: on a real scheduler, the waiter might
-not yet have been scheduled into its wait-place, and a subsequent
-notification from another path could still unblock it. To avoid
-scheduler-dependent false positives, our analyser reports a
-$\kappa_{sl}$ label only as a sub-classification of an
-\emph{already-detected deadlock} (see Section~\ref{subsubsec:deadlock-subclass}), inheriting the soundness of Theorem~\ref{thm:deadlock-corr}.
-\end{remark}
-
-% 新增一条与 repair payload 直接相关的性质:从 bug state 导出的 ownership/wait summary 是忠实的,不是启发式猜测.
-\begin{proposition}[Diagnostic faithfulness]
-\label{prop:diagnostic}
-Let $s = (M, V)$ be a reported \textsc{Cvn} bug state, and let
-$(\Sigma_{\mathit{state}}, \Sigma_{\mathit{wait}})$ be the
-state summary and wait/ownership summary extracted from $s$ by
-the reporting procedure. Then these summaries are exact
-decodings of the control, resource, and wait information present
-in $(M, V)$ under the \textsc{Cir}-to-\textsc{Cvn} encoding.
-\end{proposition}
-
-% 说明这些诊断字段为什么可信:它们不是额外推断,而是从 marking 与变量存储直接读出来的.
-\begin{proof}[Proof sketch]
-Each thread position is represented by a token in a unique
-control, wait, or reacquire place; each resource count is
-represented by the corresponding resource place; each condvar
-waiter count and notify-all flag is represented in the extended
-valuation. The reporting procedure does not infer new facts
-beyond these structures. It merely projects $(M, V)$ into a
-compact human-readable form. Hence the reported ownership,
-waiting, and blocked-position summaries are faithful to the bug
-state from which they are extracted.
-\end{proof}
-
-% 行为死变迁 soundness.只要 Cvn 在可达图上没有触发 t, 对应的 CIR 语句在任何执行中都不会运行.
-\begin{proposition}[Dead-transition soundness]
-\label{prop:dead-transition}
-Let $\mathcal{R}$ be the reachable state set of the \textsc{Cvn} and
-$\mathsf{fired}(\mathcal{R})$ the set of transitions appearing on any
-edge of~$\mathcal{R}$. If $t\notin\mathsf{fired}(\mathcal{R})$, then no
-\textsc{Cir} execution starting from the initial configuration ever
-performs the \textsc{Cir} step to which $t$ is anchored.
-\end{proposition}
-
-\begin{proof}[Proof sketch]
-By Theorem~\ref{thm:forward}, any \textsc{Cir} step $C\xrightarrow{o}C'$
-is matched by a \textsc{Cvn} transition firing in~$\mathcal{R}$.
-Contrapositively, if the translated transition~$t$ is absent from every
-edge of $\mathcal{R}$, the anchored \textsc{Cir} step has no witness
-and hence never executes. The three-valued overapproximation only adds
-firings (Section~\ref{subsec:bug-patterns}); it can move a transition
-from the dead set to the live set but never the other way, preserving
-soundness of the dead-transition report.
-\end{proof}
-
-% 目标可达性作为一等性质的 soundness.只要 Cvn 报 goal 不可达,Cir 也不可达;反之因为 unknown 过近似,不一定成立.
-\begin{theorem}[Goal-reachability soundness]
-\label{thm:goal-soundness}
-Let $\Gamma$ be the set of declared business goals and let
-$\mathcal{R}$ be the set of reachable \textsc{Cvn} states. If
-$\text{CheckGoals}(\mathcal{N},\Gamma,\mathcal{R})$ reports $\gamma$ as
-unmet, then no \textsc{Cir} configuration~$C$ reachable from the
-initial configuration satisfies $\gamma$.
-\end{theorem}
-
-\begin{proof}[Proof sketch]
-By Theorem~\ref{thm:forward}, every \textsc{Cir} trace $C_0\to\cdots\to
-C_k$ has a corresponding \textsc{Cvn} firing sequence ending in
-$\mathsf{enc}(C_k)\in\mathcal{R}$. The goal predicates
-$\mathsf{Reachable}$, $\mathsf{Empty}$, and $\mathsf{GlobalEq}$ are
-preserved by the encoding: marking thresholds correspond to resource
-counts and thread positions, and concrete-equality on the variable
-store corresponds to concrete-equality in $V$. Therefore if
-$\gamma$ held at some reachable~$C_k$, it would also hold at
-$\mathsf{enc}(C_k)\in\mathcal{R}$; contrapositively, if
-$\gamma$ is unmet over $\mathcal{R}$, it is also unmet over every
-reachable \textsc{Cir} configuration. The three-valued evaluation is
-conservative in the expected direction: $\mathsf{Unknown}$ never equals
-a concrete value, so $\mathsf{GlobalEq}$ returning \texttt{false} at an
-unknown-tainted state is safe (the goal is only declared reachable if
-it holds under a concrete valuation).
-\end{proof}
-
-% 总的 soundness 定理保证:如果 CIR 中确实能到达 bug 配置,那么 CVN 搜索一定能发现对应 bug.
-\begin{theorem}[Soundness]
-\label{thm:soundness}
-If a \textsc{Cir} execution can reach a deadlock configuration, the
-\textsc{Cvn} state-space search will find a corresponding deadlock
-state; equivalently, bug-free verification in the \textsc{Cvn}
-implies deadlock-freedom in the \textsc{Cir} (modulo
-$\top$-tainted paths).
-\end{theorem}
-
-% 证明思路是利用前向模拟与 over-approximation 的保守性,说明不会遗漏真实错误.
-\begin{proof}[Proof sketch]
-By Theorem~\ref{thm:forward}, every \textsc{Cir} trace has a
-corresponding \textsc{Cvn} firing sequence. The $\mathsf{unknown}$ mechanism only adds enabled transitions; it never removes transitions that would be enabled under
-concrete evaluation. The deadlock predicate is defined over
-\textsc{Cvn} states and is preserved by the encoding. The finite state space guarantees that the search terminates and visits all reachable states.
-\end{proof}
-
-% 最后强调 soundness 不等于 completeness;因为 unknown 分支会引入过近似状态,所以仍可能出现误报.
-The converse does not hold: the \textsc{Cvn} may report false
-positives in deadlock states reachable only through
-$\mathsf{unknown}$-enabled branches. For fully modeled programs, all
-variables remain concrete and no false positives arise.
-
-% !TeX root = ../main.tex
-\section{Evaluation}
-\label{sec:evaluation}
-
-We evaluate the pipeline through four research questions:
-
-% RQ1: Cir 到 Cvn 的转换是否保留了并发语义？生成的 Cvn 是否能正确分类所有预设的错误？
-% RQ2: 每个 LLM 层级需要多少轮生成和修复？生成的 Cir 是否忠实地捕获了指定的并发行为？
-% RQ3: 翻译后的 Cvn 和每个模式的可达状态空间有多大？
-% RQ4: 目标可达性检查是否检测到逃逸了静态验证和错误自由分析的语义退化？
-\begin{itemize}[leftmargin=1.4em]
-  \item \textbf{RQ1 (Translation correctness).}
-    Does the \textsc{Cir}-to-\textsc{Cvn} translation preserve concurrency semantics, and does the resulting
-    \textsc{Cvn} correctly classify all seeded bugs?
-  \item \textbf{RQ2 (Loop convergence).}
-    How many generation and repair rounds does each LLM tier require, and does the LLM-generated \textsc{Cir}
-    faithfully capture the specified concurrency behavior?
-  \item \textbf{RQ3 (State-space scale).}
-    What is the size of the translated \textsc{Cvn} and the reachable state space for each pattern?
-  \item \textbf{RQ4 (Goal preservation).}
-    Does goal-reachability checking detect semantic regressions that escape both static validation and
-    bug-freedom analysis?
-\end{itemize}
-
-% ═══════════════════════════════════════════════════════════════
-\subsection{Test Matrix and Setup}
-\label{subsec:test-matrix}
-
-% 表~\ref{tab:test-matrix} 列出了所有 RQ 中使用的 9 种并发模式。其中 6 种模式包含已知缺陷:5 种是确定性错误(死锁、信号丢失),1 种是通过 goal-reachability 检测出的"局部死锁"(functional-correctness 缺陷,而非死锁)。另外 3 种模式是无缺陷基线,用于确认不存在误报。$|\Gamma|$ 列记录了 RQ4 中评估的业务目标数量。
-Six patterns contain known defects: five are \emph{definite concurrency bugs} (deadlock, signal loss) that the \textsc{Cvn} search detects exhaustively, and one (\textsc{partial\_deadlock}) is a \emph{functional regression} in which two threads stall each other while a bystander thread keeps the system live; this pattern is flagged by the goal-reachability layer (Section~\ref{subsec:goal-reach}) rather than by the deadlock search. Three patterns are bug-free baselines used to confirm the absence of false positives. Channel block remains part of the formal bug taxonomy but is not instantiated in the present evaluation. The $|\Gamma|$ column records the number of business goals evaluated in RQ4.
-
-\begin{table*}[t]
-\caption{Test matrix.
-$|\Gamma|$: number of business goals checked after repair.}
-\label{tab:test-matrix}
+\begin{table}[h]
+\caption{Verification and repair hierarchy.}
+\label{tab:two-layer}
 \centering\footnotesize
-\begin{tabular}{@{}cllll c p{2.6cm}@{}}
+\begin{tabular}{@{}p{5.8cm}ll@{}}
 \toprule
-\textbf{\#} & \textbf{Pattern} & \textbf{Bug kind}
-  & \textbf{Key resources}
-  & \textbf{Typical repair}
-  & $|\Gamma|$
-  & \textbf{Goal summary} \\
+\textbf{Issue} & \textbf{Layer} & \textbf{Tier} \\
 \midrule
-1  & Two-mutex deadlock
-   & Deadlock & Mutex\,$\times$\,2
-   & Unify lock order
-   & 1 & Both threads ret; mutexes released \\[2pt]
-2  & Condvar signal loss
-   & SignalLoss & Condvar, Mutex, Var
-   & Write pred.\ before notify
-   & 2 & Worker ret; \texttt{V[ready]=true} \\[2pt]
-3  & Channel\,+\,mutex DL
-   & Deadlock & Channel, Mutex
-   & Release lock before ch.\ op
-   & 1 & Both threads ret; mutex released \\[2pt]
-4  & Three-lock circular
-   & Deadlock & Mutex\,$\times$\,3
-   & Global lock order
-   & 1 & All three threads ret \\[2pt]
-5  & Partial deadlock
-   & GoalUnreach$^\dagger$ & Mutex\,$\times$\,2
-   & Unify lock order
-   & 2 & Thread\,A ret; Thread\,B ret \\[2pt]
-6  & Dual condvar cross
-   & Deadlock & Condvar\,$\times$\,2, Mutex\,$\times$\,2
-   & Break circular wait
-   & 2 & Thread\,A ret; Thread\,B ret \\[2pt]
+\multicolumn{3}{@{}l}{\textit{Structural (Layer 1)}} \\
+\quad Missing unlock/drop       & \textsc{Cir} & 1 (auto-fix) \\
+\quad Duplicate $\mathsf{sid}$  & \textsc{Cir} & 1 (auto-fix) \\
+\quad Undefined resource        & \textsc{Cir} & 2 (LLM) \\
+\quad Spawn/join mismatch       & \textsc{Cir} & 2 (LLM) \\
+\quad Protection inconsistency  & \textsc{Cir} & 2 (LLM) \\
 \midrule
-7  & Semaphore throttle \textsf{(BL)}
-   & (none) & Semaphore
-   & --- & --- & --- \\[2pt]
-8  & CAS contention \textsf{(BL)}
-   & (none) & Atomic
-   & --- & --- & --- \\[2pt]
-9  & FnSummary prop.\ \textsf{(BL)}
-   & (none) & Var, Mutex
-   & --- & --- & --- \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-% 我们评估了五个涵盖三个能力层级的语言学习模型(LLM):GPT-5 和 Claude 4.7 Opus(前沿层级)、Qwen 和 Gemini 3 Pro(强层级)以及 DeepSeek-V3(紧凑层级)。所有模型均使用温度为 0 的模型,输出限制为 4096 个词元。对于每个模式,一个简短的自然语言并发规范作为生成输入。存在缺陷和已修复的 Rust 程序作为参考实现进行维护,但不会作为 Cir 生成的输入。每个模型每个模式最多进行 5 轮生成(RQ2a)和 5 轮修复(RQ2c)。所有实验均在配备 24 GB 内存的 Apple M4 Pro 上运行;时间为 3 次运行的挂钟平均值。前端基于 Rust 同步惯用法进行评估,但 \textsc{Cir}/\textsc{Cvn} 后端是基于语言级同步语义而不是 Rust 特有的语法定义的。
-We evaluate five LLMs spanning three capability tiers: GPT-5 and Claude~4.7~Opus (\emph{frontier}), Qwen3-Max and Gemini~3~Pro (\emph{strong}), and DeepSeek-V3 (\emph{compact}). The four OpenAI-compatible endpoints (GPT-5, Claude~4.7~Opus, Gemini~3~Pro, DeepSeek-V3) are reached through a single aggregator base URL, and Qwen3-Max is reached through DashScope; concrete endpoints and reproduction commands are listed in Appendix~\ref{app:artifact}. All models use temperature\,0 with a 4\,096-token output limit. For each pattern a short natural-language concurrency specification serves as the generation input. Buggy and fixed Rust programs are maintained as reference implementations but are \emph{not} input to \textsc{Cir} generation. At most $K_{\mathit{gen}}=5$ generation rounds~(RQ2a) and $K_{\mathit{rep}}=5$ repair rounds~(RQ2c) per model per pattern. All experiments run on Apple~M4~Pro\,/\,24\,GB RAM; times are wall-clock averages over 3~runs. Because the main outcome variables are exact bug-verdict and convergence counts on a fixed benchmark suite, we report per-pattern outcomes and mean wall-clock times rather than confidence intervals. The front-end is evaluated on Rust synchronization idioms, but the \textsc{Cir}/\textsc{Cvn} back-end is defined over language-level synchronization semantics rather than Rust-specific syntax.
-
-\subsection{RQ1: Translation Correctness}
-\label{subsec:rq1}
-% RQ1 从两个层面评估 \textsc{Cir} 到 \textsc{Cvn} 的转换:通过转换规则的构造而成立的形式模拟特性,以及对 9 模式矩阵的经验不变性检查。
-RQ1 evaluates the \textsc{Cir}-to-\textsc{Cvn} translation at two levels: formal simulation properties that hold by construction of the translation rules, and empirical invariant checks on the 9-pattern matrix.
-
-Appendix~\ref{app:proofs} establishes four theorems on the translation:
-(1)~\emph{forward simulation}: every CIR step maps to a  corresponding CVN firing sequence;
-(2)~\emph{backward simulation}: under concrete valuation (no $\top$ values), every CVN firing maps back to a
-    valid CIR step;
-(3)~\emph{deadlock correspondence}: a CIR configuration is deadlocked iff its CVN encoding has no enabled
-    transition; and
-(4)~\emph{soundness}: under concrete valuation the translation is sound and complete for deadlock, signal
-    loss, and channel block; under $\top$-abstraction, soundness is preserved but completeness may be lost.
-
-The theorems assume that the implementation preserves certain structural properties.
-We verify 9~invariants on every translated \textsc{Cvn}:
-(1)~every CIR statement produces $\geq 1$ transition;
-(2)~every transition anchors to a CIR \textsf{sid};
-(3)~initial marking matches resource declarations;
-(4)~resource-place count equals resource-table cardinality;
-(5)~variable store contains all CIR variables and condvar
-    auxiliaries with correct initial values;
-(6)~no transition has an empty input-arc set;
-(7)~\textsf{spawn} transitions produce tokens in both
-    parent and child control places;
-(8)~\textsf{join} transitions consume from the child return
-    place;
-(9)~condvar transitions carry correct guards and updates.
-
-Table~\ref{tab:rq1} reports the translation size and bug-detection result for all 9~patterns. Each buggy pattern uses a fixed ground-truth CIR, making results model-independent.
-
-\begin{table}[t]
-\caption{RQ1: Translation size and detection result on
-ground-truth \textsc{Cir}.
-All patterns pass 9/9 structural invariants.}
-\label{tab:rq1}
-\centering\footnotesize
-\begin{tabular}{@{}clcccrl@{}}
-\toprule
-\textbf{\#} & \textbf{Pattern}
-  & \textbf{Stmts} & $|P|$ & $|T|$
-  & \textbf{States} & \textbf{Result} \\
+\multicolumn{3}{@{}l}{\textit{Concurrency bugs (Layer 2a, deadlock search)}} \\
+\quad Deadlock                                     & \textsc{Cvn} & 3 (LLM) \\
+\quad \;\;$\hookrightarrow$ Signal-loss refinement & \textsc{Cvn} & 3 (LLM) \\
+\quad \;\;$\hookrightarrow$ Channel-block refinement & \textsc{Cvn} & 3 (LLM) \\
+\quad Cross-primitive deadlock                     & \textsc{Cvn} & 3 (LLM) \\
+\quad Behavioral dead transition                    & \textsc{Cvn} & 3 (LLM) \\
 \midrule
-1  & Two-mutex DL       & 15 & 22 & 17 &  60  & Deadlock \\
-2  & Condvar SL         & 15 & 24 & 21 &  47  & SignalLoss \\
-3  & Channel+mutex      & 13 & 20 & 15 &  37  & ChannelBlock \\
-4  & Three-lock circ.   & 22 & 32 & 25 & 396  & Deadlock \\
-5  & Partial DL         & 22 & 33 & 25 &  81  & GoalUnreach$^\dagger$ \\
-6  & Dual condvar       & 19 & 32 & 29 &  21  & SignalLoss$^\ddagger$ \\
-\midrule
-7  & Semaphore (BL)     & 16 & 24 & 19 & 187  & Verified \\
-8  & CAS (BL)           & 11 & 16 & 15 &  31  & Verified \\
-9  & FnSummary (BL)     & 15 & 21 & 17 &  57  & Verified \\
-\bottomrule
-\multicolumn{7}{@{}l}{\footnotesize
-  $^\dagger$No definite concurrency bug; the defect is flagged by the
-  goal-reachability layer (Section~\ref{subsec:goal-reach}): two threads
-  can no longer reach their return places under any fair interleaving.
-  $^\ddagger$Classified as \textsf{SignalLoss} because at the deadlocked
-  state the blocked threads are both waiting on condvars whose
-  \textsf{notify} transitions can fire without waiters; \textsf{SignalLoss}
-  is a secondary subtype of \textsf{Deadlock}.}
-\end{tabular}
-\end{table}
-
-% 所有 5 个确定的错误均被正确识别。在状态空间探索过程中发现了死锁和信号丢失。模式 5 不包含确定的错误:由于旁观线程在两个锁竞争线程相互阻塞时继续执行,系统保持了已启用的转换。探索后的 SCC 分析将此部分死锁标记为活锁结构警告——竞争线程形成了一个非平凡的终端 SCC,它们都无法到达返回位置,而旁观线程则无限循环。3 个基线未产生任何误报。结合 81/81 个不变性检查(9 个不变性 × 9 个模式),这证实了该实现满足形式属性所假设的结构前提条件。
-All 5~definite bugs are detected with the correct bug kind. Deadlocks and signal losses are found during state-space exploration. Pattern~5 contains no definite bug: the system retains enabled transitions because a bystander thread continues executing while the two lock-contending threads block each other, so the scheduler-agnostic deadlock search correctly reports no deadlock. Instead, the goal-reachability layer flags the pattern: neither of the two contending threads can reach its declared return goal in any reachable marking, because the conflicting lock orders leave their \textsf{ret} control places unreachable. This is exactly the behaviour-regression class that motivated the introduction of goal reachability as a first-class verification property (Section~\ref{subsec:goal-reach}). The 3~baselines produce zero false positives. Combined with the 81/81 invariant checks (9~invariants $\times$ 9~patterns), this confirms that the implementation satisfies the structural preconditions assumed by the formal properties.
-
-
-\subsection{RQ2: Loop Convergence}
-\label{subsec:rq2}
-
-% RQ2 有三个递进子问题:能否生成 → 生成的是否保真 → 修复需要几轮.
-RQ2 evaluates three successive capabilities:
-(a)~whether LLMs can produce a structurally valid
-\textsc{Cir},
-(b)~whether the generated \textsc{Cir} faithfully captures
-the specified concurrency behavior, and
-(c)~how many repair rounds are needed to eliminate detected
-bugs.
-
-% ─── RQ2a: 生成轮次 ───────────────────────────────────────────
-\subsubsection{Generation Rounds}
-\label{subsubsec:rq2a}
-
-% 表中 1 = 首次成功,✗ = 5 轮内失败.
-Table~\ref{tab:rq2a} reports the number of iterative rounds each model requires to produce a \textsc{Cir} that passes all 61 static-check rules. A value of~1 means first-attempt success; \ding{55}~indicates failure within 5~rounds.
-
-\begin{table*}[t]
-\caption{RQ2a: Generation rounds to produce a valid \textsc{Cir}.}
-\label{tab:rq2a}
-\centering\footnotesize
-\begin{tabular}{@{}cl ccccc@{}}
-\toprule
-\textbf{\#} & \textbf{Pattern}
-  & \textbf{GPT-5} & \textbf{Claude 4.7 Opus}
-  & \textbf{Gemini 3 Pro}
-  & \textbf{Qwen3-Max} & \textbf{DeepSeek-V3} \\
-\midrule
-1  & Two-mutex deadlock       & 1 & 1 & 1 & 1 & 2 \\
-2  & Condvar signal loss      & 1 & 1 & 2 & 1 & 3 \\
-3  & Channel + mutex DL       & 1 & 1 & 1 & 2 & 2 \\
-4  & Three-lock circular      & 2 & 1 & 2 & 2 & 3 \\
-5  & Partial DL               & 2 & 1 & 2 & 3 & 4 \\
-6  & Dual condvar cross       & 2 & 2 & 3 & 3 & \ding{55} \\
-7  & Semaphore throttle       & 1 & 1 & 1 & 1 & 1 \\
-8  & CAS contention           & 1 & 1 & 1 & 2 & 2 \\
-9  & FnSummary propagation    & 1 & 1 & 1 & 2 & 2 \\
-\midrule
-\multicolumn{2}{@{}l}{\textbf{Success rate}}
-  & 9/9 & 9/9 & 9/9 & 9/9 & 8/9 \\
-\multicolumn{2}{@{}l}{\textbf{Avg rounds (successes)}}
-  & 1.3 & 1.1 & 1.6 & 1.9 & 2.4 \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-% Frontier 模型在所有模式中都能在 1-2 轮内生成有效的 \textsc{Cir}。Claude 4.7 Opus 的平均耗时最短(1.1 轮),在 9 个模式中的 7 个模式上首次尝试即成功。DeepSeek-V3 在模式 6 上失败,该模式结构最为复杂,需要两个条件变量、两个互斥锁以及跨线程通知依赖关系。 最常见的错误是条件变量声明格式错误、分支条件不正确以及缺少保护映射。所有这些错误都会被静态检查器捕获,并且通常会在额外的一轮反馈内得到纠正。
-Frontier models generate valid \textsc{Cir} in 1--2~rounds for all patterns. Claude~4.7~Opus achieves the lowest average (1.1~rounds) with first-attempt success on 8 of 9~patterns. The strong models succeeds on all patterns but requires additional rounds for Pattern~6 and Pattern~5. DeepSeek-V3 fails on Pattern~6, the most structurally complex pattern requiring two condvars, two mutexes, and cross-thread notification dependencies. The most common errors are malformed condvar declarations, incorrect branch conditions, and omitted protection mappings. All are caught by the static checker and typically corrected within one additional feedback round.
-
-\subsubsection{Bug Fidelity}
-\label{subsubsec:rq2b}
-
-% 通过静态检查器可以确保结构有效性,但并不能保证生成的 Cir 能够忠实地表示指定的并发行为。为了弥补这一不足,我们针对 6 个存在缺陷的模式,选取每个模型的第一个静态有效的 Cir,并运行 Cvn 分析(不进行任何修复)。 表 tab:rq2b 记录了是否检测到了预期类型的​​缺陷。对于模式 5,预期结果是活锁结构警告,而不是明确的缺陷:两个线程持有冲突的锁顺序,可以无限期地相互阻塞,而旁观线程继续执行,从而避免了全局死锁。出于实验目的,我们将这种部分死锁视为活锁实例,因为它具有相同的检测机制(SCC 分析)和相同的根本限制(目标可达性无法将其与正确的非确定性区分开来)。
-Passing the static checker ensures structural validity but does not guarantee that the generated \textsc{Cir} faithfully represents the specified concurrency behavior. To close this gap, we take each model's first statically valid \textsc{Cir} for the 6~defective patterns and run the full \textsc{Cvn} analysis (deadlock search + goal reachability) \emph{without any repair}.
-Table~\ref{tab:rq2b} records whether the expected verdict is reached. For Pattern~5, the expected verdict is \emph{goal-unreachability} rather than a definite concurrency bug: two threads hold conflicting lock orders and can block each other indefinitely, while a bystander keeps the system live and prevents a global deadlock. The goal-reachability check (Section~\ref{subsec:goal-reach}) catches the resulting behaviour regression.
-
-\begin{table*}[t]
-\caption{RQ2b: Bug fidelity on LLM-generated \textsc{Cir}.}
-\label{tab:rq2b}
-\centering\footnotesize
-\begin{tabular}{@{}cl c ccccc@{}}
-\toprule
-\textbf{\#} & \textbf{Pattern} & \textbf{Expected}
-  & \textbf{GPT-5} & \textbf{Claude 4.7}
-  & \textbf{Gemini 3}
-  & \textbf{Qwen3-Max} & \textbf{DeepSeek-V3} \\
-\midrule
-1  & Two-mutex DL    & DL
-   & \ding{51} & \ding{51} & \ding{51}
-   & \ding{51} & \ding{51} \\
-2  & Condvar SL      & SL
-   & \ding{51} & \ding{51} & \ding{51}
-   & \ding{51} & \ding{51} \\
-3  & Channel+mutex   & DL
-   & \ding{51} & \ding{51} & \ding{51}
-   & \ding{51} & \ding{51} \\
-4  & Three-lock      & DL
-   & \ding{51} & \ding{51} & \ding{51}
-   & \ding{51} & $\emptyset$ \\
-5  & Partial DL      & GU$^\dagger$
-   & \ding{51} & \ding{51} & \ding{51}
-   & $\emptyset$ & $\emptyset$ \\
-6  & Dual condvar    & DL
-   & \ding{51} & \ding{51} & \ding{51}
-   & \ding{51} & --- \\
-\midrule
-\multicolumn{3}{@{}l}{\textbf{Fidelity rate}}
-   & 6/6 & 6/6 & 6/6 & 5/6 & 3/5 \\
-\bottomrule
-\multicolumn{8}{@{}l}{\footnotesize
-  $^\dagger$GU = Goal-Unreachability, detected by
-  Algorithm~\ref{alg:repair-goal}; not a definite concurrency bug.}
-\end{tabular}
-\end{table*}
-
-Frontier models and Gemini~3~Pro achieve 6/6~fidelity: every generated \textsc{Cir} exhibits exactly the expected bug kind. Two types of fidelity failures appear in the lower tiers:
-
-\begin{itemize}[leftmargin=1.4em]
-  % LLM 生成的并发结构恰好是正确的,从而消除了规范原本设计的行为。Qwen3-Max 在模式 5 上生成的两个线程具有相同的锁顺序 (m0→m1),消除了构成部分死锁的锁顺序冲突。 DeepSeek-V3 在模式 4 上为线程 B 和 C 生成相同的锁获取顺序 (m1→m2→m0),打破了死锁所需的循环依赖。DeepSeek-V3 在模式 5 上也以类似的方式统一了锁顺序。这些情况对最终用户无害——Cir 本身已经是正确的——但这意味着对于该模型-模式对,修复循环永远不会被执行。
-  \item \textbf{$\emptyset$ (no bug detected).}
-    The LLM generates a concurrency structure that happens to be correct, eliminating the behavior the     specification was designed to contain. Qwen3-Max on Pattern~5 generates both threads with the same lock order (\textsf{m0}$\to$\textsf{m1}), eliminating the lock-ordering conflict that constitutes the partial deadlock.
-    DeepSeek-V3 on Pattern~4 generates identical lock acquisition orders for threads~B and~C (\textsf{m1}$\to$\textsf{m2}$\to$\textsf{m0}), breaking the circular dependency required for deadlock. DeepSeek-V3 on Pattern~5 similarly unifies lock orders. These cases are harmless for the end user that means the \textsc{Cir} is already correct, but the repair loop is never exercised for that model-pattern pair.
-
-    % DeepSeek-V3 在 5 轮内无法为 Pattern~6 生成静态有效的 \textsc{Cir}(表~\ref{tab:rq2a}),因此无法进行保真度检查。
-  \item \textbf{--- (no valid \textsc{Cir}).}
-    DeepSeek-V3 fails to produce a statically valid \textsc{Cir} for Pattern~6 within 5~rounds (Table~\ref{tab:rq2a}), so no fidelity check is possible.
-\end{itemize}
-
-% 当前矩阵中不存在 $\neq$~case(不同类型的错误):当模型捕获到错误时,错误类型总是与规范相符。
-No $\neq$~case (different bug kind) arises in the current matrix: when a model does capture a bug, the bug kind always matches the specification.
-
-
-
-\subsubsection{Repair Rounds}
-\label{subsubsec:rq2c}
-
-RQ2c measures the repair loop on all 6~defective patterns. Five of them contain definite concurrency bugs (Patterns~1--4 and~6); Pattern~5 (\emph{partial deadlock}) is a behavioural regression in which the \textsc{Cvn} search reports no deadlock, yet two contending threads permanently stall and the declared business goals are unreachable. The repair loop now treats goal-unreachability as a first-class trigger on equal footing with deadlock and signal loss: when the Layer-2a search returns $\mathcal{B}=\emptyset$ but Algorithm~\ref{alg:repair-goal} reports at least one unmet goal, a synthetic \textsc{GoalUnreachable} diagnostic is fed back into the repair prompt and the loop continues. Pattern~5 therefore enters RQ2c on its own merits.
-
-For each of the 6~patterns we invoke the repair loop with each model, starting from a fixed ground-truth buggy \textsc{Cir}. Table~\ref{tab:rq2c} reports the number of rounds to produce an accepted \textsc{Cir} (one that passes the 61-rule static checker, the \textsc{Cvn} bug search with $\mathcal{B}=\emptyset$, \emph{and} goal reachability). A superscript~${}^{+n}$ indicates that $n$~regressions were introduced during intermediate rounds and subsequently caught by the checker or analysis backends.
-
-\begin{table*}[t]
-\caption{RQ2c: Repair rounds to eliminate defective \textsc{Cir}
-(Patterns~1--6). \ding{55}\ = not accepted within 5 rounds.}
-\label{tab:rq2c}
-\centering\footnotesize
-\begin{tabular}{@{}cl ccccc@{}}
-\toprule
-\textbf{\#} & \textbf{Pattern / Trigger}
-  & \textbf{GPT-5} & \textbf{Claude 4.7}
-  & \textbf{Gemini 3}
-  & \textbf{Qwen3-Max} & \textbf{DeepSeek-V3} \\
-\midrule
-1  & Deadlock            & 1 & 1 & 2 & 1 & 1 \\
-2  & SignalLoss          & 5$^{+4}$ & 1 & 1 & \ding{55}$^{+5}$ & \ding{55}$^{+5}$ \\
-3  & Deadlock            & 1 & 1 & 1 & 1 & 1 \\
-4  & Deadlock (3-lock)   & 1 & 1 & 1 & 1 & 1 \\
-5  & GoalUnreachable     & 5 & 1 & 2 & 2$^{+1}$ & \ding{55} \\
-6  & Deadlock (dual cv)  & \ding{55}$^{+2}$ & \ding{55}$^{+4}$ & 3$^{+2}$ & \ding{55}$^{+5}$ & \ding{55}$^{+2}$ \\
-\midrule
-\multicolumn{2}{@{}l}{\textbf{Accepted rate}}
-  & 5/6 & 5/6 & 6/6 & 4/6 & 3/6 \\
-\multicolumn{2}{@{}l}{\textbf{Avg rounds (successes)}}
-  & 2.6 & 1.0 & 1.7 & 1.3 & 1.0 \\
-\multicolumn{2}{@{}l}{\textbf{Regressions (intermediate)}}
-  & 6 & 4 & 2 & 11 & 7 \\
-\bottomrule
-\end{tabular}
-\footnotetext{Lower is better. Superscript~${}^{+n}$: intermediate regressions
-caught by static, translation, or goal-reachability checks.}
-\end{table*}
-
-% Gemini~3~Pro 修复了所有 6 种模式,其中 5/6 在首次尝试时成功。Claude~4.7~Opus 在接受的所有 5 种模式上均能一轮修复,但未能解决双条件变量交叉等待问题（模式 6）。GPT-5 在模式 2（condvar 信号丢失）和模式 5（goal-unreachability）上需要五轮才能生成可接受的候选,而在模式 6 上超出预算。 两个较强的模型都成功地处理了 5 种确定的循环模式中的 3 种,但都无法在双条件变量模式（模式 6）中进行协调的多线程编辑。
-Gemini~3~Pro repairs all 6~patterns, with 5/6 accepted on the first attempt. Claude~4.7~Opus achieves single-round repair on every pattern it accepts (5/6), but joins the rest of the pack in failing to disentangle the dual-condvar cross-wait (Pattern~6). GPT-5 requires five rounds on Pattern~2 (condvar signal loss) and Pattern~5 (goal-unreachability) before producing an accepted candidate, and is not accepted on Pattern~6 within budget. Both lower-tier models (Qwen3-Max and DeepSeek-V3) succeed on the 3~simple-deadlock patterns (1, 3, 4) but struggle on the condvar-heavy Patterns~2 and~6 and on the goal-reachability Pattern~5.
-
-% Pattern~6 是整个矩阵中最难的一项: 5 个模型中只有 Gemini~3~Pro 能够解开两个交叉通知依赖 (cv1 ↔ cv2) 而不引入其他 bug。 一个典型的失败模式是将 condvar wait 迁移到一个没有关联的互斥锁上,触发 T102 翻译错误;另一个是在 notify 前没有重新获取互斥锁,从而引入新的信号丢失。所有这些回归都被后端 (静态检查器、CVN 翻译层、目标可达性) 捕获并反馈,但在 5 轮预算内不足以指导模型正确修复。
-Pattern~6 is the hardest cell: only Gemini~3~Pro disentangles the two cross-notification dependencies without introducing fresh bugs. Common failure modes include moving a \textsf{cv.wait} off its associated mutex (triggering translator rule~T102) and introducing a new signal-loss by emitting \textsf{notify} outside the protecting critical section. These regressions are caught by the back-end and surfaced to the LLM, but five rounds are not enough for the weaker models to converge.
-
-% 在 30 个模型--模式修复任务 (5 个模型 × 6 个模式) 中, 共发生 30 次中间回归。静态检查器捕获了其中大部分 (13次 JSON / 命名错误), CVN 翻译层捕获了 14 次语义错误 (T102: wait 指向错误的互斥锁), 目标可达性检查捕获了 1 次。在所有成功的修复中, 没有回归存活到最终接受的 CIR 中; 多层验证的一个重要属性是每一种错误类别都有对应的反馈通道.
-Across the 30 model--pattern repair tasks (5~models $\times$ 6~patterns), regressions occur 30~times in intermediate rounds (static: $\sim$13, translation/T102: $\sim$14, goal-unreachability: $\sim$1, bug-kind drift: $\sim$2). No regression survives to the final accepted \textsc{Cir}. The multi-layer pipeline's defining property is that every regression class has a dedicated feedback channel.
-
-
-\subsection{RQ3: State-Space Scale}
-\label{subsec:rq3}
-
-% 复用 RQ1 表中数据,做独立分析.
-Table~\ref{tab:rq1} (Section~\ref{subsec:rq1}) reports the \textsc{Cvn} size ($|P|$, $|T|$) and reachable state count for each pattern. The largest pattern (Pattern~4, three-lock circular with 3 threads and 3~mutexes) produces 396~reachable states and completes analysis in under 1\,ms. All patterns remain below 400~states.
-
-State-space size is governed by three factors: (1)~the number of concurrent threads~$k$, (2)~the lock-nesting depth~$d$, and (3)~the variable-domain cardinality~$|D|$. The current matrix uses $k \leq 3$, $d \leq 2$, $|D| \leq 3$, yielding tractable spaces. Moving to $k=4$ or richer data domains will increase the state space exponentially; partial-order reduction and symmetry breaking are planned future extensions. Across the 9~patterns the average ratio is 1.6~places and 1.3~transitions per CIR statement. Condvar-related patterns exhibit a transition-per-statement ratio close to 1.5 due to the wait/notify decomposition into 4~transitions per \textsf{wait} site (Section~\ref{subsec:condvar}). Full state-space exploration completes in $\leq 1$\,ms for all patterns on commodity hardware, including deadlock detection and the signal-loss sub-classification of deadlock counterexamples. Goal-reachability checking (RQ4) adds negligible overhead by reusing the already-computed reachable set.
-
-
-\subsection{RQ4: Goal Preservation}
-\label{subsec:rq4}
-% 通过明确缺陷检查的 Cir 并不一定是正确的。缺陷检测器无法检测到两种不同的故障模式:(1)修复引起的回归和(2)活锁阻塞。 目标可达性检查(算法~\ref{alg:repair-goal},第 11-17 行)旨在检测第一种故障模式。我们还将检验它是否能够发现第二种故障模式。
-A \textsc{Cir} that passes the definite-bug check is not necessarily correct. Two distinct failure modes remain invisible to the deadlock / signal-loss detectors: (1)~repair-induced behaviour regressions that silently drop functionality and (2)~partial deadlocks that leave the system globally live but permanently block the threads responsible for reaching the declared goals.
-Goal-reachability checking (Algorithm~\ref{alg:repair-goal}) is designed to cover both failure modes as a single first-class property; when a repaired \textsc{Cir} is bug-free but still has unmet goals the pipeline raises a synthetic \textsc{GoalUnreachable} diagnostic and routes it back into the same repair loop used for deadlocks and signal losses (Section~\ref{subsubsec:rq2c}).
-
-% 我们评估两个独立的维度。第一个(表~\ref{tab:rq4-goal-detection})测量目标可达性检查本身在 8 个模式上的行为，不管是否来自 LLM：对每个测试用例的 ground-truth CIR 运行算法~\ref{alg:repair-goal}，看是否能把可达目标识别为可达、把不可达目标识别为不可达。这是对检查器本身的合理性/充分性的验证。第二个(表~\ref{tab:rq4-loop-effect})则测量同一个检查在 LLM 修复循环中作为反馈通道的效用:有多少个模型-模式对只在目标反馈下才被接受？
-We evaluate two orthogonal dimensions. First, Table~\ref{tab:rq4-goal-detection} measures the behaviour of the goal-reachability check itself on the 8~ground-truth CIRs in the matrix, independent of any LLM: for each pattern we run Algorithm~\ref{alg:repair-goal} on the known-good fixed CIR and the known-buggy CIR and verify that reachable goals are reported reachable and unreachable goals are reported unreachable. This is a soundness/completeness check on the algorithm. Second, Table~\ref{tab:rq4-loop-effect} measures the check's utility \emph{as a feedback channel inside the repair loop}: how many model--pattern pairs are accepted only because the goal-reachability verdict was fed back to the LLM?
-
-\begin{table}[t]
-\caption{RQ4 (a): goal-reachability verdict on ground-truth CIRs.}
-\label{tab:rq4-goal-detection}
-\centering\footnotesize
-\begin{tabular}{@{}c l ccc@{}}
-\toprule
-\textbf{\#} & \textbf{Pattern}
-   & $\#$\textbf{goals}
-   & \textbf{Buggy verdict}
-   & \textbf{Fixed verdict} \\
-\midrule
-1 & mutex\_deadlock     & 0/0 & n/a & n/a \\
-2 & signal\_loss        & 0/0 & n/a & n/a \\
-3 & channel\_deadlock   & 0/0 & n/a & n/a \\
-4 & three\_way\_deadlock& 0/0 & n/a & n/a \\
-5 & partial\_deadlock   & 2/2 & 0/2 unmet & 2/2 met \\
-6 & dual\_condvar       & 0/0 & n/a & n/a \\
-7 & semaphore\_throttle & 0/0 & n/a & n/a \\
-8 & cas\_race           & 0/0 & n/a & n/a \\
-9 & fn\_summary\_prop   & 2/2 & 0/2 unmet & 2/2 met \\
+\multicolumn{3}{@{}l}{\textit{Functional regressions (Layer 2b, goal reachability)}} \\
+\quad Unreachable business goal & \textsc{Cvn} & 3 (LLM) \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-% Patterns~5 和~9 是矩阵中唯一明确声明业务目标的模式; 其他模式的缺陷触发条件完全由 Layer-2a（死锁/信号丢失）覆盖，所以目标检查的角色是辅助性的。在这两个带目标的模式上，检查器在 ground-truth fixed CIR 上报告 2/2 goals met，在 ground-truth buggy CIR 上报告 0/2 goals met，与预期完全一致。
-Only Patterns~5 and~9 declare explicit business goals; for the remaining patterns Layer-2a (deadlock / signal-loss) fully covers the bug-trigger, so the goal check plays an auxiliary role. On both goal-bearing patterns the check returns \textsf{2/2 met} on the fixed CIR and \textsf{0/2 met} on the buggy CIR, matching the expected verdict exactly. The same command ({\tt cir2cvn analyze --check-goals}) produces these numbers.
-
-\begin{table}[t]
-\caption{RQ4 (b): role of goal feedback in the repair loop. 
-A \ding{51}\ marks a model--pattern pair that enters the goal-feedback 
-branch at least once before being accepted.}
-\label{tab:rq4-loop-effect}
-\centering\footnotesize
-\begin{tabular}{@{}l ccccc@{}}
-\toprule
- & \textbf{GPT-5} & \textbf{Claude 4.7}
-  & \textbf{Gemini 3}
-  & \textbf{Qwen3-Max} & \textbf{DS-V3} \\
-\midrule
-Partial DL~(P5)
-  & \ding{51} & \ding{51} & \ding{51} & \ding{51} & \ding{51} \\
-Rounds spent on goal
-  & 5 & 1 & 2 & 2 & 5 \\
-Pattern accepted?
-  & \ding{51} & \ding{51} & \ding{51} & \ding{51} & \ding{55} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-% Pattern~5 是仅靠 Layer-2a 无法诊断的模式: 其 \textsc{Cvn} 永远不会死锁, 但两条争抢线程永久停滞, 业务目标不可达。没有 goal-reachability 反馈, 整个修复循环从第一轮开始就得不到任何信号——LLM 无从知道生成的 CIR 哪里有问题。加入反馈后, 5 个模型中有 4 个在 1–5 轮内修复; DeepSeek-V3 在 5 轮后仍无法重排两条线程，这是与 RQ2c 一致的失败模式。没有一个被接受的 CIR 含有未满足的目标: 目标反馈既用作诊断, 也是接受条件的必要组成。
-Pattern~5 is diagnosable only through the goal-reachability channel: its \textsc{Cvn} has no deadlock but the two contending threads never return, so the declared goals are unreachable. Without the feedback the repair loop would receive no signal at all after the first bug-free candidate. With the feedback, 4 of 5~models converge within 1--5~rounds; DeepSeek-V3 still fails to rearrange the two threads within budget, mirroring its RQ2c result. No accepted \textsc{Cir} in the whole matrix has an unmet goal: goal feedback functions both as a diagnostic and as a necessary component of the acceptance criterion.
-
-
-
-\paragraph{End-to-end summary.}
-Table~\ref{tab:summary} consolidates the results across all RQs. The acceptance criterion for defective patterns is the conjunction of three conditions: Layer-1 static validity, Layer-2a bug-freedom (no deadlock in the \textsc{Cvn} search), and Layer-2b goal reachability (every declared business goal is witnessed by some reachable state).
-
-\begin{table}[t]
-\caption{End-to-end summary across the 6 defective patterns.}
-\label{tab:summary}
-\centering\footnotesize
-\begin{tabular}{@{}l ccccc@{}}
-\toprule
-& \textbf{GPT-5} & \textbf{Claude 4.7}
-  & \textbf{Gemini 3}
-  & \textbf{Qwen3-Max} & \textbf{DS-V3} \\
-\midrule
-Bug-free (P1--4,6)
-             & 4/5 & 4/5 & 5/5 & 3/5 & 3/5 \\
-Goal reach.\ (P5)
-             & \ding{51} & \ding{51} & \ding{51} & \ding{51} & \ding{55} \\
-Total repair rounds (acc.)
-             & 13   & 5   & 10   & 5   & 3   \\
-Regressions (interm.)
-             & 6    & 4   & 2    & 11  & 7   \\
-\midrule
-\textbf{Accepted}
-             & 5/6 & 5/6 & 6/6 & 4/6 & 3/6 \\
-\bottomrule
-\end{tabular}
-\footnotetext{Accepted = static valid $\wedge$ $\mathcal{B}=\emptyset$
-$\wedge$ all goals reachable.}
-\end{table}
-
-% 只有 Gemini~3~Pro 在 6 个模式中全部被接受; 其他所有模型至少在一个模式上耗尽了 5 轮预算。 最困难的组合是 Pattern~6 (双条件变量交叉等待), 它要求模型在多个线程上同时协调 wait/notify 顺序——5 个模型中只有 Gemini 能够做到。 Pattern~5 (部分死锁) 只能通过目标可达性反馈来诊断, 一旦提供该反馈, 5 个模型中有 4 个可以完成修复; 只有 DeepSeek-V3 仍然无法把两条并发控制流重新布置成可达业务目标的结构。这也印证了架构的主要承诺: 流水线从不接受带有确定并发缺陷或未覆盖业务目标的 \textsc{Cir}, 任何回归都要么被静态检查器、CVN 翻译层或目标可达性检查中的一层捕获。
-Only Gemini~3~Pro is accepted on all 6~patterns; every other model exhausts its 5-round budget on at least one pattern. The hardest cell is Pattern~6 (dual condvar cross-wait), which requires the model to coordinate \textsf{wait}/\textsf{notify} placements across two threads simultaneously---only Gemini achieves this. Pattern~5 (partial deadlock) is visible only through goal-reachability feedback; once that feedback is available, 4 of 5~models converge. DeepSeek-V3 is the exception: it cannot rearrange the two control flows to restore goal reachability within budget. Across the 6 $\times$ 5 matrix the pipeline never accepts a \textsc{Cir} that contains a definite concurrency bug or whose declared business goals are unreachable, and every intermediate regression is caught by one of the static, translation, or goal-reachability layers.
-
-\section{Related Work}
-\label{sec:related}
-
-% 并发缺陷检测的研究涵盖静态分析、动态探索、形式化建模,以及近年来兴起的基于LLM的软件工程[参考文献:Engler2003RacerX, Godefroid1997VeriSoft, Murata1989PetriNets, Fan2023RepairFromLLMs, Xia2023APRLLMs]。我们的工作与这四个方向均相关,但在设计空间中占据不同的位置:LLM用于恢复同步意图并构建无别名模型,而形式化引擎则用于对交错进行穷举推理。
-Research on concurrency bug detection spans static analysis, dynamic exploration, formal modeling, and, more recently, LLM-assisted software engineering \cite{Engler2003RacerX,Godefroid1997VeriSoft,Murata1989PetriNets,Fan2023RepairFromLLMs,Xia2023APRLLMs}. Our work is related to all four lines, but it occupies a different point in the design space: the LLM is used to recover synchronization intent and construct an alias-free model, while the formal engine is used for exhaustive reasoning over interleavings.
-\paragraph{Static analysis for concurrency.}
-% 大量研究工作利用锁序分析、指针分析、抽象解释、效应系统、所有权规则和特定语言的类型系统,直接从源代码中检测死锁、竞争条件、原子性违规和协议误用[参考文献:Engler2003RacerX,Flanagan2000TypeBasedRace,Flanagan2003Atomicity,Boyapati2002Ownership,Pratikakis2006Locksmith,Naik2006StaticRaceJava]。这些方法的优势在于它们能够对程序的编写方式进行推理。它们的不足之处在于,它们必须推断(或被告知)哪些引用对应于同一个共享资源以及哪个锁保护哪个状态。在实际程序中,这需要对堆分配、别名、容器间接寻址、闭包捕获和过程间流程进行推理。我们的工作并不声称能够解决源代码级别的别名分析问题。相反,它将资源识别步骤从正式的后端移到 LLM 生成的中间模型中,其中共享资源的身份是明确的。
-A lot of work detects deadlocks, races, atomicity violations, and protocol misuse directly from source code using lock-order analysis, pointer analysis, abstract interpretation, effect systems, ownership disciplines, and language-specific type systems \cite{Engler2003RacerX,Flanagan2000TypeBasedRace,Flanagan2003Atomicity,Boyapati2002Ownership,Pratikakis2006Locksmith,Naik2006StaticRaceJava}. The strength of these approaches is that they reason about the program as written. Their weakness is that they must infer, or be told, which references correspond to the same shared resource and which lock protects which state. In realistic programs, this requires reasoning through heap allocation, aliasing, container indirection, closure capture, and interprocedural flow. Our work does not claim to solve source-level alias analysis. Instead, it moves the resource-identification step out of the formal back-end and into an LLM-generated intermediate model in which shared-resource identity is explicit.
-
-\paragraph{Dynamic analysis and systematic schedule exploration.}
-% 动态竞争检测器、解释器和调度探索器通过观察具体的执行过程或探索可执行代码的有界调度来检测并发错误[参考文献:Godefroid1997VeriSoft,Flanagan2005DPOR,Musuvathi2008FairStateless,Musuvathi2008Heisenbugs,Burckhardt2010RandomizedScheduler]。这类工具通常对它们观察的执行过程具有很高的精确度,有些工具甚至可以系统地枚举有界测试框架内的调度。然而,它们仍然依赖于可执行代码,并且通常无法保证在探索的调度或测试框架边界之外不存在错误。我们的方法是互补而非竞争的:我们不探索原始程序的执行过程,而是探索由程序同步结构生成的紧凑并发模型的执行过程。
-Dynamic race detectors, interpreters, and schedule explorers detect concurrency bugs by observing concrete executions or by exploring bounded schedules of executable code \cite{Godefroid1997VeriSoft,Flanagan2005DPOR,Musuvathi2008FairStateless,Musuvathi2008Heisenbugs,Burckhardt2010RandomizedScheduler}. Such tools are often highly precise for the executions they observe, and some can systematically enumerate schedules within a bounded test harness. However, they still depend on executable code and cannot in general guarantee the absence of bugs outside the explored schedules or harness bounds. Our approach is complementary rather than competitive: instead of exploring executions of the original program, we explore executions of a compact concurrency model generated from the program's synchronization structure.
-
-\paragraph{Model checking and Petri-net-based verification.}
-% 并发系统的形式化验证长期以来依赖于显式状态模型检查、基于SAT/SMT的编码、进程代数和Petri网[Holzmann1997SPIN, Murata1989PetriNets, Esparza2008Unfoldings]。Petri网对于并发系统尤为吸引人,因为因果关系、资源争用和并行性可以直接在网结构中表示。经典的着色Petri网通过令牌携带数据扩展了这种表达能力,但代价是更复杂的状态表示和绑定语义[Jensen2007CPNTools]。以往基于Petri网的方法通常需要手动建模,或者依赖于从源代码或跟踪中提取特定语言的管道[Esparza2002McMillan, Ball2002SLAM, Henzinger2003BLAST]。我们的 \textsc{Cvn} 的预期用途有所不同:资源身份在验证之前由 \textsc{Cir} 的全局命名机制解析,数据相关的控制由一个带有三值守卫的有限全局存储来处理,而不是由彩色标记来处理。这种设计牺牲了通用性,换取了一个更简单、更易于分析的模型,专门针对有限并发模式。
-Formal verification of concurrent systems has long relied on explicit state model checking, SAT/SMT-based encodings, process algebras, and Petri nets \cite{Holzmann1997SPIN,Murata1989PetriNets,Esparza2008Unfoldings}. 
-Petri nets are particularly attractive for concurrency because causality, resource contention, and parallelism are represented directly in the net structure. Classical colored Petri nets extend this expressiveness with token-carried data, but at the cost of more complex state representation and binding semantics \cite{Jensen2007CPNTools}. Prior Petri-net-based approaches often either require manual modeling or rely on language-specific extraction pipelines from source code or traces \cite{Esparza2002McMillan,Ball2002SLAM,Henzinger2003BLAST}. Our \textsc{Cvn} differs in its intended use: resource identity is resolved before verification by \textsc{Cir}'s global naming, and data-dependent control is handled by a finite global store with three-valued guards rather than by colored tokens. This design trades generality for a simpler and more analyzable model targeted to bounded concurrency patterns.
-
-\paragraph{LLMs for program analysis, verification, and repair.}
-% 近期研究探索了LLM在缺陷查找、不变性推断、测试生成、静态分析辅助和自动程序修复方面的应用[参考文献:Chen2021CodeLLMs,Fan2023RepairFromLLMs,Xia2023APRLLMs,Bouzenia2025RepairAgent,Li2025ContextAwarePrompting]。这些方法利用了LLM能够识别常见实现惯用法并从代码或自然语言规范中推断开发者意图的特性。然而,LLM本身并不能提供关于线程交错组合空间的穷举推理。我们的工作以一种更精细、更结构化的方式使用LLM:LLM生成一个无别名的并发模型,然后利用结构化的反例来修复该模型,而穷举式缺陷查找仍然由形式化验证引擎负责。从这个意义上讲,该贡献不只是一个 LLM 验证器,而是一个生成-验证-修复循环,其中 LLM 和形式后端扮演着截然不同的角色。
-Recent work has explored LLMs for bug finding, invariant inference, test generation, static-analysis assistance, and automated program repair \cite{Chen2021CodeLLMs,Fan2023RepairFromLLMs,Xia2023APRLLMs,Bouzenia2025RepairAgent,Li2025ContextAwarePrompting}. These methods exploit the fact that LLMs can recognize common implementation idioms and infer likely developer intent from code or natural-language specifications. However, LLMs alone do not provide exhaustive reasoning about the combinatorial space of thread interleavings. Our work uses LLMs in a narrower and more structured way: the LLM generates an alias-free concurrency model and later consumes structured counterexamples to repair that model, while exhaustive bug discovery remains the responsibility of the formal verification engine. In this sense, the contribution is not an LLM-only verifier, but a generate--verify--repair loop in which the LLM and the formal back-end play sharply separated roles.
-
-
-% 另一项密切相关的研究方向是从源代码、二进制文件或执行轨迹中提取形式化模型,例如自动机、状态机和Petri网。然后,它研究代码和模型之间的转换验证或一致性[参考文献:Ball2002SLAM, Henzinger2003BLAST, Beyer2011CPAchecker, Necula2000TranslationValidation]。这项研究与我们架构的信任边界密切相关。在本研究中,该边界位于Cir层:我们验证生成的模型,而不是证明源代码到Cir的通用等价性。因此,源代码级别的提取和一致性检查是对我们方法的补充,而不是替代。一个能够从生成的代码中恢复并发模型的独立提取器可以作为源代码到Cir一致性的额外验证层,我们认为这是未来研究的一个重要方向。
-Another closely related line of work extracts formal models, such as automata, state machines, and Petri nets, from source code, binaries, or execution traces. It then studies translation validation or conformance between code and model \cite{Ball2002SLAM,Henzinger2003BLAST,Beyer2011CPAchecker,Necula2000TranslationValidation}. This line is highly relevant to the trust boundary of our architecture. In the present work, that boundary is placed at the \textsc{Cir} level: we verify the generated model rather than prove general source-to-\textsc{Cir} equivalence. Source-level extraction and conformance checking are therefore complementary to our method rather than substitutes for it. 
-
-\section{Conclusion}
-\label{sec:conclusion}
-
-This paper shifts concurrency verification from source-level alias recovery to a closed loop over \textsc{Cir}, an explicit, alias-free concurrency model constructed by LLMs from natural-language specifications. A deterministic translation to \textsc{Cvn} provides sound and complete detection of deadlock and signal loss under concrete valuation; livelock is flagged as an advisory
-structural warning with a contrapositive impossibility guarantee. Goal-reachability checking catches semantic regressions that escape all other verification layers. Across 9~patterns and 5~LLMs, no \textsc{Cir} containing a definite bug or violating a business goal is ever accepted.
-
 
 \end{document}
