@@ -10,7 +10,7 @@ between the CIR front-end (which extracts concurrency structure from source code
 the CVN analysis back-end (which performs model checking).
 
 ```
-Source Code ──(front-end)──▶ CIR ──(cir2cvn)──▶ CVN ──(analysis)──▶ Counterexample
+Requirment ──(front-end)──▶ CIR ──(cir2cvn)──▶ CVN ──(analysis)──▶ Counterexample
 ```
 
 ## Usage
