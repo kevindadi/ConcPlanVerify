@@ -6,11 +6,10 @@ Translator from **CIR** (Concurrency Intermediate Representation) to **CVN** (Co
 
 This crate implements a faithful 1:1 translation from CIR programs into CVN Petri nets
 suitable for state-space exploration and deadlock/livelock detection. It is the bridge
-between the CIR front-end (which extracts concurrency structure from source code) and
-the CVN analysis back-end (which performs model checking).
+between LLM-generated CIR and the CVN analysis back-end (which performs model checking).
 
 ```
-Source Code ──(front-end)──▶ CIR ──(cir2cvn)──▶ CVN ──(analysis)──▶ Counterexample
+User Requirements ──(LLM)──▶ CIR ──(cir2cvn)──▶ CVN ──(analysis)──▶ Counterexample
 ```
 
 ## Usage

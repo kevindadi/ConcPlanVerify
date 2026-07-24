@@ -67,7 +67,7 @@ CIR Program ──translate()──▶ CvnNet ──analyze()──▶ Counterex
 
 ┌─────────────────────────────────────────────────────────────┐
 │ LLM 生成端 │
-│ 原始源码 + System Prompt → LLM → CIR JSON │
+│ 用户需求 + System Prompt → LLM → CIR JSON │
 └───────────────────────┬─────────────────────────────────────┘
 │
 ▼
