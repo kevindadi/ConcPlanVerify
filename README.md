@@ -35,13 +35,16 @@ let enabled = net.enabled_transitions(&state);
 
 The default workflow is Python. Python owns LLM interaction, prompts, JSON extraction, and the generation/repair loop. Rust remains the source of truth for CIR schema validation, CIR-to-CVN translation, state-space analysis, and goal reachability. The boundary is JSON over stdin/stdout through the `cir2cvn` binary.
 
-Install the Python package from the repository root:
+Install the Python dependencies from the repository root:
 
 ```bash
 python3 -m venv python/.venv
 python/.venv/bin/python -m pip install -r python/requirements.txt
-python/.venv/bin/python -m pip install -e python --no-deps
 ```
+
+The commands below run directly from the checkout, so an editable package
+installation is not required. If you prefer the `cir-workflow` console script,
+install the package with `python/.venv/bin/python -m pip install -e python`.
 
 Put the API keys in the root `.env` file. The file is ignored by git and is never printed by the CLI:
 
@@ -59,15 +62,15 @@ cargo build --release --bin cir2cvn
 Validate and analyze CIR without an LLM:
 
 ```bash
-python/.venv/bin/python -m cir_workflow validate tests/fixtures/canonical_schema.json
-python/.venv/bin/python -m cir_workflow analyze tests/e2e/mutex_deadlock/buggy.json
-python/.venv/bin/python -m cir_workflow goals tests/fixtures/unmet_goal.json
+PYTHONPATH=python python/.venv/bin/python -m cir_workflow validate tests/fixtures/canonical_schema.json
+PYTHONPATH=python python/.venv/bin/python -m cir_workflow analyze tests/e2e/mutex_deadlock/buggy.json
+PYTHONPATH=python python/.venv/bin/python -m cir_workflow goals tests/fixtures/unmet_goal.json
 ```
 
 Generate CIR with DeepSeek. The default model is `deepseek-v4-pro`, the default key is `DEEPSEEK_API_KEY`, and the default request enables high reasoning effort and thinking:
 
 ```bash
-python/.venv/bin/python -m cir_workflow generate \
+PYTHONPATH=python python/.venv/bin/python -m cir_workflow generate \
   --provider deepseek \
   --requirements "Model a producer and consumer sharing a bounded channel."
 ```
@@ -75,12 +78,12 @@ python/.venv/bin/python -m cir_workflow generate \
 Generate or repair CIR with Qwen. Qwen uses `responses.create(model=..., input=...)`. Supply the workspace endpoint when it is required by the DashScope account:
 
 ```bash
-python/.venv/bin/python -m cir_workflow generate \
+PYTHONPATH=python python/.venv/bin/python -m cir_workflow generate \
   --provider qwen \
   --base-url "https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1" \
   --requirements "Model two workers that update a protected shared variable."
 
-python/.venv/bin/python -m cir_workflow repair \
+PYTHONPATH=python python/.venv/bin/python -m cir_workflow repair \
   --provider qwen \
   --base-url "https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1" \
   tests/e2e/mutex_deadlock/buggy.json

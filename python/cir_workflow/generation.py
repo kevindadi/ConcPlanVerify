@@ -9,7 +9,12 @@ from typing import Any
 from .json_utils import extract_json
 from .llm import LlmClient
 from .models import GenerationResult, GenerationRound
-from .prompts import generation_system_prompt, generation_user_prompt, verification_feedback
+from .prompts import (
+    generation_retry_prompt,
+    generation_system_prompt,
+    generation_user_prompt,
+    verification_feedback,
+)
 from .rust_cli import RustCli
 
 
@@ -32,6 +37,7 @@ class GenerationWorkflow:
         self.system_prompt = system_prompt or generation_system_prompt()
 
     def run(self, requirements: str) -> GenerationResult:
+        requirements = requirements.strip()
         user_prompt = generation_user_prompt(requirements)
         rounds: list[GenerationRound] = []
 
@@ -50,9 +56,12 @@ class GenerationWorkflow:
                     llm_error=str(error),
                     duration_ms=_elapsed(started),
                 ))
-                user_prompt = (
-                    "The model request failed. Produce the complete CIR JSON again.\n\n"
-                    f"Previous error: {error}"
+                user_prompt = generation_retry_prompt(
+                    requirements,
+                    issue=(
+                        "The previous model request failed. Generate the complete CIR "
+                        f"again. Previous error: {error}"
+                    ),
                 )
                 continue
 
@@ -68,10 +77,10 @@ class GenerationWorkflow:
                     parse_error=str(error),
                     duration_ms=_elapsed(started),
                 ))
-                user_prompt = (
-                    "The previous answer was not valid CIR JSON. Fix it and output "
-                    "only the complete JSON object.\n\n"
-                    f"Parse error: {error}\n\nCurrent candidate:\n```json\n{candidate}\n```"
+                user_prompt = generation_retry_prompt(
+                    requirements,
+                    issue=f"The previous answer was not valid CIR JSON. Parse error: {error}",
+                    current_cir=candidate,
                 )
                 continue
 
@@ -92,10 +101,14 @@ class GenerationWorkflow:
                 validation.payload,
                 validation.error or validation.stderr,
             )
-            user_prompt = (
-                "The Rust CIR validator rejected the previous candidate. Fix every "
-                "reported issue and output only the complete CIR JSON object.\n\n"
-                f"{feedback}\n\nCurrent CIR:\n```json\n{canonical}\n```"
+            user_prompt = generation_retry_prompt(
+                requirements,
+                issue=(
+                    "The Rust CIR validator rejected the previous candidate. Fix every "
+                    "reported issue.\n\n"
+                    f"{feedback}"
+                ),
+                current_cir=canonical,
             )
 
         return GenerationResult(
