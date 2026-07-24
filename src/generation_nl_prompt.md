@@ -35,14 +35,14 @@ You are an expert in concurrent systems modeling. Given a **natural language des
 Use only these action names, exactly as written:
 
 - Mutex: `lock`, `drop`
-- RwLock: `lock`, `drop`, `read`, `read_unlock`
+- RwLock: `lock`, `drop`, `read` (`drop` releases either a write lock or a read lock according to the lock state)
 - Condvar: `wait`, `notify`, `notify_all`; `wait` must be `["res_op", "cv", "wait", "mtx"]`
 - Semaphore: `acquire`, `release`
 - Channel: `send`, `recv`
 - Var: `read`, `write`
 - Atomic: `load`, `store`, `cas`
 
-Do not use `read_lock`, `write_lock`, or `notify_one`; they are not CIR actions.
+Do not use `read_lock`, `read_unlock`, `write_lock`, or `notify_one`; they are not CIR actions.
 
 ## Rules
 

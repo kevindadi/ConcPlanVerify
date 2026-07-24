@@ -2,10 +2,9 @@ mod settings;
 
 use cir::diagnostic::ValidationReport;
 use cir2cvn::generation_nl::{self, GenerationResult};
-use cir2cvn::repair::llm::{RepairOutcome, RepairRound, RepairSession};
+use cir2cvn::repair::llm::{RepairOutcome, RepairSession};
 use cir2cvn::{translate, TranslateError};
-use cir2cvn::{VerificationConfig, VerificationResult};
-use cvn::analysis::SearchStrategy;
+use cvn::analysis::{explore, AnalysisConfig, SearchStrategy};
 use cvn::export::to_dot;
 use serde::Serialize;
 use settings::{default_settings, load_settings, save_settings, GuiSettings};
@@ -31,21 +30,38 @@ pub struct TranslateCirResponse {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct FiringStepDto {
+    pub transition_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anchor_sids: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeadlockSummary {
+    pub kind: String,
+    pub trace: Vec<FiringStepDto>,
+    pub trace_len: usize,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalyzeResponse {
+    pub translate_warnings: Vec<String>,
+    pub cvn_dot: String,
+    pub state_count: usize,
+    pub deadlock_count: usize,
+    pub deadlocks: Vec<DeadlockSummary>,
+    pub explore_error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RepairResponse {
     pub status: String,
     pub rounds: usize,
     pub cir_json: Option<String>,
     pub last_report: Option<String>,
-    pub history: Vec<RepairRound>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LlmConfigStatus {
-    pub path: String,
-    pub exists: bool,
-    pub valid: bool,
-    pub error: Option<String>,
 }
 
 fn parse_strategy(s: &str) -> SearchStrategy {
@@ -56,7 +72,7 @@ fn parse_strategy(s: &str) -> SearchStrategy {
 }
 
 async fn llm_client_from_settings(s: &GuiSettings) -> Result<uni_llm::UniLlmClient, String> {
-    let path = settings::resolve_config_path(&s.llm_config_path);
+    let path = settings::expand_config_path(&s.llm_config_path);
     let c = uni_llm::UniLlmClient::from_config(&path)
         .await
         .map_err(|e| e.to_string())?;
@@ -114,22 +130,74 @@ fn analyze_cvn(
     cir_json: String,
     strategy: String,
     max_states: usize,
-) -> Result<VerificationResult, String> {
+) -> Result<AnalyzeResponse, String> {
     let program: cir::ast::Program =
         serde_json::from_str(&cir_json).map_err(|e| format!("JSON parse: {e}"))?;
-    let config = VerificationConfig {
+    let net = translate(&program).map_err(|errs| {
+        errs
+            .iter()
+            .map(|e| e.to_string())
+            .collect::<Vec<_>>()
+            .join("\n")
+    })?;
+    let translate_warnings = cir2cvn::validate::check_translation(&net);
+    let cvn_dot = to_dot(&net);
+    let config = AnalysisConfig {
         strategy: parse_strategy(&strategy),
-        max_states: max_states.max(1),
-        ..VerificationConfig::default()
+        max_states,
     };
-    Ok(cir2cvn::verify_program(&program, &config))
+    let explored = explore(&net, &config);
+    match explored {
+        Ok(result) => {
+            let deadlocks: Vec<DeadlockSummary> = result
+                .deadlocks
+                .iter()
+                .map(|cx| DeadlockSummary {
+                    kind: format!("{:?}", cx.kind),
+                    trace: cx
+                        .trace
+                        .iter()
+                        .map(|step| FiringStepDto {
+                            transition_id: step.transition_id.0.clone(),
+                            anchor_sids: {
+                                let v: Vec<String> =
+                                    step.anchor_sids.iter().cloned().collect();
+                                if v.is_empty() {
+                                    None
+                                } else {
+                                    Some(v)
+                                }
+                            },
+                        })
+                        .collect(),
+                    trace_len: cx.trace.len(),
+                })
+                .collect();
+            Ok(AnalyzeResponse {
+                translate_warnings,
+                cvn_dot,
+                state_count: result.state_count,
+                deadlock_count: deadlocks.len(),
+                deadlocks,
+                explore_error: None,
+            })
+        }
+        Err(e) => Ok(AnalyzeResponse {
+            translate_warnings,
+            cvn_dot,
+            state_count: 0,
+            deadlock_count: 0,
+            deadlocks: vec![],
+            explore_error: Some(e.to_string()),
+        }),
+    }
 }
 
 #[tauri::command]
 async fn repair_cir(cir_json: String, settings: GuiSettings) -> Result<RepairResponse, String> {
     let program: cir::ast::Program =
         serde_json::from_str(&cir_json).map_err(|e| format!("JSON parse: {e}"))?;
-    let path = settings::resolve_config_path(&settings.llm_config_path);
+    let path = settings::expand_config_path(&settings.llm_config_path);
     let path_str = path.to_str().ok_or("LLM config path is not valid UTF-8")?;
     let mut client = uni_llm::UniLlmClient::from_config(path_str)
         .await
@@ -140,36 +208,28 @@ async fn repair_cir(cir_json: String, settings: GuiSettings) -> Result<RepairRes
     if let Some(ref m) = settings.model_override {
         client = client.with_model(m);
     }
-    let verification_config = VerificationConfig {
-        strategy: parse_strategy(&settings.analysis_strategy),
-        max_states: settings.analysis_max_states.max(1),
-        ..VerificationConfig::default()
-    };
-    let session = RepairSession::new(client, settings.repair_max_rounds)
-        .with_verification_config(verification_config);
+    let session = RepairSession::new(client, settings.repair_max_rounds);
     let outcome = session.repair_loop(&program).await.map_err(|e| e.to_string())?;
     Ok(match outcome {
         RepairOutcome::Fixed {
             fixed_cir_json,
             rounds,
-            history,
+            ..
         } => RepairResponse {
             status: "fixed".into(),
             rounds,
             cir_json: Some(fixed_cir_json),
             last_report: None,
-            history,
         },
         RepairOutcome::GaveUp {
             rounds,
             last_report,
-            history,
+            ..
         } => RepairResponse {
             status: "gave_up".into(),
             rounds,
             cir_json: None,
             last_report: Some(last_report),
-            history,
         },
     })
 }
@@ -184,17 +244,11 @@ async fn generate_cir_nl(
         .nl_system_prompt_override
         .as_deref()
         .filter(|s| !s.trim().is_empty());
-    let verification_config = VerificationConfig {
-        strategy: parse_strategy(&settings.analysis_strategy),
-        max_states: settings.analysis_max_states.max(1),
-        ..VerificationConfig::default()
-    };
-    generation_nl::generate_cir_from_requirements_with_config(
+    generation_nl::generate_cir_from_requirements(
         &client,
         &requirements,
         sys,
         settings.generation_max_rounds.max(1),
-        &verification_config,
     )
     .await
     .map_err(|e| e.to_string())
@@ -231,34 +285,6 @@ async fn pick_llm_config_file(app: AppHandle) -> Result<Option<String>, String> 
     }))
 }
 
-#[tauri::command]
-async fn test_llm_config(settings: GuiSettings) -> Result<LlmConfigStatus, String> {
-    let path = settings::resolve_config_path(&settings.llm_config_path);
-    let path_text = path.to_string_lossy().into_owned();
-    if !path.is_file() {
-        return Ok(LlmConfigStatus {
-            path: path_text,
-            exists: false,
-            valid: false,
-            error: Some("configuration file does not exist".into()),
-        });
-    }
-    match llm_client_from_settings(&settings).await {
-        Ok(_) => Ok(LlmConfigStatus {
-            path: path_text,
-            exists: true,
-            valid: true,
-            error: None,
-        }),
-        Err(error) => Ok(LlmConfigStatus {
-            path: path_text,
-            exists: true,
-            valid: false,
-            error: Some(error),
-        }),
-    }
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -273,7 +299,6 @@ pub fn run() {
             set_settings,
             reset_settings,
             pick_llm_config_file,
-            test_llm_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running CPN GUI");
