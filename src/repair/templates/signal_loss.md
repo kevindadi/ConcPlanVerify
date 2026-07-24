@@ -1,6 +1,6 @@
 ## Repair Strategy: Signal Loss — While-Loop Guard on Wait
 
-A signal loss occurs when a `notify_one` or `notify_all` fires before any thread has entered `wait`, causing the notification to be lost. The waiter then blocks forever because no future notification will arrive.
+A signal loss occurs when a `notify` or `notify_all` fires before any thread has entered `wait`, causing the notification to be lost. The waiter then blocks forever because no future notification will arrive.
 
 ### Fix Rules
 

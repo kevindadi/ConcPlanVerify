@@ -33,7 +33,8 @@ cargo build --release
   "protection": [ ... ],
   "functions": [ ... ],
   "fn_summaries": [ ... ],
-  "entry": "<入口函数名>"
+  "entry": "<入口函数名>",
+  "goals": [ ... ]
 }
 ```
 
@@ -45,6 +46,7 @@ cargo build --release
 | `functions` | array | 是 | 函数定义，至少包含 entry 函数 |
 | `fn_summaries` | array | 否 | 未建模函数的摘要 |
 | `entry` | string | 是 | 入口函数名 |
+| `goals` | array | 否 | 可达性和变量后置目标；省略时为空数组 |
 
 ### Resource
 
@@ -63,6 +65,10 @@ cargo build --release
 | Condvar | 必填 | — | — |
 | Semaphore | 必填 | 必填 | — |
 | Channel | 必填 | — | 必填 |
+
+当前 Channel 没有容量字段；translator 将它抽象为一个初始为空、`send` 产生
+一个消息令牌、`recv` 消费一个消息令牌的资源。容量、消息内容和 FIFO 顺序不在
+当前 CIR/CVN 语义中建模。
 
 **共享变量** (`kind: "var"`)：
 
@@ -117,6 +123,7 @@ cargo build --release
 | `["await", "<函数名>"]` | 等待异步任务 |
 | `["call", "<函数名>"]` | 同步调用 |
 | `"return"` | 函数返回（字符串，非数组） |
+| `"nop"` | 无操作；可用于显式控制流节点 |
 
 **res_op action 清单**：
 
@@ -157,6 +164,27 @@ cargo build --release
   "has_concurrency": false
 }
 ```
+
+五个字段都是必填字段。`reads` 和 `writes` 必须引用已声明资源；`callees`
+必须引用函数定义或另一个摘要；`has_concurrency` 表示该摘要及其调用链是否
+包含并发操作。
+
+### BusinessGoal
+
+```json
+{
+  "id": "workers_return",
+  "desc": "Both workers reach return",
+  "marking": { "worker.s5": 1, "mtx": 1 },
+  "variables": { "ready": true }
+}
+```
+
+`desc`、`marking` 和 `variables` 可省略。`marking` 的 key 可以是：声明的资源名；
+`function.sid` 形式的控制位置；或以 `cp_`、`rp_`、`wp_`、`ra_` 开头的原始 CVN
+place id。不要使用 `cp(worker, ret)`、`rp(mtx)` 之类的展示形式。目标 token 数
+表示至少需要达到的数量；对初始为空的 Channel/Condvar 使用 0 表示空置检查。
+`variables` 使用 CVN 变量名和 JSON 标量值。
 
 ---
 
@@ -230,6 +258,8 @@ JSON 反序列化成功后，对结构合法性的补充检查。
 | E307 | LoadOnNonAtomic | error | 对非 Atomic 资源执行 load/store/cas |
 | E308 | ReadWriteOnNonVar | error | 对非 Var 资源执行 read(读值)/write |
 | E309 | VarAccessWithoutLock | error | 对受保护的 Var 读写时未持有对应锁 |
+| E310 | UnknownResourceAction | error | `res_op` 使用了不在 CIR 契约中的 action |
+| E311 | ResourceActionArity | error | `res_op` action 的参数个数不符合 CIR 契约 |
 
 **操作-资源兼容矩阵**：
 

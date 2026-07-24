@@ -1,4 +1,4 @@
-# Translation Error Codes
+# Translation and Validation Error Codes
 
 > Version 0.1.0 — Last updated 2026-03-16
 
@@ -12,11 +12,11 @@
 
 ## T1xx — Resource Translation Errors
 
-| Code | Error | Description |
-|------|-------|-------------|
-| T101 | `UnknownResourceType` | Unrecognized resource `kind`/`type` combination |
-| T102 | `CondvarLockNotFound` | Condvar `wait` references a lock that does not exist in resources |
-| T103 | `CondvarLockNotMutex` | Condvar `wait` references a lock that is not a Mutex |
+| Code | Error                 | Description                                                            |
+|------|-----------------------|------------------------------------------------------------------------|
+| T101 | `UnknownResourceType` | Unrecognized resource `kind`/`type` combination                        |
+| T102 | `CondvarLockNotFound` | Condvar `wait` references a lock that does not exist in resources      |
+| T103 | `CondvarLockNotMutex` | Condvar `wait` references a lock that is neither a Mutex nor an RwLock |
 
 ## T2xx — Control-Flow Translation Errors
 
@@ -32,6 +32,16 @@
 |------|-------|-------------|
 | T301 | `AmbiguousRwLockDrop` | Cannot determine whether a RwLock drop releases a read-lock or write-lock |
 | T302 | `NoWaitSites` | A condvar notify/notify_all has no corresponding wait-sites |
+
+## E3xx — CIR Validation Errors
+
+These errors are emitted by the CIR validator before translation. The complete resource compatibility matrix is
+maintained in [`../cir/README.md`](../cir/README.md).
+
+| Code | Error                   | Description                                                                |
+|------|-------------------------|----------------------------------------------------------------------------|
+| E310 | `UnknownResourceAction` | A `res_op` uses an action that is not part of the canonical CIR action set |
+| E311 | `ResourceActionArity`   | A canonical `res_op` action has a missing or extra argument                |
 
 ## Builder Errors
 

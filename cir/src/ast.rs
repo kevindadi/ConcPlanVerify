@@ -8,6 +8,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Optional reachability goal for repair / verification (marking + variable values).
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct BusinessGoal {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -19,6 +20,7 @@ pub struct BusinessGoal {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Program {
     pub program: String,
     pub resources: Vec<Resource>,
@@ -34,6 +36,7 @@ pub struct Program {
 // ──────────────────── Resources ────────────────────
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Resource {
     pub name: String,
     pub kind: String,
@@ -52,6 +55,7 @@ pub struct Resource {
 // ──────────────────── BaseType ────────────────────
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ArrayDef {
     pub elem: BaseType,
     pub len: i64,
@@ -115,6 +119,7 @@ impl fmt::Display for BaseType {
 // ──────────────────── Protection ────────────────────
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Protection {
     pub var: String,
     pub lock: String,
@@ -123,6 +128,7 @@ pub struct Protection {
 // ──────────────────── Function ────────────────────
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Function {
     pub name: String,
     pub kind: String,
@@ -130,6 +136,7 @@ pub struct Function {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Statement {
     pub sid: String,
     pub op: Op,
@@ -225,30 +232,35 @@ impl<'de> Deserialize<'de> for Op {
                         let name: String = seq
                             .next_element()?
                             .ok_or_else(|| de::Error::invalid_length(1, &"function name"))?;
+                        reject_extra_elements(&mut seq, "spawn")?;
                         Ok(Op::Spawn(name))
                     }
                     "spawn_async" => {
                         let name: String = seq
                             .next_element()?
                             .ok_or_else(|| de::Error::invalid_length(1, &"function name"))?;
+                        reject_extra_elements(&mut seq, "spawn_async")?;
                         Ok(Op::SpawnAsync(name))
                     }
                     "join" => {
                         let name: String = seq
                             .next_element()?
                             .ok_or_else(|| de::Error::invalid_length(1, &"function name"))?;
+                        reject_extra_elements(&mut seq, "join")?;
                         Ok(Op::Join(name))
                     }
                     "await" => {
                         let name: String = seq
                             .next_element()?
                             .ok_or_else(|| de::Error::invalid_length(1, &"function name"))?;
+                        reject_extra_elements(&mut seq, "await")?;
                         Ok(Op::Await(name))
                     }
                     "call" => {
                         let name: String = seq
                             .next_element()?
                             .ok_or_else(|| de::Error::invalid_length(1, &"function name"))?;
+                        reject_extra_elements(&mut seq, "call")?;
                         Ok(Op::Call(name))
                     }
                     other => Err(de::Error::custom(format!("unknown op type: \"{other}\""))),
@@ -332,6 +344,7 @@ impl<'de> Deserialize<'de> for Transfer {
                         let sid: String = seq
                             .next_element()?
                             .ok_or_else(|| de::Error::invalid_length(1, &"target sid"))?;
+                        reject_extra_elements(&mut seq, "next")?;
                         Ok(Transfer::Next(sid))
                     }
                     "branch" => {
@@ -344,6 +357,7 @@ impl<'de> Deserialize<'de> for Transfer {
                         let false_target: String = seq
                             .next_element()?
                             .ok_or_else(|| de::Error::invalid_length(3, &"false target sid"))?;
+                        reject_extra_elements(&mut seq, "branch")?;
                         Ok(Transfer::Branch {
                             cond,
                             true_target,
@@ -358,6 +372,7 @@ impl<'de> Deserialize<'de> for Transfer {
                             .next_element()?
                             .ok_or_else(|| de::Error::invalid_length(2, &"case mapping"))?;
                         let cases: Vec<(String, String)> = map.into_iter().collect();
+                        reject_extra_elements(&mut seq, "switch")?;
                         Ok(Transfer::Switch { var, cases })
                     }
                     other => Err(de::Error::custom(format!(
@@ -371,9 +386,22 @@ impl<'de> Deserialize<'de> for Transfer {
     }
 }
 
+fn reject_extra_elements<'de, A: SeqAccess<'de>>(
+    seq: &mut A,
+    shape: &str,
+) -> Result<(), A::Error> {
+    if seq.next_element::<de::IgnoredAny>()?.is_some() {
+        return Err(de::Error::custom(format!(
+            "{shape} tuple has extra elements"
+        )));
+    }
+    Ok(())
+}
+
 // ──────────────────── FnSummary ────────────────────
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct FnSummary {
     pub name: String,
     pub reads: Vec<String>,

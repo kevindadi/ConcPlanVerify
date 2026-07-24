@@ -61,7 +61,7 @@ t_wakeA  [CondvarWakeByNotifyAll]: wp(sid) → ra(sid)               guard: na_s
 t_reacq  [CondvarReacquire]:       ra(sid) + rp(mtx) → cp(f,sid')
 ```
 
-### notify_one(cv)
+### notify(cv)
 
 At sid_n with successor sid_n', generates 2 transitions:
 
