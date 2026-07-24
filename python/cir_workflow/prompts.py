@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import json
-from importlib.resources import files
+from pathlib import Path
 from typing import Any
 
 
-PROMPT_PACKAGE = "cir_workflow.prompt_assets"
+PROMPT_ASSET_DIR = Path(__file__).resolve().parent / "prompt_assets"
 GENERATION_PROMPT_NAME = "generation_nl_prompt.md"
 REPAIR_PROMPT_NAME = "cir_schema_prompt.md"
 
@@ -185,4 +185,4 @@ def _require_requirements(requirements: str) -> str:
 
 
 def _read_prompt(name: str) -> str:
-    return files(PROMPT_PACKAGE).joinpath(name).read_text(encoding="utf-8")
+    return (PROMPT_ASSET_DIR / name).read_text(encoding="utf-8")
