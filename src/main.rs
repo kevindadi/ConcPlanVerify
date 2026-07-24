@@ -1,4 +1,4 @@
-//! `cir2cvn` CLI driver used by the experiment runner.
+//! `cir2cvn` CLI driver used by the Python workflow.
 //!
 //! Three subcommands are exposed, all reading CIR JSON either from a file
 //! path or from stdin (`-`):
@@ -78,15 +78,7 @@ fn cmd_validate(source: &str) -> i32 {
     let program: Program = match parse_program(source) {
         Ok(program) => program,
         Err(error) => {
-            let payload = json!({
-                "status": "invalid_json",
-                "valid": false,
-                "diagnostics": [{
-                    "code": "E000",
-                    "severity": "error",
-                    "message": error,
-                }]
-            });
+            let payload = invalid_json_payload(&error);
             println!("{}", serde_json::to_string(&payload).expect("JSON serialization"));
             return 2;
         }
@@ -108,10 +100,7 @@ fn cmd_verify(source: &str) -> i32 {
     let program: Program = match parse_program(source) {
         Ok(program) => program,
         Err(error) => {
-            let payload = json!({
-                "status": "invalid_json",
-                "error": error,
-            });
+            let payload = invalid_json_payload(&error);
             println!("{}", serde_json::to_string(&payload).expect("JSON serialization"));
             return 2;
         }
@@ -137,4 +126,17 @@ fn emit_error(status: &str, message: impl Into<String>, exit_code: i32) -> i32 {
     });
     println!("{}", serde_json::to_string(&payload).expect("JSON serialization"));
     exit_code
+}
+
+fn invalid_json_payload(message: &str) -> serde_json::Value {
+    json!({
+        "status": "invalid_json",
+        "valid": false,
+        "diagnostics": [{
+            "code": "E000",
+            "severity": "error",
+            "message": message,
+        }],
+        "error": message,
+    })
 }

@@ -20,7 +20,7 @@ use smallvec::SmallVec;
 ///
 /// Related bug classes such as *signal loss* and *channel block* are
 /// downstream **secondary classifications** performed by
-/// [`crate::`]-external tooling (see `src/repair/mod.rs` in the
+/// * [`crate`]-external tooling (see `src/repair/mod.rs` in the
 /// `cir2cvn` crate): they inspect a deadlock counterexample's trace and
 /// blocked places to produce a finer-grained diagnostic, but they never
 /// add new reachable counterexamples beyond those already returned here.

@@ -26,6 +26,37 @@ fn run_cli(mode: &str, relative: &str) -> (bool, serde_json::Value) {
     (output.status.success(), json)
 }
 
+fn run_cli_input(mode: &str, input: &str) -> (bool, serde_json::Value) {
+    let output = Command::new(env!("CARGO_BIN_EXE_cir2cvn"))
+        .args([mode, "-"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            use std::io::Write;
+            child.stdin.take().expect("CLI stdin should be piped").write_all(input.as_bytes())?;
+            let output = child.wait_with_output()?;
+            Ok(output)
+        })
+        .unwrap_or_else(|e| panic!("failed to run cir2cvn with stdin: {e}"));
+    let stdout = String::from_utf8(output.stdout).expect("CLI stdout must be UTF-8");
+    let json = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|e| panic!("CLI stdout is not JSON: {e}\nstdout: {stdout}"));
+    (output.status.success(), json)
+}
+
+#[test]
+fn malformed_json_has_the_same_structured_error_shape_for_all_modes() {
+    for mode in ["--validate", "--analyze", "--goals"] {
+        let (success, output) = run_cli_input(mode, "not-json");
+        assert!(!success, "malformed JSON must fail: {mode}");
+        assert_eq!(output["status"], "invalid_json");
+        assert_eq!(output["valid"], false);
+        assert!(output["error"].as_str().is_some());
+        assert_eq!(output["diagnostics"][0]["code"], "E000");
+    }
+}
+
 #[test]
 fn safe_fixture_is_verified_by_both_analysis_aliases() {
     for mode in ["--analyze", "--goals"] {

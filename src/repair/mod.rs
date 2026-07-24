@@ -8,9 +8,6 @@ pub mod render;
 pub mod report;
 pub mod suggestion;
 
-#[cfg(feature = "llm")]
-pub mod llm;
-
 pub use report::{BugKind, BugReport, DeadlockParticipant, EnrichedFiringStep};
 
 use cvn::analysis::{AnalysisResult, Counterexample, PropertyViolation};
