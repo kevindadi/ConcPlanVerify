@@ -34,3 +34,79 @@ fn canonical_schema_translates_and_goals_have_no_warnings() {
     assert_eq!(goals.len(), 2);
     assert!(warnings.is_empty(), "unexpected goal warnings: {warnings:?}");
 }
+
+#[test]
+fn legacy_unknown_fields_are_rejected() {
+    let legacy = r#"
+    {
+      "program": "legacy",
+      "resources": [
+        {"name": "mtx", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+        {"name": "cv", "kind": "sync", "type": "Condvar", "mode": "Sync", "paired_with": "mtx"}
+      ],
+      "protection": [],
+      "functions": [{
+        "name": "main",
+        "kind": "normal",
+        "body": [{"sid": "s1", "op": "return", "transfer": "return"}]
+      }],
+      "entry": "main"
+    }
+    "#;
+
+    assert!(serde_json::from_str::<Program>(legacy).is_err());
+}
+
+#[test]
+fn operation_tuples_have_strict_shapes() {
+    assert!(serde_json::from_str::<Program>(
+        r#"{
+          "program":"bad_op",
+          "resources":[], "protection":[],
+          "functions":[{"name":"main","kind":"normal","body":[
+            {"sid":"s1","op":["spawn","worker","unexpected"],"transfer":"return"}
+          ]}],
+          "entry":"main"
+        }"#
+    )
+    .is_err());
+
+    assert!(serde_json::from_str::<Program>(
+        r#"{
+          "program":"bad_transfer",
+          "resources":[], "protection":[],
+          "functions":[{"name":"main","kind":"normal","body":[
+            {"sid":"s1","op":"return","transfer":["next","s1","unexpected"]}
+          ]}],
+          "entry":"main"
+        }"#
+    )
+    .is_err());
+}
+
+#[test]
+fn resource_actions_have_canonical_names_and_arity() {
+    let source = r#"
+    {
+      "program": "bad_actions",
+      "resources": [
+        {"name": "cv", "kind": "sync", "type": "Condvar", "mode": "Sync"}
+      ],
+      "protection": [],
+      "functions": [{
+        "name": "main",
+        "kind": "normal",
+        "body": [
+          {"sid": "s1", "op": ["res_op", "cv", "notify_one"], "transfer": "return"}
+        ]
+      }],
+      "entry": "main"
+    }
+    "#;
+
+    let program: Program = serde_json::from_str(source).expect("JSON shape should parse");
+    let report = cir::validate::validate(&program);
+
+    assert!(!report.valid);
+    assert!(report.diagnostics.iter().any(|d| d.code == "E310"));
+}

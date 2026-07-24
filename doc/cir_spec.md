@@ -39,6 +39,12 @@ Required top-level fields are `program`, `resources`, `protection`, `functions`,
   Marking keys are resource names, `function.sid`, or raw `cp_`/`rp_`/`wp_`/`ra_`
   place ids. Display forms such as `cp(worker, ret)` are not valid.
 
+`res_op` action tuples are strict: `lock`, `drop`, `read`, `notify`, `notify_all`,
+`acquire`, `release`, `recv`, and `load` take no arguments; `write`, `store`, and
+`send` take one; `wait` takes the associated mutex name; and `cas` takes expected
+and desired values. Unknown actions and extra or missing arguments are validation
+errors.
+
 ## Scope boundary
 
 Channel capacity, message payload identity/FIFO order, dynamic thread identities,

@@ -258,6 +258,8 @@ JSON 反序列化成功后，对结构合法性的补充检查。
 | E307 | LoadOnNonAtomic | error | 对非 Atomic 资源执行 load/store/cas |
 | E308 | ReadWriteOnNonVar | error | 对非 Var 资源执行 read(读值)/write |
 | E309 | VarAccessWithoutLock | error | 对受保护的 Var 读写时未持有对应锁 |
+| E310 | UnknownResourceAction | error | `res_op` 使用了不在 CIR 契约中的 action |
+| E311 | ResourceActionArity | error | `res_op` action 的参数个数不符合 CIR 契约 |
 
 **操作-资源兼容矩阵**：
 

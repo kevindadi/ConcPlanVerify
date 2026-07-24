@@ -137,3 +137,5 @@ CVN variable names and JSON scalar values.
 8. For `cas`, use `branch` transfer: the true branch is "CAS succeeded", false is "CAS failed".
 9. `Var` resources accessed without holding their protecting lock will be flagged as errors.
 10. The output must be a complete, valid CIR JSON — do not omit any function or resource.
+11. `res_op` action names and argument counts are strict; never emit unknown actions,
+    extra arguments, or omit required arguments.

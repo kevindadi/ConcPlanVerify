@@ -156,57 +156,58 @@ def load_config(config_path: str) -> ExperimentConfig:
 # ── LLM API calls ────────────────────────────────────────────
 
 CIR_SCHEMA_SPEC = """\
-CIR schema:
-- "program": string (program name)
-- "resources": array of {name, kind, type, mode?, count?, base?, init?}
-  - kind: "sync" or "var"
-  - type (sync): "Mutex", "RwLock", "Condvar", "Semaphore", "Channel"
-  - type (var): "Var", "Atomic"
-  - For Condvar: add "paired_with": "<mutex_name>"
-  - For Semaphore: add "count": <initial_permits>
-  - For Var/Atomic: add "base": "Bool"|"Int"|"Float"|"String", "init": <value>
-- "protection": array of {var, lock} (map variable → guarding lock)
-- "functions": array of {name, kind, body}
-  - kind: "normal", "async", "closure"
-  - body: array of statements {sid, op, transfer}
-    - sid: unique within function (e.g. "s1", "s2")
-    - op: ["res_op", resource, action] | ["spawn", fn] | ["join", fn] |
-          ["call", fn] | "return" | "nop"
-      - actions: "lock", "drop", "read", "write", "acquire", "release",
-                 "send", "recv", "wait", "notify", "notify_all", "cas"
-      - For write: ["res_op", var, "write", value]
-      - For cas:   ["res_op", var, "cas", expected, desired]
-    - transfer: "return" | ["next", sid] | ["branch", cond_expr, true_sid, false_sid]
-      - cond_expr: a single string expression, NOT an object.
-        Supported forms (lhs is a variable name; rhs is a literal):
-          "x == 0"   "x != 1"   "x > 0"   "x < 10"
-          "x >= 1"   "x <= 5"   "flag == true"   "state == \\"ready\\""
-        Logical connectives are also accepted:
-          "x > 0 && y != 1"   "done == true || count == 0"
-        The lhs variable must be declared in "resources" as kind "var" or
-        "atomic". Do NOT use object form {cond, on_true, on_false}.
-- "fn_summaries": array of {name, reads, writes, callees, has_concurrency}
-- "entry": string (entry function name, usually "main")
-- Optional "goals": array of {id, desc?, marking, variables} specifying
-  user-visible outcomes that must remain reachable after repair.
+CIR schema (the JSON contract enforced by the CIR parser and validator):
+- Top level: "program", "resources", "protection", "functions", and "entry" are
+  required. "fn_summaries" and "goals" are optional arrays defaulting to [].
+- "resources": array of {name, kind, type, mode?, count?, base?, init?}.
+  - kind is "sync" or "var".
+  - sync type is "Mutex", "RwLock", "Condvar", "Semaphore", or "Channel";
+    mode is required and is "Sync" or "Async".
+  - Semaphore requires "count"; Channel requires "base".
+  - var type is "Var" or "Atomic"; both require "base" and "init".
+  - Condvar has no "paired_with" field. Its associated mutex is the fourth
+    argument of its "wait" operation.
+- "protection": array of {var, lock}; only Var resources may be protected.
+- "functions": array of {name, kind, body}; kind is "normal", "async", or
+  "closure". Each body statement is {sid, op, transfer}; sid is unique within
+  the function and has the form "s" followed by digits.
+- "op": ["res_op", resource, action, ...args] | ["spawn", fn] |
+  ["spawn_async", fn] | ["join", fn] | ["await", fn] | ["call", fn] |
+  "return" | "nop".
+  - Actions are exactly: Mutex lock/drop; RwLock lock/read/drop; Condvar
+    wait/notify/notify_all; Semaphore acquire/release; Channel send/recv;
+    Var read/write; Atomic load/store/cas.
+  - Condvar wait is ["res_op", "cv", "wait", "mtx"]. Atomic cas is followed
+    by expected and desired values and must use a branch transfer.
+- "transfer": "return", ["next", sid], ["branch", condition, true_sid,
+  false_sid], or ["switch", variable, {label: sid}]. Conditions are strings,
+  never objects.
+- "fn_summaries": each item has all five fields {name, reads, writes, callees,
+  has_concurrency}; reads/writes name declared resources.
+- "goals": each item is {id, desc?, marking?, variables?}. Marking keys are a
+  resource name, "function.sid", or raw place id starting with cp_, rp_, wp_,
+  or ra_. Do not use display forms such as "cp(worker, ret)" or "rp(mtx)".
+  Variables contain JSON scalar postconditions.
+
+Channel semantics are intentionally abstract: no capacity, FIFO ordering, or
+payload identity is modeled. send adds a message-presence token and recv consumes it.
 
 Predicate-loop example (use this shape for wait-with-predicate patterns):
   {"sid":"s1","op":["res_op","mtx","lock"],"transfer":["next","s2"]},
   {"sid":"s2","op":["res_op","ready","read"],
     "transfer":["branch","ready == true","s4","s3"]},
-  {"sid":"s3","op":["res_op","cv","wait"],"transfer":["next","s2"]},
-  {"sid":"s4","op":["res_op","mtx","drop"],"transfer":"return"}
+  {"sid":"s3","op":["res_op","cv","wait","mtx"],"transfer":["next","s2"]},
+  {"sid":"s4","op":["res_op","mtx","drop"],"transfer":["next","s5"]},
+  {"sid":"s5","op":"return","transfer":"return"}
 
 Rules:
 1. Every shared resource gets a unique global name.
 2. Functions reference resources by name directly.
-3. Every lock must have a matching drop.
-4. Condvar wait requires paired mutex to be held.
-5. Spawn targets must have matching join in the same function.
-6. "transfer" is always either the string "return", or an array whose
-   first element is the string "next" or "branch" (NEVER an object).
+3. Every lock must have a matching drop on every path.
+4. Condvar wait requires the associated mutex to be held.
+5. spawn pairs with join; spawn_async pairs with await.
+6. "transfer" is always a supported string or array form, never an object.
 """
-
 
 GENERATION_SYSTEM_PROMPT = (
     "You are an expert in concurrent systems. Given a Rust source program, "

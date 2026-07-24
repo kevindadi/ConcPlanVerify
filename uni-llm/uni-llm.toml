@@ -1,45 +1,31 @@
 # uni-llm 配置文件
 #
-# Default target is the paper's primary model (GPT-5) via the
+# Default target is the paper's primary model  via the
 # z.apiyihe.org OpenAI-compatible aggregator. DashScope is kept for
 # the Qwen3-235B-A22B entry.
 
 [default]
-provider = "openai"
-model = "gpt-5"
+provider = "deepseek"
+model = "deepseek-v4-flash"
 temperature = 0.0
 max_tokens = 4096
 timeout_secs = 60
 max_retries = 3
 retry_delay_ms = 1000
 
-# ── z.apiyihe.org aggregator (OpenAI-compatible) ─────────────────
-# Routes GPT-5 / Claude 4.7 Opus / Gemini 3 Pro.
-# Note: We use claude-opus-4-7 not -4-6. The -4-6 channel inlines
-# <think>...</think> blocks into message.content which breaks JSON-mode
-# consumers. -4-7 returns clean content.
-[providers.openai]
-api_key_env = "ALL_API_KEY"
-base_url = "https://z.apiyihe.org/v1"
-models = [
-    "gpt-5",
-    "claude-opus-4-7",
-    "gemini-3-pro",
-]
-
 # ── DeepSeek first-party API (OpenAI-compatible) ─────────────────
 # Direct to DeepSeek instead of through the aggregator for reliability.
 [providers.deepseek]
 api_key_env = "DEEPSEEK_API_KEY"
-base_url = "https://api.deepseek.com/v1"
-models = ["deepseek-chat", "deepseek-reasoner"]
+base_url = "https://api.deepseek.com"
+models = ["deepseek-v4-flash", "deepseek-v4-pro"]
 
 # ── Alibaba Cloud DashScope (OpenAI-compatible) ──────────────────
 # Hosts the Qwen3-235B-A22B model used in the paper.
 [providers.dashscope]
 api_key_env = "DASHSCOPE_API_KEY"
-base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-models = ["qwen3-235b-a22b"]
+base_url = "https://llm-dr39pykgnr4h1328.cn-beijing.maas.aliyuncs.com/api/v1"
+models = ["qwen3.7-flash-2026-07-15"]
 
 # ── Local fallback (optional) ────────────────────────────────────
 [providers.ollama]
@@ -48,9 +34,8 @@ models = ["llama3", "qwen2", "codestral"]
 
 [fallback]
 chain = [
-    { provider = "openai",    model = "gpt-5" },
-    { provider = "deepseek",  model = "deepseek-chat" },
-    { provider = "dashscope", model = "qwen3-235b-a22b" },
+    { provider = "deepseek", model = "deepseek-v4-flash" },
+    { provider = "dashscope", model = "qwen3.7-flash-2026-07-15" },
 ]
 
 [logging]
