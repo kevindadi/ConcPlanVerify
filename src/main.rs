@@ -81,10 +81,7 @@ fn cmd_validate(source: &str) {
 fn cmd_verify(source: &str) {
     let program: Program = parse_program(source);
 
-    let result = cir2cvn::verify_program(
-        &program,
-        &cir2cvn::VerificationConfig::default(),
-    );
+    let result = cir2cvn::verify_program(&program, &cir2cvn::VerificationConfig::default());
     println!("{}", serde_json::to_string(&result).unwrap());
 
     let exit_code = match result.status {

@@ -71,8 +71,7 @@ Resource operations use the array format `["res_op", "<resource>", "<action>", .
 |--------|---------------|-------------|
 | `lock` | Mutex, RwLock | Acquire exclusive lock |
 | `drop` | Mutex, RwLock | Release lock |
-| `read` | RwLock | Acquire shared read lock |
-`read` acquires a shared read lock. Use `drop` to release either a write lock or a read lock according to the lock state; there is no separate read-unlock action.
+| `read` | RwLock | Acquire shared read lock; use `drop` to release it according to the lock state |
 | `wait` | Condvar | Wait on condvar (extra arg: associated mutex name) |
 | `notify` | Condvar | Wake one waiter |
 | `notify_all` | Condvar | Wake all waiters |

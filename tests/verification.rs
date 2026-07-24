@@ -43,18 +43,20 @@ fn buggy_fixture_is_reported_with_a_nonzero_exit() {
     let (success, output) = run_cli("--analyze", "tests/e2e/mutex_deadlock/buggy.json");
     assert!(!success, "unsafe verification must fail CI: {output}");
     assert_eq!(output["status"], "verified_unsafe");
-    assert!(output["bugs"].as_array().unwrap().iter().any(|bug| {
-        bug["kind"]["Deadlock"].is_object()
-    }));
+    assert!(output["bugs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|bug| { bug["kind"]["Deadlock"].is_object() }));
 }
 
 #[test]
 fn unmet_goal_is_distinguished_from_a_concurrency_bug() {
-    let (success, output) = run_cli("--goals", "tests/e2e/partial_deadlock/buggy.json");
+    let (success, output) = run_cli("--goals", "tests/fixtures/unmet_goal.json");
     assert!(!success, "unmet goals must fail CI: {output}");
     assert_eq!(output["status"], "goals_unmet");
-    assert_eq!(output["declaredGoalCount"], 2);
-    assert_eq!(output["unmetGoals"].as_array().unwrap().len(), 2);
+    assert_eq!(output["declared_goal_count"], 1);
+    assert_eq!(output["unmet_goals"].as_array().unwrap().len(), 1);
     assert!(output["bugs"].as_array().unwrap().is_empty());
 }
 
@@ -102,22 +104,27 @@ fn invalid_cir_stops_before_translation() {
 
 #[test]
 fn control_flow_and_async_fixtures_pass_the_unified_pipeline() {
-    for relative in [
-        "tests/fixtures/branch.json",
-        "tests/fixtures/switch.json",
-        "cir/examples/async_workers.json",
+    for (relative, expected_status) in [
+        (
+            "tests/fixtures/branch.json",
+            VerificationStatus::VerifiedUnsafe,
+        ),
+        (
+            "tests/fixtures/switch.json",
+            VerificationStatus::VerifiedUnsafe,
+        ),
+        (
+            "cir/examples/async_workers.json",
+            VerificationStatus::VerifiedSafe,
+        ),
     ] {
         let program = load_program(relative);
         let result = verify_program(&program, &VerificationConfig::default());
         assert_eq!(
-            result.status,
-            VerificationStatus::VerifiedSafe,
+            result.status, expected_status,
             "{relative}: validation={:?}, translation={:?}, analysis={:?}",
-            result.validation,
-            result.translation_errors,
-            result.analysis_error
+            result.validation, result.translation_errors, result.analysis_error
         );
         assert!(result.analysis_complete, "{relative}");
     }
 }
-

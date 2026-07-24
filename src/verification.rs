@@ -55,7 +55,6 @@ pub enum VerificationStatus {
 
 /// Stage timings in milliseconds.
 #[derive(Clone, Debug, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct VerificationTimings {
     pub validation_ms: f64,
     pub translation_ms: f64,
@@ -67,7 +66,6 @@ pub struct VerificationTimings {
 /// A complete verification result. The optional fields are populated only
 /// when the corresponding stage ran successfully.
 #[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct VerificationResult {
     pub status: VerificationStatus,
     pub validation: ValidationReport,
@@ -130,10 +128,8 @@ pub fn verify_program(
     let net = match crate::translate(program) {
         Ok(net) => net,
         Err(errors) => {
-            let mut result = VerificationResult::empty(
-                validation,
-                VerificationStatus::TranslationFailed,
-            );
+            let mut result =
+                VerificationResult::empty(validation, VerificationStatus::TranslationFailed);
             result.translation_errors = errors.iter().map(ToString::to_string).collect();
             result.declared_goal_count = program.goals.len();
             result.timings.validation_ms = validation_ms;
@@ -183,7 +179,9 @@ pub fn verify_program(
     result.analysis_complete = true;
     result.bugs = analyze(program, &net, &analysis_result);
     if !config.analyze_dead_transitions {
-        result.bugs.retain(|bug| !matches!(bug.kind, crate::repair::BugKind::DeadTransition { .. }));
+        result
+            .bugs
+            .retain(|bug| !matches!(bug.kind, crate::repair::BugKind::DeadTransition { .. }));
     }
 
     if config.check_goals && !program.goals.is_empty() {
