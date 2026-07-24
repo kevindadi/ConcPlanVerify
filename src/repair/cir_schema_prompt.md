@@ -113,10 +113,17 @@ Optional post-conditions for semantic regression prevention:
 {
   "id": "G1",
   "desc": "Both threads complete, lock released",
-  "marking": { "cp(worker, ret)": 1, "rp(m0)": 1 },
+  "marking": { "worker.ret": 1, "mtx": 1 },
   "variables": { "ready": true }
 }
 ```
+
+`marking` keys must be a declared resource name, a control-place reference in the
+form `function.sid`, or a raw CVN place id beginning with `cp_`, `rp_`, `wp_`, or
+`ra_`. The display forms `cp(worker, ret)` and `rp(mtx)` are not valid CIR keys.
+Resource and control-place keys express a minimum token count; a zero count on a
+Channel or Condvar checks that its pending-token place is empty. `variables` contains
+CVN variable names and JSON scalar values.
 
 ## Key Rules
 

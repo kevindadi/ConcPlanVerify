@@ -28,7 +28,32 @@ You are an expert in concurrent systems modeling. Given a **natural language des
 - **functions**: `{ "name", "kind": "normal"|"async"|"closure", "body": [ { "sid", "op", "transfer" } ] }`
   - `op`: `["res_op", <resource>, <action>, ...]` | `["spawn", <fn>]` | `["spawn_async", <fn>]` | `["join", <fn>]` | `["await", <fn>]` | `["call", <fn>]` | `"return"` | `"nop"`.
   - `transfer`: `["next", <sid>]` | `["branch", <condition>, <true_sid>, <false_sid>]` | `["switch", <variable>, {"value": "sid"}]` | `"return"`.
-- **fn_summaries**: `{ "name", "reads": [...], "writes": [...] }` for summarized calls.
+- **fn_summaries**: summaries for calls whose function body is not modeled. Every summary
+  must contain `{ "name", "reads": [...], "writes": [...], "callees": [...],
+  "has_concurrency": false }`. `reads` and `writes` name declared resources;
+  `callees` names functions or other summaries.
+
+### Business goals
+
+`goals` is optional and defaults to an empty array. Each goal has an `id`, an optional
+`desc`, and optional postconditions:
+
+```json
+{
+  "id": "workers_return",
+  "desc": "Both workers complete",
+  "marking": {
+    "worker.s5": 1,
+    "mtx": 1
+  },
+  "variables": { "ready": true }
+}
+```
+
+`marking` keys are either a declared resource name, a control-place reference in the
+form `function.sid`, or a raw CVN place id beginning with `cp_`, `rp_`, `wp_`, or
+`ra_`. Do not use display forms such as `cp(worker, ret)` or `rp(mtx)`. `variables`
+contains CVN variable names and JSON scalar values.
 
 ## Resource actions
 
