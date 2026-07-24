@@ -110,3 +110,39 @@ fn resource_actions_have_canonical_names_and_arity() {
     assert!(!report.valid);
     assert!(report.diagnostics.iter().any(|d| d.code == "E310"));
 }
+
+#[test]
+fn resource_action_arity_is_strict() {
+    let source = r#"
+    {
+      "program": "bad_arity",
+      "resources": [
+        {"name": "cv", "kind": "sync", "type": "Condvar", "mode": "Sync"}
+      ],
+      "protection": [],
+      "functions": [{
+        "name": "main",
+        "kind": "normal",
+        "body": [
+          {"sid": "s1", "op": ["res_op", "cv", "notify", "unexpected"], "transfer": ["next", "s2"]},
+          {"sid": "s2", "op": ["res_op", "cv", "wait"], "transfer": ["next", "s3"]},
+          {"sid": "s3", "op": "return", "transfer": "return"}
+        ]
+      }],
+      "entry": "main"
+    }
+    "#;
+
+    let program: Program = serde_json::from_str(source).expect("JSON shape should parse");
+    let report = cir::validate::validate(&program);
+
+    assert!(!report.valid);
+    assert_eq!(
+        report
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code == "E311")
+            .count(),
+        2
+    );
+}

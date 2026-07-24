@@ -22,11 +22,13 @@ You are an expert in concurrent systems modeling. Given a **natural language des
 ```
 
 - **resources**: `{ "name", "kind": "sync"|"var", "type": "Mutex"|"RwLock"|"Condvar"|"Semaphore"|"Channel"|"Var"|"Atomic", ... }`
+  - Every sync resource requires `"mode": "Sync"|"Async"`.
+  - `Semaphore` requires `"count": <initial permits>`; `Channel` requires `"base": <payload type>`.
+  - `Var` and `Atomic` require both `"base": <type>` and `"init": <initial value>`.
   - Condvar has no `paired_with` field. Its associated mutex is supplied as the fourth argument of its `wait` operation.
-  - Semaphore: include `"count": <initial permits>`.
-  - Var/Atomic: `"base"`, `"init"` as needed.
 - **functions**: `{ "name", "kind": "normal"|"async"|"closure", "body": [ { "sid", "op", "transfer" } ] }`
   - `op`: `["res_op", <resource>, <action>, ...]` | `["spawn", <fn>]` | `["spawn_async", <fn>]` | `["join", <fn>]` | `["await", <fn>]` | `["call", <fn>]` | `"return"` | `"nop"`.
+  - Operation arrays have exact tuple shapes. Do not add extra elements or omit required elements.
   - `transfer`: `["next", <sid>]` | `["branch", <condition>, <true_sid>, <false_sid>]` | `["switch", <variable>, {"value": "sid"}]` | `"return"`.
 - **fn_summaries**: summaries for calls whose function body is not modeled. Every summary
   must contain `{ "name", "reads": [...], "writes": [...], "callees": [...],
@@ -57,15 +59,19 @@ contains CVN variable names and JSON scalar values.
 
 ## Resource actions
 
-Use only these action names, exactly as written:
+Use only these action names, exactly as written, with exactly these argument counts after the action name:
 
-- Mutex: `lock`, `drop`
-- RwLock: `lock`, `drop`, `read` (`drop` releases either a write lock or a read lock according to the lock state)
-- Condvar: `wait`, `notify`, `notify_all`; `wait` must be `["res_op", "cv", "wait", "mtx"]`
-- Semaphore: `acquire`, `release`
-- Channel: `send`, `recv`
-- Var: `read`, `write`
-- Atomic: `load`, `store`, `cas`
+| action                                                                               | arguments                   | resource types |
+|--------------------------------------------------------------------------------------|-----------------------------|----------------|
+| `lock`, `drop`, `read`, `notify`, `notify_all`, `acquire`, `release`, `recv`, `load` | 0                           | type-dependent |
+| `write`, `store`, `send`                                                             | 1 value                     | type-dependent |
+| `wait`                                                                               | 1 mutex name                | Condvar        |
+| `cas`                                                                                | 2 values: expected, desired | Atomic         |
+
+The complete canonical forms are: Mutex `lock`/`drop`; RwLock `lock`/`read`/`drop`; Condvar `wait`/`notify`/
+`notify_all`; Semaphore `acquire`/`release`; Channel
+`send`/`recv`; Var `read`/`write`; Atomic `load`/`store`/`cas`. Condvar wait must be `["res_op", "cv", "wait", "mtx"]`,
+where the fourth element names a declared Mutex or RwLock.
 
 Do not use `read_lock`, `read_unlock`, `write_lock`, or `notify_one`; they are not CIR actions.
 

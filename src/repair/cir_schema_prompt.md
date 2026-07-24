@@ -22,22 +22,22 @@ CIR is a statement-level, verification-oriented concurrency model. Each CIR arti
 
 Each resource is a named synchronization primitive or data variable.
 
-| Field  | Required | Description |
-|--------|----------|-------------|
-| name   | yes | Globally unique resource name |
-| kind   | yes | `"sync"` (synchronization primitive) or `"var"` (data variable) |
-| type   | yes | One of: `Mutex`, `RwLock`, `Semaphore`, `Channel`, `Condvar`, `Var`, `Atomic` |
-| mode   | no  | `"Sync"` for thread-shared sync primitives |
-| count  | no  | Initial count for `Semaphore` |
-| base   | no  | Base type for `Var`/`Atomic`: `"Bool"`, `"Int"`, `"Float"`, `"String"`, or `{"Enum": [...]}` |
-| init   | no  | Initial value for `Var`/`Atomic` |
+| Field | Required                   | Description                                                                   |
+|-------|----------------------------|-------------------------------------------------------------------------------|
+| name  | yes                        | Globally unique resource name                                                 |
+| kind  | yes                        | `"sync"` (synchronization primitive) or `"var"` (data variable)               |
+| type  | yes                        | One of: `Mutex`, `RwLock`, `Semaphore`, `Channel`, `Condvar`, `Var`, `Atomic` |
+| mode  | sync resources             | `"Sync"` or `"Async"`; required for every sync resource                       |
+| count | `Semaphore`                | Initial permit count; required for `Semaphore`                                |
+| base  | `Channel`, `Var`, `Atomic` | Channel payload/base type, or variable base type                              |
+| init  | `Var`, `Atomic`            | Initial value; required for `Var` and `Atomic`                                |
 
 Examples:
 ```json
 {"name": "mtx", "kind": "sync", "type": "Mutex", "mode": "Sync"}
 {"name": "rw",  "kind": "sync", "type": "RwLock", "mode": "Sync"}
 {"name": "sem", "kind": "sync", "type": "Semaphore", "mode": "Sync", "count": 3}
-{"name": "ch",  "kind": "sync", "type": "Channel", "mode": "Sync"}
+{"name": "ch",  "kind": "sync", "type": "Channel", "mode": "Sync", "base": "Int"}
 {"name": "cv",  "kind": "sync", "type": "Condvar", "mode": "Sync"}
 {"name": "ready", "kind": "var", "type": "Var", "base": "Bool", "init": false}
 {"name": "counter", "kind": "var", "type": "Atomic", "base": "Int", "init": 0}
@@ -67,23 +67,27 @@ Each statement is `{ "sid": "...", "op": ..., "transfer": ... }`.
 
 Resource operations use the array format `["res_op", "<resource>", "<action>", ...args]`:
 
-| Action | Resource Types | Description |
-|--------|---------------|-------------|
-| `lock` | Mutex, RwLock | Acquire exclusive lock |
-| `drop` | Mutex, RwLock | Release lock |
-| `read` | RwLock | Acquire shared read lock; use `drop` to release it according to the lock state |
-| `wait` | Condvar | Wait on condvar (extra arg: associated mutex name) |
-| `notify` | Condvar | Wake one waiter |
-| `notify_all` | Condvar | Wake all waiters |
-| `acquire` | Semaphore | Acquire semaphore permit |
-| `release` | Semaphore | Release semaphore permit |
-| `send` | Channel | Send to channel |
-| `recv` | Channel | Receive from channel |
-| `read` | Var | Read variable (into branch condition) |
-| `write` | Var | Write variable (extra arg: value, e.g. `"true"`, `"42"`) |
-| `load` | Atomic | Atomic load |
-| `store` | Atomic | Atomic store (extra arg: value) |
-| `cas` | Atomic | Compare-and-swap (args: expected, new). Used with `branch` transfer. |
+All operation arrays have exact tuple shapes. The argument count is the number of elements after the action name:
+
+| Action       | Args         | Resource Types | Description                                                 |
+|--------------|--------------|----------------|-------------------------------------------------------------|
+| `lock`       | 0            | Mutex, RwLock  | Acquire exclusive lock                                      |
+| `drop`       | 0            | Mutex, RwLock  | Release lock                                                |
+| `read`       | 0            | RwLock, Var    | Acquire a read lock or read a variable                      |
+| `wait`       | 1 mutex name | Condvar        | Wait on condvar and associate it with a Mutex/RwLock        |
+| `notify`     | 0            | Condvar        | Wake one waiter                                             |
+| `notify_all` | 0            | Condvar        | Wake all waiters                                            |
+| `acquire`    | 0            | Semaphore      | Acquire semaphore permit                                    |
+| `release`    | 0            | Semaphore      | Release semaphore permit                                    |
+| `send`       | 1 value      | Channel        | Send to channel                                             |
+| `recv`       | 0            | Channel        | Receive from channel                                        |
+| `write`      | 1 value      | Var            | Write variable (for example `"true"` or `"42"`)             |
+| `load`       | 0            | Atomic         | Atomic load                                                 |
+| `store`      | 1 value      | Atomic         | Atomic store                                                |
+| `cas`        | 2 values     | Atomic         | Compare-and-swap (expected, desired); use `branch` transfer |
+
+For example, a valid condvar wait is `["res_op", "cv", "wait", "mtx"]`; the fourth element must name a declared Mutex or
+RwLock. Unknown actions and missing or extra arguments are validation errors.
 
 Control operations:
 
