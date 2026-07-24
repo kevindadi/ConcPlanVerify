@@ -1,4 +1,4 @@
-//! `cir2cvn` CLI driver used by the experiment runner.
+//! `cir2cvn` CLI driver used by the Python workflow.
 //!
 //! Three subcommands are exposed, all reading CIR JSON either from a file
 //! path or from stdin (`-`):

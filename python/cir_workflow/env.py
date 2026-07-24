@@ -9,7 +9,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-
 def load_dotenv(path: Path | str) -> None:
     """Load simple ``KEY=VALUE`` entries from *path* into ``os.environ``."""
 

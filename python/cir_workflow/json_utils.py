@@ -5,9 +5,7 @@ from __future__ import annotations
 import json
 import re
 
-
 _THINK_TAG_RE = re.compile(r"<think\b[^>]*>.*?</think>", re.DOTALL | re.IGNORECASE)
-
 
 def extract_json(text: str) -> str:
     """Strip reasoning/fences and return the first decodable JSON value.

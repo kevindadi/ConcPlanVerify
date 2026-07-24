@@ -16,7 +16,7 @@ from .rust_cli import RustCli
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Python LLM orchestration for CIR")
+    parser = argparse.ArgumentParser(description="Translator from CIR (Concurrency Intermediate Representation) to CVN (Concurrency Verification Net")
     parser.add_argument(
         "command",
         choices=["validate", "analyze", "goals", "generate", "repair"],

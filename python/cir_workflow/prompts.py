@@ -36,8 +36,11 @@ def verification_feedback(payload: dict[str, Any] | None, fallback: str = "") ->
         return fallback or "Rust verification did not return a structured result."
 
     sections: list[str] = [f"Verification status: {payload.get('status', 'unknown')}"]
-    validation = payload.get("validation", {})
-    diagnostics = validation.get("diagnostics", []) if isinstance(validation, dict) else []
+    validation = payload.get("validation")
+    if isinstance(validation, dict) and "diagnostics" in validation:
+        diagnostics = validation["diagnostics"]
+    else:
+        diagnostics = payload.get("diagnostics", [])
     if diagnostics:
         sections.append("Static diagnostics:\n" + _diagnostics(diagnostics))
 
