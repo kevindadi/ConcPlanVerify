@@ -71,10 +71,10 @@ Resource operations use the array format `["res_op", "<resource>", "<action>", .
 |--------|---------------|-------------|
 | `lock` | Mutex, RwLock | Acquire exclusive lock |
 | `drop` | Mutex, RwLock | Release lock |
-| `read_lock` | RwLock | Acquire shared read lock |
-| `write_lock` | RwLock | Acquire exclusive write lock |
+| `read` | RwLock | Acquire shared read lock |
+| `read_unlock` | RwLock | Release shared read lock |
 | `wait` | Condvar | Wait on condvar (extra arg: associated mutex name) |
-| `notify_one` | Condvar | Wake one waiter |
+| `notify` | Condvar | Wake one waiter |
 | `notify_all` | Condvar | Wake all waiters |
 | `acquire` | Semaphore | Acquire semaphore permit |
 | `release` | Semaphore | Release semaphore permit |
@@ -127,7 +127,7 @@ Optional post-conditions for semantic regression prevention:
 4. Every `next` transfer must reference a valid `sid` in the same function.
 5. The last reachable statement should have `"op": "return"` and `"transfer": "return"`.
 6. Do not add or remove resources unless the fix requires it.
-7. Condvar `wait` requires the associated mutex name as an extra argument: `["res_op", "cv", "wait", "mtx"]`.
+7. Condvar `wait` requires the associated mutex name as an extra argument: `["res_op", "cv", "wait", "mtx"]`. Do not add a `paired_with` resource field.
 8. For `cas`, use `branch` transfer: the true branch is "CAS succeeded", false is "CAS failed".
 9. `Var` resources accessed without holding their protecting lock will be flagged as errors.
 10. The output must be a complete, valid CIR JSON — do not omit any function or resource.

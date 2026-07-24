@@ -81,6 +81,19 @@ pub fn expand_config_path(p: &str) -> PathBuf {
     PathBuf::from(p)
 }
 
+/// Resolve relative config paths against the process-independent app context.
+/// Desktop launches may use a different working directory than the shell.
+pub fn resolve_config_path(p: &str) -> PathBuf {
+    let path = expand_config_path(p);
+    if path.is_absolute() {
+        path
+    } else if let Ok(cwd) = std::env::current_dir() {
+        cwd.join(path)
+    } else {
+        path
+    }
+}
+
 pub fn load_settings(app: &AppHandle) -> Result<GuiSettings, String> {
     let path = settings_path(app)?;
     if !path.exists() {

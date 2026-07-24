@@ -3,6 +3,7 @@ import type {
   AnalyzeResponse,
   GenerationResult,
   GuiSettings,
+  LlmConfigStatus,
   RepairResponse,
   TranslateCirResponse,
 } from "./types";
@@ -21,6 +22,12 @@ export async function resetSettings(): Promise<GuiSettings> {
 
 export async function pickLlmConfigFile(): Promise<string | null> {
   return invoke("pick_llm_config_file");
+}
+
+export async function testLlmConfig(
+  settings: GuiSettings,
+): Promise<LlmConfigStatus> {
+  return invoke("test_llm_config", { settings });
 }
 
 export async function validateCir(cirJson: string): Promise<unknown> {

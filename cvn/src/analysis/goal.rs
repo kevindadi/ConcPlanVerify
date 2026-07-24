@@ -125,6 +125,21 @@ pub fn check_goals(
     }
 
     let result = explore(net, config)?;
+    Ok(check_goals_in_result(&result, specs))
+}
+
+/// Check goals against an already completed state-space exploration.
+///
+/// Callers that also need deadlock analysis can use this function to avoid
+/// exploring the same network a second time.
+pub fn check_goals_in_result(
+    result: &crate::analysis::search::AnalysisResult,
+    specs: &[GoalSpec],
+) -> Vec<UnmetGoal> {
+    if specs.is_empty() {
+        return Vec::new();
+    }
+
     let mut satisfied = vec![false; specs.len()];
 
     for node_idx in result.reachability_graph.node_indices() {
@@ -149,7 +164,7 @@ pub fn check_goals(
         })
         .collect();
 
-    Ok(unmet)
+    unmet
 }
 
 fn explain_unmet(spec: &GoalSpec) -> String {
