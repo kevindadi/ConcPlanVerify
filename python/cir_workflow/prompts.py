@@ -3,21 +3,21 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from importlib.resources import files
 from typing import Any
 
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
-GENERATION_PROMPT_PATH = ROOT_DIR / "src" / "generation_nl_prompt.md"
-REPAIR_PROMPT_PATH = ROOT_DIR / "src" / "repair" / "cir_schema_prompt.md"
+PROMPT_PACKAGE = "cir_workflow.prompt_assets"
+GENERATION_PROMPT_NAME = "generation_nl_prompt.md"
+REPAIR_PROMPT_NAME = "cir_schema_prompt.md"
 
 
 def generation_system_prompt() -> str:
-    return GENERATION_PROMPT_PATH.read_text()
+    return _read_prompt(GENERATION_PROMPT_NAME)
 
 
 def repair_system_prompt() -> str:
-    return REPAIR_PROMPT_PATH.read_text()
+    return _read_prompt(REPAIR_PROMPT_NAME)
 
 
 def generation_user_prompt(requirements: str) -> str:
@@ -182,3 +182,7 @@ def _require_requirements(requirements: str) -> str:
     if not isinstance(requirements, str) or not requirements.strip():
         raise ValueError("natural-language requirements must not be empty")
     return requirements.strip()
+
+
+def _read_prompt(name: str) -> str:
+    return files(PROMPT_PACKAGE).joinpath(name).read_text(encoding="utf-8")

@@ -109,6 +109,7 @@ src/
     └── fn_summary.rs        # FnSummary indexing
 python/
 ├── cir_workflow/            # LLM orchestration and Rust subprocess client
+│   └── prompt_assets/       # Generation and repair prompts for the LLM
 ├── tests/                   # Offline Python workflow tests
 └── pyproject.toml
 ```
