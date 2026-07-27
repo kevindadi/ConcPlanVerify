@@ -1,0 +1,472 @@
+{
+  "program": "diagnostic_dense_lock_graph",
+  "resources": [
+    {
+      "name": "dlg_m0",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "dlg_m1",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "dlg_m2",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "dlg_m3",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "dlg_m4",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    }
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main",
+      "kind": "normal",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "spawn",
+            "dlg_w0"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "spawn",
+            "dlg_w1"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "spawn",
+            "dlg_w2"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "spawn",
+            "dlg_w3"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "join",
+            "dlg_w0"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "join",
+            "dlg_w1"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "join",
+            "dlg_w2"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "join",
+            "dlg_w3"
+          ],
+          "transfer": [
+            "next",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "dlg_w0",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "dlg_m0",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "dlg_m1",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "dlg_m2",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "res_op",
+            "dlg_m2",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "dlg_m1",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "dlg_m0",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "dlg_w1",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "dlg_m1",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "dlg_m2",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "dlg_m3",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "res_op",
+            "dlg_m3",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "dlg_m2",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "dlg_m1",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "dlg_w2",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "dlg_m2",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "dlg_m3",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "dlg_m4",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "res_op",
+            "dlg_m4",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "dlg_m3",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "dlg_m2",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "dlg_w3",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "dlg_m3",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "dlg_m4",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "dlg_m0",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "res_op",
+            "dlg_m0",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "dlg_m4",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "dlg_m3",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main",
+  "goals": []
+}

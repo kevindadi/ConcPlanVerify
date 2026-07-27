@@ -1,0 +1,2636 @@
+{
+  "program": "interference_call_tree",
+  "resources": [
+    {
+      "name": "r00",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r01",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r02",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r03",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r04",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r05",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r06",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r07",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r08",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r09",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r10",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r11",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r12",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r13",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r14",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r15",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r16",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "r17",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "gate_a",
+      "kind": "sync",
+      "type": "Semaphore",
+      "mode": "Sync",
+      "count": 2
+    },
+    {
+      "name": "gate_b",
+      "kind": "sync",
+      "type": "Semaphore",
+      "mode": "Sync",
+      "count": 3
+    }
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main",
+      "kind": "normal",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "bootstrap_context"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "spawn",
+            "dispatch_left"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "join",
+            "dispatch_left"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "checkpoint_context"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "spawn",
+            "dispatch_right"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "join",
+            "dispatch_right"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "checkpoint_context"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "spawn",
+            "route_e"
+          ],
+          "transfer": [
+            "next",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": [
+            "join",
+            "route_e"
+          ],
+          "transfer": [
+            "next",
+            "s10"
+          ]
+        },
+        {
+          "sid": "s10",
+          "op": [
+            "call",
+            "finalize_context"
+          ],
+          "transfer": [
+            "next",
+            "s11"
+          ]
+        },
+        {
+          "sid": "s11",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_a0",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "decode_envelope"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "r00",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r01",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "normalize_record"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r01",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "r00",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_a1",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "read_policy"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "r01",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r02",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "apply_policy"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r02",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "r01",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_a2",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "decode_envelope"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "r02",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r03",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "validate_record"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r03",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "r02",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "flush_audit"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "route_a",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "open_batch"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "spawn",
+            "unit_a0"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "spawn",
+            "unit_a1"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "spawn",
+            "unit_a2"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "join",
+            "unit_a2"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "join",
+            "unit_a1"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "join",
+            "unit_a0"
+          ],
+          "transfer": [
+            "next",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": [
+            "call",
+            "close_batch"
+          ],
+          "transfer": [
+            "next",
+            "s10"
+          ]
+        },
+        {
+          "sid": "s10",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_b0",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "read_policy"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "r04",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r05",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "apply_policy"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r05",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "r04",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_b1",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "decode_envelope"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "r05",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r06",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "validate_record"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r06",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "r05",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "flush_audit"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_b2",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "decode_envelope"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "r04",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r06",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "normalize_record"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r06",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "r04",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "route_b",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "open_batch"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "spawn",
+            "unit_b0"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "spawn",
+            "unit_b1"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "spawn",
+            "unit_b2"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "join",
+            "unit_b2"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "join",
+            "unit_b1"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "join",
+            "unit_b0"
+          ],
+          "transfer": [
+            "next",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": [
+            "call",
+            "close_batch"
+          ],
+          "transfer": [
+            "next",
+            "s10"
+          ]
+        },
+        {
+          "sid": "s10",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_c0",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "decode_envelope"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "r07",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r08",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "validate_record"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r08",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "r07",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "flush_audit"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_c1",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "decode_envelope"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "r08",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r09",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "normalize_record"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r09",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "r08",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_c2",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "read_policy"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "r07",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r09",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "apply_policy"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r09",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "r07",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "route_c",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "open_batch"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "spawn",
+            "unit_c0"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "spawn",
+            "unit_c1"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "spawn",
+            "unit_c2"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "join",
+            "unit_c2"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "join",
+            "unit_c1"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "join",
+            "unit_c0"
+          ],
+          "transfer": [
+            "next",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": [
+            "call",
+            "close_batch"
+          ],
+          "transfer": [
+            "next",
+            "s10"
+          ]
+        },
+        {
+          "sid": "s10",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_d0",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "decode_envelope"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "r10",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r11",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "normalize_record"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r11",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "r10",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_d1",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "read_policy"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "r11",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r12",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "apply_policy"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r12",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "r11",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_d2",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "decode_envelope"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "r10",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r12",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "validate_record"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r12",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "r10",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "flush_audit"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "route_d",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "open_batch"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "spawn",
+            "unit_d0"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "spawn",
+            "unit_d1"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "spawn",
+            "unit_d2"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "join",
+            "unit_d2"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "join",
+            "unit_d1"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "join",
+            "unit_d0"
+          ],
+          "transfer": [
+            "next",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": [
+            "call",
+            "close_batch"
+          ],
+          "transfer": [
+            "next",
+            "s10"
+          ]
+        },
+        {
+          "sid": "s10",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_e0",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "decode_envelope"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "gate_a",
+            "acquire"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r13",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "apply_policy"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r13",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "gate_a",
+            "release"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_e1",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "decode_envelope"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "gate_a",
+            "acquire"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r14",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "validate_record"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r14",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "gate_a",
+            "release"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_e2",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "decode_envelope"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "gate_b",
+            "acquire"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r15",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "apply_policy"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r15",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "gate_b",
+            "release"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "unit_e3",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "decode_envelope"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "gate_b",
+            "acquire"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "r16",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "validate_record"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "r16",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "gate_b",
+            "release"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "route_e",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "open_batch"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "spawn",
+            "unit_e0"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "spawn",
+            "unit_e1"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "spawn",
+            "unit_e2"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "spawn",
+            "unit_e3"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "join",
+            "unit_e3"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "join",
+            "unit_e2"
+          ],
+          "transfer": [
+            "next",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": [
+            "join",
+            "unit_e1"
+          ],
+          "transfer": [
+            "next",
+            "s10"
+          ]
+        },
+        {
+          "sid": "s10",
+          "op": [
+            "join",
+            "unit_e0"
+          ],
+          "transfer": [
+            "next",
+            "s11"
+          ]
+        },
+        {
+          "sid": "s11",
+          "op": [
+            "call",
+            "close_batch"
+          ],
+          "transfer": [
+            "next",
+            "s12"
+          ]
+        },
+        {
+          "sid": "s12",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "dispatch_left",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "load_plan"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "spawn",
+            "route_a"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "join",
+            "route_a"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "spawn",
+            "route_b"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "join",
+            "route_b"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "call",
+            "seal_plan"
+          ],
+          "transfer": [
+            "next",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "dispatch_right",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "load_plan"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "spawn",
+            "route_c"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "join",
+            "route_c"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "spawn",
+            "route_d"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "join",
+            "route_d"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "call",
+            "record_metric"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "call",
+            "seal_plan"
+          ],
+          "transfer": [
+            "next",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    }
+  ],
+  "fn_summaries": [
+    {
+      "name": "bootstrap_context",
+      "reads": [],
+      "writes": [],
+      "callees": [
+        "load_plan",
+        "decode_envelope"
+      ],
+      "has_concurrency": false
+    },
+    {
+      "name": "checkpoint_context",
+      "reads": [],
+      "writes": [],
+      "callees": [
+        "record_metric",
+        "flush_audit"
+      ],
+      "has_concurrency": false
+    },
+    {
+      "name": "finalize_context",
+      "reads": [],
+      "writes": [],
+      "callees": [
+        "seal_plan",
+        "close_batch"
+      ],
+      "has_concurrency": false
+    },
+    {
+      "name": "load_plan",
+      "reads": [],
+      "writes": [],
+      "callees": [
+        "read_policy"
+      ],
+      "has_concurrency": false
+    },
+    {
+      "name": "seal_plan",
+      "reads": [],
+      "writes": [],
+      "callees": [
+        "flush_audit"
+      ],
+      "has_concurrency": false
+    },
+    {
+      "name": "open_batch",
+      "reads": [],
+      "writes": [],
+      "callees": [
+        "decode_envelope",
+        "normalize_record"
+      ],
+      "has_concurrency": false
+    },
+    {
+      "name": "close_batch",
+      "reads": [],
+      "writes": [],
+      "callees": [
+        "record_metric"
+      ],
+      "has_concurrency": false
+    },
+    {
+      "name": "decode_envelope",
+      "reads": [],
+      "writes": [],
+      "callees": [
+        "validate_record"
+      ],
+      "has_concurrency": false
+    },
+    {
+      "name": "normalize_record",
+      "reads": [],
+      "writes": [],
+      "callees": [
+        "validate_record"
+      ],
+      "has_concurrency": false
+    },
+    {
+      "name": "read_policy",
+      "reads": [],
+      "writes": [],
+      "callees": [],
+      "has_concurrency": false
+    },
+    {
+      "name": "apply_policy",
+      "reads": [],
+      "writes": [],
+      "callees": [
+        "read_policy"
+      ],
+      "has_concurrency": false
+    },
+    {
+      "name": "validate_record",
+      "reads": [],
+      "writes": [],
+      "callees": [],
+      "has_concurrency": false
+    },
+    {
+      "name": "record_metric",
+      "reads": [],
+      "writes": [],
+      "callees": [],
+      "has_concurrency": false
+    },
+    {
+      "name": "flush_audit",
+      "reads": [],
+      "writes": [],
+      "callees": [
+        "record_metric"
+      ],
+      "has_concurrency": false
+    }
+  ],
+  "entry": "main",
+  "goals": [
+    {
+      "id": "g_dispatch_right_returns",
+      "desc": "the right dispatch subtree must complete",
+      "marking": {
+        "dispatch_right.ret": 1
+      }
+    },
+    {
+      "id": "g_main_returns",
+      "desc": "the complete processing pipeline must return",
+      "marking": {
+        "main.ret": 1
+      }
+    }
+  ]
+}
