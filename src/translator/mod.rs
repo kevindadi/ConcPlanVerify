@@ -13,7 +13,7 @@ use crate::error::TranslateError;
 use context::{TranslateContext, cp_id};
 use cvn::net::CvnNet;
 
-/// Translate a CIR program into a CVN network.
+/// Translate a CIR program into a CVN.
 ///
 /// This is the single public entry point of the translator.
 /// Internally it executes three phases in order:
