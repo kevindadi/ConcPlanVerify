@@ -9,12 +9,12 @@ CIR is a statement-level, verification-oriented concurrency model. Each CIR arti
 ```json
 {
   "program": "<name>",
-  "resources": [ ... ],
-  "protection": [ ... ],
-  "functions": [ ... ],
-  "fn_summaries": [ ... ],
+  "resources": [ "..." ],
+  "protection": [ "..." ],
+  "functions": [ "..." ],
+  "fn_summaries": [ "..." ],
   "entry": "<entry function name>",
-  "goals": [ ... ]
+  "goals": [ "..." ]
 }
 ```
 
@@ -91,24 +91,24 @@ RwLock. Unknown actions and missing or extra arguments are validation errors.
 
 Control operations:
 
-| Format | Description |
-|--------|-------------|
-| `["spawn", "<fn>"]` | Spawn a new OS thread running function `<fn>` |
-| `["spawn_async", "<fn>"]` | Spawn an async task |
-| `["join", "<fn>"]` | Wait for spawned thread to complete |
-| `["await", "<fn>"]` | Await an async task |
-| `["call", "<fn>"]` | Synchronous function call |
-| `"return"` | Return from function (string, not array) |
-| `"nop"` | No operation |
+| Format                    | Description                                   |
+|---------------------------|-----------------------------------------------|
+| `["spawn", "<fn>"]`       | Spawn a new OS thread running function `<fn>` |
+| `["spawn_async", "<fn>"]` | Spawn an async task                           |
+| `["join", "<fn>"]`        | Wait for spawned thread to complete           |
+| `["await", "<fn>"]`       | Await an async task                           |
+| `["call", "<fn>"]`        | Synchronous function call                     |
+| `"return"`                | Return from function (string, not array)      |
+| `"nop"`                   | No operation                                  |
 
 ### Transfer (Successor Logic)
 
-| Format | Description |
-|--------|-------------|
-| `["next", "<sid>"]` | Go to next statement |
-| `["branch", "<cond>", "<true_sid>", "<false_sid>"]` | Conditional branch |
-| `["switch", "<var>", {"val1": "sid1", "val2": "sid2", ...}]` | Multi-way branch |
-| `"return"` | Function return (string, not array) |
+| Format                                                       | Description                         |
+|--------------------------------------------------------------|-------------------------------------|
+| `["next", "<sid>"]`                                          | Go to next statement                |
+| `["branch", "<cond>", "<true_sid>", "<false_sid>"]`          | Conditional branch                  |
+| `["switch", "<var>", {"val1": "sid1", "val2": "sid2", ...}]` | Multi-way branch                    |
+| `"return"`                                                   | Function return (string, not array) |
 
 ### Business Goals
 

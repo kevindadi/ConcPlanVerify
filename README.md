@@ -129,6 +129,6 @@ PYTHONPATH=python python/.venv/bin/python -m unittest discover -s python/tests
 
 ## Dependencies
 
-- **cir** (`ceir`) — CIR library (vendored in-repo under `cir/`)
+- **cir** (`cir`) — CIR library (vendored in-repo under `cir/`)
 - **cvn** — CVN library with `cir-anchor` feature (vendored in-repo under `cvn/`)
 - **openai** — official Python SDK used by the DeepSeek and Qwen clients

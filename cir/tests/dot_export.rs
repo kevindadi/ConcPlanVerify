@@ -1,5 +1,5 @@
-use ceir::ast::*;
-use ceir::export::{DotDirection, DotOptions};
+use cir::ast::*;
+use cir::export::{DotDirection, DotOptions};
 
 fn load_example(name: &str) -> Program {
     let path = format!("examples/{name}.json");

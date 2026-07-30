@@ -6,7 +6,7 @@ CIR (Concurrency Intermediate Representation) 并发中间表示的静态验证�
 
 ```bash
 cargo build --release
-./target/release/ceir examples/producer_consumer.json
+./target/release/cir examples/producer_consumer.json
 ```
 
 输出为 JSON 格式的 `ValidationReport`：
