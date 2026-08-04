@@ -1,0 +1,267 @@
+{
+  "version": 1,
+  "description": "Benchmark corpus for ConcPlanVerify experiments. Paths are relative to the repository root. `expected.outcome` is the gold verdict for the buggy CIR: `bug` (verified_unsafe with `bug_kind`), `goals_unmet` (no deadlock but declared goals unreachable), or `safe` (negative control, must be verified_safe).",
+  "cases": [
+    {
+      "id": "mutex_deadlock",
+      "defect_type": "mutex_deadlock",
+      "expected": {
+        "outcome": "bug",
+        "bug_kind": "Deadlock",
+        "expected_bug_path": "tests/e2e/mutex_deadlock/expected_bug.json"
+      },
+      "cir": {
+        "buggy": "tests/e2e/mutex_deadlock/buggy.json",
+        "fixed": "tests/e2e/mutex_deadlock/fixed.json"
+      },
+      "rust": {
+        "buggy": "benchmarks/rust/mutex_deadlock/buggy.rs",
+        "fixed": "benchmarks/rust/mutex_deadlock/fixed.rs"
+      },
+      "requirements": {
+        "canonical": "Model a program with two mutexes A and B and two worker threads. Each worker must acquire both mutexes, do its work inside the critical section, release both mutexes, and terminate. The main thread spawns both workers and joins them. The program must always terminate without deadlock.",
+        "paraphrases": [
+          "Two threads each need exclusive access to a pair of shared locks, A and B. Every thread grabs both locks, works, then lets both go. Main starts the two threads and waits for both to finish. No execution may hang forever.",
+          "Write a concurrent plan where worker 1 and worker 2 both enter a critical section guarded by two separate mutexes. After finishing, each worker releases everything it holds so the whole program can run to completion.",
+          "A program owns lock A and lock B. Workers w1 and w2 each take both locks (they must not deadlock against each other), perform an update, unlock, and return. The entry function spawns w1 and w2, then joins them in order.",
+          "Two concurrent tasks share two mutex-protected regions. Each task must hold both mutexes simultaneously at some point. Design the locking so all interleavings finish: no circular wait is allowed."
+        ]
+      }
+    },
+    {
+      "id": "three_way_deadlock",
+      "defect_type": "three_way_deadlock",
+      "expected": {
+        "outcome": "bug",
+        "bug_kind": "Deadlock",
+        "expected_bug_path": "tests/e2e/three_way_deadlock/expected_bug.json"
+      },
+      "cir": {
+        "buggy": "tests/e2e/three_way_deadlock/buggy.json",
+        "fixed": "tests/e2e/three_way_deadlock/fixed.json"
+      },
+      "rust": {
+        "buggy": "benchmarks/rust/three_way_deadlock/buggy.rs",
+        "fixed": "benchmarks/rust/three_way_deadlock/fixed.rs"
+      },
+      "requirements": {
+        "canonical": "Model a program with three mutexes A, B, C and three worker threads. Worker 1 needs A and B, worker 2 needs B and C, worker 3 needs C and A. Each worker holds its two mutexes at the same time, then releases them. Main spawns all three workers and joins them. Every interleaving must terminate.",
+        "paraphrases": [
+          "Three tasks share three locks arranged like a ring: task 1 uses locks A+B, task 2 uses B+C, task 3 uses C+A. Each task must hold both of its locks simultaneously. The program must never get stuck in a circular wait.",
+          "Write a plan with workers w1, w2, w3 and mutexes a, b, c. w1 locks a then b, w2 works with b and c, w3 works with c and a. All workers must be able to finish under every schedule.",
+          "A resource triangle: three threads, three mutexes, each thread requires an overlapping pair. Choose a locking discipline (for example a global lock order) so no deadlock is possible.",
+          "Model three concurrent workers where each pair of neighbors shares one mutex. Every worker enters a two-lock critical section and exits cleanly; main joins all three at the end."
+        ]
+      }
+    },
+    {
+      "id": "signal_loss",
+      "defect_type": "condvar_signal_loss",
+      "expected": {
+        "outcome": "bug",
+        "bug_kind": "SignalLoss",
+        "expected_bug_path": "tests/e2e/signal_loss/expected_bug.json"
+      },
+      "cir": {
+        "buggy": "benchmarks/cir/signal_loss/buggy.json",
+        "fixed": "tests/e2e/signal_loss/fixed.json"
+      },
+      "notes": "The e2e buggy fixture double-locks the mutex after wait and is rejected by static validation (E503); the benchmark copy removes the re-lock so the SignalLoss defect is reached by the full pipeline.",
+      "rust": {
+        "buggy": "benchmarks/rust/signal_loss/buggy.rs",
+        "fixed": "benchmarks/rust/signal_loss/fixed.rs"
+      },
+      "requirements": {
+        "canonical": "Model a waiter/notifier pair sharing a mutex, a condition variable, and a boolean flag `ready` protected by the mutex. The notifier sets `ready` to true and signals the condition variable. The waiter must block until `ready` is true and then finish. The waiter must terminate even if the notifier signals before the waiter starts waiting.",
+        "paraphrases": [
+          "One thread waits for a condition, another announces it. Use a mutex + condvar + a protected `ready` flag. The waiting thread has to re-check the flag so a notification that arrives early is never lost.",
+          "Write a plan where a consumer sleeps on a condition variable until a producer flips a shared boolean to true and notifies. All interleavings must let the consumer wake up and return, including the one where the producer runs first.",
+          "A worker blocks on a condvar guarded by a mutex; a second worker sets a protected flag and calls notify_all. Guard against the lost-wakeup race: waiting must be conditional on the flag value.",
+          "Model the classic ready-flag handshake: notifier locks, sets ready=true, notifies, unlocks; waiter locks and waits until ready is observed true. No schedule may leave the waiter blocked forever."
+        ]
+      }
+    },
+    {
+      "id": "channel_deadlock",
+      "defect_type": "channel_block",
+      "expected": {
+        "outcome": "bug",
+        "bug_kind": "ChannelBlock",
+        "expected_bug_path": "tests/e2e/channel_deadlock/expected_bug.json"
+      },
+      "cir": {
+        "buggy": "tests/e2e/channel_deadlock/buggy.json",
+        "fixed": "tests/e2e/channel_deadlock/fixed.json"
+      },
+      "rust": {
+        "buggy": "benchmarks/rust/channel_deadlock/buggy.rs",
+        "fixed": "benchmarks/rust/channel_deadlock/fixed.rs"
+      },
+      "requirements": {
+        "canonical": "Model a sender and a receiver communicating over a channel, plus one shared mutex both threads occasionally need. The sender sends an integer over the channel; the receiver receives it. Both threads also enter a mutex-guarded critical section. Every interleaving must terminate: the receiver must never block on the channel while holding the mutex the sender needs.",
+        "paraphrases": [
+          "Two threads: one sends a value through a channel, the other receives it. Both also take the same lock for a short critical section. Make sure the receive can always be paired with a send, so nothing blocks forever.",
+          "Write a plan where a producer pushes one message into a channel and a consumer pops it, while both also use a common mutex. Avoid the pattern where the consumer waits for a message while holding the lock the producer needs to send.",
+          "A message-passing handoff with a shared mutex on the side: sender locks/does work/sends, receiver receives/locks/does work. Order the operations so the channel receive cannot starve behind the mutex.",
+          "Model one-shot channel communication between two workers that also share a mutex-protected region. All schedules must complete; no thread may hold the mutex while blocked on the channel."
+        ]
+      }
+    },
+    {
+      "id": "dead_transition",
+      "defect_type": "dead_transition",
+      "expected": {
+        "outcome": "bug",
+        "bug_kind": "DeadTransition",
+        "expected_bug_path": "tests/e2e/dead_transition/expected_bug.json"
+      },
+      "cir": {
+        "buggy": "tests/e2e/dead_transition/buggy.json",
+        "fixed": "tests/e2e/dead_transition/fixed.json"
+      },
+      "rust": {
+        "buggy": "benchmarks/rust/dead_transition/buggy.rs",
+        "fixed": "benchmarks/rust/dead_transition/fixed.rs"
+      },
+      "requirements": {
+        "canonical": "Model a program with an integer flag initialized so that both sides of a branch on the flag are reachable. The main function reads the flag and branches: if the flag is positive it takes one path, otherwise the other. Both branch outcomes must be executable in some run.",
+        "paraphrases": [
+          "A single function reads a shared integer and branches on `flag > 0`. Initialize or update the flag so that neither branch is dead code: some execution reaches the true path and some execution reaches the false path.",
+          "Write a plan with a variable-driven if/else where both arms are live. Avoid a constant condition that makes one arm unreachable in every state.",
+          "Main inspects an integer variable and picks between two return paths. The model must allow both paths to fire; a branch that can never be taken is a bug.",
+          "Model a two-way conditional over a shared counter such that the verifier can find executions covering both outcomes of the comparison."
+        ]
+      }
+    },
+    {
+      "id": "dual_condvar",
+      "defect_type": "condvar_signal_loss",
+      "expected": {
+        "outcome": "bug",
+        "bug_kind": "SignalLoss",
+        "expected_bug_path": "tests/e2e/dual_condvar/expected_bug.json"
+      },
+      "cir": {
+        "buggy": "tests/e2e/dual_condvar/buggy.json",
+        "fixed": "tests/e2e/dual_condvar/fixed.json"
+      },
+      "rust": {
+        "buggy": "benchmarks/rust/dual_condvar/buggy.rs",
+        "fixed": "benchmarks/rust/dual_condvar/fixed.rs"
+      },
+      "requirements": {
+        "canonical": "Model two threads A and B with two mutexes and two condition variables. Thread A waits on condvar 1 and then notifies condvar 2; thread B waits on condvar 2 and then notifies condvar 1. The design must break the mutual wait so both threads terminate in every interleaving.",
+        "paraphrases": [
+          "Two workers signal each other through two separate condition variables, each paired with its own mutex. Do not let both sides wait first: at least one side must be able to make progress and wake the other under every schedule.",
+          "Write a plan with a two-way condvar handshake: A waits for B's signal, B waits for A's signal. Arrange the waits and notifies so this cannot deadlock into a mutual sleep.",
+          "Thread A blocks on cv1 then signals cv2; thread B blocks on cv2 then signals cv1. Restructure the protocol (ordering or predicate flags) so every run finishes.",
+          "Model a cross-notification pattern between two threads using two mutex/condvar pairs, ensuring no interleaving leaves both threads waiting forever."
+        ]
+      }
+    },
+    {
+      "id": "partial_deadlock",
+      "defect_type": "goals_unmet",
+      "expected": {
+        "outcome": "goals_unmet",
+        "bug_kind": null,
+        "expected_bug_path": null
+      },
+      "cir": {
+        "buggy": "tests/e2e/partial_deadlock/buggy.json",
+        "fixed": "tests/e2e/partial_deadlock/fixed.json"
+      },
+      "rust": {
+        "buggy": "benchmarks/rust/partial_deadlock/buggy.rs",
+        "fixed": "benchmarks/rust/partial_deadlock/fixed.rs"
+      },
+      "requirements": {
+        "canonical": "Model workers A and B plus an independent bystander loop. A locks mutex A, signals semaphore A, waits on semaphore B, then locks mutex B; B does the mirror image. The bystander loops forever doing nothing. Declare goals that both workers reach their return points, and design the synchronization so those goals are reachable.",
+        "paraphrases": [
+          "Two workers exchange semaphore signals and each then takes the other's mutex, while a third thread spins in an infinite no-op loop. Even though the system as a whole never halts, workers A and B must both be able to finish (declare that as business goals).",
+          "Write a plan with a cross-handshake between two workers (semaphore release/acquire, then locking the peer's mutex) and a detached looping thread. The verification goals are `worker_a.ret` and `worker_b.ret` reachable.",
+          "Model a partial-progress scenario: a background thread runs forever, so no global deadlock exists, but the two foreground workers must still each reach return. Avoid the cross-locking trap that strands them.",
+          "Two threads synchronize via two zero-initialized semaphores and two mutexes; a bystander thread cycles endlessly. Both worker threads completing is a hard requirement, expressed as reachability goals."
+        ]
+      }
+    },
+    {
+      "id": "cas_race",
+      "defect_type": "cas_race",
+      "expected": {
+        "outcome": "safe",
+        "bug_kind": null,
+        "expected_bug_path": null
+      },
+      "cir": {
+        "buggy": "tests/e2e/cas_race/buggy.json",
+        "fixed": null
+      },
+      "rust": {
+        "buggy": "benchmarks/rust/cas_race/buggy.rs",
+        "fixed": null
+      },
+      "requirements": {
+        "canonical": "Model two threads that both try to flip a shared atomic boolean from false to true using compare-and-swap, then branch on whether they won the race. Exactly one CAS succeeds; both threads must terminate on either branch. The program is race-free by construction and must verify safe.",
+        "paraphrases": [
+          "Two setters race on an atomic flag with CAS(false, true). The winner takes one path, the loser the other; both paths just return. No interleaving may block.",
+          "Write a plan where two concurrent tasks attempt the same atomic compare-and-swap on a boolean. Whoever succeeds or fails, both tasks finish and main joins them.",
+          "Model an idempotent one-shot initialization guarded by an atomic CAS performed by two threads simultaneously. Verify that all schedules complete without deadlock.",
+          "Two threads perform lock-free CAS on a shared atomic bool and branch on the observed value. Both branches lead to return; the model must be verified safe."
+        ]
+      }
+    },
+    {
+      "id": "semaphore_throttle",
+      "defect_type": "semaphore_throttle",
+      "expected": {
+        "outcome": "safe",
+        "bug_kind": null,
+        "expected_bug_path": null
+      },
+      "cir": {
+        "buggy": "tests/e2e/semaphore_throttle/buggy.json",
+        "fixed": null
+      },
+      "rust": {
+        "buggy": "benchmarks/rust/semaphore_throttle/buggy.rs",
+        "fixed": null
+      },
+      "requirements": {
+        "canonical": "Model three worker threads throttled by a counting semaphore with two permits. Each worker acquires one permit, does its work, releases the permit, and returns. Main spawns all three workers and joins them. All interleavings must terminate.",
+        "paraphrases": [
+          "Three tasks share a semaphore initialized to 2, so at most two run their critical work at once. Every task acquires, works, releases; the whole program always finishes.",
+          "Write a plan with a two-slot rate limiter over three concurrent workers. Each worker takes a slot and gives it back; no schedule may starve or deadlock.",
+          "A bounded-concurrency pool: semaphore(2) gating three identical workers. Each worker's acquire is eventually satisfied because permits are always returned.",
+          "Model three threads competing for two semaphore permits, each doing acquire → work → release → return. The verifier must find no deadlock."
+        ]
+      }
+    },
+    {
+      "id": "fn_summary_prop",
+      "defect_type": "fn_summary_prop",
+      "expected": {
+        "outcome": "safe",
+        "bug_kind": null,
+        "expected_bug_path": null
+      },
+      "cir": {
+        "buggy": null,
+        "fixed": "tests/e2e/fn_summary_prop/fixed.json"
+      },
+      "rust": {
+        "buggy": null,
+        "fixed": "benchmarks/rust/fn_summary_prop/fixed.rs"
+      },
+      "requirements": {
+        "canonical": "Model a producer and a consumer sharing a mutex-protected integer `result`. The producer locks, calls an unmodeled helper `compute`, writes result=1, and unlocks. The consumer locks, calls an unmodeled helper `observe` (which reads `result`), reads result, and unlocks. Provide function summaries for `compute` and `observe`. Declare goals that both threads reach return, and the model must verify safe with the goals reachable.",
+        "paraphrases": [
+          "A producer writes a shared value and a consumer reads it, both under one mutex. Each also calls an external function that is only described by a read/write summary, not a body. Both threads must be able to finish.",
+          "Write a plan with two threads and a protected variable where opaque library calls appear inside the critical sections; describe those calls with fn_summaries (what they read and write). Termination of both threads is a declared goal.",
+          "Model summary-based abstraction: `compute` (no effects) and `observe` (reads result) have no bodies, only summaries. The surrounding lock/write/read protocol must verify safe and reach both return goals.",
+          "Producer/consumer over a mutex-guarded int, with unmodeled helper calls captured as function summaries. All goals (both returns) must be reachable and no deadlock may exist."
+        ]
+      }
+    }
+  ]
+}

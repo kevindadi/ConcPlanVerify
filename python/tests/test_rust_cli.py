@@ -9,6 +9,7 @@ from cir_workflow.rust_cli import RustCli
 
 
 class RustCliTests(unittest.TestCase):
+    @unittest.skipIf(os.name == "nt", "fake binary is a POSIX shell script")
     def test_decodes_structured_protocol_and_exit_code(self):
         with tempfile.TemporaryDirectory() as directory:
             binary = Path(directory) / "fake-cir2cvn"

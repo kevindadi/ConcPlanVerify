@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
 
 from .models import RustCliResult
+
+_BINARY_NAME = "cir2cvn.exe" if os.name == "nt" else "cir2cvn"
 
 
 class RustCli:
@@ -22,7 +25,7 @@ class RustCli:
         timeout: float = 120.0,
     ) -> None:
         self.repo_root = Path(repo_root).resolve()
-        self.binary = Path(binary).resolve() if binary else self.repo_root / "target" / "release" / "cir2cvn"
+        self.binary = Path(binary).resolve() if binary else self.repo_root / "target" / "release" / _BINARY_NAME
         self.build_if_missing = build_if_missing
         self.timeout = timeout
 
@@ -44,11 +47,15 @@ class RustCli:
         started = time.perf_counter()
         try:
             binary = self._ensure_binary()
+            # The Rust CLI speaks UTF-8 on both ends; never fall back to the
+            # platform locale encoding (GBK on Chinese Windows breaks here).
             process = subprocess.run(
                 [str(binary), mode, "-"],
                 input=cir_json,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 cwd=self.repo_root,
                 timeout=self.timeout,
             )

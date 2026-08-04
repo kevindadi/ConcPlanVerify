@@ -45,6 +45,28 @@ class RustCliResult:
         return bool(self.payload and self.payload.get("valid", False))
 
 
+def normalize_token_usage(usage: dict[str, Any] | None) -> tuple[int, int]:
+    """Map provider ``usage`` payloads onto ``(input_tokens, output_tokens)``.
+
+    DeepSeek's Chat Completions endpoint reports ``prompt_tokens`` and
+    ``completion_tokens``; Qwen's Responses endpoint reports ``input_tokens``
+    and ``output_tokens``. Missing or malformed fields count as zero.
+    """
+
+    if not usage:
+        return 0, 0
+    input_tokens = usage.get("input_tokens", usage.get("prompt_tokens", 0))
+    output_tokens = usage.get("output_tokens", usage.get("completion_tokens", 0))
+    return _as_int(input_tokens), _as_int(output_tokens)
+
+
+def _as_int(value: Any) -> int:
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return 0
+
+
 @dataclass
 class GenerationRound:
     round: int
@@ -54,6 +76,8 @@ class GenerationRound:
     llm_error: str | None = None
     accepted: bool = False
     duration_ms: float = 0.0
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 @dataclass
@@ -66,6 +90,18 @@ class GenerationResult:
     def success(self) -> bool:
         return self.cir_json is not None and self.error is None
 
+    @property
+    def total_input_tokens(self) -> int:
+        return sum(r.input_tokens for r in self.rounds)
+
+    @property
+    def total_output_tokens(self) -> int:
+        return sum(r.output_tokens for r in self.rounds)
+
+    @property
+    def total_tokens(self) -> int:
+        return self.total_input_tokens + self.total_output_tokens
+
 
 @dataclass
 class RepairRound:
@@ -77,6 +113,8 @@ class RepairRound:
     accepted: bool = False
     rejection_reason: str | None = None
     duration_ms: float = 0.0
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 @dataclass
@@ -90,6 +128,18 @@ class RepairResult:
     @property
     def success(self) -> bool:
         return self.fixed_cir_json is not None and self.error is None
+
+    @property
+    def total_input_tokens(self) -> int:
+        return sum(r.input_tokens for r in self.rounds)
+
+    @property
+    def total_output_tokens(self) -> int:
+        return sum(r.output_tokens for r in self.rounds)
+
+    @property
+    def total_tokens(self) -> int:
+        return self.total_input_tokens + self.total_output_tokens
 
     @property
     def repair_rounds(self) -> int:

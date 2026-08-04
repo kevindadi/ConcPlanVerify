@@ -7,12 +7,25 @@ import time
 
 from .json_utils import extract_json
 from .llm import LlmClient
-from .models import RepairResult, RepairRound, RustCliResult
+from .models import RepairResult, RepairRound, RustCliResult, normalize_token_usage
 from .prompts import repair_system_prompt, repair_user_prompt, verification_feedback
 from .rust_cli import RustCli
 
 
 class RepairWorkflow:
+    """LLM repair loop with a configurable diagnostic feedback level.
+
+    ``feedback_mode`` controls how much of the CVN verification result is
+    injected into the repair prompt (the Rust analyzer always remains the
+    acceptance oracle):
+
+    - ``"full"``: complete structured feedback (default CVN pipeline).
+    - ``"status_only"``: only the verification status and primary bug kind
+      (diagnostic ablation).
+    - ``"none"``: a generic "verification failed" line without any CVN
+      diagnostics (LLM-only baseline).
+    """
+
     def __init__(
         self,
         client: LlmClient,
@@ -22,13 +35,34 @@ class RepairWorkflow:
         temperature: float = 0.0,
         max_tokens: int = 4096,
         system_prompt: str | None = None,
+        feedback_mode: str = "full",
     ) -> None:
+        if feedback_mode not in {"full", "status_only", "none"}:
+            raise ValueError(f"unknown feedback_mode: {feedback_mode!r}")
         self.client = client
         self.rust_cli = rust_cli
         self.max_rounds = max(0, max_rounds)
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.system_prompt = system_prompt or repair_system_prompt()
+        self.feedback_mode = feedback_mode
+
+    def _feedback(self, result: RustCliResult) -> str:
+        if self.feedback_mode == "none":
+            return (
+                "The CIR failed concurrency verification. Find and fix the "
+                "concurrency defect."
+            )
+        if self.feedback_mode == "status_only":
+            kind = _bug_kind(result.payload)
+            lines = [f"Verification status: {result.status}"]
+            if kind:
+                lines.append(f"Primary bug kind: {kind}")
+            return "\n".join(lines)
+        return verification_feedback(
+            result.payload,
+            result.error or result.stderr,
+        )
 
     def run(self, cir_json: str) -> RepairResult:
         current = cir_json
@@ -41,16 +75,13 @@ class RepairWorkflow:
                 initial_verification=initial,
             )
 
-        feedback = verification_feedback(
-            initial.payload,
-            initial.error or initial.stderr,
-        )
+        feedback = self._feedback(initial)
         initial_kind = _bug_kind(initial.payload)
 
         for round_number in range(1, self.max_rounds + 1):
             started = time.perf_counter()
             try:
-                content, _ = self.client.chat(
+                content, usage = self.client.chat(
                     self.system_prompt,
                     repair_user_prompt(current, feedback),
                     temperature=self.temperature,
@@ -66,6 +97,7 @@ class RepairWorkflow:
                 feedback = f"LLM request failed; try a different repair. Error: {error}"
                 continue
 
+            input_tokens, output_tokens = normalize_token_usage(usage)
             candidate = extract_json(content)
             try:
                 parsed = json.loads(candidate)
@@ -79,6 +111,8 @@ class RepairWorkflow:
                     parse_error=str(error),
                     rejection_reason=str(error),
                     duration_ms=_elapsed(started),
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
                 ))
                 feedback = f"CIR JSON parse error: {error}\nCurrent candidate:\n{candidate}"
                 current = candidate
@@ -86,10 +120,7 @@ class RepairWorkflow:
 
             verification = self.rust_cli.analyze(canonical)
             accepted = verification.status == "verified_safe"
-            reason = verification_feedback(
-                verification.payload,
-                verification.error or verification.stderr,
-            )
+            reason = self._feedback(verification)
             rounds.append(RepairRound(
                 round=round_number,
                 candidate_cir_json=canonical,
@@ -97,6 +128,8 @@ class RepairWorkflow:
                 accepted=accepted,
                 rejection_reason=None if accepted else reason,
                 duration_ms=_elapsed(started),
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
             ))
             if accepted:
                 return RepairResult(
@@ -107,7 +140,12 @@ class RepairWorkflow:
 
             next_kind = _bug_kind(verification.payload)
             regression_note = ""
-            if initial_kind and next_kind and initial_kind != next_kind:
+            if (
+                self.feedback_mode != "none"
+                and initial_kind
+                and next_kind
+                and initial_kind != next_kind
+            ):
                 regression_note = (
                     f"\nThe candidate changed the primary bug from {initial_kind} "
                     f"to {next_kind}; preserve the original behavior while fixing it."
