@@ -37,7 +37,7 @@ Always emit all seven top-level keys shown above, even when `protection`, `fn_su
   - `transfer`: `["next", <sid>]` | `["branch", <condition>, <true_sid>, <false_sid>]` | `["switch", <variable>, {"value": "sid"}]` | `"return"`.
 - **fn_summaries**: summaries for calls whose function body is not modeled. Every summary
   must contain `{ "name", "reads": [...], "writes": [...], "callees": [...],
-  "has_concurrency": false }`. `reads` and `writes` name declared resources;
+"has_concurrency": false }`. `reads` and `writes` name declared resources;
   `callees` names functions or other summaries.
 
 Every function body must contain at least one statement. Use `"return"` with
@@ -72,7 +72,7 @@ contains CVN variable names and JSON scalar values.
 Use only these action names, exactly as written, with exactly these argument counts after the action name:
 
 | action                                                                               | arguments                   | resource types |
-|--------------------------------------------------------------------------------------|-----------------------------|----------------|
+| ------------------------------------------------------------------------------------ | --------------------------- | -------------- |
 | `lock`, `drop`, `read`, `notify`, `notify_all`, `acquire`, `release`, `recv`, `load` | 0                           | type-dependent |
 | `write`, `store`, `send`                                                             | 1 value                     | type-dependent |
 | `wait`                                                                               | 1 mutex name                | Condvar        |

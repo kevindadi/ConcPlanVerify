@@ -9,12 +9,12 @@ CIR is a statement-level, verification-oriented concurrency model. Each CIR arti
 ```json
 {
   "program": "<name>",
-  "resources": [ "..." ],
-  "protection": [ "..." ],
-  "functions": [ "..." ],
-  "fn_summaries": [ "..." ],
+  "resources": ["..."],
+  "protection": ["..."],
+  "functions": ["..."],
+  "fn_summaries": ["..."],
   "entry": "<entry function name>",
-  "goals": [ "..." ]
+  "goals": ["..."]
 }
 ```
 
@@ -23,7 +23,7 @@ CIR is a statement-level, verification-oriented concurrency model. Each CIR arti
 Each resource is a named synchronization primitive or data variable.
 
 | Field | Required                   | Description                                                                   |
-|-------|----------------------------|-------------------------------------------------------------------------------|
+| ----- | -------------------------- | ----------------------------------------------------------------------------- |
 | name  | yes                        | Globally unique resource name                                                 |
 | kind  | yes                        | `"sync"` (synchronization primitive) or `"var"` (data variable)               |
 | type  | yes                        | One of: `Mutex`, `RwLock`, `Semaphore`, `Channel`, `Condvar`, `Var`, `Atomic` |
@@ -33,6 +33,7 @@ Each resource is a named synchronization primitive or data variable.
 | init  | `Var`, `Atomic`            | Initial value; required for `Var` and `Atomic`                                |
 
 Examples:
+
 ```json
 {"name": "mtx", "kind": "sync", "type": "Mutex", "mode": "Sync"}
 {"name": "rw",  "kind": "sync", "type": "RwLock", "mode": "Sync"}
@@ -48,7 +49,7 @@ Examples:
 Declares which lock protects which variable. Only `Var` resources (not `Atomic`) need protection.
 
 ```json
-{"var": "ready", "lock": "mtx"}
+{ "var": "ready", "lock": "mtx" }
 ```
 
 ## Functions
@@ -70,7 +71,7 @@ Resource operations use the array format `["res_op", "<resource>", "<action>", .
 All operation arrays have exact tuple shapes. The argument count is the number of elements after the action name:
 
 | Action       | Args         | Resource Types | Description                                                 |
-|--------------|--------------|----------------|-------------------------------------------------------------|
+| ------------ | ------------ | -------------- | ----------------------------------------------------------- |
 | `lock`       | 0            | Mutex, RwLock  | Acquire exclusive lock                                      |
 | `drop`       | 0            | Mutex, RwLock  | Release lock                                                |
 | `read`       | 0            | RwLock, Var    | Acquire a read lock or read a variable                      |
@@ -92,7 +93,7 @@ RwLock. Unknown actions and missing or extra arguments are validation errors.
 Control operations:
 
 | Format                    | Description                                   |
-|---------------------------|-----------------------------------------------|
+| ------------------------- | --------------------------------------------- |
 | `["spawn", "<fn>"]`       | Spawn a new OS thread running function `<fn>` |
 | `["spawn_async", "<fn>"]` | Spawn an async task                           |
 | `["join", "<fn>"]`        | Wait for spawned thread to complete           |
@@ -104,7 +105,7 @@ Control operations:
 ### Transfer (Successor Logic)
 
 | Format                                                       | Description                         |
-|--------------------------------------------------------------|-------------------------------------|
+| ------------------------------------------------------------ | ----------------------------------- |
 | `["next", "<sid>"]`                                          | Go to next statement                |
 | `["branch", "<cond>", "<true_sid>", "<false_sid>"]`          | Conditional branch                  |
 | `["switch", "<var>", {"val1": "sid1", "val2": "sid2", ...}]` | Multi-way branch                    |
@@ -113,6 +114,7 @@ Control operations:
 ### Business Goals
 
 Optional post-conditions for semantic regression prevention:
+
 ```json
 {
   "id": "G1",

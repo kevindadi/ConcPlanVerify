@@ -1,6 +1,6 @@
 # CIR Validator
 
-CIR (Concurrency Intermediate Representation) 并发中间表示的静态验证器。读取 CIR JSON 文件，执行 9 轮校验，输出结构化诊断报告。
+CIR (Concurrency Intermediate Representation) 并发中间表示的静态验证器.读取 CIR JSON 文件,执行 9 轮校验,输出结构化诊断报告.
 
 ## 快速开始
 
@@ -9,7 +9,7 @@ cargo build --release
 ./target/release/cir examples/producer_consumer.json
 ```
 
-输出为 JSON 格式的 `ValidationReport`：
+输出为 JSON 格式的 `ValidationReport`:
 
 ```json
 {
@@ -18,7 +18,7 @@ cargo build --release
 }
 ```
 
-若存在错误，`valid` 为 `false`，`diagnostics` 包含所有诊断项，进程以 exit code 1 退出。
+若存在错误,`valid` 为 `false`,`diagnostics` 包含所有诊断项,进程以 exit code 1 退出.
 
 ---
 
@@ -42,15 +42,15 @@ cargo build --release
 |------|------|:----:|------|
 | `program` | string | 是 | 程序名称 |
 | `resources` | array | 是 | 共享资源声明 |
-| `protection` | array | 是 | 保护映射（可为空） |
-| `functions` | array | 是 | 函数定义，至少包含 entry 函数 |
+| `protection` | array | 是 | 保护映射(可为空) |
+| `functions` | array | 是 | 函数定义,至少包含 entry 函数 |
 | `fn_summaries` | array | 否 | 未建模函数的摘要 |
 | `entry` | string | 是 | 入口函数名 |
-| `goals` | array | 否 | 可达性和变量后置目标；省略时为空数组 |
+| `goals` | array | 否 | 可达性和变量后置目标;省略时为空数组 |
 
 ### Resource
 
-**同步原语** (`kind: "sync"`)：
+**同步原语** (`kind: "sync"`):
 
 ```json
 {"name": "mtx", "kind": "sync", "type": "Mutex", "mode": "Sync"}
@@ -66,18 +66,18 @@ cargo build --release
 | Semaphore | 必填 | 必填 | — |
 | Channel | 必填 | — | 必填 |
 
-当前 Channel 没有容量字段；translator 将它抽象为一个初始为空、`send` 产生
-一个消息令牌、`recv` 消费一个消息令牌的资源。容量、消息内容和 FIFO 顺序不在
-当前 CIR/CVN 语义中建模。
+当前 Channel 没有容量字段;translator 将它抽象为一个初始为空、`send` 产生
+一个消息令牌、`recv` 消费一个消息令牌的资源.容量、消息内容和 FIFO 顺序不在
+当前 CIR/CVN 语义中建模.
 
-**共享变量** (`kind: "var"`)：
+**共享变量** (`kind: "var"`):
 
 ```json
 {"name": "count", "kind": "var", "type": "Var",    "base": "Int", "init": 0}
 {"name": "flag",  "kind": "var", "type": "Atomic", "base": "Bool", "init": false}
 ```
 
-**base_type 取值**：
+**base_type 取值**:
 
 | 值 | 说明 | init 示例 |
 |----|------|-----------|
@@ -95,7 +95,7 @@ cargo build --release
 {"var": "counter", "lock": "mtx"}
 ```
 
-每个 `Var` 最多出现一次。`Atomic` 不出现在 protection 中。
+每个 `Var` 最多出现一次.`Atomic` 不出现在 protection 中.
 
 ### Function
 
@@ -110,7 +110,7 @@ cargo build --release
 }
 ```
 
-`kind` 取值：`"normal"` / `"async"` / `"closure"`
+`kind` 取值:`"normal"` / `"async"` / `"closure"`
 
 ### Operation (op)
 
@@ -122,10 +122,10 @@ cargo build --release
 | `["join", "<函数名>"]` | 等待线程 |
 | `["await", "<函数名>"]` | 等待异步任务 |
 | `["call", "<函数名>"]` | 同步调用 |
-| `"return"` | 函数返回（字符串，非数组） |
-| `"nop"` | 无操作；可用于显式控制流节点 |
+| `"return"` | 函数返回(字符串,非数组) |
+| `"nop"` | 无操作;可用于显式控制流节点 |
 
-**res_op action 清单**：
+**res_op action 清单**:
 
 | action | 参数 | 适用类型 |
 |--------|------|----------|
@@ -151,7 +151,7 @@ cargo build --release
 | `["next", "<sid>"]` | 顺序转移 |
 | `["branch", "<条件>", "<true_sid>", "<false_sid>"]` | 条件分支 |
 | `["switch", "<变量>", {"<label>": "<sid>", ...}]` | 多路分支 |
-| `"return"` | 函数结束（字符串，非数组） |
+| `"return"` | 函数结束(字符串,非数组) |
 
 ### FnSummary
 
@@ -165,9 +165,9 @@ cargo build --release
 }
 ```
 
-五个字段都是必填字段。`reads` 和 `writes` 必须引用已声明资源；`callees`
-必须引用函数定义或另一个摘要；`has_concurrency` 表示该摘要及其调用链是否
-包含并发操作。
+五个字段都是必填字段.`reads` 和 `writes` 必须引用已声明资源;`callees`
+必须引用函数定义或另一个摘要;`has_concurrency` 表示该摘要及其调用链是否
+包含并发操作.
 
 ### BusinessGoal
 
@@ -180,17 +180,17 @@ cargo build --release
 }
 ```
 
-`desc`、`marking` 和 `variables` 可省略。`marking` 的 key 可以是：声明的资源名；
-`function.sid` 形式的控制位置；或以 `cp_`、`rp_`、`wp_`、`ra_` 开头的原始 CVN
-place id。不要使用 `cp(worker, ret)`、`rp(mtx)` 之类的展示形式。目标 token 数
-表示至少需要达到的数量；对初始为空的 Channel/Condvar 使用 0 表示空置检查。
-`variables` 使用 CVN 变量名和 JSON 标量值。
+`desc`、`marking` 和 `variables` 可省略.`marking` 的 key 可以是:声明的资源名;
+`function.sid` 形式的控制位置;或以 `cp_`、`rp_`、`wp_`、`ra_` 开头的原始 CVN
+place id.不要使用 `cp(worker, ret)`、`rp(mtx)` 之类的展示形式.目标 token 数
+表示至少需要达到的数量;对初始为空的 Channel/Condvar 使用 0 表示空置检查.
+`variables` 使用 CVN 变量名和 JSON 标量值.
 
 ---
 
 ## 验证流程
 
-验证器按固定顺序执行 9 轮校验，每轮独立产出诊断：
+验证器按固定顺序执行 9 轮校验,每轮独立产出诊断:
 
 ```
 structure  →  names  →  types  →  compat  →  protection
@@ -204,19 +204,19 @@ structure  →  names  →  types  →  compat  →  protection
 
 ## 错误码参考
 
-所有错误通过 JSON path 定位，如 `functions[1].body[3].op`。
+所有错误通过 JSON path 定位,如 `functions[1].body[3].op`.
 
 ### E0xx — 结构错误
 
-JSON 反序列化成功后，对结构合法性的补充检查。
+JSON 反序列化成功后,对结构合法性的补充检查.
 
 | 码 | 名称 | 严重性 | 说明 |
 |----|------|:------:|------|
-| E000 | JsonParseError | error | JSON 语法错误或顶层结构不合法，无法反序列化 |
-| E001 | MissingField | error | 资源声明缺少按 type 必填的字段（如 Semaphore 缺 `count`） |
+| E000 | JsonParseError | error | JSON 语法错误或顶层结构不合法,无法反序列化 |
+| E001 | MissingField | error | 资源声明缺少按 type 必填的字段(如 Semaphore 缺 `count`) |
 | E004 | EmptyBody | error | 函数 body 为空数组 |
-| E005 | InvalidSidFormat | error | sid 格式不是 `"s"` + 数字（如 `"s1"`、`"s10"`） |
-| E008 | InvalidKind | error | 资源 `kind` 不是 `"sync"` / `"var"`，或 sync `type` 值非法 |
+| E005 | InvalidSidFormat | error | sid 格式不是 `"s"` + 数字(如 `"s1"`、`"s10"`) |
+| E008 | InvalidKind | error | 资源 `kind` 不是 `"sync"` / `"var"`,或 sync `type` 值非法 |
 | E009 | InvalidMode | error | `mode` 不是 `"Sync"` / `"Async"` |
 | E010 | InvalidFnKind | error | 函数 `kind` 不是 `"normal"` / `"async"` / `"closure"` |
 | E208 | InitValueTypeMismatch | error | 资源初始值类型与声明的 `base` 不匹配 |
@@ -237,7 +237,7 @@ JSON 反序列化成功后，对结构合法性的补充检查。
 
 | 码 | 名称 | 严重性 | 说明 |
 |----|------|:------:|------|
-| E201 | BranchCondNotBool | error | branch 条件不是比较表达式（缺少 `==`/`!=`/`>`/`<`/`>=`/`<=`） |
+| E201 | BranchCondNotBool | error | branch 条件不是比较表达式(缺少 `==`/`!=`/`>`/`<`/`>=`/`<=`) |
 | E202 | SwitchVarNotEnumOrInt | error | switch 变量类型不是 Enum 或 Int |
 | E203 | WriteTypeMismatch | error | write 值类型与 Var 的 base 不匹配 |
 | E204 | StoreTypeMismatch | error | store 值类型与 Atomic 的 base 不匹配 |
@@ -250,7 +250,7 @@ JSON 反序列化成功后，对结构合法性的补充检查。
 | 码 | 名称 | 严重性 | 说明 |
 |----|------|:------:|------|
 | E301 | LockOnNonLock | error | 对非 Mutex/RwLock 资源执行 lock/drop |
-| E302 | ReadLockOnNonRwLock | error | 对 Mutex 执行 read（应使用 lock） |
+| E302 | ReadLockOnNonRwLock | error | 对 Mutex 执行 read(应使用 lock) |
 | E303 | WaitOnNonCondvar | error | 对非 Condvar 资源执行 wait/notify/notify_all |
 | E304 | WaitLockNotExist | error | wait 的 lock_name 不是已声明的 Mutex/RwLock |
 | E305 | AcquireOnNonSemaphore | error | 对非 Semaphore 资源执行 acquire/release |
@@ -261,7 +261,7 @@ JSON 反序列化成功后，对结构合法性的补充检查。
 | E310 | UnknownResourceAction | error | `res_op` 使用了不在 CIR 契约中的 action |
 | E311 | ResourceActionArity | error | `res_op` action 的参数个数不符合 CIR 契约 |
 
-**操作-资源兼容矩阵**：
+**操作-资源兼容矩阵**:
 
 | action | Mutex | RwLock | Condvar | Semaphore | Channel | Atomic | Var |
 |--------|:-----:|:------:|:-------:|:---------:|:-------:|:------:|:---:|
@@ -288,8 +288,8 @@ JSON 反序列化成功后，对结构合法性的补充检查。
 | E402 | JoinWithoutSpawn | error | join 无对应 spawn |
 | E403 | SpawnAsyncWithoutAwait | warning | spawn_async 无对应 await |
 | E404 | AwaitWithoutSpawnAsync | error | await 无对应 spawn_async |
-| E405 | SyncSpawnPairedWithAwait | error | spawn 与 await 配对（应为 join） |
-| E406 | AsyncSpawnPairedWithJoin | error | spawn_async 与 join 配对（应为 await） |
+| E405 | SyncSpawnPairedWithAwait | error | spawn 与 await 配对(应为 join) |
+| E406 | AsyncSpawnPairedWithJoin | error | spawn_async 与 join 配对(应为 await) |
 | E407 | JoinInAsyncContext | warning | async 函数中使用 join 可能阻塞运行时 |
 | E408 | AwaitInSyncContext | error | normal 函数中使用 await |
 
@@ -301,7 +301,7 @@ JSON 反序列化成功后，对结构合法性的补充检查。
 | E502 | DropWithoutLock | error | drop 前无对应 lock |
 | E503 | DoubleLock | error | 同一路径上同一资源 lock 两次未先 drop |
 | E504 | SyncLockAcrossAwait | error | async 函数中持有 Sync 锁跨越 await 点 |
-| E505 | LockOrderViolation | error | 多把锁在不同路径上获取顺序不一致（ABBA 死锁） |
+| E505 | LockOrderViolation | error | 多把锁在不同路径上获取顺序不一致(ABBA 死锁) |
 
 ### E6xx — 控制流
 
@@ -336,7 +336,7 @@ JSON 反序列化成功后，对结构合法性的补充检查。
 
 ## 诊断输出格式
 
-每条诊断包含以下字段：
+每条诊断包含以下字段:
 
 ```json
 {
@@ -350,11 +350,11 @@ JSON 反序列化成功后，对结构合法性的补充检查。
 
 | 字段 | 说明 |
 |------|------|
-| `code` | 错误码（如 `E501`） |
-| `severity` | `"error"` 或 `"warning"`，仅 error 影响 `valid` 字段 |
+| `code` | 错误码(如 `E501`) |
+| `severity` | `"error"` 或 `"warning"`,仅 error 影响 `valid` 字段 |
 | `message` | 人类可读的错误描述 |
-| `path` | JSON path 定位（可选） |
-| `fix_hint` | 修复建议（可选） |
+| `path` | JSON path 定位(可选) |
+| `fix_hint` | 修复建议(可选) |
 
 ---
 
@@ -362,19 +362,19 @@ JSON 反序列化成功后，对结构合法性的补充检查。
 
 ```
 src/
-  main.rs              入口：读取 JSON → 反序列化 → 验证 → 输出报告
+  main.rs              入口:读取 JSON → 反序列化 → 验证 → 输出报告
   lib.rs               模块声明
-  ast.rs               IR 类型定义（Program, Resource, Op, Transfer 等）
-  diagnostic.rs        诊断类型（Diagnostic, ValidationReport）
+  ast.rs               IR 类型定义(Program, Resource, Op, Transfer 等)
+  diagnostic.rs        诊断类型(Diagnostic, ValidationReport)
   validate/
-    mod.rs             验证入口：串联 9 轮 pass
+    mod.rs             验证入口:串联 9 轮 pass
     structure.rs       E0xx  结构合法性
     names.rs           E1xx  名称解析
     types.rs           E2xx  类型检查
     compat.rs          E3xx  资源-操作兼容性
     protection.rs      E7xx  保护映射
     concurrency.rs     E4xx  并发配对
-    locks.rs           E5xx  锁安全（含 E309）
+    locks.rs           E5xx  锁安全(含 E309)
     control.rs         E6xx  控制流
     summary.rs         E8xx  FnSummary 一致性
 examples/
@@ -389,15 +389,15 @@ examples/
 
 ## wait 语义说明
 
-`wait(cv, lock_name)` 的 CIR 语义：释放关联锁，阻塞等待，唤醒后重新获取锁。
+`wait(cv, lock_name)` 的 CIR 语义:释放关联锁,阻塞等待,唤醒后重新获取锁.
 
-因此在锁安全分析中，`wait` 的净效果是锁状态不变（释放后立即重新获取）。建模时 condvar wait 循环应写为：
+因此在锁安全分析中,`wait` 的净效果是锁状态不变(释放后立即重新获取).建模时 condvar wait 循环应写为:
 
 ```
 s1: lock(mtx)            -- 获取锁
 s2: read(cond)           -- 检查条件
     branch(cond, s4, s3)
 s3: wait(cv, mtx)        -- 释放锁、等待、重获锁
-    next(s2)             -- 回到条件检查，不是回到 lock
-s4: ...                  -- 条件满足，继续执行（锁仍持有）
+    next(s2)             -- 回到条件检查,不是回到 lock
+s4: ...                  -- 条件满足,继续执行(锁仍持有)
 ```
