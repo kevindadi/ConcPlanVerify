@@ -14,6 +14,11 @@ Methods:
                        status + primary bug kind.
 - ``repair_llm_only``    — LLM-only baseline: no CVN diagnostics in the prompt
                        (the Rust analyzer still judges acceptance).
+- ``repair_local``   — slice-based repair: only the functions implicated by
+                       the bug reports are regenerated and spliced back into
+                       the otherwise-frozen CIR; falls back to whole-CIR
+                       repair when the slice cannot be determined or is
+                       exhausted.
 - ``generate``       — natural-language generation from the manifest
                        requirements, then a full analyze of the produced CIR.
 - ``codegen``        — verified CIR -> Rust: only runs on a CIR that analyzes
@@ -57,6 +62,7 @@ from .llm import create_llm_client, default_base_url
 from .metrics import cir_metrics
 from .models import ModelConfig, RustCliResult, normalize_token_usage
 from .repair import RepairWorkflow
+from .repair_local import LocalRepairWorkflow
 from .rust_cli import RustCli
 
 OFFLINE_METHODS = ("analyze", "validate_only", "analyze_no_goals")
@@ -64,6 +70,7 @@ LLM_METHODS = (
     "repair_cvn",
     "repair_status_only",
     "repair_llm_only",
+    "repair_local",
     "generate",
     "codegen",
     "llm_judge",
@@ -228,6 +235,8 @@ class ExperimentRunner:
                 record.update(self._run_analyze_no_goals(case))
             elif method in REPAIR_FEEDBACK_MODES:
                 record.update(self._run_repair(case, REPAIR_FEEDBACK_MODES[method]))
+            elif method == "repair_local":
+                record.update(self._run_repair_local(case))
             elif method == "generate":
                 record.update(self._run_generate(case))
             elif method == "codegen":
@@ -345,6 +354,50 @@ class ExperimentRunner:
             ),
             "cir_metrics_input": cir_metrics(cir_json),
             "rounds": [self._repair_round_record(r) for r in result.rounds],
+            "error": result.error,
+        }
+        if result.success and result.fixed_cir_json:
+            record["cir_metrics_fixed"] = cir_metrics(result.fixed_cir_json)
+        return record
+
+    def _run_repair_local(self, case: dict[str, Any]) -> dict[str, Any]:
+        """Slice-based repair: regenerate only the implicated functions."""
+
+        cir_json = self._buggy_cir(case)
+        if cir_json is None:
+            return {"skipped": "case has no buggy CIR"}
+        workflow = LocalRepairWorkflow(
+            self.client(),
+            self.rust_cli,
+            max_slice_rounds=min(self.max_rounds, 3),
+            max_full_rounds=2,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )
+        result = workflow.run(cir_json)
+        record: dict[str, Any] = {
+            "success": result.success,
+            "repair_rounds": result.repair_rounds,
+            "total_input_tokens": result.total_input_tokens,
+            "total_output_tokens": result.total_output_tokens,
+            "total_tokens": result.total_tokens,
+            "initial_slice": result.initial_slice,
+            "final_slice": result.final_slice,
+            "total_functions": result.total_functions,
+            "slice_expanded": result.slice_expanded,
+            "fell_back": result.fell_back,
+            "fallback_reason": result.fallback_reason,
+            "initial_verification": (
+                _rust_cli_record(result.initial_verification)
+                if result.initial_verification
+                else None
+            ),
+            "cir_metrics_input": cir_metrics(cir_json),
+            "rounds": [
+                {**self._repair_round_record(r), "phase": r.phase,
+                 "slice_functions": r.slice_functions}
+                for r in result.rounds
+            ],
             "error": result.error,
         }
         if result.success and result.fixed_cir_json:
