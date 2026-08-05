@@ -231,7 +231,20 @@ pub fn verify_program(
 
     if config.check_goals && !program.goals.is_empty() {
         let goals_start = Instant::now();
-        let (specs, warnings) = crate::translate_goals(program);
+        let (specs, mut warnings) = crate::translate_goals(program);
+        // A goal that already holds in the initial state constrains nothing
+        // about the concurrent behavior: it would pass even if every thread
+        // were deleted. Flag it as too weak instead of silently accepting.
+        let initial = net.initial_state();
+        for spec in &specs {
+            if spec.satisfied_by(&initial) {
+                warnings.push(format!(
+                    "goal '{}' is already satisfied by the initial state and \
+                     does not constrain any concurrent behavior (too weak)",
+                    spec.id
+                ));
+            }
+        }
         result.goal_warnings = warnings;
         result.unmet_goals = cvn::analysis::check_goals_in_result(&analysis_result, &specs);
         result.timings.goals_ms = elapsed_ms(goals_start);

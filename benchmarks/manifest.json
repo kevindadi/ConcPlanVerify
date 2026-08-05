@@ -213,6 +213,60 @@
       }
     },
     {
+      "id": "goal_trivial",
+      "defect_type": "goals_unmet",
+      "expected": {
+        "outcome": "goals_unmet",
+        "bug_kind": null,
+        "expected_bug_path": null
+      },
+      "cir": {
+        "buggy": "benchmarks/cir/goal_trivial/buggy.json",
+        "fixed": "benchmarks/cir/goal_trivial/fixed.json"
+      },
+      "rust": {
+        "buggy": "benchmarks/rust/goal_trivial/buggy.rs",
+        "fixed": "benchmarks/rust/goal_trivial/fixed.rs"
+      },
+      "notes": "Too-weak goal negative example: the declared goal (x == 0) already holds in the initial state, so it constrains no concurrent behavior. The verifier flags it via the initial-state triviality warning and reports goals_unmet. The code itself is behaviorally correct — the defect lives purely in the specification, invisible to Miri/Lockbud.",
+      "requirements": {
+        "canonical": "Model two worker threads that write 1 and 2 to a shared integer x (initially 0) protected by a mutex. Main spawns and joins both. Declare a business goal that captures an actual outcome of the computation: x must be able to reach 2 (the buggy variant instead declares the vacuous goal x == 0, which is already true initially).",
+        "paraphrases": [
+          "Two guarded writers set a lock-protected counter to 1 and 2. Add a reachability goal that describes a real result of running the workers, not the starting value.",
+          "Write a plan where a shared int starts at 0 and two threads assign it constants. The business goal must distinguish 'the workers ran' from 'nothing happened' — a goal satisfied by the initial state is too weak.",
+          "A mutex-protected integer is updated by two threads. Declare the goal that value 2 is observable in some schedule; do not declare a goal that holds before any thread runs.",
+          "Model two guarded writers on one shared int and state a non-trivial reachability goal about the value they produce."
+        ]
+      }
+    },
+    {
+      "id": "goal_bad_reference",
+      "defect_type": "goals_unmet",
+      "expected": {
+        "outcome": "goals_unmet",
+        "bug_kind": null,
+        "expected_bug_path": null
+      },
+      "cir": {
+        "buggy": "benchmarks/cir/goal_bad_reference/buggy.json",
+        "fixed": "benchmarks/cir/goal_bad_reference/fixed.json"
+      },
+      "rust": {
+        "buggy": "benchmarks/rust/goal_bad_reference/buggy.rs",
+        "fixed": "benchmarks/rust/goal_bad_reference/fixed.rs"
+      },
+      "notes": "Dangling-reference goal negative example: the goal points at a marking key (w1_done) that is neither a resource nor a control-place reference, and at an undeclared variable (y). Goal translation rejects both with warnings and the pipeline reports goals_unmet instead of silently passing a spec that checks nothing.",
+      "requirements": {
+        "canonical": "Model two worker threads that write 1 and 2 to a shared integer x protected by a mutex. Main spawns and joins both. Declare a business goal referencing real entities of the plan: worker 1 reaches its return point (control place w1.s4) while x == 1 (the buggy variant references a nonexistent marking key w1_done and an undeclared variable y).",
+        "paraphrases": [
+          "Two guarded writers update a lock-protected counter. State a goal about worker 1 completing its critical section, referring only to functions, statements, and variables that actually exist in the plan.",
+          "Write a plan where the business goal names a real control location (worker 1's return) and the declared shared variable — a goal that references undeclared names must be rejected, not ignored.",
+          "A mutex-protected integer is written by two threads. Add the goal 'worker 1 finished and x is 1 at that moment', expressed against declared entities only.",
+          "Model two guarded writers and a completion goal for the first one, making sure every name in the goal resolves to a declared resource or statement."
+        ]
+      }
+    },
+    {
       "id": "cas_race",
       "defect_type": "cas_race",
       "expected": {

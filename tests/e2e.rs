@@ -227,6 +227,22 @@ fn e2e_signal_loss_fixed() {
     run_fixed_test("signal_loss");
 }
 
+/// Regression: the fixed fixture signals via `notify_all`, so the
+/// wake-by-notify variant of the waiter's `wait` never fires. That is a
+/// translation artifact, not a defect — the full pipeline must report
+/// `verified_safe` instead of a DeadTransition false positive.
+#[test]
+fn e2e_signal_loss_fixed_full_pipeline_is_safe() {
+    let fixed = load_cir(&e2e_dir().join("signal_loss/fixed.json"));
+    let result = cir2cvn::verify_program(&fixed, &cir2cvn::VerificationConfig::default());
+    assert_eq!(
+        result.status,
+        cir2cvn::VerificationStatus::VerifiedSafe,
+        "bugs: {:?}",
+        result.bugs.iter().map(|b| &b.summary).collect::<Vec<_>>()
+    );
+}
+
 // ── Test 3: Channel + Mutex Deadlock ──
 
 #[test]

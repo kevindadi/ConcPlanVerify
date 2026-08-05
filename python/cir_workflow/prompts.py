@@ -71,8 +71,22 @@ def generation_retry_prompt(
     return "\n\n".join(sections)
 
 
-def verification_feedback(payload: dict[str, Any] | None, fallback: str = "") -> str:
-    """Convert the Rust result into stable, useful repair feedback."""
+def verification_feedback(
+    payload: dict[str, Any] | None,
+    fallback: str = "",
+    *,
+    max_bug_groups: int = 6,
+    max_trace_steps: int = 40,
+) -> str:
+    """Convert the Rust result into stable, useful repair feedback.
+
+    Large state spaces can yield dozens of counterexamples that are the same
+    defect witnessed through different interleavings. To keep the repair
+    prompt small, bugs are grouped by an equivalence signature (kind +
+    participants + resources), one representative trace is rendered per group
+    (compressed if long), and the preservation constraints — identical for
+    every bug — are emitted once.
+    """
 
     if not payload:
         return fallback or "Rust verification did not return a structured result."
@@ -100,10 +114,39 @@ def verification_feedback(payload: dict[str, Any] | None, fallback: str = "") ->
 
     bugs = payload.get("bugs", [])
     if bugs:
+        groups = _group_bugs(bugs)
+        total = len(bugs)
         rendered = []
-        for index, bug in enumerate(bugs, 1):
-            rendered.append(f"### Bug {index}\n{_render_bug(bug)}")
-        sections.append("Detected bugs:\n" + "\n\n".join(rendered))
+        for index, (representative, count) in enumerate(groups[:max_bug_groups], 1):
+            title = f"### Bug {index}"
+            if count > 1:
+                title += f" ({count} equivalent counterexamples, one shown)"
+            rendered.append(
+                f"{title}\n{_render_bug(representative, max_trace_steps=max_trace_steps)}"
+            )
+        if len(groups) > max_bug_groups:
+            omitted = groups[max_bug_groups:]
+            lines = [
+                f"- {_bug_kind_name(bug)}: {bug.get('summary', '')} (×{count})"
+                for bug, count in omitted
+            ]
+            rendered.append(
+                f"### Further distinct bug groups ({len(omitted)}, summaries only)\n"
+                + "\n".join(lines)
+            )
+        header = f"Detected bugs ({total} counterexamples, {len(groups)} distinct groups):"
+        sections.append(header + "\n" + "\n\n".join(rendered))
+
+        constraints = next(
+            (bug["preservation_constraints"] for bug, _ in groups
+             if bug.get("preservation_constraints")),
+            None,
+        )
+        if constraints:
+            sections.append(
+                "Preservation constraints (apply to every fix):\n"
+                + "\n".join(f"- {item}" for item in constraints)
+            )
 
     unmet = payload.get("unmet_goals", [])
     if unmet:
@@ -132,13 +175,81 @@ def _diagnostics(diagnostics: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def _render_bug(bug: dict[str, Any]) -> str:
+def _bug_kind_name(bug: dict[str, Any]) -> str:
     kind = bug.get("kind", {})
     if isinstance(kind, dict) and kind:
-        bug_kind = next(iter(kind))
-    else:
-        bug_kind = str(kind or "Unknown")
-    lines = [f"Kind: {bug_kind}", f"Summary: {bug.get('summary', '')}"]
+        return next(iter(kind))
+    return str(kind or "Unknown")
+
+
+def _bug_signature(bug: dict[str, Any]) -> tuple:
+    """Equivalence key: same defect witnessed via different interleavings."""
+
+    kind = bug.get("kind", {})
+    kind_name = _bug_kind_name(bug)
+    detail: tuple = ()
+    if isinstance(kind, dict) and isinstance(kind.get(kind_name), dict):
+        payload = kind[kind_name]
+        participants = payload.get("participants")
+        if isinstance(participants, list):
+            detail = tuple(sorted(
+                (p.get("function", ""), p.get("waiting_for", ""))
+                for p in participants
+                if isinstance(p, dict)
+            ))
+        else:
+            # DeadTransition / SignalLoss / ChannelBlock carry flat fields.
+            detail = tuple(sorted(
+                (key, str(value))
+                for key, value in payload.items()
+                if isinstance(value, (str, int, bool))
+            ))
+    return (
+        kind_name,
+        detail,
+        tuple(bug.get("involved_resources") or ()),
+        tuple(bug.get("involved_functions") or ()),
+    )
+
+
+def _group_bugs(bugs: list[dict[str, Any]]) -> list[tuple[dict[str, Any], int]]:
+    """Group equivalent bugs, keeping the shortest-trace representative."""
+
+    groups: dict[tuple, list[dict[str, Any]]] = {}
+    order: list[tuple] = []
+    for bug in bugs:
+        signature = _bug_signature(bug)
+        if signature not in groups:
+            groups[signature] = []
+            order.append(signature)
+        groups[signature].append(bug)
+    result = []
+    for signature in order:
+        members = groups[signature]
+        representative = min(members, key=lambda b: len(b.get("trace") or ()))
+        result.append((representative, len(members)))
+    return result
+
+
+def _compress_trace(trace: list[dict[str, Any]], max_steps: int) -> list[str]:
+    lines = [
+        f"  {step.get('description', step.get('transition_id', '?'))}"
+        for step in trace
+    ]
+    if len(lines) <= max_steps:
+        return lines
+    head = max_steps // 4
+    tail = max_steps - head
+    omitted = len(lines) - head - tail
+    return (
+        lines[:head]
+        + [f"  ... {omitted} intermediate steps omitted ..."]
+        + lines[-tail:]
+    )
+
+
+def _render_bug(bug: dict[str, Any], *, max_trace_steps: int = 40) -> str:
+    lines = [f"Kind: {_bug_kind_name(bug)}", f"Summary: {bug.get('summary', '')}"]
     if bug.get("final_marking_summary"):
         lines.append(f"Final marking: {bug['final_marking_summary']}")
     if bug.get("involved_resources"):
@@ -146,18 +257,13 @@ def _render_bug(bug: dict[str, Any]) -> str:
     if bug.get("involved_functions"):
         lines.append("Functions: " + ", ".join(bug["involved_functions"]))
     if bug.get("trace"):
-        lines.append("Witness trace:\n" + "\n".join(
-            f"  {step.get('description', step.get('transition_id', '?'))}"
-            for step in bug["trace"]
-        ))
+        lines.append(
+            "Witness trace:\n" + "\n".join(_compress_trace(bug["trace"], max_trace_steps))
+        )
     if bug.get("cir_slice"):
         lines.append("Relevant CIR slice:\n" + "\n".join(
             f"  {item.get('function', '?')}.{item.get('sid', '?')}: {item.get('op', '')}"
             for item in bug["cir_slice"]
-        ))
-    if bug.get("preservation_constraints"):
-        lines.append("Preservation constraints:\n" + "\n".join(
-            f"  - {item}" for item in bug["preservation_constraints"]
         ))
     if bug.get("repair_hint"):
         lines.append(f"Repair hint: {bug['repair_hint']}")

@@ -47,6 +47,12 @@ pub fn translate_goals(program: &Program) -> (Vec<GoalSpec>, Vec<String>) {
     let resource_by_name: std::collections::HashMap<&str, &Resource> =
         program.resources.iter().map(|r| (r.name.as_str(), r)).collect();
     let enum_variants: HashSet<String> = collect_enum_variants(program);
+    let var_names: HashSet<&str> = program
+        .resources
+        .iter()
+        .filter(|r| r.kind == "var")
+        .map(|r| r.name.as_str())
+        .collect();
 
     for goal in &program.goals {
         let mut predicates = Vec::new();
@@ -62,6 +68,15 @@ pub fn translate_goals(program: &Program) -> (Vec<GoalSpec>, Vec<String>) {
         }
 
         for (var, value) in &goal.variables {
+            // A misspelled variable would silently translate into a predicate
+            // that no state can ever satisfy; reject it up front instead.
+            if !var_names.contains(var.as_str()) {
+                warnings.push(format!(
+                    "goal '{}': variable '{}' — not a declared 'var' resource",
+                    goal.id, var
+                ));
+                continue;
+            }
             match variable_predicate(var, value, &enum_variants) {
                 Ok(pred) => predicates.push(pred),
                 Err(msg) => warnings.push(format!(
