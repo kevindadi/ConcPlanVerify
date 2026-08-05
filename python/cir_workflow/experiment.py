@@ -47,7 +47,7 @@ from .models import ModelConfig, RustCliResult
 from .repair import RepairWorkflow
 from .rust_cli import RustCli
 
-OFFLINE_METHODS = ("analyze", "validate_only")
+OFFLINE_METHODS = ("analyze", "validate_only", "analyze_no_goals")
 LLM_METHODS = ("repair_cvn", "repair_status_only", "repair_llm_only", "generate")
 ALL_METHODS = OFFLINE_METHODS + LLM_METHODS
 
@@ -204,6 +204,8 @@ class ExperimentRunner:
                 record.update(self._run_analyze(case))
             elif method == "validate_only":
                 record.update(self._run_validate_only(case))
+            elif method == "analyze_no_goals":
+                record.update(self._run_analyze_no_goals(case))
             elif method in REPAIR_FEEDBACK_MODES:
                 record.update(self._run_repair(case, REPAIR_FEEDBACK_MODES[method]))
             elif method == "generate":
@@ -258,6 +260,29 @@ class ExperimentRunner:
                 "false_positive": expected == "safe" and actual == "invalid_model",
             },
             "cir_metrics": cir_metrics(cir_json),
+        }
+
+    def _run_analyze_no_goals(self, case: dict[str, Any]) -> dict[str, Any]:
+        """Goal-reachability ablation: analyze with goal checking disabled.
+
+        The interesting outcome is a `goals_unmet` gold case that gets
+        accepted as `verified_safe` once goals are switched off.
+        """
+
+        cir_json = self._buggy_cir(case)
+        if cir_json is None:
+            return {"skipped": "case has no buggy CIR"}
+        result = self.rust_cli.analyze_no_goals(cir_json)
+        expected = expected_verdict(case)
+        actual = verdict_from_status(result.status)
+        return {
+            "rust_cli": _rust_cli_record(result),
+            "score": {
+                "expected": expected,
+                "actual": actual,
+                "misaccepted": expected == "goals_unmet" and actual == "safe",
+            },
+            "cvn_metrics": cvn_metrics_from_payload(result.payload),
         }
 
     # ── LLM methods ──

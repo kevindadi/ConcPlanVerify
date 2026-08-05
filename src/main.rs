@@ -8,6 +8,8 @@
 //!                   structured JSON result.
 //! * `--goals`     → compatibility alias for the same complete verification
 //!                   pipeline, including goal reachability.
+//! * `--no-goals`  → same pipeline with goal checking disabled (goal-ablation
+//!                   experiments).
 
 use std::env;
 use std::fs;
@@ -26,7 +28,7 @@ fn run() -> i32 {
     if args.len() < 3 {
         return emit_error(
             "usage_error",
-            "usage: cir2cvn (--validate|--analyze|--goals) <file.json | ->",
+            "usage: cir2cvn (--validate|--analyze|--goals|--no-goals) <file.json | ->",
             2,
         );
     }
@@ -46,10 +48,11 @@ fn run() -> i32 {
 
     match mode.as_str() {
         "--validate" => cmd_validate(&source),
-        "--analyze" | "--goals" => cmd_verify(&source),
+        "--analyze" | "--goals" => cmd_verify(&source, true),
+        "--no-goals" => cmd_verify(&source, false),
         _ => emit_error(
             "usage_error",
-            "usage: cir2cvn (--validate|--analyze|--goals) <file.json | ->",
+            "usage: cir2cvn (--validate|--analyze|--goals|--no-goals) <file.json | ->",
             2,
         ),
     }
@@ -96,7 +99,7 @@ fn cmd_validate(source: &str) -> i32 {
 
 // ── --analyze / --goals ─────────────────────────────────────────────────
 
-fn cmd_verify(source: &str) -> i32 {
+fn cmd_verify(source: &str, check_goals: bool) -> i32 {
     let program: Program = match parse_program(source) {
         Ok(program) => program,
         Err(error) => {
@@ -106,7 +109,11 @@ fn cmd_verify(source: &str) -> i32 {
         }
     };
 
-    let result = cir2cvn::verify_program(&program, &cir2cvn::VerificationConfig::default());
+    let config = cir2cvn::VerificationConfig {
+        check_goals,
+        ..cir2cvn::VerificationConfig::default()
+    };
+    let result = cir2cvn::verify_program(&program, &config);
     println!("{}", serde_json::to_string(&result).unwrap());
 
     match result.status {

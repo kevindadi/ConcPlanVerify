@@ -109,6 +109,9 @@ class RustCli:
     def goals(self, cir_json: str) -> RustCliResult:
         return self.run("--goals", cir_json)
 
+    def analyze_no_goals(self, cir_json: str) -> RustCliResult:
+        return self.run("--no-goals", cir_json)
+
     @staticmethod
     def _infer_status(mode: str, payload: dict, exit_code: int) -> str:
         if mode == "--validate":
