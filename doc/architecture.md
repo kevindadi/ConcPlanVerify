@@ -52,7 +52,7 @@ CIR Program ──translate()──▶ CvnNet ──analyze()──▶ Counterex
 | **resource**       | `src/translator/resource.rs`     | Phase 1: resource scanning                            |
 | **control_flow**   | `src/translator/control_flow.rs` | Transfer planning + transition emission helpers       |
 | **operation**      | `src/translator/operation.rs`    | Phase 2: Op dispatch (lock, drop, read, write, etc.)  |
-| **condvar**        | `src/translator/condvar.rs`      | Condvar wait / notify / notify_all translation        |
+| **condvar**        | `src/translator/condvar.rs`      | Condvar wait / notify / notify_all translation; sets `disjunctive_family` on OR-variants (see [`condvar_modeling.md`](condvar_modeling.md)) |
 | **fn_summary**     | `src/translator/fn_summary.rs`   | FnSummary indexing for Phase 2 call translation       |
 
 ## Key Design Decisions
@@ -63,7 +63,8 @@ CIR Program ──translate()──▶ CvnNet ──analyze()──▶ Counterex
 4. **CIR `mode` field ignored**: Sync/Async distinction is a CIR-layer concern
 5. **read + next → Sequential**: Preserves anchor mapping completeness
 6. **Post-wait lock → Sequential**: When a condvar wait's resume target is a lock on the same mutex, the lock is translated as Sequential (lock already held by the auto-inserted reacquire)
-7. **notify_all → chain expansion**: Produces 2K transitions for K wait-sites (manageable for typical K ≤ 3)
+7. **notify_all → na flags**: Broadcast via per-wait-site boolean flags (not dynamic arc weights); wait/notify OR-variants share `Transition::disjunctive_family` so dead-transition analysis does not flag unused siblings
+8. **CVN is P/T + guards**: Not classical colored-token CPN; condvar wake paths are separate transitions rather than color-matched wakes
 
 ┌─────────────────────────────────────────────────────────────┐
 │ LLM 生成端 │

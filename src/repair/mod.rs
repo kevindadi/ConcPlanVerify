@@ -41,28 +41,9 @@ pub fn analyze(
         })
         .collect();
 
-    // Condvar statements compile to disjunctive transition variants: a `wait`
-    // has wake-by-notify / wake-by-notify-all (+ reacquire) alternatives and a
-    // `notify` / `notify_all` has hit / lost alternatives. Only one variant
-    // can fire per execution, so a never-fired variant is a defect only when
-    // *no* variant of the same source statement ever fires. Without this
-    // grouping, a correct program that signals via `notify_all` would be
-    // flagged because its `cv_wake1` (wake-by-notify) variant is dead.
-    let fired_groups: HashSet<(String, &'static str)> = result
-        .reachability_graph
-        .edge_weights()
-        .filter_map(|tid| condvar_variant_group(&tid.0))
-        .collect();
-    let mut reported_groups: HashSet<(String, &'static str)> = HashSet::new();
-
+    // Dead-transition analysis already respects `Transition::disjunctive_family`
+    // (condvar wake/notify OR-variants), so no post-filter is needed here.
     for cx in cvn::analysis::find_dead_transitions(net, result) {
-        if let PropertyViolation::DeadTransition { transition_id, .. } = &cx.kind {
-            if let Some(group) = condvar_variant_group(&transition_id.0) {
-                if fired_groups.contains(&group) || !reported_groups.insert(group) {
-                    continue;
-                }
-            }
-        }
         let mut report = classify_counterexample(net, &cx);
         if let BugKind::DeadTransition { sids, .. } = &report.kind {
             report.involved_functions = functions_for_sids(program, sids);
@@ -73,31 +54,6 @@ pub fn analyze(
     }
 
     reports
-}
-
-/// Map a translator-generated condvar variant transition id to the key of its
-/// source statement plus the variant group it belongs to.
-///
-/// Transition ids follow the translator convention `{fn}_{sid}_{suffix}`
-/// (see `translator::context::tid`), so stripping a known condvar suffix
-/// yields a stable per-statement key.
-fn condvar_variant_group(transition_id: &str) -> Option<(String, &'static str)> {
-    // Longest suffixes first so `_cv_notify` does not shadow `_cv_notify_lost`.
-    const VARIANTS: &[(&str, &'static str)] = &[
-        ("_cv_notify_all_lost", "notify_all"),
-        ("_cv_notify_all", "notify_all"),
-        ("_cv_notify_lost", "notify"),
-        ("_cv_notify", "notify"),
-        ("_cv_reacquire", "wait_wake"),
-        ("_cv_wake1", "wait_wake"),
-        ("_cv_wakeA", "wait_wake"),
-    ];
-    for (suffix, group) in VARIANTS {
-        if let Some(base) = transition_id.strip_suffix(suffix) {
-            return Some((base.to_string(), group));
-        }
-    }
-    None
 }
 
 fn functions_for_sids(program: &cir::ast::Program, sids: &[String]) -> Vec<String> {

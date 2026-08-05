@@ -82,10 +82,15 @@ pub(crate) fn translate_wait(
         ctx.add_output_arc(&enter_tid, &rp_id(&mutex_name), 1, Some(update));
     }
 
+    // Wake / reacquire form one disjunctive family: only one wake path fires
+    // per wait, so a never-fired sibling must not be reported as DeadTransition.
+    let wait_wake_family = format!("{fn_name}_{}:wait_wake", stmt.sid);
+
     // ── 2. t_wake1: wp(sid) + rp(cv) → ra(sid)
     //    update: nw_cv -= 1
     let wake1_tid = tid(fn_name, &stmt.sid, "cv_wake1");
     ctx.add_transition(&wake1_tid, TransitionKind::CondvarWakeByNotify, &[&stmt.sid]);
+    ctx.set_disjunctive_family(&wake1_tid, &wait_wake_family);
     ctx.add_input_arc(&wp, &wake1_tid, 1, BoolExpr::True);
     ctx.add_input_arc(&rp_id(cv_name), &wake1_tid, 1, BoolExpr::True);
     {
@@ -110,6 +115,7 @@ pub(crate) fn translate_wait(
         TransitionKind::CondvarWakeByNotifyAll,
         &[&stmt.sid],
     );
+    ctx.set_disjunctive_family(&wakea_tid, &wait_wake_family);
     let na_guard = BoolExpr::Cmp {
         op: CmpOp::Eq,
         lhs: Box::new(Expr::Ref(na_var.clone())),
@@ -133,6 +139,7 @@ pub(crate) fn translate_wait(
     // ── 4. t_reacq: ra(sid) + rp(mtx) → cp(f,sid')
     let reacq_tid = tid(fn_name, &stmt.sid, "cv_reacquire");
     ctx.add_transition(&reacq_tid, TransitionKind::CondvarReacquire, &[&stmt.sid]);
+    ctx.set_disjunctive_family(&reacq_tid, &wait_wake_family);
     ctx.add_input_arc(&ra, &reacq_tid, 1, BoolExpr::True);
     ctx.add_input_arc(&rp_id(&mutex_name), &reacq_tid, 1, BoolExpr::True);
     ctx.add_output_arc(&reacq_tid, &cp_id(fn_name, &resume_sid), 1, None);
@@ -183,9 +190,12 @@ pub(crate) fn translate_notify(
         rhs: Box::new(Expr::Lit(Val::int(0))),
     };
 
+    let notify_family = format!("{fn_name}_{}:notify", stmt.sid);
+
     // ── 1. t_notify: cp → cp(next) + rp(cv)
     let notify_tid = tid(fn_name, &stmt.sid, "cv_notify");
     ctx.add_transition(&notify_tid, TransitionKind::CondvarNotify, &[&stmt.sid]);
+    ctx.set_disjunctive_family(&notify_tid, &notify_family);
     ctx.add_input_arc(input_cp, &notify_tid, 1, nw_gt_zero);
     ctx.add_output_arc(&notify_tid, &target_cp, 1, None);
     ctx.add_output_arc(&notify_tid, &rp_id(cv_name), 1, None);
@@ -193,6 +203,7 @@ pub(crate) fn translate_notify(
     // ── 2. t_lost: cp → cp(next)
     let lost_tid = tid(fn_name, &stmt.sid, "cv_notify_lost");
     ctx.add_transition(&lost_tid, TransitionKind::CondvarNotifyLost, &[&stmt.sid]);
+    ctx.set_disjunctive_family(&lost_tid, &notify_family);
     ctx.add_input_arc(input_cp, &lost_tid, 1, nw_eq_zero);
     ctx.add_output_arc(&lost_tid, &target_cp, 1, None);
 }
@@ -248,9 +259,12 @@ pub(crate) fn translate_notify_all(
         rhs: Box::new(Expr::Lit(Val::int(0))),
     };
 
+    let notify_all_family = format!("{fn_name}_{}:notify_all", stmt.sid);
+
     // ── 1. t_notifyAll: cp → cp(next), set all na flags
     let na_tid = tid(fn_name, &stmt.sid, "cv_notify_all");
     ctx.add_transition(&na_tid, TransitionKind::CondvarNotifyAll, &[&stmt.sid]);
+    ctx.set_disjunctive_family(&na_tid, &notify_all_family);
     ctx.add_input_arc(input_cp, &na_tid, 1, nw_gt_zero);
     {
         let mut update = VarUpdate::new();
@@ -268,6 +282,7 @@ pub(crate) fn translate_notify_all(
         TransitionKind::CondvarNotifyAllLost,
         &[&stmt.sid],
     );
+    ctx.set_disjunctive_family(&lost_tid, &notify_all_family);
     ctx.add_input_arc(input_cp, &lost_tid, 1, nw_eq_zero);
     ctx.add_output_arc(&lost_tid, &target_cp, 1, None);
 }

@@ -38,6 +38,9 @@ Notation: `cp(f,s)` = control place for function `f`, statement `s`;
 
 ## 3. Condvar Operations
 
+Narrative overview, SignalLoss classification, and `disjunctive_family` semantics:
+see [`condvar_modeling.md`](condvar_modeling.md).
+
 ### Auxiliary structures
 
 Each Condvar `cv` introduces:
@@ -61,14 +64,20 @@ t_wakeA  [CondvarWakeByNotifyAll]: wp(sid) → ra(sid)               guard: na_s
 t_reacq  [CondvarReacquire]:       ra(sid) + rp(mtx) → cp(f,sid')
 ```
 
+`disjunctive_family`: `t_wake1`, `t_wakeA`, `t_reacq` share `{f}_{sid}:wait_wake`.
+`t_enter` has no family.
+
 ### notify(cv)
 
 At sid_n with successor sid_n', generates 2 transitions:
 
 ```
 t_notify [CondvarNotify]:     cp(f,sid_n) → cp(f,sid_n') + rp(cv)  guard: nw_cv > 0
-t_lost   [CondvarNotifyLost]: cp(f,sid_n) → cp(f,sid_n')           guard: nw_cv == 0  (SignalLoss)
+t_lost   [CondvarNotifyLost]: cp(f,sid_n) → cp(f,sid_n')           guard: nw_cv == 0
 ```
+
+Both share `{f}_{sid_n}:notify`. The lost arm alone is not a bug; SignalLoss is
+classified when a waiter remains stuck afterward.
 
 ### notify_all(cv)
 
@@ -77,8 +86,10 @@ At sid_n with wait-sites {w1, ..., wk}, successor sid_n', generates 2 transition
 ```
 t_notifyAll [CondvarNotifyAll]:     cp(f,sid_n) → cp(f,sid_n')     guard: nw_cv > 0
                                                                     update: na_w1..na_wk ← true
-t_allLost   [CondvarNotifyAllLost]: cp(f,sid_n) → cp(f,sid_n')     guard: nw_cv == 0  (SignalLoss)
+t_allLost   [CondvarNotifyAllLost]: cp(f,sid_n) → cp(f,sid_n')     guard: nw_cv == 0
 ```
+
+Both share `{f}_{sid_n}:notify_all`.
 
 ## 4. Concurrency
 

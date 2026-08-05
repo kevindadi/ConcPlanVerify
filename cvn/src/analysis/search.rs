@@ -230,9 +230,14 @@ fn reconstruct_trace(
 /// statement could fire on any interleaving, the transition would
 /// appear on some edge here.
 ///
-/// Returns one [`Counterexample`] per dead transition, with an empty
-/// trace and the initial state as placeholder for `final_state`, since
-/// dead transitions have no witness.
+/// Transitions that share a [`Transition::disjunctive_family`] are an
+/// OR-family: the family is considered live if *any* member fires, and
+/// at most one counterexample is emitted when the whole family is dead
+/// (representative = lexicographically smallest transition id).
+///
+/// Returns one [`Counterexample`] per dead transition (or dead family),
+/// with an empty trace and the initial state as placeholder for
+/// `final_state`, since dead transitions have no witness.
 pub fn find_dead_transitions(net: &CvnNet, result: &AnalysisResult) -> Vec<Counterexample> {
     use rustc_hash::FxHashSet;
 
@@ -243,11 +248,34 @@ pub fn find_dead_transitions(net: &CvnNet, result: &AnalysisResult) -> Vec<Count
         }
     }
 
-    let initial = net.initial_state();
-    let mut dead = Vec::new();
+    let mut live_families: FxHashSet<String> = FxHashSet::default();
     for t in net.transitions() {
         if fired.contains(&t.id) {
+            if let Some(family) = &t.disjunctive_family {
+                live_families.insert(family.clone());
+            }
+        }
+    }
+
+    let initial = net.initial_state();
+    let mut dead = Vec::new();
+    let mut reported_families: FxHashSet<String> = FxHashSet::default();
+
+    // Stable order so family representatives are deterministic.
+    let mut transitions: Vec<&crate::model::Transition> = net.transitions().collect();
+    transitions.sort_by(|a, b| a.id.0.cmp(&b.id.0));
+
+    for t in transitions {
+        if fired.contains(&t.id) {
             continue;
+        }
+        if let Some(family) = &t.disjunctive_family {
+            if live_families.contains(family) {
+                continue;
+            }
+            if !reported_families.insert(family.clone()) {
+                continue;
+            }
         }
         dead.push(Counterexample {
             kind: PropertyViolation::DeadTransition {

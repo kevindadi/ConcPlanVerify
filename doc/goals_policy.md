@@ -45,4 +45,10 @@ goal_warnings 与 unmet_goals 都会使状态离开 `verified_safe`,因此codege
 - 同一臂是唯一写入 `result = 99` 的路径;
 - goal `g_result_special` 要求 `result == 99` 可达。
 
-正确修复只需重排该臂锁序并保留写 99。把所有写规范化为相同值、或删掉 else 臂,可以消掉死锁,但会得到 `goals_unmet` —— 离线探针(在 fixed CIR 上把 99 改成 3)已复现。因此「规范化式乱修」不再被 `verified_safe` 接受,CVN 反馈(指出锁序参与者)比无反馈更有机会一次修对。
+正确修复只需重排该臂锁序并保留写 99。把所有写规范化为相同值、或删掉 else 臂,可以消掉死锁,但会得到 `goals_unmet` —— 离线探针(在 fixed CIR 上把 99 改成 3)已复现。因此「规范化式乱修」不再被 `verified_safe` 接受。
+
+**实验结果(2026-08-05)**:`goal_constrained_deadlock` 与 dense 孪生在 DeepSeek v4 Pro 三种反馈模式、以及 dense × Flash 的 llm_only 上均 1 轮成功且保留 `result=99`(`results/goal_constrained_repair_ab.json`、`results/goal_constrained_flash.json`)。结论分层:
+
+1. **Oracle 层有效**:规范化丢掉 99 → `goals_unmet`,验收门禁成立;
+2. **当前强模型未自发踩坑**:Pro/Flash 在无 CVN 反馈时仍保留特色写,修复成功率未拉开;
+3. **用途**:作为回归探针(防止未来 prompt/模型回归到「删臂清死锁」)、以及换更弱模型或对抗性改写时的对照 case。
