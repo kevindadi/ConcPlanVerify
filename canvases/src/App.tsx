@@ -3,17 +3,16 @@ import ExperimentReport from "./ExperimentReport";
 import { FilterContext } from "./filter";
 
 const SECTIONS = [
-  { id: "s1", label: "1 检出" },
-  { id: "s2", label: "2 基线" },
+  { id: "s1", label: "1 Detection" },
+  { id: "s2", label: "2 Baselines" },
   { id: "s3", label: "3 Goals" },
-  { id: "s4", label: "4 修复" },
-  { id: "s5", label: "5 生成" },
-  { id: "s6", label: "6 规模" },
+  { id: "s4", label: "4 Repair" },
+  { id: "s5", label: "5 Generation" },
+  { id: "s6", label: "6 Scale" },
   { id: "s7", label: "7 Scaling" },
-  { id: "s8", label: "8 判卷" },
-  { id: "s9", label: "9 Codegen" },
-  { id: "s10", label: "10 Goals约束" },
-  { id: "s11", label: "11 结论" },
+  { id: "s8", label: "8 LLM Judgment" },
+  { id: "s9", label: "9 Code Generation" },
+  { id: "s10", label: "10 Goal-Constrained Repair" },
 ];
 
 export default function App() {
@@ -28,12 +27,12 @@ export default function App() {
         <div className="brand">
           <span className="brand-mark">CVN</span>
           <div>
-            <div className="brand-title">实验报告</div>
-            <div className="brand-sub">可提交 · 本地交互 · Vite</div>
+            <div className="brand-title">Experiment Report</div>
+            <div className="brand-sub">Submission-ready · Local interactive report · Vite</div>
           </div>
         </div>
         <label className="search">
-          <span>筛选表格</span>
+          <span>Filter tables</span>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}

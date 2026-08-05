@@ -216,7 +216,7 @@ export function Table({
         </tbody>
       </table>
       {filter && visible.length === 0 ? (
-        <p className="table-empty">无匹配 “{filter}” 的行</p>
+        <p className="table-empty">No rows match "{filter}"</p>
       ) : null}
     </div>
   );
