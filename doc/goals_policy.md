@@ -1,54 +1,54 @@
-# Goals 写入策略与信任边界
+# Goals Write Policy and Trust Boundary
 
-本文规定业务目标(`goals`)在 ConcPlanVerify 各阶段的产出责任、检查语义,以及三类负例(缺失 / 过弱 / 错误引用)对应的防线。
+This document defines the production responsibilities for business goals (`goals`) at each stage of ConcPlanVerify, the checking semantics, and the defensive lines corresponding to three classes of negative cases (missing / too weak / bad reference).
 
-## 1. 语义
+## 1. Semantics
 
-一个 `BusinessGoal` 由 `marking`(库所 → 最小 token 数)与 `variables`(全局变量 → 期望值)组成,所有谓词必须在**同一个可达状态**中成立,检查语义为可达性(EF):只要存在一条执行到达满足状态即视为达成。合法的 `marking` 键:
+A `BusinessGoal` consists of `marking` (place → minimum token count) and `variables` (global variable → expected value). All predicates must hold in **the same reachable state**. The checking semantics is reachability (EF): the goal is met if there exists an execution that reaches a satisfying state. Legal `marking` keys:
 
-- 资源名(映射到 `rp_{name}`;Channel/Condvar 的 `0` 解释为"无残留");
-- `"{fn}.{sid}"`(映射到控制库所 `cp_{fn}_{sid}`,表示"线程执行到某语句");
-- 原始库所 id(`cp_`/`rp_`/`wp_`/`ra_` 前缀,面向工具)。
+- Resource names (mapped to `rp_{name}`; for Channel/Condvar, `0` means "no residue");
+- `"{fn}.{sid}"` (mapped to control place `cp_{fn}_{sid}`, meaning "thread has reached a given statement");
+- Raw place ids (prefixes `cp_`/`rp_`/`wp_`/`ra_`, for tooling).
 
-`variables` 的键必须是已声明的 `kind == "var"` 资源(`Var` / `Atomic`)。
+Keys in `variables` must be declared resources with `kind == "var"` (`Var` / `Atomic`).
 
-## 2. 产出责任(写入策略)
+## 2. Production Responsibility (Write Policy)
 
-| 场景 | goals 来源 | 强制性 |
+| Scenario | Goals source | Mandatoriness |
 | --- | --- | --- |
-| NL → CIR 生成(generate / pipeline) | LLM 从需求中提炼 | **应产出**:需求中出现可观察结果(计数值、完成状态、消息送达等)时必须声明对应 goal;纯同步结构需求(如"不得死锁")允许 `goals: []` |
-| benchmark fixture | 人工 gold 提供 | 由 manifest 的 `expected.outcome` 定义 |
-| repair | 继承输入 CIR 的 goals | 修复**不得删除或弱化** goal(保全约束中列出) |
+| NL → CIR generation (generate / pipeline) | LLM extracts from requirements | **Should produce**: when the requirements include observable outcomes (counts, completion status, message delivery, etc.), the corresponding goal must be declared; pure synchronization requirements (e.g. "must not deadlock") may use `goals: []` |
+| Benchmark fixture | Human-provided gold | Defined by the manifest's `expected.outcome` |
+| Repair | Inherit goals from the input CIR | Repair **must not delete or weaken** goals (listed in preservation constraints) |
 
-goals 缺失不改变验证判定(`verified_safe` 仍成立)——这是**信任边界**:验证器只能证明"声明过的性质",无法证明"该声明而未声明的性质"。实验记录中通过`declared_goal_count` 字段暴露该缺口,供 pipeline 层审计。
+Missing goals do not change the verification verdict (`verified_safe` still holds) — this is the **trust boundary**: the verifier can only prove "declared properties," not "properties that should have been declared but were not." Experiment records expose this gap via the `declared_goal_count` field for pipeline-level auditing.
 
-## 3. 三类负例与防线
+## 3. Three Classes of Negative Cases and Defenses
 
-| 负例 | benchmark case | 防线 | 判定 |
+| Negative case | Benchmark case | Defense | Verdict |
 | --- | --- | --- | --- |
-| 不可达 goal | `goal_unreachable` | 状态空间可达性检查 | `goals_unmet`(unmet_goals) |
-| 过弱 goal(初始态即满足) | `goal_trivial` | `verify_program` 的初始态平凡性检查:goal 在初始状态成立 → 告警"too weak" | `goals_unmet`(goal_warnings) |
-| 错误引用(不存在的库所/变量) | `goal_bad_reference` | `translate_goals`:未知 marking 键、未声明变量均产生告警;全部谓词失效时追加"no usable predicates" | `goals_unmet`(goal_warnings) |
-| 缺失 goals | (无 analyzer 判定,见上) | 生成侧策略 + `declared_goal_count` 审计 | `verified_safe`(信任边界) |
+| Unreachable goal | `goal_unreachable` | State-space reachability check | `goals_unmet` (unmet_goals) |
+| Too-weak goal (satisfied in the initial state) | `goal_trivial` | Initial-state triviality check in `verify_program`: goal holds in the initial state → warn "too weak" | `goals_unmet` (goal_warnings) |
+| Bad reference (nonexistent place/variable) | `goal_bad_reference` | `translate_goals`: unknown marking keys and undeclared variables produce warnings; when all predicates are unusable, append "no usable predicates" | `goals_unmet` (goal_warnings) |
+| Missing goals | (no analyzer verdict; see above) | Generation-side policy + `declared_goal_count` audit | `verified_safe` (trust boundary) |
 
-三类可检负例均计入 manifest(gold = `goals_unmet`),其 `fixed.json` 携带非平凡、引用正确且可达的 goal,作为误报探针(必须 `verified_safe`)。
+All three checkable negative cases are counted in the manifest (gold = `goals_unmet`). Their `fixed.json` carries a nontrivial, correctly referenced, and reachable goal as a false-positive probe (must be `verified_safe`).
 
-## 4. 对修复实验的意义
+## 4. Implications for Repair Experiments
 
-goal_warnings 与 unmet_goals 都会使状态离开 `verified_safe`,因此codegen 门禁同样拦截弱 goal / 悬空 goal。repair 的保全约束要求"Business goal ... must remain achievable",配合初始态平凡性检查,LLM 无法用"把 goal 改成恒真"来绕过修复。
+Both `goal_warnings` and `unmet_goals` take the state out of `verified_safe`, so the codegen gate equally blocks weak goals / dangling goals. Repair preservation constraints require "Business goal ... must remain achievable"; together with the initial-state triviality check, the LLM cannot bypass repair by "changing the goal to a tautology."
 
-## 5. Goals 约束的修复难度(拉开 LLM-only 差距)
+## 5. Goal-Constrained Repair Difficulty (Widening the LLM-Only Gap)
 
-`goal_constrained_deadlock` 把死锁与业务 goal 绑在一起:
+`goal_constrained_deadlock` binds deadlock to a business goal:
 
-- w3 的 else 臂以 `m2 → m1` 形成跨线程锁序环(缺陷);
-- 同一臂是唯一写入 `result = 99` 的路径;
-- goal `g_result_special` 要求 `result == 99` 可达。
+- w3's else arm forms a cross-thread lock-order cycle via `m2 → m1` (the defect);
+- The same arm is the only path that writes `result = 99`;
+- Goal `g_result_special` requires that `result == 99` be reachable.
 
-正确修复只需重排该臂锁序并保留写 99。把所有写规范化为相同值、或删掉 else 臂,可以消掉死锁,但会得到 `goals_unmet` —— 离线探针(在 fixed CIR 上把 99 改成 3)已复现。因此「规范化式乱修」不再被 `verified_safe` 接受。
+A correct fix only needs to reorder locks on that arm while keeping the write of 99. Normalizing all writes to the same value, or deleting the else arm, can eliminate the deadlock but yields `goals_unmet` — an offline probe (changing 99 to 3 on the fixed CIR) has reproduced this. Thus "normalize-style blind fixes" are no longer accepted as `verified_safe`.
 
-**实验结果(2026-08-05)**:`goal_constrained_deadlock` 与 dense 孪生在 DeepSeek v4 Pro 三种反馈模式、以及 dense × Flash 的 llm_only 上均 1 轮成功且保留 `result=99`(`results/goal_constrained_repair_ab.json`、`results/goal_constrained_flash.json`)。结论分层:
+**Experiment results (2026-08-05)**: `goal_constrained_deadlock` and its dense twin both succeeded in 1 round with `result=99` preserved under DeepSeek v4 Pro's three feedback modes, and under dense × Flash llm_only (`results/goal_constrained_repair_ab.json`, `results/goal_constrained_flash.json`). Layered conclusions:
 
-1. **Oracle 层有效**:规范化丢掉 99 → `goals_unmet`,验收门禁成立;
-2. **当前强模型未自发踩坑**:Pro/Flash 在无 CVN 反馈时仍保留特色写,修复成功率未拉开;
-3. **用途**:作为回归探针(防止未来 prompt/模型回归到「删臂清死锁」)、以及换更弱模型或对抗性改写时的对照 case。
+1. **Oracle layer is effective**: normalizing away 99 → `goals_unmet`; the acceptance gate holds;
+2. **Current strong models did not spontaneously fall into the trap**: Pro/Flash still preserve the distinctive write without CVN feedback; repair success rate did not diverge;
+3. **Use**: as a regression probe (preventing future prompt/model regressions to "delete the arm to clear deadlock"), and as a contrast case when swapping to weaker models or adversarial rewrites.

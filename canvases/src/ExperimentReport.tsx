@@ -16,7 +16,7 @@ import {
   Text,
 } from "./ui";
 
-// ── 数据源:results/offline_v3.json · repair_8k.json · repair_local.json ·
+// ── Data sources: results/offline_v3.json · repair_8k.json · repair_local.json ·
 //            repair_full_v2.json · full_run.json · miri_baseline.json ·
 //            lockbud_baseline.json · scaling.json · scaling_llm.json ·
 //            no_goals_v2.json · codegen(_v2).json ──
@@ -70,7 +70,7 @@ const placesByKind: Record<string, [number, number, number]> = {
   goal_constrained_deadlock_dense: [69, 2, 0],
 };
 
-// llm_judge:results/llm_judge.json(单发判卷,无 oracle;DeepSeek v4 Pro thinking)
+// llm_judge: results/llm_judge.json (single-shot judging, no oracle; DeepSeek v4 Pro thinking)
 type Judge = {
   case: string;
   gold: string;
@@ -80,25 +80,25 @@ type Judge = {
   tone: "success" | "danger" | "warning" | "neutral";
 };
 const judged: Judge[] = [
-  { case: "mutex_deadlock", gold: "bug", claimed: "bug", kind: "Deadlock", note: "定位正确(w1/w2)", tone: "success" },
-  { case: "three_way_deadlock", gold: "bug", claimed: "bug", kind: "Deadlock", note: "定位正确(三环)", tone: "success" },
-  { case: "signal_loss", gold: "bug", claimed: "bug", kind: "SignalLoss", note: "kind 正确", tone: "success" },
-  { case: "channel_deadlock", gold: "bug", claimed: "bug", kind: "Deadlock", note: "gold ChannelBlock,kind 泛化", tone: "warning" },
-  { case: "dead_transition", gold: "bug", claimed: "bug", kind: "DeadTransition", note: "kind 正确", tone: "success" },
-  { case: "dual_condvar", gold: "bug", claimed: "bug", kind: "Deadlock", note: "gold SignalLoss,kind 判错", tone: "warning" },
-  { case: "partial_deadlock", gold: "goals_unmet", claimed: "bug", kind: "Deadlock", note: "kind 判错(gold DeadTransition+goals)", tone: "warning" },
-  { case: "goal_unreachable", gold: "goals_unmet", claimed: "bug", kind: "GoalUnreachable", note: "kind 正确", tone: "success" },
-  { case: "cas_race", gold: "safe", claimed: "bug", kind: "DeadTransition", note: "误报:把 CAS 结果分支误读为变量值分支", tone: "danger" },
-  { case: "semaphore_throttle", gold: "safe", claimed: "safe", kind: null, note: "正确", tone: "neutral" },
-  { case: "fn_summary_prop", gold: "safe", claimed: "safe", kind: null, note: "正确", tone: "neutral" },
-  { case: "scale_lock_chain_6x3", gold: "safe", claimed: "safe", kind: null, note: "正确(Lockbud 在此误报)", tone: "neutral" },
-  { case: "scale_lock_chain_5x3_buggy", gold: "bug", claimed: "bug", kind: "Deadlock", note: "定位正确(w5 反序)", tone: "success" },
-  { case: "deep_lock_chain_4x3", gold: "bug", claimed: "bug", kind: "Deadlock", note: "解释中精确定位 w3 else 臂", tone: "success" },
-  { case: "deep_lock_chain_4x3_safe", gold: "safe", claimed: "safe", kind: null, note: "未被诱导误报", tone: "neutral" },
-  { case: "scale_branch_fan_4x2", gold: "safe", claimed: "safe", kind: null, note: "正确", tone: "neutral" },
+  { case: "mutex_deadlock", gold: "bug", claimed: "bug", kind: "Deadlock", note: "localized correctly (w1/w2)", tone: "success" },
+  { case: "three_way_deadlock", gold: "bug", claimed: "bug", kind: "Deadlock", note: "localized correctly (3-cycle)", tone: "success" },
+  { case: "signal_loss", gold: "bug", claimed: "bug", kind: "SignalLoss", note: "kind correct", tone: "success" },
+  { case: "channel_deadlock", gold: "bug", claimed: "bug", kind: "Deadlock", note: "gold ChannelBlock, kind generalized", tone: "warning" },
+  { case: "dead_transition", gold: "bug", claimed: "bug", kind: "DeadTransition", note: "kind correct", tone: "success" },
+  { case: "dual_condvar", gold: "bug", claimed: "bug", kind: "Deadlock", note: "gold SignalLoss, kind wrong", tone: "warning" },
+  { case: "partial_deadlock", gold: "goals_unmet", claimed: "bug", kind: "Deadlock", note: "kind wrong (gold DeadTransition+goals)", tone: "warning" },
+  { case: "goal_unreachable", gold: "goals_unmet", claimed: "bug", kind: "GoalUnreachable", note: "kind correct", tone: "success" },
+  { case: "cas_race", gold: "safe", claimed: "bug", kind: "DeadTransition", note: "false positive: misread CAS-result branch as variable-value branch", tone: "danger" },
+  { case: "semaphore_throttle", gold: "safe", claimed: "safe", kind: null, note: "correct", tone: "neutral" },
+  { case: "fn_summary_prop", gold: "safe", claimed: "safe", kind: null, note: "correct", tone: "neutral" },
+  { case: "scale_lock_chain_6x3", gold: "safe", claimed: "safe", kind: null, note: "correct (Lockbud false-positives here)", tone: "neutral" },
+  { case: "scale_lock_chain_5x3_buggy", gold: "bug", claimed: "bug", kind: "Deadlock", note: "localized correctly (w5 reverse order)", tone: "success" },
+  { case: "deep_lock_chain_4x3", gold: "bug", claimed: "bug", kind: "Deadlock", note: "explanation precisely localizes w3 else arm", tone: "success" },
+  { case: "deep_lock_chain_4x3_safe", gold: "safe", claimed: "safe", kind: null, note: "not induced into a false positive", tone: "neutral" },
+  { case: "scale_branch_fan_4x2", gold: "safe", claimed: "safe", kind: null, note: "correct", tone: "neutral" },
 ];
 
-// codegen:results/codegen.json + codegen_v2.json(verified CIR -> Rust,cargo check 验收,均 1 轮)
+// codegen: results/codegen.json + codegen_v2.json (verified CIR -> Rust, cargo check acceptance, all 1 round)
 type Codegen = { case: string; stmts: number; loc: number; spawns: number; tokens: number };
 const codegen: Codegen[] = [
   { case: "mutex_deadlock", stmts: 15, loc: 24, spawns: 2, tokens: 1939 },
@@ -121,8 +121,8 @@ const codegen: Codegen[] = [
   { case: "scale_branch_fan_4x2", stmts: 41, loc: 29, spawns: 4, tokens: 4075 },
 ];
 
-// 外部基线:results/miri_baseline.json(preemption 0.5 × 16 种子;漏检项再以 256 种子复核)
-// 与 results/lockbud_baseline.json(-k deadlock,nightly-2026-02-07)
+// External baselines: results/miri_baseline.json (preemption 0.5 × 16 seeds; missed cases rechecked with 256 seeds)
+// and results/lockbud_baseline.json (-k deadlock, nightly-2026-02-07)
 type Baseline = {
   case: string;
   gold: string;
@@ -133,26 +133,26 @@ type Baseline = {
   miriOk: "hit" | "miss" | "partial";
 };
 const baselines: Baseline[] = [
-  { case: "mutex_deadlock", gold: "Deadlock", cvn: "Deadlock", lockbud: "ConflictLock", lockbudOk: "hit", miri: "漏检(256 种子)", miriOk: "miss" },
-  { case: "three_way_deadlock", gold: "Deadlock(3 环)", cvn: "Deadlock", lockbud: "漏检", lockbudOk: "miss", miri: "漏检(256 种子)", miriOk: "miss" },
-  { case: "signal_loss", gold: "SignalLoss", cvn: "SignalLoss", lockbud: "漏检", lockbudOk: "miss", miri: "漏检(256 种子)", miriOk: "miss" },
-  { case: "channel_deadlock", gold: "ChannelBlock", cvn: "ChannelBlock", lockbud: "漏检", lockbudOk: "miss", miri: "漏检(256 种子)", miriOk: "miss" },
-  { case: "dead_transition", gold: "DeadTransition", cvn: "DeadTransition", lockbud: "漏检", lockbudOk: "miss", miri: "漏检(动态不可见)", miriOk: "miss" },
-  { case: "dual_condvar", gold: "SignalLoss", cvn: "SignalLoss", lockbud: "漏检", lockbudOk: "miss", miri: "deadlock 报告", miriOk: "hit" },
-  { case: "partial_deadlock", gold: "goals 未达", cvn: "DeadTransition + unmet goals", lockbud: "漏检", lockbudOk: "miss", miri: "超时挂起(未诊断)", miriOk: "partial" },
-  { case: "goal_unreachable", gold: "goals 未达", cvn: "goals_unmet", lockbud: "DoubleLock(误诊)", lockbudOk: "wrong", miri: "assert panic", miriOk: "hit" },
-  { case: "scale_lock_chain_5x3_buggy", gold: "Deadlock(锁序)", cvn: "Deadlock", lockbud: "DoubleLock(误诊)", lockbudOk: "wrong", miri: "漏检(256 种子)", miriOk: "miss" },
+  { case: "mutex_deadlock", gold: "Deadlock", cvn: "Deadlock", lockbud: "ConflictLock", lockbudOk: "hit", miri: "missed (256 seeds)", miriOk: "miss" },
+  { case: "three_way_deadlock", gold: "Deadlock (3-cycle)", cvn: "Deadlock", lockbud: "missed", lockbudOk: "miss", miri: "missed (256 seeds)", miriOk: "miss" },
+  { case: "signal_loss", gold: "SignalLoss", cvn: "SignalLoss", lockbud: "missed", lockbudOk: "miss", miri: "missed (256 seeds)", miriOk: "miss" },
+  { case: "channel_deadlock", gold: "ChannelBlock", cvn: "ChannelBlock", lockbud: "missed", lockbudOk: "miss", miri: "missed (256 seeds)", miriOk: "miss" },
+  { case: "dead_transition", gold: "DeadTransition", cvn: "DeadTransition", lockbud: "missed", lockbudOk: "miss", miri: "missed (dynamically invisible)", miriOk: "miss" },
+  { case: "dual_condvar", gold: "SignalLoss", cvn: "SignalLoss", lockbud: "missed", lockbudOk: "miss", miri: "deadlock reported", miriOk: "hit" },
+  { case: "partial_deadlock", gold: "goals unmet", cvn: "DeadTransition + unmet goals", lockbud: "missed", lockbudOk: "miss", miri: "timeout hang (undiagnosed)", miriOk: "partial" },
+  { case: "goal_unreachable", gold: "goals unmet", cvn: "goals_unmet", lockbud: "DoubleLock (misdiagnosed)", lockbudOk: "wrong", miri: "assert panic", miriOk: "hit" },
+  { case: "scale_lock_chain_5x3_buggy", gold: "Deadlock (lock order)", cvn: "Deadlock", lockbud: "DoubleLock (misdiagnosed)", lockbudOk: "wrong", miri: "missed (256 seeds)", miriOk: "miss" },
 ];
 
-// scaling sweep:results/scaling.json(全部 37 点;下面取 locks=3 / branches=2、线程 2–5 切片)
-const threadAxis = ["2 线程", "3 线程", "4 线程", "5 线程"];
+// scaling sweep: results/scaling.json (all 37 points; slice below: locks=3 / branches=2, threads 2–5)
+const threadAxis = ["2 threads", "3 threads", "4 threads", "5 threads"];
 const scalingSeries = [
-  { name: "锁链·安全(3 锁)", data: [77, 437, 2277, 11237] },
-  { name: "锁链·死锁(3 锁)", data: [86, 518, 2790, 14054] },
-  { name: "分支扇出(2 层分支)", data: [153, 2193, 29121, 100000] },
+  { name: "lock chain · safe (3 locks)", data: [77, 437, 2277, 11237] },
+  { name: "lock chain · deadlock (3 locks)", data: [86, 518, 2790, 14054] },
+  { name: "branch fan-out (2 branch levels)", data: [153, 2193, 29121, 100000] },
 ];
 
-// repair_8k.json:7 个 bug case × 3 种反馈模式(max_tokens=8192,max_rounds=5)
+// repair_8k.json: 7 bug cases × 3 feedback modes (max_tokens=8192, max_rounds=5)
 type Repair = { case: string; ok: boolean; rounds: number; tokens: number };
 const repairByMethod: Record<string, Repair[]> = {
   full: [
@@ -185,12 +185,12 @@ const repairByMethod: Record<string, Repair[]> = {
 };
 
 const methodLabel: Record<string, string> = {
-  full: "CVN 完整反馈",
-  statusOnly: "仅 status/kind",
-  llmOnly: "无 CVN 诊断",
+  full: "full CVN feedback",
+  statusOnly: "status/kind only",
+  llmOnly: "no CVN diagnosis",
 };
 
-// full_run.json:每 case 5 条自然语言需求(1 规范 + 4 释义),每条最多 5 轮
+// full_run.json: 5 natural-language requirements per case (1 canonical + 4 paraphrases), ≤5 rounds each
 type Gen = { case: string; valid: number; safe: number; rounds: number[]; tokens: number };
 const generate: Gen[] = [
   { case: "mutex_deadlock", valid: 5, safe: 5, rounds: [2, 3, 3, 1, 3], tokens: 46649 },
@@ -205,8 +205,8 @@ const generate: Gen[] = [
   { case: "fn_summary_prop", valid: 2, safe: 2, rounds: [5, 5, 1, 5, 5], tokens: 90436 },
 ];
 
-// repair_local.json vs repair_full_v2.json:12 个非安全 case 的切片修复 A/B
-// (反馈均为摘要化后的 full;fell 表示切片无法定位/耗尽后回退全量修复)
+// repair_local.json vs repair_full_v2.json: slice-repair A/B on 12 non-safe cases
+// (feedback is summarized full in both; fell means slice could not localize / exhausted then fell back to full repair)
 type RepairAb = {
   case: string;
   localOk: boolean;
@@ -241,65 +241,67 @@ export default function ExperimentReport() {
   return (
     <Stack gap={28} style={{ padding: 24, maxWidth: 1080 }}>
       <Stack gap={6}>
-        <H1>ConcPlanVerify 实验报告</H1>
+        <H1>ConcPlanVerify Experiment Report</H1>
         <Text tone="secondary">
-          模型 DeepSeek v4 Pro(thinking + high reasoning)· 基准 benchmarks/manifest.json(18 个 case:12 缺陷 + 6
-          安全对照,含 3 个参数化大规模 case、1 对深埋 bug 孪生与 3 类 goals 负例)· 外部基线 Lockbud(静态)/
-          Miri(动态)· 2026-08-05
+          Model DeepSeek v4 Pro (thinking + high reasoning) · Benchmarks benchmarks/manifest.json (18 cases: 12 defect + 6
+          safe controls, including 3 parameterized large-scale cases, 1 deep-buried bug twin pair, and 3 classes of goals
+          negatives) · External baselines Lockbud (static) / Miri (dynamic) · 2026-08-05
         </Text>
       </Stack>
 
       <Grid columns={5} gap={16}>
-        <Stat value="20/20*" label="CVN 检出判定正确" tone="success" />
-        <Stat value="4/9 · 1 误报" label="Lockbud 检出(2 例误诊)" tone="warning" />
-        <Stat value="3/9 · 0 误报" label="Miri 检出(16–256 种子)" tone="warning" />
-        <Stat value="10/10 · 1 误报" label="LLM 单独判卷(2 例 kind 错)" tone="info" />
-        <Stat value="18/18" label="codegen 过 cargo check" tone="success" />
+        <Stat value="20/20*" label="CVN detection verdicts correct" tone="success" />
+        <Stat value="4/9 · 1 FP" label="Lockbud detected (2 misdiagnosed)" tone="warning" />
+        <Stat value="3/9 · 0 FP" label="Miri detected (16–256 seeds)" tone="warning" />
+        <Stat value="10/10 · 1 FP" label="LLM-only judging (2 kind errors)" tone="info" />
+        <Stat value="18/18" label="codegen passed cargo check" tone="success" />
       </Grid>
       <Text tone="tertiary" size="small">
-        *20 = 原 18 + goal_constrained_deadlock / _dense;两新例本轮 analyze 正确,未重跑全量 offline。
+        *20 = original 18 + goal_constrained_deadlock / _dense; both new cases analyzed correctly this round; full offline not re-run.
       </Text>
 
-      {/* ── 1. 检出能力 ── */}
+      {/* ── 1. Detection capability ── */}
       <Stack gap={12} style={{ scrollMarginTop: 88 }} >
         <div id="s1" />
-        <H2>1 · 缺陷检出:CVN 状态空间分析 vs 仅静态校验(20 case)</H2>
+        <H2>1 · Bug detection: CVN state-space analysis vs static validation only (20 cases)</H2>
         <Text tone="secondary">
-          对每个 case 的 gold buggy CIR 分别跑 <Text as="span" weight="semibold">cir2cvn --analyze</Text>
-          (翻译 + 状态空间探索 + goals)与 <Text as="span" weight="semibold">--validate</Text>(仅静态规则)。
-          CVN 全部 16 例判定正确;静态校验对行为级缺陷全部漏检(其本职是 schema/结构检查,该消融验证了状态空间分析的必要性)。
+          For each case&apos;s gold buggy CIR, run <Text as="span" weight="semibold">cir2cvn --analyze</Text>
+          (translation + state-space exploration + goals) and <Text as="span" weight="semibold">--validate</Text> (static rules only).
+          CVN verdicts are correct on all 16 defect cases; static validation misses all behavioral bugs (its job is schema/structure
+          checking; this ablation confirms the necessity of state-space analysis).
         </Text>
         <Table
-          headers={["Case", "期望", "CVN analyze 判定", "检出 bug kind", "仅静态校验"]}
+          headers={["Case", "Expected", "CVN analyze verdict", "Detected bug kind", "Static validation only"]}
           rows={analyze.map((a) => [
             shortName(a.case),
             a.expected,
             a.actual,
             a.kinds.length ? a.kinds.join(" + ") : "—",
-            a.expected === "safe" ? "safe(正确)" : "漏检",
+            a.expected === "safe" ? "safe (correct)" : "missed",
           ])}
           rowTone={analyze.map((a) => (a.expected === "safe" ? ("neutral" as const) : ("success" as const)))}
           columnAlign={["left", "left", "left", "left", "left"] as const}
           striped
         />
         <Text tone="tertiary" size="small">
-          partial_deadlock 的状态判定为 verified_unsafe(DeadTransition 优先),同时 payload 报告 2 个 unmet
-          goals,按 goals 级缺陷计为检出。当前 signal_loss 的 repair/analyze 只保留 SignalLoss:condvar
-          翻译变体分组(cv_wake1/cv_wakeA 等「或」变体整组皆死才报告)避免了把互斥 helper 变体当成独立
-          DeadTransition。数据源:results/offline_v3.json;历史 fixed fixture 门禁误报见第 9 节。
+          For partial_deadlock the status is verified_unsafe (DeadTransition prioritized) while the payload also reports 2 unmet
+          goals; counted as detected at the goals-defect level. Current signal_loss repair/analyze keeps only SignalLoss: condvar
+          translation variant grouping (cv_wake1/cv_wakeA etc. report only when the whole &quot;or&quot; group is dead) avoids treating
+          mutually exclusive helper variants as independent DeadTransition. Data: results/offline_v3.json; historical fixed-fixture
+          gate false positives are discussed in §9.
         </Text>
       </Stack>
 
-      {/* ── 2. 外部基线 ── */}
+      {/* ── 2. External baselines ── */}
       <Stack gap={12} style={{ scrollMarginTop: 88 }}>
         <div id="s2" />
-        <H2>2 · 外部基线:CVN vs Lockbud(静态)vs Miri(动态),9 个缺陷 case</H2>
+        <H2>2 · External baselines: CVN vs Lockbud (static) vs Miri (dynamic), 9 defect cases</H2>
         <Text tone="secondary">
-          Lockbud(nightly-2026-02-07,-k deadlock)对各 case 的参考 buggy.rs 做静态锁分析;Miri 以
-          -Zmiri-preemption-rate=0.5 × 16 随机种子运行,漏检项再用 256 种子复核仍全部漏检。
+          Lockbud (nightly-2026-02-07, -k deadlock) runs static lock analysis on each case&apos;s reference buggy.rs; Miri runs with
+          -Zmiri-preemption-rate=0.5 × 16 random seeds; missed cases rechecked with 256 seeds remain all missed.
         </Text>
         <Table
-          headers={["Case", "Gold 缺陷", "CVN", "Lockbud", "Miri"]}
+          headers={["Case", "Gold defect", "CVN", "Lockbud", "Miri"]}
           rows={baselines.map((b) => [shortName(b.case), b.gold, b.cvn, b.lockbud, b.miri])}
           rowTone={baselines.map((b) =>
             b.lockbudOk === "miss" && b.miriOk === "miss" ? ("warning" as const) : ("neutral" as const),
@@ -307,55 +309,60 @@ export default function ExperimentReport() {
           striped
         />
         <Grid columns={2} gap={16}>
-          <Callout tone="danger" title="Miri:调度依赖死锁基本不可采样">
-            5 个调度依赖死锁(互斥/三环/信号丢失/通道/锁序)即使 256 个随机调度种子也全部漏检——死锁窗口在随机采样下
-            概率过低;而 CVN 穷举交错空间全部检出。Miri 只在缺陷恰好落入被执行调度时报告(dual_condvar、goal_unreachable
-            的 assert)。安全 case 零误报(5/5)。
+          <Callout tone="danger" title="Miri: schedule-dependent deadlocks are essentially unsampleable">
+            Five schedule-dependent deadlocks (mutex / 3-cycle / signal loss / channel / lock order) are all missed even with 256
+            random schedule seeds—the deadlock window is too rare under random sampling—while CVN exhaustively explores the
+            interleaving space and detects all. Miri reports only when the defect happens to fall into an executed schedule
+            (dual_condvar; goal_unreachable assert). Safe cases: zero false positives (5/5).
           </Callout>
-          <Callout tone="warning" title="Lockbud:锁序类可检,但诊断不可靠">
-            经典双锁 ConflictLock 检出正确;但 Vec&lt;Arc&lt;Mutex&gt;&gt; 下标别名混淆使其对安全的
-            scale_lock_chain_6x3 误报 DoubleLock(唯一误报),对 5x3 死锁链与 goal_unreachable 也给出同源的
-            DoubleLock 误诊——在该模式上其报告没有区分度。三环死锁、condvar、channel 类全部漏检。
+          <Callout tone="warning" title="Lockbud: lock-order bugs detectable, but diagnosis unreliable">
+            Classic two-lock ConflictLock is detected correctly; but Vec&lt;Arc&lt;Mutex&gt;&gt; index-alias confusion causes a
+            DoubleLock false positive on safe scale_lock_chain_6x3 (the only FP), and the same DoubleLock misdiagnosis on the 5x3
+            deadlock chain and goal_unreachable—no discriminative power on that pattern. Three-cycle deadlock, condvar, and
+            channel classes are all missed.
           </Callout>
         </Grid>
       </Stack>
 
-      {/* ── 3. goals 消融 ── */}
+      {/* ── 3. goals ablation ── */}
       <Stack gap={12} style={{ scrollMarginTop: 88 }}>
         <div id="s3" />
-        <H2>3 · goals 信任边界:三类负例 + 关闭 goals 检查的代价</H2>
+        <H2>3 · Goals trust boundary: three negative classes + cost of disabling goals checks</H2>
         <Text tone="secondary">
-          goals 负例现覆盖三类可检形态(不可达 / 过弱 / 错误引用),配套新增两条检查规则:goal
-          在初始状态即成立 → 「too weak」告警;goal 引用未声明变量或未知库所 → 翻译告警。用
-          <Text as="span" weight="semibold"> cir2cvn --no-goals</Text> 重跑全部 case,差异集中在 goals 类缺陷:
+          Goals negatives now cover three detectable forms (unreachable / too weak / bad reference), with two new check rules: a goal
+          already true in the initial state → &quot;too weak&quot; warning; a goal referencing an undeclared variable or unknown place →
+          translation warning. Re-running all cases with
+          <Text as="span" weight="semibold"> cir2cvn --no-goals</Text> concentrates differences on goals-class defects:
         </Text>
         <Table
-          headers={["Case", "缺陷构成", "开 goals(默认)", "关 goals(消融)"]}
+          headers={["Case", "Defect composition", "Goals on (default)", "Goals off (ablation)"]}
           rows={[
-            ["goal unreachable", "无死锁,goal x==3 不可达", "goals_unmet ✓", "verified_safe(误接受)"],
-            ["goal trivial", "goal x==0 初始态即成立(过弱,约束不了任何行为)", "goals_unmet ✓(too-weak 告警)", "verified_safe(误接受)"],
-            ["goal bad reference", "goal 引用不存在的库所 w1_done 与未声明变量 y", "goals_unmet ✓(悬空引用告警)", "verified_safe(误接受)"],
-            ["partial deadlock", "DeadTransition + 2 个 unmet goals", "verified_unsafe ✓", "verified_unsafe(仍检出)"],
+            ["goal unreachable", "no deadlock; goal x==3 unreachable", "goals_unmet ✓", "verified_safe (false accept)"],
+            ["goal trivial", "goal x==0 already true initially (too weak; constrains no behavior)", "goals_unmet ✓ (too-weak warning)", "verified_safe (false accept)"],
+            ["goal bad reference", "goal refs nonexistent place w1_done and undeclared var y", "goals_unmet ✓ (dangling-ref warning)", "verified_safe (false accept)"],
+            ["partial deadlock", "DeadTransition + 2 unmet goals", "verified_unsafe ✓", "verified_unsafe (still detected)"],
           ]}
           rowTone={["danger" as const, "danger" as const, "danger" as const, "neutral" as const]}
           striped
         />
         <Text tone="tertiary" size="small">
-          goals 类 gold 共 4 例,其中 3 例(75%)完全依赖 goals 层兜底——静态工具无谓词语义、动态工具只能靠
-          assert 间接观察,而「过弱/悬空」两类在代码层面根本不存在(缺陷在规格本身)。goals 缺失(goals: [])
-          不改变判定,属于文档化的信任边界(doc/goals_policy.md)。数据源:results/no_goals_v2.json。
+          Goals-class gold has 4 cases; 3 of them (75%) fully rely on the goals layer as a backstop—static tools lack predicate
+          semantics, dynamic tools can only observe via assert, and the &quot;too weak / dangling&quot; classes do not exist at the code
+          level (the defect is in the spec itself). Missing goals (goals: []) does not change the verdict; it is a documented trust
+          boundary (doc/goals_policy.md). Data: results/no_goals_v2.json.
         </Text>
       </Stack>
 
-      {/* ── 4. 修复实验 ── */}
+      {/* ── 4. Repair experiments ── */}
       <Stack gap={12} style={{ scrollMarginTop: 88 }}>
         <div id="s4" />
-        <H2>4 · 修复实验:反馈信息量消融(7 个缺陷 case × 3 模式)</H2>
+        <H2>4 · Repair experiment: feedback-information ablation (7 defect cases × 3 modes)</H2>
         <Text tone="secondary">
-          本表使用修正 condvar 建模后的 repair_8k 配置(max_tokens=8192,max_rounds=5)。其中 CVN 完整反馈的 signal_loss 与
-          dual_condvar 采用后续全量修复结果,分别在 2 轮和 3 轮成功;仅 status/kind 与无 CVN 诊断两种消融则按修正模型重新运行,
-          两个 case 均在 5 轮上限内未成功。repair_local 是同一批 case 的局部切片实验,dual_condvar 在切片内耗尽轮次后回退全量并成功。
-          三者的验收 oracle 都是 Rust analyzer 的 verified_safe。
+          This table uses the repair_8k config after the corrected condvar model (max_tokens=8192, max_rounds=5). For full CVN
+          feedback, signal_loss and dual_condvar use subsequent full-repair results, succeeding in 2 and 3 rounds respectively;
+          status/kind only and no CVN diagnosis ablations were re-run under the corrected model and both cases failed within the
+          5-round cap. repair_local is a local-slice experiment on the same cases; dual_condvar exhausted rounds in-slice then fell
+          back to full repair and succeeded. The acceptance oracle for all three is the Rust analyzer&apos;s verified_safe.
         </Text>
         <Grid columns={3} gap={16}>
           {(["full", "statusOnly", "llmOnly"] as const).map((m) => {
@@ -366,13 +373,13 @@ export default function ExperimentReport() {
             return (
               <div key={m}>
                 <Card>
-                  <CardHeader trailing={<Pill size="sm">{`${ok.length}/${rows.length} 成功`}</Pill>}>
+                  <CardHeader trailing={<Pill size="sm">{`${ok.length}/${rows.length} success`}</Pill>}>
                     {methodLabel[m]}
                   </CardHeader>
                   <CardBody>
                     <Row gap={20}>
-                      <Stat value={avgRounds.toFixed(1)} label="平均轮次(成功例)" />
-                      <Stat value={`${(tokens / 1000).toFixed(0)}k`} label="token 总量(入+出)" />
+                      <Stat value={avgRounds.toFixed(1)} label="avg rounds (successes)" />
+                      <Stat value={`${(tokens / 1000).toFixed(0)}k`} label="total tokens (in+out)" />
                     </Row>
                   </CardBody>
                 </Card>
@@ -390,44 +397,47 @@ export default function ExperimentReport() {
           valueSuffix=" tok"
         />
         <Text tone="tertiary" size="small">
-          每 case × 反馈模式的 LLM token 总量(输入+输出,单位 token),来源为修正后的 results/repair_8k.json。full
-          模式的两个 condvar case 使用全量修复结果;status-only 与 llm-only 则是修正模型下的独立重跑。结果显示完整 CVN
-          反馈可在 2/3 轮修复,而两种弱反馈在这两个结构性 condvar case 上均耗尽 5 轮。
+          LLM token totals per case × feedback mode (input+output, unit: token), from the corrected results/repair_8k.json. The two
+          condvar cases under full mode use full-repair results; status-only and llm-only are independent re-runs under the
+          corrected model. Full CVN feedback repairs in 2/3 rounds, while both weak-feedback modes exhaust 5 rounds on these two
+          structural condvar cases.
         </Text>
         <Table
-          headers={["Case", "缺陷类型", "CVN 完整反馈", "仅 status/kind", "无 CVN 诊断"]}
+          headers={["Case", "Defect type", "full CVN feedback", "status/kind only", "no CVN diagnosis"]}
           rows={repairByMethod.full.map((r, i) => [
             shortName(r.case),
             bugCases[i]?.kinds.join(" + ") ?? "",
-            r.ok ? `成功 · ${r.rounds} 轮` : "失败(5 轮耗尽)",
+            r.ok ? `success · ${r.rounds} rounds` : "failed (5 rounds exhausted)",
             repairByMethod.statusOnly[i].ok
-              ? `成功 · ${repairByMethod.statusOnly[i].rounds} 轮`
-              : "失败(5 轮耗尽)",
+              ? `success · ${repairByMethod.statusOnly[i].rounds} rounds`
+              : "failed (5 rounds exhausted)",
             repairByMethod.llmOnly[i].ok
-              ? `成功 · ${repairByMethod.llmOnly[i].rounds} 轮`
-              : "失败(5 轮耗尽)",
+              ? `success · ${repairByMethod.llmOnly[i].rounds} rounds`
+              : "failed (5 rounds exhausted)",
           ])}
           rowTone={repairByMethod.full.map((r) => (r.ok ? ("success" as const) : ("danger" as const)))}
           striped
         />
 
-        <H2>4b · 局部重生成 vs 全量修复(12 case A/B,反馈已摘要化)</H2>
+        <H2>4b · Local regeneration vs full repair (12-case A/B, feedback summarized)</H2>
         <Text tone="secondary">
-          局部重生成(repair_local):以 bug 报告牵连的函数集为切片,LLM 只重写切片函数(其余函数以单行同步摘要
-          冻结展示),Python 拼接回原 CIR——非切片部分字节级不变。signal_loss 在局部切片内成功;dual_condvar
-          虽识别出 3/3 函数,但修复需要同时移除跨函数的互相 condvar 握手并统一为 m1→m2 锁序,因此切片耗尽后
-          回退全量并成功。切片无法定位(纯 goals 缺陷)或轮次耗尽时回退全量修复。本轮 full 反馈已启用摘要化:
-          同构 bug 按签名去重 + 长反例 trace 压缩。
+          Local regeneration (repair_local): slice by the function set implicated in the bug report; the LLM rewrites only sliced
+          functions (others shown frozen as one-line sync summaries); Python splices back into the original CIR—non-slice parts are
+          byte-identical. signal_loss succeeds in-slice; dual_condvar identifies 3/3 functions but the fix must simultaneously remove
+          the cross-function mutual condvar handshake and unify to m1→m2 lock order, so after slice exhaustion it falls back to full
+          repair and succeeds. When the slice cannot localize (pure goals defects) or rounds are exhausted, fall back to full repair.
+          This round&apos;s full feedback enables summarization: isomorphic bugs deduplicated by signature + long counterexample
+          traces compressed.
         </Text>
         <Table
-          headers={["Case", "局部修复", "token", "切片/总函数", "回退", "全量修复", "token"]}
+          headers={["Case", "local repair", "token", "slice / total fns", "fallback", "full repair", "token"]}
           rows={repairAb.map((r) => [
             shortName(r.case),
-            r.localOk ? "成功" : "失败",
+            r.localOk ? "success" : "failed",
             r.localTokens.toLocaleString(),
             r.slice,
-            r.fell ? "是" : "—",
-            r.fullOk ? "成功" : "失败",
+            r.fell ? "yes" : "—",
+            r.fullOk ? "success" : "failed",
             r.fullTokens.toLocaleString(),
           ])}
           rowTone={repairAb.map((r) => (r.localOk ? ("neutral" as const) : ("danger" as const)))}
@@ -435,68 +445,72 @@ export default function ExperimentReport() {
           striped
         />
         <Grid columns={2} gap={16}>
-          <Callout tone="success" title="局部重生成的核心价值:零语义漂移">
-            全量修复在 3 例上出现 oracle 不可见的语义漂移(dead_transition 凭空加 Mutex、dual_condvar 加 2 个
-            Var、deep case 把 Var 改成 Atomic);局部重生成 12 例中漂移为 0——冻结拼接从结构上杜绝了「顺手改掉
-            没坏的部分」。成功率 11/12 vs 12/12(唯一失败仍是 condvar 类边界),token 总量相当(129k vs 109k)。
+          <Callout tone="success" title="Core value of local regeneration: zero semantic drift">
+            Full repair shows oracle-invisible semantic drift on 3 cases (dead_transition invents a Mutex; dual_condvar adds 2 Vars;
+            deep case changes Var to Atomic); local regeneration has 0 drift across 12 cases—frozen splicing structurally prevents
+            &quot;casually editing unbroken parts.&quot; Success 11/12 vs 12/12 (sole failure still a condvar-class boundary); token totals
+            comparable (129k vs 109k).
           </Callout>
-          <Callout tone="success" title="反馈摘要化:132k → 17k">
-            deep_lock_chain_4x3 的 99 条死锁反例按等价签名去重为若干组、每组只保留最短反例(超长 trace
-            头尾压缩),full 反馈的单轮修复从 132k token 降到 17.3k(约 7.6×),成功率不变——大 case 上完整反馈
-            的成本劣势已消除。实现:prompts.verification_feedback。
+          <Callout tone="success" title="Feedback summarization: 132k → 17k">
+            deep_lock_chain_4x3&apos;s 99 deadlock counterexamples are deduplicated by equivalence signature into groups, keeping the
+            shortest per group (overlong traces head/tail-compressed); single-round full-feedback repair drops from 132k to 17.3k
+            tokens (~7.6×) with unchanged success rate—the cost disadvantage of full feedback on large cases is eliminated.
+            Implementation: prompts.verification_feedback.
           </Callout>
         </Grid>
         <Text tone="tertiary" size="small">
-          goals 三例的切片为 0/3(缺陷在 goal 规格而非函数体,bug 报告无牵连函数),按设计回退全量修复并全部成功——
-          回退机制的正确性得到验证。数据源:results/repair_local.json、results/repair_full_v2.json。
+          The three goals cases have slice 0/3 (defect is in the goal spec, not function bodies; bug report implicates no functions);
+          by design they fall back to full repair and all succeed—validating the fallback mechanism. Data: results/repair_local.json,
+          results/repair_full_v2.json.
         </Text>
       </Stack>
 
-      {/* ── 5. 生成实验 ── */}
+      {/* ── 5. Generation experiments ── */}
       <Stack gap={12} style={{ scrollMarginTop: 88 }}>
         <div id="s5" />
-        <H2>5 · 生成实验:自然语言 → CIR(10 case × 5 条需求)</H2>
+        <H2>5 · Generation experiment: natural language → CIR (10 cases × 5 requirements)</H2>
         <Text tone="secondary">
-          每个 case 用 1 条规范需求 + 4 条释义分别生成 CIR(最多 5 轮校验重试),生成成功后再跑完整
-          analyze。整体仅 {genValid}/50 通过静态校验、{genSafe}/50 最终 verified_safe。锁序类模式(mutex / three-way /
-          semaphore)几乎全部成功;channel、CAS、condvar、带分支的模式几乎全部 5 轮耗尽——瓶颈在 CIR schema
-          细节(res_op 动作名、branch/transfer 形态),而非并发语义。
+          For each case, generate CIR from 1 canonical requirement + 4 paraphrases (≤5 validation-retry rounds), then run full
+          analyze on successful generations. Overall only {genValid}/50 pass static validation and {genSafe}/50 end verified_safe.
+          Lock-order patterns (mutex / three-way / semaphore) nearly all succeed; channel, CAS, condvar, and branching patterns nearly
+          all exhaust 5 rounds—the bottleneck is CIR schema detail (res_op action names, branch/transfer shapes), not concurrency
+          semantics.
         </Text>
         <BarChart
           categories={generate.map((g) => shortName(g.case))}
           series={[
-            { name: "通过静态校验", data: generate.map((g) => g.valid), tone: "info" as const },
-            { name: "最终 verified_safe", data: generate.map((g) => g.safe), tone: "success" as const },
+            { name: "passed static validation", data: generate.map((g) => g.valid), tone: "info" as const },
+            { name: "final verified_safe", data: generate.map((g) => g.safe), tone: "success" as const },
           ]}
           height={260}
           yMax={5}
           showValues
         />
         <Text tone="tertiary" size="small">
-          每 case 5 次生成中通过校验 / 最终验证安全的次数(0–5)。来源:results/full_run.json,DeepSeek v4
-          Pro,max_tokens=4096。
+          Counts (0–5) of generations per case that pass validation / end verified_safe. Source: results/full_run.json, DeepSeek v4
+          Pro, max_tokens=4096.
         </Text>
         <BarChart
           categories={generate.map((g) => shortName(g.case))}
-          series={[{ name: "token 消耗(入+出)", data: generate.map((g) => g.tokens), tone: "warning" as const }]}
+          series={[{ name: "token usage (in+out)", data: generate.map((g) => g.tokens), tone: "warning" as const }]}
           height={220}
           valueSuffix=" tok"
         />
         <Text tone="tertiary" size="small">
-          每 case 5 次生成的 LLM token 总量。失败 case 因 5 轮重试满额,成本约为成功 case 的 2–3 倍。
+          LLM token totals for 5 generations per case. Failed cases hit the full 5-round retry budget, costing ~2–3× successful cases.
         </Text>
       </Stack>
 
-      {/* ── 6. CVN 规模与性能 ── */}
+      {/* ── 6. CVN scale & performance ── */}
       <Stack gap={12} style={{ scrollMarginTop: 88 }}>
         <div id="s6" />
-        <H2>6 · CVN 规模与验证性能(14 case)</H2>
+        <H2>6 · CVN scale and verification performance (14 cases)</H2>
         <Text tone="secondary">
-          小规模 case 验证耗时全部在 2ms 以内;三个大规模 case(14k–53k 状态)也在 84–366ms 完成且状态空间探索完整
-          ——与单轮 LLM 调用的 10–60 秒相比可忽略,验证器不会成为闭环瓶颈。
+          Small cases all finish verify in under 2 ms; the three large cases (14k–53k states) complete in 84–366 ms with full
+          state-space exploration—negligible vs a single LLM call at 10–60 s; the verifier is not a closed-loop bottleneck.
         </Text>
         <Table
-          headers={["Case", "CIR 语句", "库所(控制/资源/等待)", "变迁", "弧(入/出)", "可达状态", "验证耗时"]}
+          headers={["Case", "CIR stmts", "places (control/resource/wait)", "transitions", "arcs (in/out)", "reachable states", "verify time"]}
           rows={analyze.map((a) => {
             const [c, r, w] = placesByKind[a.case] ?? [0, 0, 0];
             return [
@@ -517,11 +531,12 @@ export default function ExperimentReport() {
       {/* ── 7. scaling sweep ── */}
       <Stack gap={12} style={{ scrollMarginTop: 88 }}>
         <div id="s7" />
-        <H2>7 · Scaling sweep:状态爆炸拐点(37 数据点)</H2>
+        <H2>7 · Scaling sweep: state-explosion knee (37 data points)</H2>
         <Text tone="secondary">
-          用参数化生成器(cir_workflow/scaling.py)在三种模式上 sweep 线程数 × 锁数/分支层数,每点跑完整
-          analyze。可达状态数随线程数指数增长;含数据分支的模式增长最陡:branch_fan 在 5 线程 × 2
-          层分支时超出 max_states=100k(analysis_incomplete),而纯锁序模式 6 线程 × 3 锁(53k 状态)仍可完成。
+          Using the parameterized generator (cir_workflow/scaling.py), sweep threads × locks/branch-levels on three modes; each point
+          runs full analyze. Reachable states grow exponentially with thread count; data-branching modes grow steepest: branch_fan at
+          5 threads × 2 branch levels exceeds max_states=100k (analysis_incomplete), while pure lock-order at 6 threads × 3 locks
+          (53k states) still completes.
         </Text>
         <LineChart
           categories={threadAxis}
@@ -531,54 +546,57 @@ export default function ExperimentReport() {
           beginAtZero
         />
         <Text tone="tertiary" size="small">
-          横轴:线程数;纵轴:可达状态数(线性刻度)。分支扇出 5 线程点画在 100k 处表示超预算截断(实际
-          analysis_incomplete);锁链·安全模式 6 线程 × 3 锁为 53,477 状态 / 402ms(图外仍可完成)。
-          来源:results/scaling.json。
+          X-axis: thread count; Y-axis: reachable states (linear scale). The branch fan-out 5-thread point is plotted at 100k to
+          indicate budget truncation (actual analysis_incomplete); lock-chain · safe at 6 threads × 3 locks is 53,477 states / 402 ms
+          (completes off-chart). Source: results/scaling.json.
         </Text>
-        <Callout tone="info" title="max_states 预算建议">
-          默认 100k 对纯锁序模式足够(6 线程 × 3 锁仅 53k),但含数据分支的模式在 ≥5 线程时需要分级提高预算,
-          或引入偏序缩减(partial-order reduction)压缩交错空间——这是 scaling 维度的下一个工程点。
+        <Callout tone="info" title="max_states budget guidance">
+          Default 100k is enough for pure lock-order modes (6 threads × 3 locks ≈ 53k), but data-branching modes at ≥5 threads need
+          tiered higher budgets or partial-order reduction to compress the interleaving space—the next engineering point on the
+          scaling dimension.
         </Callout>
 
-        <H2>7b · Scaling 的 LLM 两腿:NL → 生成 CIR → 验证 → 代码</H2>
+        <H2>7b · Scaling LLM legs: NL → generate CIR → verify → code</H2>
         <Text tone="secondary">
-          在 sweep 的 6 个代表点上补跑 LLM 腿:同一 NL 需求让模型生成 CIR(≤5 轮,verified_safe 验收),
-          成功则对生成 CIR 做 codegen,失败则回退 gold CIR 做 codegen(隔离两腿的失败面)。
+          On 6 representative sweep points, also run the LLM legs: the same NL requirement generates CIR (≤5 rounds, verified_safe
+          acceptance); on success, codegen from the generated CIR; on failure, fall back to gold CIR for codegen (isolating the two
+          failure surfaces).
         </Text>
         <Table
-          headers={["模式 × 规模", "gold 语句", "生成 CIR", "轮", "token", "状态数", "codegen(来源)", "token", "LOC"]}
+          headers={["mode × scale", "gold stmts", "generated CIR", "rounds", "token", "states", "codegen (source)", "token", "LOC"]}
           rows={[
-            ["lock chain 2×2", "15", "verified_safe", "3", "12,556", "57", "通过(生成)", "2,226", "24"],
-            ["lock chain 3×2", "22", "verified_safe", "1", "3,840", "111", "通过(生成)", "2,757", "32"],
-            ["lock chain 4×3", "37", "verified_safe", "1", "3,593", "2,277", "通过(生成)", "4,180", "63"],
-            ["lock chain 6×3", "55", "verified_safe", "2", "13,481", "53,477", "通过(生成)", "4,727", "59"],
-            ["branch fan 2×2", "21", "5 轮耗尽", "5", "22,523", "—", "通过(gold)", "4,439", "59"],
-            ["branch fan 4×2", "41", "5 轮耗尽", "5", "35,631", "—", "通过(gold)", "5,073", "36"],
+            ["lock chain 2×2", "15", "verified_safe", "3", "12,556", "57", "pass (generated)", "2,226", "24"],
+            ["lock chain 3×2", "22", "verified_safe", "1", "3,840", "111", "pass (generated)", "2,757", "32"],
+            ["lock chain 4×3", "37", "verified_safe", "1", "3,593", "2,277", "pass (generated)", "4,180", "63"],
+            ["lock chain 6×3", "55", "verified_safe", "2", "13,481", "53,477", "pass (generated)", "4,727", "59"],
+            ["branch fan 2×2", "21", "5 rounds exhausted", "5", "22,523", "—", "pass (gold)", "4,439", "59"],
+            ["branch fan 4×2", "41", "5 rounds exhausted", "5", "35,631", "—", "pass (gold)", "5,073", "36"],
           ]}
           rowTone={["neutral", "neutral", "neutral", "neutral", "danger", "danger"] as const}
           columnAlign={["left", "right", "left", "right", "right", "right", "left", "right", "right"] as const}
           striped
         />
         <Text tone="tertiary" size="small">
-          锁链模式 4/4 生成成功且规模不衰减(4×3、6×3 生成的 CIR 语句数与 gold 持平,状态空间同量级)——
-          「生成能力随规模劣化」在纯锁序模式上不成立;3×2 点模型生成了更精简的等价方案(12 vs 22 语句)。
-          branch_fan 两点全部 5 轮耗尽在静态校验,与第 5 节生成实验的结论一致:瓶颈是 branch/switch 的
-          schema 细节,而非并发建模,且 token 白耗 22k–36k——few-shot 范例是最直接的止血。codegen 腿 6/6
-          通过(含回退 gold 的两点)。数据源:results/scaling_llm.json。
+          Lock-chain mode 4/4 generation succeeds with no scale degradation (4×3 and 6×3 generated CIR stmt counts match gold;
+          state spaces same order)—&quot;generation ability degrades with scale&quot; does not hold for pure lock-order; at 3×2 the model
+          produced a leaner equivalent (12 vs 22 stmts). Both branch_fan points exhaust 5 rounds at static validation, consistent with
+          §5: the bottleneck is branch/switch schema detail, not concurrency modeling, wasting 22k–36k tokens—few-shot exemplars are
+          the most direct fix. Codegen leg 6/6 pass (including the two gold-fallback points). Data: results/scaling_llm.json.
         </Text>
       </Stack>
 
-      {/* ── 8. LLM 单独判卷 ── */}
+      {/* ── 8. LLM-only judging ── */}
       <Stack gap={12} style={{ scrollMarginTop: 88 }}>
         <div id="s8" />
-        <H2>8 · LLM 单独判卷 vs CVN:深埋 bug 与误报探针(16 case)</H2>
+        <H2>8 · LLM-only judging vs CVN: deep-buried bugs and false-positive probes (16 cases)</H2>
         <Text tone="secondary">
-          无 oracle 的单发判卷:LLM 直接阅读 CIR 给出 bug/safe、kind 与嫌疑位置。为考验它,新增了深埋 bug
-          case(deep_lock_chain_4x3:4 worker × 2 分支臂共 8 段近似锁序,仅 w3 的 else 臂把 m2 提前;if
-          臂跳过 m2 以绕过函数内锁序静态规则 E505)及其安全孪生。
+          Single-shot judging with no oracle: the LLM reads CIR directly and reports bug/safe, kind, and suspected locus. To stress
+          it, we added a deep-buried bug case (deep_lock_chain_4x3: 4 workers × 2 branch arms = 8 near-identical lock-order segments;
+          only w3&apos;s else arm advances m2 early; the if arm skips m2 to bypass intra-function lock-order static rule E505) and its
+          safe twin.
         </Text>
         <Table
-          headers={["Case", "Gold", "LLM 判定", "LLM kind", "备注"]}
+          headers={["Case", "Gold", "LLM verdict", "LLM kind", "Notes"]}
           rows={judged.map((j) => [
             shortName(j.case),
             j.gold,
@@ -590,122 +608,134 @@ export default function ExperimentReport() {
           striped
         />
         <Grid columns={2} gap={16}>
-          <Callout tone="danger" title="拿到了真实误报:cas_race">
-            LLM 把「对 CAS 结果的分支」误读为「对变量值的分支」,推断出永假条件并报告
-            DeadTransition——安全 case 上的误报。CVN 按 CIR 语义精确建模 CAS 成功/失败两条转移,判定
-            safe。这说明 LLM 判卷在语义细节上不可靠,验证器的价值不在「能不能发现」而在「说的一定对」。
+          <Callout tone="danger" title="Real false positive obtained: cas_race">
+            The LLM misreads a &quot;branch on CAS result&quot; as a &quot;branch on variable value,&quot; infers a permanently false condition, and
+            reports DeadTransition—a false positive on a safe case. CVN models both CAS success/failure transfers per CIR semantics
+            and judges safe. This shows LLM judging is unreliable on semantic detail; the verifier&apos;s value is not &quot;can it find bugs&quot;
+            but &quot;what it says is necessarily correct.&quot;
           </Callout>
-          <Callout tone="warning" title="埋深锁序 bug 没能骗过 DeepSeek">
-            67 语句、8 段近似锁序中的一处相邻交换,判卷解释仍精确定位到 w3 的 else
-            臂;修复实验三种反馈也全部 1 轮成功——锁序类缺陷的修复不需要定位(把所有序列规范化即安全)。要拉开
-            LLM-only 与 CVN 反馈的差距,方向是:condvar/SignalLoss 类(已是修复边界)、goals
-            语义约束(让「规范化式修复」破坏业务目标而被拒)、以及跨函数 call 链持锁的更大 CIR。
+          <Callout tone="warning" title="Deep-buried lock-order bug did not fool DeepSeek">
+            Amid 67 stmts and 8 near-identical lock-order segments, a single adjacent swap: the judging explanation still precisely
+            localizes w3&apos;s else arm; all three repair-feedback modes also succeed in 1 round—lock-order defects do not need
+            localization to fix (normalizing all sequences is safe). To widen the gap between LLM-only and CVN feedback, pursue:
+            condvar/SignalLoss (already a repair boundary), goals semantic constraints (so &quot;normalize-style fixes&quot; break business
+            goals and are rejected), and larger CIRs with cross-function call chains that hold locks.
           </Callout>
         </Grid>
         <Text tone="tertiary" size="small">
-          另两处 kind 判错:dual_condvar(gold SignalLoss,LLM 说 Deadlock)、partial_deadlock(gold
-          DeadTransition+goals,LLM 说 Deadlock);修复实验中还观察到两种模式把 flag 的 Var 悄悄改成
-          Atomic——oracle 不可见的语义漂移。来源:results/llm_judge.json、results/deep_repair.json。
+          Two other kind errors: dual_condvar (gold SignalLoss, LLM says Deadlock), partial_deadlock (gold DeadTransition+goals, LLM
+          says Deadlock); repair experiments also saw both modes silently change a flag Var to Atomic—oracle-invisible semantic
+          drift. Sources: results/llm_judge.json, results/deep_repair.json.
         </Text>
       </Stack>
 
       {/* ── 9. codegen ── */}
       <Stack gap={12} style={{ scrollMarginTop: 88 }}>
         <div id="s9" />
-        <H2>9 · 代码生成:verified CIR → Rust(cargo check 验收)</H2>
+        <H2>9 · Code generation: verified CIR → Rust (cargo check acceptance)</H2>
         <Text tone="secondary">
-          用户故事的最后一环:LLM 拿到已验证的 CIR 计划,按「结构忠实映射」约束生成 main.rs,`cargo check`
-          验收(≤3 轮)。18/18 全部 1 轮通过。早期 codegen 运行曾因 fixed fixture 的历史 DeadTransition
-          门禁误报拦下 signal_loss;当前 condvar 变体分组与 repair-layer 后缀过滤已消除该历史工件,本轮通过。
-          dual_condvar 的 fixed CIR 则移除了互相等待的 condvar 握手,让两个线程统一按 m1→m2 获取锁,从而通过验证。
-          端到端 pipeline(需求 → CIR → 验证 → 代码)在 mutex_deadlock 与 semaphore_throttle 上冒烟成功,单链约 7k token。
+          The last link of the user story: given a verified CIR plan, the LLM generates main.rs under a &quot;structure-faithful mapping&quot;
+          constraint, accepted by `cargo check` (≤3 rounds). 18/18 all pass in 1 round. An earlier codegen run was blocked on
+          signal_loss by a historical DeadTransition gate false positive from a fixed fixture; current condvar variant grouping and
+          repair-layer suffix filtering removed that artifact, and this round passes. dual_condvar&apos;s fixed CIR removes the mutual
+          waiting condvar handshake so both threads acquire locks in m1→m2 order and pass verification. The end-to-end pipeline
+          (requirement → CIR → verify → code) smoke-succeeds on mutex_deadlock and semaphore_throttle at ~7k tokens per chain.
         </Text>
         <BarChart
           categories={codegen.map((c) => shortName(c.case))}
           series={[
-            { name: "CIR 语句数", data: codegen.map((c) => c.stmts), tone: "info" as const },
-            { name: "生成代码 LOC", data: codegen.map((c) => c.loc), tone: "success" as const },
+            { name: "CIR stmt count", data: codegen.map((c) => c.stmts), tone: "info" as const },
+            { name: "generated code LOC", data: codegen.map((c) => c.loc), tone: "success" as const },
           ]}
           height={260}
         />
         <Text tone="tertiary" size="small">
-          CIR 语句数 vs 生成 Rust 的非空非注释行数。锁链类 CIR 语句多但代码可折叠(scale_lock_chain_6x3:55
-          语句 → 24 行,模型把 6 个相同 worker 折叠成循环);deep_lock_chain_4x3_safe 未折叠(104
-          行)。折叠语义等价但破坏语句级 1:1 对应——「CIR ↔ Rust 一致性检查」(todo 第 5 节)因此必要。
-          来源:results/codegen.json、results/pipeline_smoke.json。
+          CIR stmt count vs non-empty non-comment lines of generated Rust. Lock-chain CIR is stmt-heavy but code can fold
+          (scale_lock_chain_6x3: 55 stmts → 24 lines; the model folds 6 identical workers into a loop); deep_lock_chain_4x3_safe does
+          not fold (104 lines). Folding is semantically equivalent but breaks stmt-level 1:1 correspondence—hence the need for a
+          &quot;CIR ↔ Rust consistency check&quot; (todo §5). Sources: results/codegen.json, results/pipeline_smoke.json.
         </Text>
       </Stack>
 
-      {/* ── 10. Goals 约束修复 ── */}
+      {/* ── 10. Goals-constrained repair ── */}
       <Stack gap={12} style={{ scrollMarginTop: 88 }}>
         <div id="s10" />
-        <H2>10 · Goals 约束死锁:堵住「规范化式乱修」</H2>
+        <H2>10 · Goals-constrained deadlock: blocking &quot;normalize-style wild fixes&quot;</H2>
         <Text tone="secondary">
-          新增 goal_constrained_deadlock(3 worker,~2k 状态)与 dense 孪生(4 worker,~65k
-          状态):死锁埋在 w3 的 else 臂(m2→m1),同一臂是唯一写入 result=99 的路径;业务 goal 要求 99
-          可达。离线探针:在 fixed CIR 上把 99 改成 3 → goals_unmet——「删臂/统一写值」清死锁但不被验收。
+          New goal_constrained_deadlock (3 workers, ~2k states) and dense twin (4 workers, ~65k states): deadlock buried in w3&apos;s
+          else arm (m2→m1); the same arm is the only path writing result=99; the business goal requires 99 reachable. Offline probe:
+          changing 99→3 on the fixed CIR yields goals_unmet—&quot;delete the arm / unify the write&quot; clears the deadlock but fails
+          acceptance.
         </Text>
         <Table
-          headers={["Case", "模式", "成功", "轮次", "保留 result=99", "token"]}
+          headers={["Case", "mode", "success", "rounds", "keeps result=99", "token"]}
           rows={[
-            ["goal constrained", "CVN 完整", "是", "1", "是", "9854"],
-            ["goal constrained", "仅 status", "是", "1", "是", "6697"],
-            ["goal constrained", "无反馈", "是", "1", "是", "6482"],
-            ["dense", "CVN 完整", "是", "1", "是", "16722"],
-            ["dense", "仅 status", "是", "1", "是", "10159"],
-            ["dense", "无反馈", "是", "1", "是", "10128"],
-            ["dense × Flash", "CVN 完整", "是", "2*", "是", "11742"],
-            ["dense × Flash", "无反馈", "是", "1", "是", "12511"],
+            ["goal constrained", "full CVN", "yes", "1", "yes", "9854"],
+            ["goal constrained", "status only", "yes", "1", "yes", "6697"],
+            ["goal constrained", "no feedback", "yes", "1", "yes", "6482"],
+            ["dense", "full CVN", "yes", "1", "yes", "16722"],
+            ["dense", "status only", "yes", "1", "yes", "10159"],
+            ["dense", "no feedback", "yes", "1", "yes", "10128"],
+            ["dense × Flash", "full CVN", "yes", "2*", "yes", "11742"],
+            ["dense × Flash", "no feedback", "yes", "1", "yes", "12511"],
           ]}
           striped
         />
         <Text tone="tertiary" size="small">
-          *Flash×CVN 首轮因 thinking 空 content 失败,第 2 轮成功。来源:results/goal_constrained_repair_ab.json、
-          results/goal_constrained_flash.json。Oracle 层有效;DeepSeek Pro/Flash 均未自发丢掉 99,成功率未拉开。
+          *Flash×CVN failed round 1 due to empty thinking content; succeeded on round 2. Sources:
+          results/goal_constrained_repair_ab.json, results/goal_constrained_flash.json. Oracle layer is effective; neither DeepSeek
+          Pro nor Flash spontaneously drops 99, so success rates do not diverge.
         </Text>
-        <Callout tone="info" title="分层结论">
-          (1) 验收门禁能拒掉规范化乱修;(2) 当前强模型会自发保留特色写;(3) 该 case 作回归探针与弱模型/对抗改写对照,见
-          doc/goals_policy.md §5。
+        <Callout tone="info" title="Layered conclusions">
+          (1) The acceptance gate rejects normalize-style wild fixes; (2) current strong models spontaneously keep the distinctive
+          write; (3) use this case as a regression probe and weak-model / adversarial-rewrite contrast—see doc/goals_policy.md §5.
         </Callout>
       </Stack>
 
-      {/* ── 11. 关键发现 ── */}
+      {/* ── 11. Key findings ── */}
       <Stack gap={12} style={{ scrollMarginTop: 88 }}>
         <div id="s11" />
-        <H2>11 · 关键发现与下一步</H2>
-        <Callout tone="success" title="与外部工具的能力边界清晰互补">
-          锁序类:Lockbud 可检但诊断不可靠(别名混淆致 1 误报 + 2 误诊);调度依赖死锁:Miri 随机采样 256
-          种子仍全漏,CVN 穷举全检出;goals 语义类与结构类(DeadTransition):只有 CVN 能表达和检出。
-          CVN 在 20 case 上无误报、无漏检、无误诊(含新增 goals 约束死锁对)。
+        <H2>11 · Key findings and next steps</H2>
+        <Callout tone="success" title="Clear complementary capability boundaries vs external tools">
+          Lock-order: Lockbud can detect but diagnosis is unreliable (alias confusion → 1 FP + 2 misdiagnoses); schedule-dependent
+          deadlocks: Miri still misses all at 256 random seeds, CVN exhaustively detects all; goals-semantic and structural
+          (DeadTransition): only CVN can express and detect. On 20 cases, CVN has zero false positives, misses, or misdiagnoses
+          (including the new goals-constrained deadlock pair).
         </Callout>
-        <Callout tone="info" title="Goals 约束堵住规范化乱修(oracle 层)">
-          goal_constrained_deadlock 证明:丢掉特色写 99 会 goals_unmet。DeepSeek Pro/Flash 修复时均保留
-          99,成功率未与无反馈拉开——强模型未自发踩坑;该 case 作回归探针,见第 10 节。
+        <Callout tone="info" title="Goals constraints block normalize-style wild fixes (oracle layer)">
+          goal_constrained_deadlock proves: dropping the distinctive write of 99 yields goals_unmet. DeepSeek Pro/Flash both keep 99
+          when repairing, so success does not diverge from no-feedback—strong models do not spontaneously fall into the trap; use as
+          a regression probe, see §10.
         </Callout>
-        <Callout tone="success" title="SignalLoss 修复边界已被推过去">
-          修正 condvar 建模后,repair_8k 的 CVN 完整反馈对 signal_loss / dual_condvar 分别在 2 轮和 3 轮成功;同一模型下
-          仅 status/kind 与无 CVN 诊断的消融重跑仍分别在两个 case 上耗尽 5 轮,说明可执行的结构性修复依赖完整诊断而非
-          verifier 放宽。repair_local 中 signal_loss 也在局部切片内 2 轮成功;dual_condvar 虽识别出 3/3 函数,但跨函数协议改写
-          需要移除互相 condvar 握手并统一 m1→m2 锁序,所以切片失败后回退全量并成功。condvar 类结构性改写更适合全量修复兜底。
+        <Callout tone="success" title="SignalLoss repair boundary has been pushed past">
+          After the corrected condvar model, repair_8k full CVN feedback succeeds on signal_loss / dual_condvar in 2 and 3 rounds;
+          under the same model, status/kind-only and no-CVN-diagnosis ablations still exhaust 5 rounds on those two cases—executable
+          structural fixes depend on full diagnosis, not a relaxed verifier. In repair_local, signal_loss also succeeds in-slice in 2
+          rounds; dual_condvar identifies 3/3 functions but cross-function protocol rewrite needs removing the mutual condvar
+          handshake and unifying m1→m2 lock order, so after slice failure it falls back to full repair and succeeds. Condvar-class
+          structural rewrites are better backed by full repair as fallback.
         </Callout>
-        <Callout tone="warning" title="生成瓶颈在 CIR schema,而非并发建模">
-          生成失败的 case(channel / cas / dead_transition / condvar)都是 5 轮耗尽在静态校验上。可行方向:在生成 prompt
-          中内嵌对应模式的最小 CIR 范例(few-shot),或按缺陷类型定制 schema 片段。
+        <Callout tone="warning" title="Generation bottleneck is CIR schema, not concurrency modeling">
+          Failed generation cases (channel / cas / dead_transition / condvar) all exhaust 5 rounds at static validation. Feasible
+          directions: embed minimal CIR exemplars for the matching pattern in the generation prompt (few-shot), or customize schema
+          fragments by defect type.
         </Callout>
-        <Callout tone="success" title="完整反馈的成本爆炸已由摘要化解决">
-          deep_lock_chain_4x3 的完整 CVN 反馈原含 99 条死锁反例、单轮修复 132k token;按 bug 等价签名去重 +
-          反例轨迹头尾压缩后降到 17.3k(7.6×),成功率不变。摘要化已默认启用(prompts.verification_feedback),
-          大 case 上完整反馈相对无反馈的成本劣势消除。
+        <Callout tone="success" title="Full-feedback cost blowup solved by summarization">
+          deep_lock_chain_4x3 full CVN feedback originally held 99 deadlock counterexamples and 132k tokens per repair round; after
+          dedup by bug-equivalence signature + head/tail counterexample compression it drops to 17.3k (7.6×) with unchanged success.
+          Summarization is on by default (prompts.verification_feedback); the cost disadvantage of full vs no feedback on large cases
+          is gone.
         </Callout>
-        <Callout tone="warning" title="剩余风险:语义漂移与折叠">
-          全量修复在 3/12 case 上悄悄改动未损坏部分(加 Mutex/Var、Var→Atomic),oracle 不可见;局部重生成以
-          冻结拼接根治(12 case 零漂移),建议作为默认修复模式、全量作 fallback。codegen 侧的对应风险是
-          worker 折叠破坏语句级 1:1 对应,CIR↔Rust 一致性 checklist(doc/cir_rust_consistency.md)用于人工复核。
+        <Callout tone="warning" title="Remaining risks: semantic drift and folding">
+          Full repair silently edits unbroken parts on 3/12 cases (add Mutex/Var, Var→Atomic), invisible to the oracle; local
+          regeneration cures this via frozen splicing (0 drift on 12 cases)—prefer as default repair mode with full as fallback. The
+          corresponding codegen risk is worker folding breaking stmt-level 1:1 correspondence; the CIR↔Rust consistency checklist
+          (doc/cir_rust_consistency.md) supports manual review.
         </Callout>
-        <Callout tone="neutral" title="工程注记">
-          thinking 模式下 max_tokens=4096 会让难 case 的推理耗尽输出预算并返回空 content,修复实验统一改用 8192;
-          Lockbud 在 Windows 需把 nightly-2026-02-07 工具链 bin 目录加入 PATH(rustc_driver DLL)并以
-          RUSTC_WRAPPER 方式驱动;Miri 的 many-seeds 并行执行,256 种子仅 3–5 秒/case。
+        <Callout tone="neutral" title="Engineering notes">
+          Under thinking mode, max_tokens=4096 lets hard cases exhaust the output budget and return empty content; repair experiments
+          uniformly use 8192. On Windows, Lockbud needs the nightly-2026-02-07 toolchain bin on PATH (rustc_driver DLL) and must be
+          driven via RUSTC_WRAPPER. Miri many-seeds runs in parallel; 256 seeds take only 3–5 s/case.
         </Callout>
       </Stack>
     </Stack>

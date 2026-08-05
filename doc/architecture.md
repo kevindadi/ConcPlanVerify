@@ -67,61 +67,61 @@ CIR Program ──translate()──▶ CvnNet ──analyze()──▶ Counterex
 8. **CVN is P/T + guards**: Not classical colored-token CPN; condvar wake paths are separate transitions rather than color-matched wakes
 
 ┌─────────────────────────────────────────────────────────────┐
-│ LLM 生成端 │
-│ 用户需求 + System Prompt → LLM → CIR JSON │
+│ LLM generation front-end │
+│ User requirements + System Prompt → LLM → CIR JSON │
 └───────────────────────┬─────────────────────────────────────┘
 │
 ▼
 ┌───────────────────────────────────────────────────────────┐
-│ 第一层:CIR 静态检查 │
-│ E0xx 结构 → E1xx 名称 → E2xx 类型 → E3xx 资源 → │
-│ E4xx 并发配对 → E5xx 锁安全 → E6xx 控制流 → │
-│ E7xx 保护映射 → E8xx FnSummary │
+│ Layer 1: CIR static checks │
+│ E0xx structure → E1xx names → E2xx types → E3xx resources → │
+│ E4xx concurrency pairing → E5xx lock safety → E6xx control flow → │
+│ E7xx protection mapping → E8xx FnSummary │
 │ │
-│ 简单错误(如 lock 缺 drop)→ 尝试本地自动修复 │
-│ 复杂错误 → 错误报告 → 发回 LLM 重新生成 │
+│ Simple errors (e.g. lock without drop) → try local auto-fix │
+│ Complex errors → error report → send back to LLM for regeneration │
 └───────────────────────┬─────────────────────────────────────┘
-│ 通过
+│ Pass
 ▼
 ┌───────────────────────────────────────────────────────────┐
-│ CIR → CVN 翻译 │
-│ 阶段 1:资源扫描 → P_r + I_m + I_v │
-│ 阶段 2:函数体 → P_c + P_w + T + A_in + A_out │
-│ 阶段 3:FnSummary → 原子变迁 │
+│ CIR → CVN translation │
+│ Phase 1: resource scan → P_r + I_m + I_v │
+│ Phase 2: function bodies → P_c + P_w + T + A_in + A_out │
+│ Phase 3: FnSummary → atomic transitions │
 │ │
-│ 翻译错误 T0xx-T3xx → 报告 → 发回 LLM │
+│ Translation errors T0xx-T3xx → report → send back to LLM │
 └───────────────────────┬─────────────────────────────────────┘
-│ 成功
+│ Success
 ▼
 ┌───────────────────────────────────────────────────────────┐
-│ 第二层:CVN 模型检验 │
-│ 状态空间搜索(BFS/DFS) │
-│ ├── 死锁检测:无使能变迁 ∧ 非终止 │
-│ ├── 信号丢失:Condvar wait 后无人唤醒 │
-│ ├── 活性检查:SCC 分析(饥饿、活锁) │
-│ └── Channel 阻塞:recv 无对应 send │
+│ Layer 2: CVN model checking │
+│ State-space search (BFS/DFS) │
+│ ├── Deadlock detection: no enabled transition ∧ not terminated │
+│ ├── Signal loss: no wake after Condvar wait │
+│ ├── Liveness checks: SCC analysis (starvation, livelock) │
+│ └── Channel block: recv with no matching send │
 └──────────┬─────────────────────────┬────────────────────────┘
 │ │
 ▼ ▼
 ┌──────────┐ ┌──────────────┐
-│ ✅ 通过 │ │ ❌ 发现 bug │
-│ 无并发bug │ │ 生成反例报告 │
+│ ✅ Pass │ │ ❌ Bug found │
+│ No concurrency bugs │ │ Emit counterexample report │
 └──────────┘ └──────┬───────┘
 │
 ▼
 ┌────────────────────────────────┐
-│ 反例报告格式化 │
-│ 反例 trace + 涉及资源/函数 │
-│ + 模板化修复建议 │
-│ → 组装为 LLM 修复 prompt │
+│ Counterexample report formatting │
+│ Counterexample trace + involved resources/functions │
+│ + Templated repair suggestions │
+│ → Assemble into LLM repair prompt │
 └────────────────┬───────────────┘
 │
 ▼
 ┌──────────────┐
-│ 发回 LLM │
-│ 重新生成 CIR │
+│ Send back to LLM │
+│ Regenerate CIR │
 └──────┬───────┘
 │
 ▼
-循环(最多 K 轮)
-K 默认 = 3
+Loop (at most K rounds)
+K default = 3

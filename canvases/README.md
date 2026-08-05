@@ -1,6 +1,6 @@
-# ConcPlanVerify 实验报告
+# ConcPlanVerify Experiment Report
 
-## 运行
+## Run
 
 ```bash
 cd canvases
@@ -8,13 +8,11 @@ npm install
 npm run dev
 ```
 
-浏览器打开提示的本地地址（默认 `http://localhost:5173`）。
+Open the local URL shown in the terminal (default `http://localhost:5173`).
 
-## 构建
+## Build
 
 ```bash
 npm run build
 npm run preview
 ```
-
-

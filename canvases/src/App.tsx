@@ -36,15 +36,15 @@ export default function App() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="case 名关键字…"
+            placeholder="case name keyword…"
           />
         </label>
         <button type="button" className="theme-btn" onClick={() => setDark((d) => !d)}>
-          {dark ? "浅色" : "深色"}
+          {dark ? "Light" : "Dark"}
         </button>
       </header>
 
-      <nav className="toc" aria-label="章节导航">
+      <nav className="toc" aria-label="Section navigation">
         {SECTIONS.map((s) => (
           <a key={s.id} href={`#${s.id}`}>
             {s.label}
