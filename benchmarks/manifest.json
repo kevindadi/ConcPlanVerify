@@ -160,6 +160,33 @@
       }
     },
     {
+      "id": "condvar_lock_hold",
+      "defect_type": "condvar_deadlock",
+      "expected": {
+        "outcome": "bug",
+        "bug_kind": "SignalLoss",
+        "expected_bug_path": "tests/e2e/condvar_lock_hold/expected_bug.json"
+      },
+      "cir": {
+        "buggy": "tests/e2e/condvar_lock_hold/buggy.json",
+        "fixed": "tests/e2e/condvar_lock_hold/fixed.json"
+      },
+      "notes": "Classic condvar-induced deadlock: waiter calls wait while still holding an unrelated mutex (`outer`) that the notifier must acquire before notifying. CVN classifies the stuck wait place as SignalLoss (sub-class of deadlock).",
+      "rust": {
+        "buggy": "benchmarks/rust/condvar_lock_hold/buggy.rs",
+        "fixed": "benchmarks/rust/condvar_lock_hold/fixed.rs"
+      },
+      "requirements": {
+        "canonical": "Model a waiter and a notifier that share two mutexes (`outer`, `inner`), a condition variable paired with `inner`, and a boolean flag `ready` protected by `inner`. The notifier sets `ready` and signals the condition variable. The waiter must observe `ready == true` and terminate. Critically, the waiter must not hold `outer` across the wait call, because the notifier needs `outer` before it can notify.",
+        "paraphrases": [
+          "A consumer waits on a condvar guarded by an inner mutex, while a producer updates a protected ready flag and notifies. The consumer may also use an outer mutex, but must release every lock other than the wait mutex before sleeping, or the producer can never wake it.",
+          "Write a plan where the waiter locks an outer mutex, then the inner mutex, then waits. Fix the lock discipline so waiting never retains the outer mutex, and use a predicate loop on ready so early notifications are not lost.",
+          "Two threads: one waits for a signal, the other notifies under a nested lock order (outer then inner). Ensure the wait path drops the outer mutex before blocking, otherwise the notifier deadlocks trying to enter the critical section.",
+          "Model the textbook condvar-hold bug and its repair: never wait while holding unrelated locks; re-check the condition variable predicate after every wake-up."
+        ]
+      }
+    },
+    {
       "id": "partial_deadlock",
       "defect_type": "goals_unmet",
       "expected": {

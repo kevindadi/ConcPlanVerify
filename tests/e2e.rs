@@ -305,6 +305,30 @@ fn e2e_dual_condvar_fixed() {
     run_fixed_test("dual_condvar");
 }
 
+// ── Test 8b: Condvar wait while holding another mutex ──
+
+#[test]
+fn e2e_condvar_lock_hold_buggy() {
+    run_buggy_test("condvar_lock_hold");
+}
+
+#[test]
+fn e2e_condvar_lock_hold_fixed() {
+    run_fixed_test("condvar_lock_hold");
+}
+
+#[test]
+fn e2e_condvar_lock_hold_fixed_full_pipeline_is_safe() {
+    let fixed = load_cir(&e2e_dir().join("condvar_lock_hold/fixed.json"));
+    let result = cir2cvn::verify_program(&fixed, &cir2cvn::VerificationConfig::default());
+    assert_eq!(
+        result.status,
+        cir2cvn::VerificationStatus::VerifiedSafe,
+        "bugs: {:?}",
+        result.bugs.iter().map(|b| &b.summary).collect::<Vec<_>>()
+    );
+}
+
 // ── Test 9: FnSummary propagation baseline (no bug, goals reachable) ──
 
 #[test]

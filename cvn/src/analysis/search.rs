@@ -369,4 +369,89 @@ mod dead_transition_tests {
             }
         }
     }
+
+    #[test]
+    fn family_live_when_any_member_fires() {
+        use crate::model::{CmpOp, Expr, Val};
+        let x_true = BoolExpr::Cmp {
+            op: CmpOp::Eq,
+            lhs: Box::new(Expr::Ref("x".into())),
+            rhs: Box::new(Expr::Lit(Val::bool(true))),
+        };
+        let x_false = BoolExpr::Cmp {
+            op: CmpOp::Eq,
+            lhs: Box::new(Expr::Ref("x".into())),
+            rhs: Box::new(Expr::Lit(Val::bool(false))),
+        };
+        let net = CvnNetBuilder::new()
+            .add_control_place("p0", "main", "s0")
+            .add_control_place("p1", "main", "s1")
+            .set_return("p1")
+            .add_variable("x", Val::bool(true))
+            .add_transition("t_a", TransitionKind::Sequential)
+            .add_transition("t_b", TransitionKind::Sequential)
+            .set_disjunctive_family("t_a", "family_ab")
+            .set_disjunctive_family("t_b", "family_ab")
+            .add_input_arc("p0", "t_a", 1, x_true)
+            .add_output_arc("t_a", "p1", 1, None)
+            .add_input_arc("p0", "t_b", 1, x_false)
+            .add_output_arc("t_b", "p1", 1, None)
+            .set_initial_tokens("p0", 1)
+            .build()
+            .unwrap();
+        let result = explore(&net, &AnalysisConfig::default()).unwrap();
+        let dead = find_dead_transitions(&net, &result);
+        assert!(
+            dead.is_empty(),
+            "t_a fires under x==true; sibling t_b must not count as dead: {:?}",
+            dead.iter()
+                .map(|c| match &c.kind {
+                    PropertyViolation::DeadTransition { transition_id, .. } => {
+                        transition_id.0.clone()
+                    }
+                    _ => "?".into(),
+                })
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn family_dead_reported_once() {
+        let net = CvnNetBuilder::new()
+            .add_control_place("p0", "main", "s0")
+            .add_control_place("p1", "main", "s1")
+            .set_return("p1")
+            .add_control_place("p_unreached", "main", "s_u")
+            .add_transition("t_live", TransitionKind::Sequential)
+            .add_transition("t_a", TransitionKind::Sequential)
+            .add_transition("t_b", TransitionKind::Sequential)
+            .set_disjunctive_family("t_a", "family_ab")
+            .set_disjunctive_family("t_b", "family_ab")
+            .add_input_arc("p0", "t_live", 1, BoolExpr::True)
+            .add_output_arc("t_live", "p1", 1, None)
+            .add_input_arc("p_unreached", "t_a", 1, BoolExpr::True)
+            .add_output_arc("t_a", "p1", 1, None)
+            .add_input_arc("p_unreached", "t_b", 1, BoolExpr::True)
+            .add_output_arc("t_b", "p1", 1, None)
+            .set_initial_tokens("p0", 1)
+            .build()
+            .unwrap();
+        let result = explore(&net, &AnalysisConfig::default()).unwrap();
+        let dead = find_dead_transitions(&net, &result);
+        assert_eq!(
+            dead.len(),
+            1,
+            "whole family dead → one report, got {}",
+            dead.len()
+        );
+        match &dead[0].kind {
+            PropertyViolation::DeadTransition { transition_id, .. } => {
+                assert_eq!(
+                    transition_id.0, "t_a",
+                    "representative is lexicographically smallest id"
+                );
+            }
+            other => panic!("expected DeadTransition, got {:?}", other),
+        }
+    }
 }
