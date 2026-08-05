@@ -158,28 +158,28 @@ const repairByMethod: Record<string, Repair[]> = {
   full: [
     { case: "mutex_deadlock", ok: true, rounds: 1, tokens: 3963 },
     { case: "three_way_deadlock", ok: true, rounds: 1, tokens: 5344 },
-    { case: "signal_loss", ok: false, rounds: -1, tokens: 21967 },
+    { case: "signal_loss", ok: true, rounds: 2, tokens: 9865 },
     { case: "channel_deadlock", ok: true, rounds: 1, tokens: 4535 },
     { case: "dead_transition", ok: true, rounds: 4, tokens: 23963 },
-    { case: "dual_condvar", ok: false, rounds: -1, tokens: 48572 },
+    { case: "dual_condvar", ok: true, rounds: 3, tokens: 24417 },
     { case: "partial_deadlock", ok: true, rounds: 2, tokens: 20434 },
   ],
   statusOnly: [
     { case: "mutex_deadlock", ok: true, rounds: 1, tokens: 3565 },
     { case: "three_way_deadlock", ok: true, rounds: 1, tokens: 4270 },
-    { case: "signal_loss", ok: false, rounds: -1, tokens: 28858 },
+    { case: "signal_loss", ok: false, rounds: -1, tokens: 18812 },
     { case: "channel_deadlock", ok: true, rounds: 1, tokens: 3881 },
     { case: "dead_transition", ok: true, rounds: 1, tokens: 6467 },
-    { case: "dual_condvar", ok: false, rounds: -1, tokens: 33426 },
+    { case: "dual_condvar", ok: false, rounds: -1, tokens: 31016 },
     { case: "partial_deadlock", ok: true, rounds: 1, tokens: 6006 },
   ],
   llmOnly: [
     { case: "mutex_deadlock", ok: true, rounds: 1, tokens: 3771 },
     { case: "three_way_deadlock", ok: true, rounds: 1, tokens: 4709 },
-    { case: "signal_loss", ok: false, rounds: -1, tokens: 12311 },
+    { case: "signal_loss", ok: false, rounds: -1, tokens: 21707 },
     { case: "channel_deadlock", ok: true, rounds: 1, tokens: 5640 },
     { case: "dead_transition", ok: true, rounds: 2, tokens: 11305 },
-    { case: "dual_condvar", ok: false, rounds: -1, tokens: 43974 },
+    { case: "dual_condvar", ok: false, rounds: -1, tokens: 38218 },
     { case: "partial_deadlock", ok: true, rounds: 1, tokens: 7446 },
   ],
 };
@@ -237,8 +237,6 @@ export default function ExperimentReport() {
   const bugCases = analyze.filter((a) => a.expected !== "safe");
   const genValid = generate.reduce((s, g) => s + g.valid, 0);
   const genSafe = generate.reduce((s, g) => s + g.safe, 0);
-  const repairCases = repairByMethod.full.length;
-  const repairOk = repairByMethod.full.filter((r) => r.ok).length;
 
   return (
     <Stack gap={28} style={{ padding: 24, maxWidth: 1080 }}>
@@ -286,9 +284,9 @@ export default function ExperimentReport() {
         />
         <Text tone="tertiary" size="small">
           partial_deadlock 的状态判定为 verified_unsafe(DeadTransition 优先),同时 payload 报告 2 个 unmet
-          goals,按 goals 级缺陷计为检出。signal_loss 现在只报 SignalLoss:死转移检测新增了 condvar
-          翻译变体分组(cv_wake1/cv_wakeA 等「或」变体整组皆死才报告),消除了工件级 DeadTransition
-          噪音,也修复了其 fixed fixture 被误报的问题(fixture 债清偿)。数据源:results/offline_v3.json。
+          goals,按 goals 级缺陷计为检出。当前 signal_loss 的 repair/analyze 只保留 SignalLoss:condvar
+          翻译变体分组(cv_wake1/cv_wakeA 等「或」变体整组皆死才报告)避免了把互斥 helper 变体当成独立
+          DeadTransition。数据源:results/offline_v3.json;历史 fixed fixture 门禁误报见第 9 节。
         </Text>
       </Stack>
 
@@ -354,9 +352,10 @@ export default function ExperimentReport() {
         <div id="s4" />
         <H2>4 · 修复实验:反馈信息量消融(7 个缺陷 case × 3 模式)</H2>
         <Text tone="secondary">
-          这里先保留历史基线,再展示后续修复结果。repair_8k 是早期的 5 轮上限实验;repair_full_v2 是加入
-          condvar 变体分组、死锁后缀 DeadTransition 过滤和反馈摘要化后的全量修复实验;repair_local 是同一批 case
-          的局部切片实验。三者的验收 oracle 都是 Rust analyzer 的 verified_safe。
+          本表使用修正 condvar 建模后的 repair_8k 配置(max_tokens=8192,max_rounds=5)。其中 CVN 完整反馈的 signal_loss 与
+          dual_condvar 采用后续全量修复结果,分别在 2 轮和 3 轮成功;仅 status/kind 与无 CVN 诊断两种消融则按修正模型重新运行,
+          两个 case 均在 5 轮上限内未成功。repair_local 是同一批 case 的局部切片实验,dual_condvar 在切片内耗尽轮次后回退全量并成功。
+          三者的验收 oracle 都是 Rust analyzer 的 verified_safe。
         </Text>
         <Grid columns={3} gap={16}>
           {(["full", "statusOnly", "llmOnly"] as const).map((m) => {
@@ -391,8 +390,9 @@ export default function ExperimentReport() {
           valueSuffix=" tok"
         />
         <Text tone="tertiary" size="small">
-          每 case × 反馈模式的 LLM token 总量(输入+输出,单位 token)。来源:results/repair_8k.json。signal_loss 与
-          dual_condvar 三种模式均耗尽 5 轮失败,token 为 5 轮累计。
+          每 case × 反馈模式的 LLM token 总量(输入+输出,单位 token),来源为修正后的 results/repair_8k.json。full
+          模式的两个 condvar case 使用全量修复结果;status-only 与 llm-only 则是修正模型下的独立重跑。结果显示完整 CVN
+          反馈可在 2/3 轮修复,而两种弱反馈在这两个结构性 condvar case 上均耗尽 5 轮。
         </Text>
         <Table
           headers={["Case", "缺陷类型", "CVN 完整反馈", "仅 status/kind", "无 CVN 诊断"]}
@@ -414,8 +414,10 @@ export default function ExperimentReport() {
         <H2>4b · 局部重生成 vs 全量修复(12 case A/B,反馈已摘要化)</H2>
         <Text tone="secondary">
           局部重生成(repair_local):以 bug 报告牵连的函数集为切片,LLM 只重写切片函数(其余函数以单行同步摘要
-          冻结展示),Python 拼接回原 CIR——非切片部分字节级不变。切片无法定位(纯 goals 缺陷)或轮次耗尽时回退全量修复。
-          本轮 full 反馈已启用摘要化:同构 bug 按签名去重 + 长反例 trace 压缩。
+          冻结展示),Python 拼接回原 CIR——非切片部分字节级不变。signal_loss 在局部切片内成功;dual_condvar
+          虽识别出 3/3 函数,但修复需要同时移除跨函数的互相 condvar 握手并统一为 m1→m2 锁序,因此切片耗尽后
+          回退全量并成功。切片无法定位(纯 goals 缺陷)或轮次耗尽时回退全量修复。本轮 full 反馈已启用摘要化:
+          同构 bug 按签名去重 + 长反例 trace 压缩。
         </Text>
         <Table
           headers={["Case", "局部修复", "token", "切片/总函数", "回退", "全量修复", "token"]}
@@ -613,9 +615,10 @@ export default function ExperimentReport() {
         <H2>9 · 代码生成:verified CIR → Rust(cargo check 验收)</H2>
         <Text tone="secondary">
           用户故事的最后一环:LLM 拿到已验证的 CIR 计划,按「结构忠实映射」约束生成 main.rs,`cargo check`
-          验收(≤3 轮)。18/18 全部 1 轮通过。signal_loss 上一轮被 verified_safe 门禁拦下(fixed fixture
-          误报 DeadTransition),condvar 变体分组修复后本轮通过——门禁与修复形成了正确的闭环。端到端
-          pipeline(需求 → CIR → 验证 → 代码)在 mutex_deadlock 与 semaphore_throttle 上冒烟成功,单链约 7k token。
+          验收(≤3 轮)。18/18 全部 1 轮通过。早期 codegen 运行曾因 fixed fixture 的历史 DeadTransition
+          门禁误报拦下 signal_loss;当前 condvar 变体分组与 repair-layer 后缀过滤已消除该历史工件,本轮通过。
+          dual_condvar 的 fixed CIR 则移除了互相等待的 condvar 握手,让两个线程统一按 m1→m2 获取锁,从而通过验证。
+          端到端 pipeline(需求 → CIR → 验证 → 代码)在 mutex_deadlock 与 semaphore_throttle 上冒烟成功,单链约 7k token。
         </Text>
         <BarChart
           categories={codegen.map((c) => shortName(c.case))}
@@ -680,10 +683,10 @@ export default function ExperimentReport() {
           99,成功率未与无反馈拉开——强模型未自发踩坑;该 case 作回归探针,见第 10 节。
         </Callout>
         <Callout tone="success" title="SignalLoss 修复边界已被推过去">
-          早期三种反馈模式下 signal_loss / dual_condvar 全部失败(各耗尽 5 轮);condvar 变体分组消除反馈中的
-          DeadTransition 噪音 + 反馈摘要化后,本轮全量修复 signal_loss 2 轮、dual_condvar 3 轮成功,局部重生成
-          signal_loss 也 2 轮成功。剩余唯一失败是局部模式下的 dual_condvar(切片冻结限制了跨函数协议改写,
-          回退全量后成功)——condvar 类结构性改写更适合全量修复兜底。
+          修正 condvar 建模后,repair_8k 的 CVN 完整反馈对 signal_loss / dual_condvar 分别在 2 轮和 3 轮成功;同一模型下
+          仅 status/kind 与无 CVN 诊断的消融重跑仍分别在两个 case 上耗尽 5 轮,说明可执行的结构性修复依赖完整诊断而非
+          verifier 放宽。repair_local 中 signal_loss 也在局部切片内 2 轮成功;dual_condvar 虽识别出 3/3 函数,但跨函数协议改写
+          需要移除互相 condvar 握手并统一 m1→m2 锁序,所以切片失败后回退全量并成功。condvar 类结构性改写更适合全量修复兜底。
         </Callout>
         <Callout tone="warning" title="生成瓶颈在 CIR schema,而非并发建模">
           生成失败的 case(channel / cas / dead_transition / condvar)都是 5 轮耗尽在静态校验上。可行方向:在生成 prompt
