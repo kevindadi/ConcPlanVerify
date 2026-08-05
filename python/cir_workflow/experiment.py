@@ -16,6 +16,16 @@ Methods:
                        (the Rust analyzer still judges acceptance).
 - ``generate``       — natural-language generation from the manifest
                        requirements, then a full analyze of the produced CIR.
+- ``codegen``        — verified CIR -> Rust: only runs on a CIR that analyzes
+                       as verified_safe; the LLM implements the plan and
+                       ``cargo check`` judges acceptance (up to 3 rounds).
+- ``llm_judge``      — LLM-only detection baseline: one-shot classification
+                       of the case CIR (bug / safe, kind, suspect sids) with
+                       no verifier in the loop, scored against gold.
+- ``pipeline``       — the full user story: NL requirement -> CIR generation
+                       -> CVN verification (with repair rounds inside the
+                       generation loop) -> Rust codegen, gated on
+                       verified_safe. Uses the canonical requirement only.
 
 All experiments use DeepSeek (``deepseek-v4-pro`` by default; pass
 ``--model-id deepseek-v4-flash`` for the flash model).
@@ -39,16 +49,26 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .codegen import CodegenWorkflow, code_metrics
 from .env import load_dotenv
 from .generation import GenerationWorkflow
+from .json_utils import extract_json
 from .llm import create_llm_client, default_base_url
 from .metrics import cir_metrics
-from .models import ModelConfig, RustCliResult
+from .models import ModelConfig, RustCliResult, normalize_token_usage
 from .repair import RepairWorkflow
 from .rust_cli import RustCli
 
 OFFLINE_METHODS = ("analyze", "validate_only", "analyze_no_goals")
-LLM_METHODS = ("repair_cvn", "repair_status_only", "repair_llm_only", "generate")
+LLM_METHODS = (
+    "repair_cvn",
+    "repair_status_only",
+    "repair_llm_only",
+    "generate",
+    "codegen",
+    "llm_judge",
+    "pipeline",
+)
 ALL_METHODS = OFFLINE_METHODS + LLM_METHODS
 
 REPAIR_FEEDBACK_MODES = {
@@ -210,6 +230,12 @@ class ExperimentRunner:
                 record.update(self._run_repair(case, REPAIR_FEEDBACK_MODES[method]))
             elif method == "generate":
                 record.update(self._run_generate(case))
+            elif method == "codegen":
+                record.update(self._run_codegen(case))
+            elif method == "llm_judge":
+                record.update(self._run_llm_judge(case))
+            elif method == "pipeline":
+                record.update(self._run_pipeline(case))
             else:
                 raise ValueError(f"unknown method: {method}")
         except Exception as error:  # keep one failure from killing the sweep
@@ -344,6 +370,222 @@ class ExperimentRunner:
             ),
             "cir_metrics": _safe_cir_metrics(round_.candidate_cir_json),
         }
+
+    def _run_codegen(self, case: dict[str, Any]) -> dict[str, Any]:
+        """Verified CIR -> Rust. Gate: the source CIR must analyze verified_safe."""
+
+        rel = case.get("cir", {}).get("fixed") or (
+            case.get("cir", {}).get("buggy")
+            if expected_verdict(case) == "safe"
+            else None
+        )
+        if not rel:
+            return {"skipped": "case has no verified-safe CIR (fixed or safe buggy)"}
+        cir_json = (self.repo_root / rel).read_text(encoding="utf-8")
+
+        gate = self.rust_cli.analyze(cir_json)
+        if gate.status != "verified_safe":
+            return {
+                "skipped": f"source CIR is not verified_safe (status={gate.status})",
+                "rust_cli": _rust_cli_record(gate),
+            }
+
+        requirement = (case.get("requirements") or {}).get("canonical")
+        workflow = CodegenWorkflow(
+            self.client(),
+            scratch=self.repo_root / "target" / "codegen-check",
+            max_rounds=min(self.max_rounds, 3),
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )
+        result = workflow.run(cir_json, requirement)
+
+        record: dict[str, Any] = {
+            "source_cir": rel,
+            "success": result.success,
+            "codegen_rounds": len(result.rounds),
+            "total_input_tokens": result.total_input_tokens,
+            "total_output_tokens": result.total_output_tokens,
+            "cir_metrics": cir_metrics(cir_json),
+            "rounds": [
+                {
+                    "round": r.round,
+                    "cargo_check_ok": r.cargo_check_ok,
+                    "cargo_errors": r.cargo_errors,
+                    "cargo_wall_s": r.cargo_wall_s,
+                    "llm_error": r.llm_error,
+                    "duration_ms": r.duration_ms,
+                    "input_tokens": r.input_tokens,
+                    "output_tokens": r.output_tokens,
+                }
+                for r in result.rounds
+            ],
+            "error": result.error,
+        }
+        if result.success and result.code:
+            record["code_metrics"] = code_metrics(result.code)
+            out_dir = self.repo_root / "results" / "codegen"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = out_dir / f"{case['id']}.rs"
+            out_path.write_text(result.code, encoding="utf-8")
+            record["code_path"] = str(out_path.relative_to(self.repo_root))
+        return record
+
+    def _run_llm_judge(self, case: dict[str, Any]) -> dict[str, Any]:
+        """LLM-only detection baseline: no verifier, one-shot verdict."""
+
+        cir_json = self._buggy_cir(case)
+        if cir_json is None:
+            rel = case.get("cir", {}).get("fixed")
+            if not rel:
+                return {"skipped": "case has neither buggy nor fixed CIR"}
+            cir_json = (self.repo_root / rel).read_text(encoding="utf-8")
+
+        system_prompt = (
+            "You are an expert reviewer of CIR (Concurrency Intermediate "
+            "Representation) plans. Analyze the given CIR for concurrency "
+            "defects: deadlocks (circular lock waits, channel/join blocking), "
+            "lost condvar signals, statements that can never execute, and "
+            "declared goals that no execution can satisfy.\n\n"
+            "Answer with exactly one JSON object, no other text:\n"
+            "{\n"
+            '  "verdict": "bug" | "safe",\n'
+            '  "bug_kind": "Deadlock" | "SignalLoss" | "ChannelBlock" | '
+            '"DeadTransition" | "GoalUnreachable" | null,\n'
+            '  "suspect_functions": [names],\n'
+            '  "suspect_sids": [sids],\n'
+            '  "explanation": "one short paragraph"\n'
+            "}"
+        )
+        started = time.perf_counter()
+        try:
+            content, usage = self.client().chat(
+                system_prompt,
+                f"CIR to review:\n```json\n{cir_json}\n```",
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+            )
+        except Exception as error:
+            return {"error": f"llm_judge request failed: {error}"}
+        duration_ms = (time.perf_counter() - started) * 1000
+        input_tokens, output_tokens = normalize_token_usage(usage)
+
+        verdict_raw: dict[str, Any] | None
+        try:
+            parsed = json.loads(extract_json(content))
+            verdict_raw = parsed if isinstance(parsed, dict) else None
+        except json.JSONDecodeError:
+            verdict_raw = None
+
+        expected = expected_verdict(case)
+        expected_bug = expected != "safe"
+        claimed_bug = bool(verdict_raw and verdict_raw.get("verdict") == "bug")
+        expected_kind = case.get("expected", {}).get("bug_kind")
+        claimed_kind = verdict_raw.get("bug_kind") if verdict_raw else None
+        return {
+            "judge": verdict_raw,
+            "judge_parse_failed": verdict_raw is None,
+            "duration_ms": duration_ms,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "score": {
+                "expected": expected,
+                "claimed": "bug" if claimed_bug else "safe",
+                "detected": expected_bug and claimed_bug,
+                "missed": expected_bug and not claimed_bug,
+                "false_positive": (not expected_bug) and claimed_bug,
+                "kind_match": (
+                    expected_kind == claimed_kind
+                    if expected_bug and claimed_bug and expected_kind
+                    else None
+                ),
+            },
+            "cir_metrics": _safe_cir_metrics(cir_json),
+        }
+
+    def _run_pipeline(self, case: dict[str, Any]) -> dict[str, Any]:
+        """NL -> CIR -> verify (+repair) -> Rust, the end-to-end user story."""
+
+        requirement = (case.get("requirements") or {}).get("canonical")
+        if not requirement:
+            return {"skipped": "case has no canonical requirement"}
+        record: dict[str, Any] = {"stages": {}}
+
+        # Stage 1: NL -> CIR (static-validation retry loop inside).
+        generation = GenerationWorkflow(
+            self.client(),
+            self.rust_cli,
+            max_rounds=self.max_rounds,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        ).run(requirement)
+        record["stages"]["generate"] = {
+            "success": generation.success,
+            "rounds": len(generation.rounds),
+            "input_tokens": generation.total_input_tokens,
+            "output_tokens": generation.total_output_tokens,
+            "error": generation.error,
+        }
+        if not generation.success or not generation.cir_json:
+            record["outcome"] = "generation_failed"
+            return record
+        cir_json = generation.cir_json
+
+        # Stage 2: full verification; on failure, the CVN repair loop.
+        verification = self.rust_cli.analyze(cir_json)
+        record["stages"]["verify"] = {
+            "status": verification.status,
+            "cvn_metrics": cvn_metrics_from_payload(verification.payload),
+        }
+        if verification.status != "verified_safe":
+            repair = RepairWorkflow(
+                self.client(),
+                self.rust_cli,
+                max_rounds=self.max_rounds,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                feedback_mode="full",
+            ).run(cir_json)
+            record["stages"]["repair"] = {
+                "success": repair.success,
+                "rounds": repair.repair_rounds,
+                "input_tokens": repair.total_input_tokens,
+                "output_tokens": repair.total_output_tokens,
+                "error": repair.error,
+            }
+            if not repair.success or not repair.fixed_cir_json:
+                record["outcome"] = "verification_failed"
+                return record
+            cir_json = repair.fixed_cir_json
+
+        record["cir_metrics"] = cir_metrics(cir_json)
+
+        # Stage 3: verified CIR -> Rust, cargo check as the oracle.
+        codegen = CodegenWorkflow(
+            self.client(),
+            scratch=self.repo_root / "target" / "codegen-check",
+            max_rounds=min(self.max_rounds, 3),
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        ).run(cir_json, requirement)
+        record["stages"]["codegen"] = {
+            "success": codegen.success,
+            "rounds": len(codegen.rounds),
+            "input_tokens": codegen.total_input_tokens,
+            "output_tokens": codegen.total_output_tokens,
+            "error": codegen.error,
+        }
+        if codegen.success and codegen.code:
+            record["code_metrics"] = code_metrics(codegen.code)
+            out_dir = self.repo_root / "results" / "pipeline"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = out_dir / f"{case['id']}.rs"
+            out_path.write_text(codegen.code, encoding="utf-8")
+            record["code_path"] = str(out_path.relative_to(self.repo_root))
+            record["outcome"] = "success"
+        else:
+            record["outcome"] = "codegen_failed"
+        return record
 
     def _run_generate(self, case: dict[str, Any]) -> dict[str, Any]:
         requirements = case.get("requirements", {})

@@ -343,6 +343,56 @@
       }
     },
     {
+      "id": "deep_lock_chain_4x3",
+      "defect_type": "deep_deadlock",
+      "expected": {
+        "outcome": "bug",
+        "bug_kind": "Deadlock",
+        "expected_bug_path": null
+      },
+      "cir": {
+        "buggy": "benchmarks/cir/deep_lock_chain_4x3/buggy.json",
+        "fixed": "benchmarks/cir/deep_lock_chain_4x3/fixed.json"
+      },
+      "rust": {
+        "buggy": "benchmarks/rust/deep_lock_chain_4x3/buggy.rs",
+        "fixed": "benchmarks/rust/deep_lock_chain_4x3/fixed.rs"
+      },
+      "notes": "Deeply buried lock-order bug (cir_workflow.scaling lock_chain_deep 4x3): 4 workers x 2 branch arms all follow m1->m2->m3, except worker 3's else-arm which hoists m2 before m1 (its if-arm skips m2, so intra-function order checks E505 pass). The circular wait is reachable only through that arm under contention; CVN finds it at ~44k states. Designed so an LLM reading the CIR cannot spot the defect among 8 near-identical lock sequences.",
+      "requirements": {
+        "canonical": "Model four worker threads over three mutexes m1, m2, m3 and a shared flag. Each worker writes its id to the flag, reads it back, and branches; on both arms it acquires all three mutexes in the global order m1, m2, m3 and releases them in reverse. Main spawns and joins all four. Every interleaving must terminate.",
+        "paraphrases": [
+          "Four tasks each stamp a shared flag, branch on whether their stamp survived, and on either path walk the three-lock chain in the same global order. The model must verify safe.",
+          "Write a plan with four branching workers where every code path respects the m1 < m2 < m3 lock ordering discipline, so no circular wait exists.",
+          "A three-mutex hierarchy shared by four threads with data-dependent branching; both branch arms follow the hierarchy, and the verifier must find no deadlock."
+        ]
+      }
+    },
+    {
+      "id": "deep_lock_chain_4x3_safe",
+      "defect_type": "deep_safe_twin",
+      "expected": {
+        "outcome": "safe",
+        "bug_kind": null,
+        "expected_bug_path": null
+      },
+      "cir": {
+        "buggy": "benchmarks/cir/deep_lock_chain_4x3_safe/buggy.json",
+        "fixed": null
+      },
+      "rust": {
+        "buggy": "benchmarks/rust/deep_lock_chain_4x3/fixed.rs",
+        "fixed": null
+      },
+      "notes": "Safe twin of deep_lock_chain_4x3: byte-for-byte identical structure except every arm follows the global lock order. Used as the false-positive probe for LLM-only judging: a reviewer that pattern-matches 'many locks + branches = suspicious' will false-alarm here.",
+      "requirements": {
+        "canonical": "Model four worker threads over three mutexes m1, m2, m3 and a shared flag. Each worker writes its id to the flag, reads it back, branches, and on both arms acquires all three mutexes in the global order and releases in reverse. Main spawns and joins all four workers.",
+        "paraphrases": [
+          "Four branching workers all follow the m1 -> m2 -> m3 discipline on every path; verify the schedule space is deadlock-free."
+        ]
+      }
+    },
+    {
       "id": "scale_branch_fan_4x2",
       "defect_type": "scale_safe",
       "expected": {

@@ -121,6 +121,77 @@ def branch_fan(threads: int, branches: int) -> dict[str, Any]:
     }
 
 
+def lock_chain_deep(threads: int, locks: int, *, buggy: bool = True) -> dict[str, Any]:
+    """Deeply buried lock-order bug for the repair/judge experiments.
+
+    Every worker writes its id to a shared flag, branches on it, and takes
+    all mutexes in the global order on BOTH arms — except (when ``buggy``)
+    one worker's second arm swaps the first two locks. The defect is a
+    single adjacent transposition inside one branch arm of one of many
+    near-identical workers, reachable only in schedules that take that arm
+    while another worker holds m1.
+    """
+
+    lock_names = [f"m{i + 1}" for i in range(locks)]
+    workers = [f"w{i + 1}" for i in range(threads)]
+    culprit = threads // 2  # a middle worker, not first or last
+    functions = [{"name": "main", "kind": "normal", "body": _main_body(workers)}]
+    for index, w in enumerate(workers):
+        wid = index + 1
+        arm_a = list(lock_names)
+        arm_b = list(lock_names)
+        if buggy and index == culprit:
+            # Arm A skips m2 entirely; arm B hoists m2 to the front. The two
+            # arms share no conflicting pair (passes intra-function E505),
+            # but arm B's m2-before-m1 conflicts with every other worker's
+            # global m1-before-m2 order: a cross-function circular wait.
+            arm_a = [lock_names[0]] + lock_names[2:]
+            arm_b = [lock_names[1], lock_names[0]] + lock_names[2:]
+
+        body: list[dict[str, Any]] = [
+            {"sid": "s1", "op": ["res_op", "flag", "write", str(wid)], "transfer": ["next", "s2"]},
+        ]
+        sid = 3
+        arm_starts: list[str] = []
+        arm_stmts: list[dict[str, Any]] = []
+        ret_sid = f"s{3 + 2 * (len(arm_a) + len(arm_b))}"
+        for order in (arm_a, arm_b):
+            arm_starts.append(f"s{sid}")
+            seq = [(name, "lock") for name in order] + [
+                (name, "drop") for name in reversed(order)
+            ]
+            for pos, (name, action) in enumerate(seq):
+                nxt = f"s{sid + 1}" if pos < len(seq) - 1 else ret_sid
+                arm_stmts.append({
+                    "sid": f"s{sid}",
+                    "op": ["res_op", name, action],
+                    "transfer": ["next", nxt],
+                })
+                sid += 1
+        body.append({
+            "sid": "s2",
+            "op": ["res_op", "flag", "read"],
+            "transfer": ["branch", f"flag == {wid}", arm_starts[0], arm_starts[1]],
+        })
+        body.extend(arm_stmts)
+        body.append({"sid": ret_sid, "op": "return", "transfer": "return"})
+        functions.append({"name": w, "kind": "closure", "body": body})
+
+    return {
+        "program": f"deep_lock_chain_{threads}x{locks}{'' if buggy else '_safe'}",
+        "resources": [
+            {"name": name, "kind": "sync", "type": "Mutex", "mode": "Sync"}
+            for name in lock_names
+        ] + [
+            {"name": "flag", "kind": "var", "type": "Var", "base": "Int", "init": 0},
+        ],
+        "protection": [],
+        "functions": functions,
+        "fn_summaries": [],
+        "entry": "main",
+    }
+
+
 def build(pattern: str, threads: int, size: int) -> dict[str, Any]:
     if pattern == "lock_chain":
         return lock_chain(threads, size)
@@ -128,6 +199,10 @@ def build(pattern: str, threads: int, size: int) -> dict[str, Any]:
         return lock_chain(threads, size, buggy=True)
     if pattern == "branch_fan":
         return branch_fan(threads, size)
+    if pattern == "lock_chain_deep":
+        return lock_chain_deep(threads, size)
+    if pattern == "lock_chain_deep_safe":
+        return lock_chain_deep(threads, size, buggy=False)
     raise ValueError(f"unknown pattern: {pattern}")
 
 
