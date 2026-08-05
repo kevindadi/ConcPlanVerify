@@ -175,6 +175,39 @@ def _safe_cir_metrics(cir_json: str | None) -> dict[str, Any] | None:
         return None
 
 
+def _goal_preservation_probe(cir_json: str) -> dict[str, Any] | None:
+    """Extract goals and write ops so A/B runs can check normalize-style drift."""
+
+    try:
+        fixed = json.loads(cir_json)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    writes = []
+    for fn in fixed.get("functions") or []:
+        for stmt in fn.get("body") or []:
+            op = stmt.get("op")
+            if (
+                isinstance(op, list)
+                and len(op) >= 4
+                and op[0] == "res_op"
+                and op[2] == "write"
+            ):
+                writes.append({
+                    "function": fn.get("name"),
+                    "sid": stmt.get("sid"),
+                    "var": op[1],
+                    "value": op[3],
+                })
+    return {
+        "goal_ids": [g.get("id") for g in (fixed.get("goals") or [])],
+        "goal_variables": [g.get("variables") for g in (fixed.get("goals") or [])],
+        "writes": writes,
+        "has_result_99": any(
+            w.get("var") == "result" and str(w.get("value")) == "99" for w in writes
+        ),
+    }
+
+
 def _rust_cli_record(result: RustCliResult) -> dict[str, Any]:
     return {
         "mode": result.mode,
@@ -358,6 +391,7 @@ class ExperimentRunner:
         }
         if result.success and result.fixed_cir_json:
             record["cir_metrics_fixed"] = cir_metrics(result.fixed_cir_json)
+            record["fixed_goal_probe"] = _goal_preservation_probe(result.fixed_cir_json)
         return record
 
     def _run_repair_local(self, case: dict[str, Any]) -> dict[str, Any]:

@@ -279,7 +279,10 @@ def repair_user_prompt(cir_json: str, feedback: str) -> str:
         "## Current CIR\n\n"
         f"```json\n{cir_json}\n```\n\n"
         "Output the complete revised CIR JSON only. Preserve resources, functions, "
-        "protection entries, and business goal ids unless a change is required."
+        "protection entries, and business goals (ids, markings, and variable "
+        "targets) unless a change is required. Fixes that clear a deadlock by "
+        "erasing distinctive writes or branch arms demanded by a business goal "
+        "are invalid — the goals must remain achievable."
     )
 
 

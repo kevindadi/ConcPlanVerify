@@ -36,3 +36,13 @@ goals 缺失不改变验证判定(`verified_safe` 仍成立)——这是**信任
 ## 4. 对修复实验的意义
 
 goal_warnings 与 unmet_goals 都会使状态离开 `verified_safe`,因此codegen 门禁同样拦截弱 goal / 悬空 goal。repair 的保全约束要求"Business goal ... must remain achievable",配合初始态平凡性检查,LLM 无法用"把 goal 改成恒真"来绕过修复。
+
+## 5. Goals 约束的修复难度(拉开 LLM-only 差距)
+
+`goal_constrained_deadlock` 把死锁与业务 goal 绑在一起:
+
+- w3 的 else 臂以 `m2 → m1` 形成跨线程锁序环(缺陷);
+- 同一臂是唯一写入 `result = 99` 的路径;
+- goal `g_result_special` 要求 `result == 99` 可达。
+
+正确修复只需重排该臂锁序并保留写 99。把所有写规范化为相同值、或删掉 else 臂,可以消掉死锁,但会得到 `goals_unmet` —— 离线探针(在 fixed CIR 上把 99 改成 3)已复现。因此「规范化式乱修」不再被 `verified_safe` 接受,CVN 反馈(指出锁序参与者)比无反馈更有机会一次修对。

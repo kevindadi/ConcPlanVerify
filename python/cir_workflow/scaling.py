@@ -192,6 +192,32 @@ def lock_chain_deep(threads: int, locks: int, *, buggy: bool = True) -> dict[str
     }
 
 
+def requirement(pattern: str, threads: int, size: int) -> str:
+    """Natural-language requirement template for the generate leg."""
+
+    if pattern in ("lock_chain", "lock_chain_buggy"):
+        return (
+            f"Model a program with {size} mutexes named m1..m{size} and "
+            f"{threads} worker threads named w1..w{threads}. Every worker "
+            f"acquires ALL {size} mutexes in the same global order m1, m2, "
+            f"..., m{size}, then releases them in exactly the reverse order, "
+            "and returns. The main function spawns every worker and then "
+            "joins every worker. No execution may deadlock."
+        )
+    if pattern == "branch_fan":
+        return (
+            f"Model a program with one shared integer x (initially 0) and "
+            f"{threads} worker threads named w1..w{threads}. Worker wN first "
+            f"writes its own id N to x, then performs {size} consecutive "
+            "two-way decisions: each decision reads x and branches on "
+            "whether x equals the worker's own id; both branch arms just "
+            "continue to the next decision (no further writes). After the "
+            "last decision the worker returns. Main spawns all workers then "
+            "joins them all. The program must always terminate."
+        )
+    raise ValueError(f"no requirement template for pattern: {pattern}")
+
+
 def build(pattern: str, threads: int, size: int) -> dict[str, Any]:
     if pattern == "lock_chain":
         return lock_chain(threads, size)
@@ -256,6 +282,98 @@ def run_sweep(rust_cli: RustCli, sweep=DEFAULT_SWEEP) -> list[dict[str, Any]]:
     return points
 
 
+# The LLM legs run on a cost-bounded subset of the verify sweep.
+LLM_LEG_POINTS: list[tuple[str, int, int]] = [
+    ("lock_chain", 2, 2),
+    ("lock_chain", 3, 2),
+    ("lock_chain", 4, 3),
+    ("lock_chain", 6, 3),
+    ("branch_fan", 2, 2),
+    ("branch_fan", 4, 2),
+]
+
+
+def run_llm_legs(
+    rust_cli: RustCli,
+    client,
+    repo_root: Path,
+    points: list[tuple[str, int, int]] = None,
+) -> list[dict[str, Any]]:
+    """Generate + codegen legs of the scaling sweep.
+
+    For each point: (1) NL requirement -> CIR generation, verified by the
+    full analyze; (2) CIR -> Rust codegen from the verified-safe CIR (the
+    generated one when it verified, otherwise the parametric gold CIR), so
+    the code-size trend is measured even where generation fell short.
+    """
+
+    from .codegen import CodegenWorkflow, code_metrics
+    from .generation import GenerationWorkflow
+
+    records: list[dict[str, Any]] = []
+    for pattern, threads, size in points or LLM_LEG_POINTS:
+        gold = build(pattern, threads, size)
+        gold_json = json.dumps(gold, ensure_ascii=False, indent=2)
+        record: dict[str, Any] = {
+            "pattern": pattern,
+            "threads": threads,
+            "size": size,
+            "gold_cir_metrics": cir_metrics(gold_json),
+        }
+
+        # Large points need generous completion budget (thinking + long CIR).
+        generation = GenerationWorkflow(client, rust_cli, max_tokens=8192).run(
+            requirement(pattern, threads, size)
+        )
+        gen_ok = False
+        if generation.cir_json:
+            verify = rust_cli.analyze(generation.cir_json)
+            gen_ok = verify.status == "verified_safe"
+            record["generate"] = {
+                "success": generation.success,
+                "verified_safe": gen_ok,
+                "status": verify.status,
+                "rounds": len(generation.rounds),
+                "input_tokens": generation.total_input_tokens,
+                "output_tokens": generation.total_output_tokens,
+                "cir_metrics": cir_metrics(generation.cir_json),
+                "state_count": (verify.payload or {}).get("state_count"),
+            }
+        else:
+            record["generate"] = {
+                "success": False,
+                "verified_safe": False,
+                "rounds": len(generation.rounds),
+                "input_tokens": generation.total_input_tokens,
+                "output_tokens": generation.total_output_tokens,
+                "error": generation.error,
+            }
+
+        codegen_source = generation.cir_json if gen_ok else gold_json
+        codegen = CodegenWorkflow(
+            client,
+            scratch=repo_root / "target" / "codegen-check",
+            max_rounds=3,
+        ).run(codegen_source, requirement(pattern, threads, size))
+        record["codegen"] = {
+            "source": "generated" if gen_ok else "gold",
+            "success": codegen.success,
+            "rounds": len(codegen.rounds),
+            "input_tokens": codegen.total_input_tokens,
+            "output_tokens": codegen.total_output_tokens,
+            "code_metrics": code_metrics(codegen.code) if codegen.code else None,
+            "error": codegen.error,
+        }
+        records.append(record)
+        print(
+            f"[scaling-llm] {pattern} {threads}x{size} -> generate "
+            f"{'ok' if gen_ok else 'FAIL'}, codegen "
+            f"{'ok' if codegen.success else 'FAIL'}",
+            file=sys.stderr,
+        )
+    return records
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="CIR scaling sweep")
     parser.add_argument("--out", help="sweep output JSON path")
@@ -264,6 +382,14 @@ def main() -> int:
         help="write one generated CIR to benchmarks/cir/: pattern,threads,size",
     )
     parser.add_argument("--binary", help="path to the cir2cvn binary")
+    parser.add_argument(
+        "--legs",
+        choices=["verify", "llm"],
+        default="verify",
+        help="verify = offline analyze sweep; llm = generate+codegen legs",
+    )
+    parser.add_argument("--model-id", default="deepseek-v4-pro")
+    parser.add_argument("--api-key-env", default="DEEPSEEK_API_KEY")
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[2]
@@ -281,6 +407,43 @@ def main() -> int:
         return 0
 
     rust_cli = RustCli(repo_root=repo_root, binary=args.binary)
+
+    if args.legs == "llm":
+        from .env import load_dotenv
+        from .llm import create_llm_client, default_base_url
+        from .models import ModelConfig
+
+        load_dotenv(repo_root / ".env")
+        config = ModelConfig(
+            name=args.model_id,
+            provider="deepseek",
+            model_id=args.model_id,
+            api_key_env=args.api_key_env,
+            base_url=default_base_url("deepseek"),
+        )
+        client = create_llm_client(config)
+        records = run_llm_legs(rust_cli, client, repo_root)
+        output = {
+            "meta": {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "model": args.model_id,
+                "points": [
+                    {"pattern": p, "threads": t, "size": s}
+                    for p, t, s in LLM_LEG_POINTS
+                ],
+            },
+            "records": records,
+        }
+        text = json.dumps(output, ensure_ascii=False, indent=2)
+        if args.out:
+            out_path = (repo_root / args.out).resolve()
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(text, encoding="utf-8")
+            print(f"[scaling] wrote {out_path}", file=sys.stderr)
+        else:
+            print(text)
+        return 0
+
     points = run_sweep(rust_cli)
     output = {
         "meta": {
