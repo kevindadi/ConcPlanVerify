@@ -312,6 +312,62 @@ fn e2e_fn_summary_prop_no_bug() {
     run_goal_fixed_test("fn_summary_prop");
 }
 
+// ── Goals trust boundary: weak / dangling goal specs must be rejected ──
+
+fn verify_benchmark(rel_path: &str) -> cir2cvn::VerificationResult {
+    let program = load_cir(&Path::new(env!("CARGO_MANIFEST_DIR")).join(rel_path));
+    cir2cvn::verify_program(&program, &cir2cvn::VerificationConfig::default())
+}
+
+/// A goal already satisfied by the initial state constrains nothing and must
+/// be flagged instead of silently passing.
+#[test]
+fn goal_trivial_buggy_is_flagged_as_too_weak() {
+    let result = verify_benchmark("benchmarks/cir/goal_trivial/buggy.json");
+    assert_eq!(result.status, cir2cvn::VerificationStatus::GoalsUnmet);
+    assert!(
+        result.goal_warnings.iter().any(|w| w.contains("initial state")),
+        "expected triviality warning, got: {:?}",
+        result.goal_warnings
+    );
+}
+
+#[test]
+fn goal_trivial_fixed_is_safe() {
+    let result = verify_benchmark("benchmarks/cir/goal_trivial/fixed.json");
+    assert_eq!(result.status, cir2cvn::VerificationStatus::VerifiedSafe);
+}
+
+/// A goal referencing an unknown marking key or an undeclared variable must
+/// produce warnings, not a vacuously passing (or vacuously failing) check.
+#[test]
+fn goal_bad_reference_buggy_is_flagged() {
+    let result = verify_benchmark("benchmarks/cir/goal_bad_reference/buggy.json");
+    assert_eq!(result.status, cir2cvn::VerificationStatus::GoalsUnmet);
+    assert!(
+        result
+            .goal_warnings
+            .iter()
+            .any(|w| w.contains("marking key 'w1_done'")),
+        "expected unknown-marking warning, got: {:?}",
+        result.goal_warnings
+    );
+    assert!(
+        result
+            .goal_warnings
+            .iter()
+            .any(|w| w.contains("not a declared 'var' resource")),
+        "expected unknown-variable warning, got: {:?}",
+        result.goal_warnings
+    );
+}
+
+#[test]
+fn goal_bad_reference_fixed_is_safe() {
+    let result = verify_benchmark("benchmarks/cir/goal_bad_reference/fixed.json");
+    assert_eq!(result.status, cir2cvn::VerificationStatus::VerifiedSafe);
+}
+
 // ── Test 10: Dead Transition (behavioral unreachability) ──
 
 /// Helper: a fixture is "dead-transition-free" iff
