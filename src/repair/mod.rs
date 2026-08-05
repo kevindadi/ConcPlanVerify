@@ -41,9 +41,18 @@ pub fn analyze(
         })
         .collect();
 
-    // Dead-transition analysis already respects `Transition::disjunctive_family`
-    // (condvar wake/notify OR-variants), so no post-filter is needed here.
+    let deadlock_suffixes = deadlock_dominated_dead_transitions(net, result);
     for cx in cvn::analysis::find_dead_transitions(net, result) {
+        let is_deadlock_suffix = match &cx.kind {
+            PropertyViolation::DeadTransition { transition_id, .. } => {
+                deadlock_suffixes.contains(transition_id)
+            }
+            _ => false,
+        };
+        if is_deadlock_suffix {
+            continue;
+        }
+
         let mut report = classify_counterexample(net, &cx);
         if let BugKind::DeadTransition { sids, .. } = &report.kind {
             report.involved_functions = functions_for_sids(program, sids);
@@ -54,6 +63,85 @@ pub fn analyze(
     }
 
     reports
+}
+
+/// Find dead transitions that are only unreachable because exploration stops at
+/// a reachable deadlock. This keeps independent unreachable-code diagnostics
+/// while avoiding downstream repair targets for the same deadlock.
+fn deadlock_dominated_dead_transitions(
+    net: &CvnNet,
+    result: &AnalysisResult,
+) -> HashSet<TransitionId> {
+    let roots: HashSet<PlaceId> = result
+        .deadlocks
+        .iter()
+        .flat_map(|cx| cvn::analysis::blocked_places(net, &cx.final_state))
+        .filter(|pid| net.place(pid).map(|p| p.is_control_flow()).unwrap_or(false))
+        .collect();
+
+    if roots.is_empty() {
+        return HashSet::new();
+    }
+
+    let mut successors: HashMap<PlaceId, HashSet<PlaceId>> = HashMap::new();
+    for tid in net.transition_ids() {
+        let inputs: Vec<PlaceId> = net
+            .input_arcs(tid)
+            .into_iter()
+            .filter(|arc| {
+                net.place(&arc.place)
+                    .map(|place| place.is_control_flow())
+                    .unwrap_or(false)
+            })
+            .map(|arc| arc.place.clone())
+            .collect();
+        let outputs: Vec<PlaceId> = net
+            .output_arcs(tid)
+            .into_iter()
+            .filter(|arc| {
+                net.place(&arc.place)
+                    .map(|place| place.is_control_flow())
+                    .unwrap_or(false)
+            })
+            .map(|arc| arc.place.clone())
+            .collect();
+
+        for input in &inputs {
+            for output in &outputs {
+                successors
+                    .entry(input.clone())
+                    .or_default()
+                    .insert(output.clone());
+            }
+        }
+    }
+
+    let mut downstream = roots.clone();
+    let mut pending: Vec<PlaceId> = roots.into_iter().collect();
+    while let Some(place) = pending.pop() {
+        if let Some(next_places) = successors.get(&place) {
+            for next in next_places {
+                if downstream.insert(next.clone()) {
+                    pending.push(next.clone());
+                }
+            }
+        }
+    }
+
+    cvn::analysis::find_dead_transitions(net, result)
+        .into_iter()
+        .filter_map(|cx| match cx.kind {
+            PropertyViolation::DeadTransition { transition_id, .. }
+                if net.input_arcs(&transition_id).into_iter().any(|arc| {
+                    downstream.contains(&arc.place)
+                        && net
+                            .place(&arc.place)
+                            .map(|place| place.is_control_flow())
+                            .unwrap_or(false)
+                }) => Some(transition_id),
+            _ => None,
+        })
+        .collect()
 }
 
 fn functions_for_sids(program: &cir::ast::Program, sids: &[String]) -> Vec<String> {

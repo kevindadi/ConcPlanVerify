@@ -40,7 +40,7 @@ const analyze: Analyze[] = [
   { case: "signal_loss", expected: "bug", actual: "bug", kinds: ["SignalLoss"], places: 23, transitions: 20, arcs: [26, 25], states: 45, ms: 0.53, statements: 14 },
   { case: "channel_deadlock", expected: "bug", actual: "bug", kinds: ["ChannelBlock"], places: 20, transitions: 15, arcs: [20, 20], states: 37, ms: 0.53, statements: 13 },
   { case: "dead_transition", expected: "bug", actual: "bug", kinds: ["DeadTransition"], places: 4, transitions: 4, arcs: [4, 4], states: 3, ms: 0.21, statements: 3 },
-  { case: "dual_condvar", expected: "bug", actual: "bug", kinds: ["SignalLoss", "DeadTransition"], places: 32, transitions: 29, arcs: [39, 37], states: 21, ms: 0.55, statements: 19 },
+  { case: "dual_condvar", expected: "bug", actual: "bug", kinds: ["SignalLoss"], places: 32, transitions: 29, arcs: [39, 37], states: 21, ms: 0.55, statements: 19 },
   { case: "partial_deadlock", expected: "goals_unmet", actual: "bug + unmet goals", kinds: ["DeadTransition"], places: 33, transitions: 25, arcs: [33, 34], states: 81, ms: 0.69, statements: 22 },
   { case: "goal_unreachable", expected: "goals_unmet", actual: "goals_unmet", kinds: [], places: 19, transitions: 15, arcs: [19, 19], states: 55, ms: 0.47, statements: 13 },
   { case: "goal_trivial", expected: "goals_unmet", actual: "goals_unmet", kinds: [], places: 19, transitions: 15, arcs: [19, 19], states: 55, ms: 0.58, statements: 13 },
@@ -354,9 +354,9 @@ export default function ExperimentReport() {
         <div id="s4" />
         <H2>4 · 修复实验:反馈信息量消融(7 个缺陷 case × 3 模式)</H2>
         <Text tone="secondary">
-          同一修复循环,仅改变注入 prompt 的 CVN 反馈量;验收 oracle 始终是 Rust analyzer(verified_safe 才接受)。
-          max_rounds=5,max_tokens=8192。三种模式成功率相同(5/7),但完整反馈并未减少轮次;失败的两例均为
-          SignalLoss 类。
+          这里先保留历史基线,再展示后续修复结果。repair_8k 是早期的 5 轮上限实验;repair_full_v2 是加入
+          condvar 变体分组、死锁后缀 DeadTransition 过滤和反馈摘要化后的全量修复实验;repair_local 是同一批 case
+          的局部切片实验。三者的验收 oracle 都是 Rust analyzer 的 verified_safe。
         </Text>
         <Grid columns={3} gap={16}>
           {(["full", "statusOnly", "llmOnly"] as const).map((m) => {

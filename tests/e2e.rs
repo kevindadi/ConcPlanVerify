@@ -243,6 +243,45 @@ fn e2e_signal_loss_fixed_full_pipeline_is_safe() {
     );
 }
 
+#[test]
+fn e2e_signal_loss_buggy_repair_feedback_filters_deadlock_suffixes() {
+    let program = load_cir(&e2e_dir().join("signal_loss/buggy.json"));
+    let net = translate(&program);
+    let result = explore(&net, &AnalysisConfig::default()).expect("state space exploration should succeed");
+
+    let reports = cir2cvn::repair::analyze(&program, &net, &result);
+    assert!(
+        reports
+            .iter()
+            .any(|report| matches!(&report.kind, cir2cvn::repair::BugKind::SignalLoss { .. })),
+        "repair feedback should retain the primary SignalLoss report: {:?}",
+        reports.iter().map(|report| report.kind.name()).collect::<Vec<_>>()
+    );
+    assert!(
+        reports.iter().all(|report| {
+            !matches!(
+                &report.kind,
+                cir2cvn::repair::BugKind::DeadTransition { .. }
+            )
+        }),
+        "signal-loss feedback should contain no independent DeadTransition targets: {:?}",
+        reports.iter().map(|report| report.kind.name()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn e2e_signal_loss_fixed_full_pipeline_has_no_bugs() {
+    let fixed = load_cir(&e2e_dir().join("signal_loss/fixed.json"));
+    let result = cir2cvn::verify_program(&fixed, &cir2cvn::VerificationConfig::default());
+    assert_eq!(
+        result.status,
+        cir2cvn::VerificationStatus::VerifiedSafe,
+        "bugs: {:?}",
+        result.bugs.iter().map(|b| &b.summary).collect::<Vec<_>>()
+    );
+    assert!(result.bugs.is_empty());
+}
+
 // ── Test 3: Channel + Mutex Deadlock ──
 
 #[test]
@@ -303,6 +342,54 @@ fn e2e_dual_condvar_buggy() {
 #[test]
 fn e2e_dual_condvar_fixed() {
     run_fixed_test("dual_condvar");
+}
+
+#[test]
+fn e2e_dual_condvar_buggy_repair_feedback_filters_deadlock_suffixes() {
+    let program = load_cir(&e2e_dir().join("dual_condvar/buggy.json"));
+    let net = translate(&program);
+    let result = explore(&net, &AnalysisConfig::default()).expect("state space exploration should succeed");
+
+    let raw_dead_transitions = find_dead_transitions(&net, &result);
+    assert!(
+        raw_dead_transitions.iter().any(|cx| matches!(
+            &cx.kind,
+            cvn::analysis::PropertyViolation::DeadTransition { .. }
+        )),
+        "raw CVN analysis should retain downstream dead-transition observations"
+    );
+
+    let reports = cir2cvn::repair::analyze(&program, &net, &result);
+    assert!(
+        reports
+            .iter()
+            .any(|report| matches!(&report.kind, cir2cvn::repair::BugKind::SignalLoss { .. })),
+        "repair feedback should retain the primary SignalLoss report: {:?}",
+        reports.iter().map(|report| report.kind.name()).collect::<Vec<_>>()
+    );
+    assert!(
+        reports.iter().all(|report| {
+            !matches!(
+                &report.kind,
+                cir2cvn::repair::BugKind::DeadTransition { .. }
+            )
+        }),
+        "deadlock suffixes should not become independent repair targets: {:?}",
+        reports.iter().map(|report| report.kind.name()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn e2e_dual_condvar_fixed_full_pipeline_is_safe() {
+    let fixed = load_cir(&e2e_dir().join("dual_condvar/fixed.json"));
+    let result = cir2cvn::verify_program(&fixed, &cir2cvn::VerificationConfig::default());
+    assert_eq!(
+        result.status,
+        cir2cvn::VerificationStatus::VerifiedSafe,
+        "bugs: {:?}",
+        result.bugs.iter().map(|b| &b.summary).collect::<Vec<_>>()
+    );
+    assert!(result.bugs.is_empty());
 }
 
 // ── Test 8b: Condvar wait while holding another mutex ──
@@ -432,6 +519,29 @@ fn run_dead_transition_fixed_test(dir_name: &str) {
 #[test]
 fn e2e_dead_transition_buggy() {
     run_buggy_test("dead_transition");
+}
+
+#[test]
+fn e2e_dead_transition_buggy_repair_feedback_retains_independent_report() {
+    let program = load_cir(&e2e_dir().join("dead_transition/buggy.json"));
+    let net = translate(&program);
+    let result = explore(&net, &AnalysisConfig::default()).expect("state space exploration should succeed");
+
+    let raw_dead_transitions = find_dead_transitions(&net, &result);
+    assert!(
+        !raw_dead_transitions.is_empty(),
+        "raw CVN analysis should find the unreachable branch"
+    );
+
+    let reports = cir2cvn::repair::analyze(&program, &net, &result);
+    assert!(
+        reports.iter().any(|report| matches!(
+            &report.kind,
+            cir2cvn::repair::BugKind::DeadTransition { .. }
+        )),
+        "independent dead transition should remain repairable feedback: {:?}",
+        reports.iter().map(|report| report.kind.name()).collect::<Vec<_>>()
+    );
 }
 
 #[test]
