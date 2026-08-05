@@ -137,6 +137,17 @@ def _score(case: dict[str, Any], analyze_result: RustCliResult) -> dict[str, Any
     }
 
 
+def _safe_cir_metrics(cir_json: str | None) -> dict[str, Any] | None:
+    """CIR metrics for possibly-malformed LLM candidates; None when unparseable."""
+
+    if not cir_json:
+        return None
+    try:
+        return cir_metrics(cir_json)
+    except (ValueError, json.JSONDecodeError):
+        return None
+
+
 def _rust_cli_record(result: RustCliResult) -> dict[str, Any]:
     return {
         "mode": result.mode,
@@ -306,11 +317,7 @@ class ExperimentRunner:
                 if round_.verification
                 else None
             ),
-            "cir_metrics": (
-                cir_metrics(round_.candidate_cir_json)
-                if round_.candidate_cir_json
-                else None
-            ),
+            "cir_metrics": _safe_cir_metrics(round_.candidate_cir_json),
         }
 
     def _run_generate(self, case: dict[str, Any]) -> dict[str, Any]:
@@ -382,7 +389,9 @@ def main() -> int:
     parser.add_argument("--base-url")
     parser.add_argument("--reasoning-effort", default="high")
     parser.add_argument("--max-rounds", type=int, default=5)
-    parser.add_argument("--max-tokens", type=int, default=4096)
+    # Thinking-enabled DeepSeek runs consume completion budget on reasoning;
+    # 4096 starves hard cases into empty responses.
+    parser.add_argument("--max-tokens", type=int, default=8192)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument(
         "--no-paraphrases",
