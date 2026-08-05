@@ -1,0 +1,452 @@
+{
+  "program": "scale_branch_fan_4x2",
+  "resources": [
+    {
+      "name": "x",
+      "kind": "var",
+      "type": "Var",
+      "base": "Int",
+      "init": 0
+    }
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main",
+      "kind": "normal",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "spawn",
+            "w1"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "spawn",
+            "w2"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "spawn",
+            "w3"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "spawn",
+            "w4"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "join",
+            "w1"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "join",
+            "w2"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "join",
+            "w3"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "join",
+            "w4"
+          ],
+          "transfer": [
+            "next",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "w1",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "x",
+            "write",
+            "1"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "x",
+            "read"
+          ],
+          "transfer": [
+            "branch",
+            "x == 1",
+            "s3",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "x",
+            "read"
+          ],
+          "transfer": [
+            "branch",
+            "x == 1",
+            "s6",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "w2",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "x",
+            "write",
+            "2"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "x",
+            "read"
+          ],
+          "transfer": [
+            "branch",
+            "x == 2",
+            "s3",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "x",
+            "read"
+          ],
+          "transfer": [
+            "branch",
+            "x == 2",
+            "s6",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "w3",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "x",
+            "write",
+            "3"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "x",
+            "read"
+          ],
+          "transfer": [
+            "branch",
+            "x == 3",
+            "s3",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "x",
+            "read"
+          ],
+          "transfer": [
+            "branch",
+            "x == 3",
+            "s6",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "w4",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "x",
+            "write",
+            "4"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "x",
+            "read"
+          ],
+          "transfer": [
+            "branch",
+            "x == 4",
+            "s3",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "x",
+            "read"
+          ],
+          "transfer": [
+            "branch",
+            "x == 4",
+            "s6",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main"
+}

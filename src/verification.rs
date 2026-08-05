@@ -63,6 +63,38 @@ pub struct VerificationTimings {
     pub total_ms: f64,
 }
 
+/// Place counts partitioned by [`cvn::model::PlaceKind`].
+#[derive(Clone, Copy, Debug, Default, Serialize)]
+pub struct PlacesByKind {
+    pub control: usize,
+    pub resource: usize,
+    pub wait: usize,
+}
+
+fn net_size_metrics(net: &cvn::net::CvnNet) -> (PlacesByKind, usize, usize) {
+    use cvn::model::PlaceKind;
+    use cvn::net::NetEdge;
+
+    let mut by_kind = PlacesByKind::default();
+    for place in net.places() {
+        match place.kind {
+            PlaceKind::Control { .. } => by_kind.control += 1,
+            PlaceKind::Resource { .. } => by_kind.resource += 1,
+            PlaceKind::Wait { .. } => by_kind.wait += 1,
+        }
+    }
+
+    let mut input_arcs = 0;
+    let mut output_arcs = 0;
+    for edge in net.petgraph().edge_weights() {
+        match edge {
+            NetEdge::Input(_) => input_arcs += 1,
+            NetEdge::Output(_) => output_arcs += 1,
+        }
+    }
+    (by_kind, input_arcs, output_arcs)
+}
+
 /// A complete verification result. The optional fields are populated only
 /// when the corresponding stage ran successfully.
 #[derive(Clone, Debug, Serialize)]
@@ -73,9 +105,13 @@ pub struct VerificationResult {
     pub translation_warnings: Vec<String>,
     pub places: usize,
     pub transitions: usize,
+    pub places_by_kind: PlacesByKind,
+    pub input_arcs: usize,
+    pub output_arcs: usize,
     pub cvn_dot: Option<String>,
     pub state_count: usize,
     pub analysis_complete: bool,
+    pub max_states: usize,
     pub analysis_error: Option<String>,
     pub bugs: Vec<BugReport>,
     pub unmet_goals: Vec<UnmetGoal>,
@@ -93,9 +129,13 @@ impl VerificationResult {
             translation_warnings: Vec::new(),
             places: 0,
             transitions: 0,
+            places_by_kind: PlacesByKind::default(),
+            input_arcs: 0,
+            output_arcs: 0,
             cvn_dot: None,
             state_count: 0,
             analysis_complete: false,
+            max_states: 0,
             analysis_error: None,
             bugs: Vec::new(),
             unmet_goals: Vec::new(),
@@ -143,6 +183,7 @@ pub fn verify_program(
     let analysis_start = Instant::now();
     let analysis = cvn::analysis::explore(&net, &config.analysis_config());
     let analysis_ms = elapsed_ms(analysis_start);
+    let (places_by_kind, input_arcs, output_arcs) = net_size_metrics(&net);
     let mut result = VerificationResult {
         status: VerificationStatus::AnalysisIncomplete,
         validation,
@@ -150,9 +191,13 @@ pub fn verify_program(
         translation_warnings: crate::validate::check_translation(&net),
         places: net.place_count(),
         transitions: net.transition_count(),
+        places_by_kind,
+        input_arcs,
+        output_arcs,
         cvn_dot: Some(cvn::export::to_dot(&net)),
         state_count: 0,
         analysis_complete: false,
+        max_states: config.max_states,
         analysis_error: None,
         bugs: Vec::new(),
         unmet_goals: Vec::new(),
@@ -186,7 +231,20 @@ pub fn verify_program(
 
     if config.check_goals && !program.goals.is_empty() {
         let goals_start = Instant::now();
-        let (specs, warnings) = crate::translate_goals(program);
+        let (specs, mut warnings) = crate::translate_goals(program);
+        // A goal that already holds in the initial state constrains nothing
+        // about the concurrent behavior: it would pass even if every thread
+        // were deleted. Flag it as too weak instead of silently accepting.
+        let initial = net.initial_state();
+        for spec in &specs {
+            if spec.satisfied_by(&initial) {
+                warnings.push(format!(
+                    "goal '{}' is already satisfied by the initial state and \
+                     does not constrain any concurrent behavior (too weak)",
+                    spec.id
+                ));
+            }
+        }
         result.goal_warnings = warnings;
         result.unmet_goals = cvn::analysis::check_goals_in_result(&analysis_result, &specs);
         result.timings.goals_ms = elapsed_ms(goals_start);

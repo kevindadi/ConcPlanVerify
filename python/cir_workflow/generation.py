@@ -8,7 +8,7 @@ from typing import Any
 
 from .json_utils import extract_json
 from .llm import LlmClient
-from .models import GenerationResult, GenerationRound
+from .models import GenerationResult, GenerationRound, normalize_token_usage
 from .prompts import (
     generation_retry_prompt,
     generation_system_prompt,
@@ -44,7 +44,7 @@ class GenerationWorkflow:
         for round_number in range(1, self.max_rounds + 1):
             started = time.perf_counter()
             try:
-                content, _ = self.client.chat(
+                content, usage = self.client.chat(
                     self.system_prompt,
                     user_prompt,
                     temperature=self.temperature,
@@ -65,6 +65,7 @@ class GenerationWorkflow:
                 )
                 continue
 
+            input_tokens, output_tokens = normalize_token_usage(usage)
             candidate = extract_json(content)
             try:
                 parsed: dict[str, Any] = json.loads(candidate)
@@ -76,6 +77,8 @@ class GenerationWorkflow:
                     candidate_json=candidate,
                     parse_error=str(error),
                     duration_ms=_elapsed(started),
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
                 ))
                 user_prompt = generation_retry_prompt(
                     requirements,
@@ -93,6 +96,8 @@ class GenerationWorkflow:
                 validation=validation,
                 accepted=accepted,
                 duration_ms=_elapsed(started),
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
             ))
             if accepted:
                 return GenerationResult(cir_json=canonical, rounds=rounds)

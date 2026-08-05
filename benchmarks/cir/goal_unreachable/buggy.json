@@ -1,0 +1,48 @@
+{
+  "program": "goal_unreachable",
+  "resources": [
+    {"name": "mtx", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+    {"name": "x", "kind": "var", "type": "Var", "base": "Int", "init": 0}
+  ],
+  "protection": [{"var": "x", "lock": "mtx"}],
+  "functions": [
+    {
+      "name": "main", "kind": "normal",
+      "body": [
+        {"sid": "s1", "op": ["spawn", "w1"], "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["spawn", "w2"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["join", "w1"],  "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": ["join", "w2"],  "transfer": ["next", "s5"]},
+        {"sid": "s5", "op": "return",        "transfer": "return"}
+      ]
+    },
+    {
+      "name": "w1", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "mtx", "lock"],     "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "x", "write", "1"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["res_op", "mtx", "drop"],     "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": "return",                       "transfer": "return"}
+      ]
+    },
+    {
+      "name": "w2", "kind": "closure",
+      "body": [
+        {"sid": "s1", "op": ["res_op", "mtx", "lock"],     "transfer": ["next", "s2"]},
+        {"sid": "s2", "op": ["res_op", "x", "write", "2"], "transfer": ["next", "s3"]},
+        {"sid": "s3", "op": ["res_op", "mtx", "drop"],     "transfer": ["next", "s4"]},
+        {"sid": "s4", "op": "return",                       "transfer": "return"}
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main",
+  "goals": [
+    {
+      "id": "g_x_equals_three",
+      "desc": "The shared variable x must reach the value 3 in some execution",
+      "marking": {},
+      "variables": {"x": 3}
+    }
+  ]
+}

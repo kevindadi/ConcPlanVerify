@@ -1,0 +1,862 @@
+{
+  "program": "deep_lock_chain_4x3",
+  "resources": [
+    {
+      "name": "m1",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "m2",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "m3",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "flag",
+      "kind": "var",
+      "type": "Var",
+      "base": "Int",
+      "init": 0
+    }
+  ],
+  "protection": [],
+  "functions": [
+    {
+      "name": "main",
+      "kind": "normal",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "spawn",
+            "w1"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "spawn",
+            "w2"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "spawn",
+            "w3"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "spawn",
+            "w4"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "join",
+            "w1"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "join",
+            "w2"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "join",
+            "w3"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "join",
+            "w4"
+          ],
+          "transfer": [
+            "next",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "w1",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "flag",
+            "write",
+            "1"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "flag",
+            "read"
+          ],
+          "transfer": [
+            "branch",
+            "flag == 1",
+            "s3",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "m1",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "res_op",
+            "m2",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "m3",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "m3",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "res_op",
+            "m2",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "res_op",
+            "m1",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s15"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": [
+            "res_op",
+            "m1",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s10"
+          ]
+        },
+        {
+          "sid": "s10",
+          "op": [
+            "res_op",
+            "m2",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s11"
+          ]
+        },
+        {
+          "sid": "s11",
+          "op": [
+            "res_op",
+            "m3",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s12"
+          ]
+        },
+        {
+          "sid": "s12",
+          "op": [
+            "res_op",
+            "m3",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s13"
+          ]
+        },
+        {
+          "sid": "s13",
+          "op": [
+            "res_op",
+            "m2",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s14"
+          ]
+        },
+        {
+          "sid": "s14",
+          "op": [
+            "res_op",
+            "m1",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s15"
+          ]
+        },
+        {
+          "sid": "s15",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "w2",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "flag",
+            "write",
+            "2"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "flag",
+            "read"
+          ],
+          "transfer": [
+            "branch",
+            "flag == 2",
+            "s3",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "m1",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "res_op",
+            "m2",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "m3",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "m3",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "res_op",
+            "m2",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "res_op",
+            "m1",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s15"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": [
+            "res_op",
+            "m1",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s10"
+          ]
+        },
+        {
+          "sid": "s10",
+          "op": [
+            "res_op",
+            "m2",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s11"
+          ]
+        },
+        {
+          "sid": "s11",
+          "op": [
+            "res_op",
+            "m3",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s12"
+          ]
+        },
+        {
+          "sid": "s12",
+          "op": [
+            "res_op",
+            "m3",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s13"
+          ]
+        },
+        {
+          "sid": "s13",
+          "op": [
+            "res_op",
+            "m2",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s14"
+          ]
+        },
+        {
+          "sid": "s14",
+          "op": [
+            "res_op",
+            "m1",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s15"
+          ]
+        },
+        {
+          "sid": "s15",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "w3",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "flag",
+            "write",
+            "3"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "flag",
+            "read"
+          ],
+          "transfer": [
+            "branch",
+            "flag == 3",
+            "s3",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "m1",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "res_op",
+            "m2",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "m3",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "m3",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "res_op",
+            "m2",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "res_op",
+            "m1",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s15"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": [
+            "res_op",
+            "m1",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s10"
+          ]
+        },
+        {
+          "sid": "s10",
+          "op": [
+            "res_op",
+            "m2",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s11"
+          ]
+        },
+        {
+          "sid": "s11",
+          "op": [
+            "res_op",
+            "m3",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s12"
+          ]
+        },
+        {
+          "sid": "s12",
+          "op": [
+            "res_op",
+            "m3",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s13"
+          ]
+        },
+        {
+          "sid": "s13",
+          "op": [
+            "res_op",
+            "m2",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s14"
+          ]
+        },
+        {
+          "sid": "s14",
+          "op": [
+            "res_op",
+            "m1",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s15"
+          ]
+        },
+        {
+          "sid": "s15",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    },
+    {
+      "name": "w4",
+      "kind": "closure",
+      "body": [
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "flag",
+            "write",
+            "4"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "flag",
+            "read"
+          ],
+          "transfer": [
+            "branch",
+            "flag == 4",
+            "s3",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "m1",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "res_op",
+            "m2",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "m3",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "m3",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s7"
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": [
+            "res_op",
+            "m2",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s8"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": [
+            "res_op",
+            "m1",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s15"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": [
+            "res_op",
+            "m1",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s10"
+          ]
+        },
+        {
+          "sid": "s10",
+          "op": [
+            "res_op",
+            "m2",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s11"
+          ]
+        },
+        {
+          "sid": "s11",
+          "op": [
+            "res_op",
+            "m3",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s12"
+          ]
+        },
+        {
+          "sid": "s12",
+          "op": [
+            "res_op",
+            "m3",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s13"
+          ]
+        },
+        {
+          "sid": "s13",
+          "op": [
+            "res_op",
+            "m2",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s14"
+          ]
+        },
+        {
+          "sid": "s14",
+          "op": [
+            "res_op",
+            "m1",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s15"
+          ]
+        },
+        {
+          "sid": "s15",
+          "op": "return",
+          "transfer": "return"
+        }
+      ]
+    }
+  ],
+  "fn_summaries": [],
+  "entry": "main"
+}
