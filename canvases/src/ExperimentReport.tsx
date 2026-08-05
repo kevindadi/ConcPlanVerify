@@ -691,53 +691,6 @@ export default function ExperimentReport() {
           write; (3) use this case as a regression probe and weak-model / adversarial-rewrite contrast—see doc/goals_policy.md §5.
         </Callout>
       </Stack>
-
-      {/* ── 11. Key findings ── */}
-      <Stack gap={12} style={{ scrollMarginTop: 88 }}>
-        <div id="s11" />
-        <H2>11 · Key findings and next steps</H2>
-        <Callout tone="success" title="Clear complementary capability boundaries vs external tools">
-          Lock-order: Lockbud can detect but diagnosis is unreliable (alias confusion → 1 FP + 2 misdiagnoses); schedule-dependent
-          deadlocks: Miri still misses all at 256 random seeds, CVN exhaustively detects all; goals-semantic and structural
-          (DeadTransition): only CVN can express and detect. On 20 cases, CVN has zero false positives, misses, or misdiagnoses
-          (including the new goals-constrained deadlock pair).
-        </Callout>
-        <Callout tone="info" title="Goals constraints block normalize-style wild fixes (oracle layer)">
-          goal_constrained_deadlock proves: dropping the distinctive write of 99 yields goals_unmet. DeepSeek Pro/Flash both keep 99
-          when repairing, so success does not diverge from no-feedback—strong models do not spontaneously fall into the trap; use as
-          a regression probe, see §10.
-        </Callout>
-        <Callout tone="success" title="SignalLoss repair boundary has been pushed past">
-          After the corrected condvar model, repair_8k full CVN feedback succeeds on signal_loss / dual_condvar in 2 and 3 rounds;
-          under the same model, status/kind-only and no-CVN-diagnosis ablations still exhaust 5 rounds on those two cases—executable
-          structural fixes depend on full diagnosis, not a relaxed verifier. In repair_local, signal_loss also succeeds in-slice in 2
-          rounds; dual_condvar identifies 3/3 functions but cross-function protocol rewrite needs removing the mutual condvar
-          handshake and unifying m1→m2 lock order, so after slice failure it falls back to full repair and succeeds. Condvar-class
-          structural rewrites are better backed by full repair as fallback.
-        </Callout>
-        <Callout tone="warning" title="Generation bottleneck is CIR schema, not concurrency modeling">
-          Failed generation cases (channel / cas / dead_transition / condvar) all exhaust 5 rounds at static validation. Feasible
-          directions: embed minimal CIR exemplars for the matching pattern in the generation prompt (few-shot), or customize schema
-          fragments by defect type.
-        </Callout>
-        <Callout tone="success" title="Full-feedback cost blowup solved by summarization">
-          deep_lock_chain_4x3 full CVN feedback originally held 99 deadlock counterexamples and 132k tokens per repair round; after
-          dedup by bug-equivalence signature + head/tail counterexample compression it drops to 17.3k (7.6×) with unchanged success.
-          Summarization is on by default (prompts.verification_feedback); the cost disadvantage of full vs no feedback on large cases
-          is gone.
-        </Callout>
-        <Callout tone="warning" title="Remaining risks: semantic drift and folding">
-          Full repair silently edits unbroken parts on 3/12 cases (add Mutex/Var, Var→Atomic), invisible to the oracle; local
-          regeneration cures this via frozen splicing (0 drift on 12 cases)—prefer as default repair mode with full as fallback. The
-          corresponding codegen risk is worker folding breaking stmt-level 1:1 correspondence; the CIR↔Rust consistency checklist
-          (doc/cir_rust_consistency.md) supports manual review.
-        </Callout>
-        <Callout tone="neutral" title="Engineering notes">
-          Under thinking mode, max_tokens=4096 lets hard cases exhaust the output budget and return empty content; repair experiments
-          uniformly use 8192. On Windows, Lockbud needs the nightly-2026-02-07 toolchain bin on PATH (rustc_driver DLL) and must be
-          driven via RUSTC_WRAPPER. Miri many-seeds runs in parallel; 256 seeds take only 3–5 s/case.
-        </Callout>
-      </Stack>
     </Stack>
   );
 }
