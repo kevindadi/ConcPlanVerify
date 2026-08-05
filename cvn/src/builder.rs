@@ -156,6 +156,23 @@ impl CvnNetBuilder {
         self
     }
 
+    /// Assign a disjunctive family id to an existing transition.
+    ///
+    /// Transitions that share the same family are treated as OR-variants by
+    /// [`crate::analysis::find_dead_transitions`]: the family is live if any
+    /// member fires. No-op if `transition_id` is unknown (validated at build).
+    pub fn set_disjunctive_family(
+        mut self,
+        transition_id: impl Into<String>,
+        family: impl Into<String>,
+    ) -> Self {
+        let id = transition_id.into();
+        if let Some(t) = self.transitions.get_mut(&id) {
+            t.disjunctive_family = Some(family.into());
+        }
+        self
+    }
+
     /// Add an input arc (Place → Transition).
     pub fn add_input_arc(
         mut self,

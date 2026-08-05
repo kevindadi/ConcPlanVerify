@@ -160,6 +160,33 @@
       }
     },
     {
+      "id": "condvar_lock_hold",
+      "defect_type": "condvar_deadlock",
+      "expected": {
+        "outcome": "bug",
+        "bug_kind": "SignalLoss",
+        "expected_bug_path": "tests/e2e/condvar_lock_hold/expected_bug.json"
+      },
+      "cir": {
+        "buggy": "tests/e2e/condvar_lock_hold/buggy.json",
+        "fixed": "tests/e2e/condvar_lock_hold/fixed.json"
+      },
+      "notes": "Classic condvar-induced deadlock: waiter calls wait while still holding an unrelated mutex (`outer`) that the notifier must acquire before notifying. CVN classifies the stuck wait place as SignalLoss (sub-class of deadlock).",
+      "rust": {
+        "buggy": "benchmarks/rust/condvar_lock_hold/buggy.rs",
+        "fixed": "benchmarks/rust/condvar_lock_hold/fixed.rs"
+      },
+      "requirements": {
+        "canonical": "Model a waiter and a notifier that share two mutexes (`outer`, `inner`), a condition variable paired with `inner`, and a boolean flag `ready` protected by `inner`. The notifier sets `ready` and signals the condition variable. The waiter must observe `ready == true` and terminate. Critically, the waiter must not hold `outer` across the wait call, because the notifier needs `outer` before it can notify.",
+        "paraphrases": [
+          "A consumer waits on a condvar guarded by an inner mutex, while a producer updates a protected ready flag and notifies. The consumer may also use an outer mutex, but must release every lock other than the wait mutex before sleeping, or the producer can never wake it.",
+          "Write a plan where the waiter locks an outer mutex, then the inner mutex, then waits. Fix the lock discipline so waiting never retains the outer mutex, and use a predicate loop on ready so early notifications are not lost.",
+          "Two threads: one waits for a signal, the other notifies under a nested lock order (outer then inner). Ensure the wait path drops the outer mutex before blocking, otherwise the notifier deadlocks trying to enter the critical section.",
+          "Model the textbook condvar-hold bug and its repair: never wait while holding unrelated locks; re-check the condition variable predicate after every wake-up."
+        ]
+      }
+    },
+    {
       "id": "partial_deadlock",
       "defect_type": "goals_unmet",
       "expected": {
@@ -263,6 +290,57 @@
           "Write a plan where the business goal names a real control location (worker 1's return) and the declared shared variable — a goal that references undeclared names must be rejected, not ignored.",
           "A mutex-protected integer is written by two threads. Add the goal 'worker 1 finished and x is 1 at that moment', expressed against declared entities only.",
           "Model two guarded writers and a completion goal for the first one, making sure every name in the goal resolves to a declared resource or statement."
+        ]
+      }
+    },
+    {
+      "id": "goal_constrained_deadlock",
+      "defect_type": "goal_constrained_deadlock",
+      "expected": {
+        "outcome": "bug",
+        "bug_kind": "Deadlock",
+        "expected_bug_path": null
+      },
+      "cir": {
+        "buggy": "benchmarks/cir/goal_constrained_deadlock/buggy.json",
+        "fixed": "benchmarks/cir/goal_constrained_deadlock/fixed.json"
+      },
+      "rust": {
+        "buggy": "benchmarks/rust/goal_constrained_deadlock/buggy.rs",
+        "fixed": "benchmarks/rust/goal_constrained_deadlock/fixed.rs"
+      },
+      "notes": "Lock-order deadlock under a business goal that blocks normalize-style repair. w1/w2 take m1->m2; w3's else-arm takes m2->m1 and is the ONLY writer of result=99. Goal g_result_special requires result==99 reachable. A rewrite that makes every arm write the same value (or deletes the else-arm) clears the deadlock but yields goals_unmet — verified offline by dropping the 99 write on the fixed CIR. Correct repair: reorder locks on that arm only, keep write 99.",
+      "requirements": {
+        "canonical": "Model three workers over mutexes m1, m2 and shared integers flag and result. Workers 1 and 2 write their id to flag, acquire m1 then m2, write their id to result, and release. Worker 3 writes 3 to flag, branches on whether flag still equals 3: the true arm locks only m1 and writes result=3; the false arm must write the special business payload result=99 after acquiring BOTH mutexes. Main spawns and joins all three. Declare the business goal that some schedule observes result == 99. Every interleaving must terminate without deadlock, and the goal must remain reachable.",
+        "paraphrases": [
+          "Three threads share two locks and a result register. One branch of worker 3 must be able to produce the distinctive value 99; the lock order on every path must follow a global discipline so the model verifies safe with that goal still reachable.",
+          "Write a plan where a special payload (result=99) is written only on worker 3's alternate arm, under m1 and m2. Fix any circular wait without erasing that payload — the business goal demands 99 be observable.",
+          "A three-worker protocol: common writers stamp 1 and 2, and a branching worker can stamp either 3 or the reserved business value 99. Locks m1 and m2 must never form a cycle; the goal result==99 must stay achievable."
+        ]
+      }
+    },
+    {
+      "id": "goal_constrained_deadlock_dense",
+      "defect_type": "goal_constrained_deadlock",
+      "expected": {
+        "outcome": "bug",
+        "bug_kind": "Deadlock",
+        "expected_bug_path": null
+      },
+      "cir": {
+        "buggy": "benchmarks/cir/goal_constrained_deadlock_dense/buggy.json",
+        "fixed": "benchmarks/cir/goal_constrained_deadlock_dense/fixed.json"
+      },
+      "rust": {
+        "buggy": "benchmarks/rust/goal_constrained_deadlock_dense/buggy.rs",
+        "fixed": "benchmarks/rust/goal_constrained_deadlock_dense/fixed.rs"
+      },
+      "notes": "Denser twin of goal_constrained_deadlock: 4 branching workers (~65k CVN states), many near-identical result writes (1/2/4 and 11/12/14), only w3's else-arm writes 99 under reversed lock order. Same oracle property: dropping the 99 write yields goals_unmet. Designed to raise the temptation of normalize-style cleanup under LLM-only repair.",
+      "requirements": {
+        "canonical": "Model four worker threads over mutexes m1, m2 and shared integers flag and result. Each worker writes its id to flag, branches on whether the stamp survived, and on both arms acquires m1 then m2 before writing a result value (true arm writes the worker id; false arm writes id+10), except worker 3 whose false arm must write the special business payload 99. Main spawns and joins all four. Declare the goal that result == 99 is reachable in some schedule. No deadlock may exist.",
+        "paraphrases": [
+          "Four branching workers stamp a shared result under a two-lock discipline; one alternate arm carries the reserved payload 99. Keep that payload while eliminating any circular wait.",
+          "A denser lock-order protocol with a business goal on value 99: every path follows m1 before m2, and some schedule must still observe 99."
         ]
       }
     },

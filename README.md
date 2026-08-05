@@ -114,6 +114,18 @@ python/
 └── pyproject.toml
 ```
 
+## Experiment report
+
+A Vite + React report lives under [`canvases/`](canvases/) and can be committed to git:
+
+```bash
+cd canvases
+npm install
+npm run dev
+```
+
+See [`canvases/README.md`](canvases/README.md).
+
 ## Rust Building and Tests
 
 ```bash

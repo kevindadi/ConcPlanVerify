@@ -160,6 +160,13 @@ impl TranslateContext {
             .add_transition_with_anchor(id, kind, sids);
     }
 
+    /// Assign a disjunctive family to a previously added transition.
+    pub(crate) fn set_disjunctive_family(&mut self, transition_id: &str, family: &str) {
+        self.builder = self
+            .take_builder()
+            .set_disjunctive_family(transition_id, family);
+    }
+
     pub(crate) fn add_input_arc(
         &mut self,
         place_id: &str,

@@ -106,6 +106,16 @@ pub struct Transition {
     pub id: TransitionId,
     /// Classification of this transition.
     pub kind: TransitionKind,
+    /// Disjunctive family id for mutually exclusive translation variants.
+    ///
+    /// Transitions that share the same `Some(id)` form an OR-family: at most
+    /// one member is expected to fire per execution (e.g. condvar
+    /// wake-by-notify vs wake-by-notify-all). Behavioral dead-transition
+    /// analysis treats the family as live if *any* member fires, and reports
+    /// at most one counterexample when the whole family is dead. `None`
+    /// keeps the per-transition semantics.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disjunctive_family: Option<String>,
     /// Anchor mapping μ(t): SIDs from the CIR that this transition corresponds to.
     /// Only available with the `cir-anchor` feature.
     #[cfg(feature = "cir-anchor")]
@@ -119,6 +129,7 @@ impl Transition {
         Self {
             id: id.into(),
             kind,
+            disjunctive_family: None,
             #[cfg(feature = "cir-anchor")]
             anchor_sids: SmallVec::new(),
         }
@@ -134,8 +145,15 @@ impl Transition {
         Self {
             id: id.into(),
             kind,
+            disjunctive_family: None,
             anchor_sids: sids.into_iter().map(Into::into).collect(),
         }
+    }
+
+    /// Assign this transition to a disjunctive family.
+    pub fn with_disjunctive_family(mut self, family: impl Into<String>) -> Self {
+        self.disjunctive_family = Some(family.into());
+        self
     }
 
     /// Returns the CIR statement ID anchors for this transition.

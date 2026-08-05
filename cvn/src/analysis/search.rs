@@ -230,9 +230,14 @@ fn reconstruct_trace(
 /// statement could fire on any interleaving, the transition would
 /// appear on some edge here.
 ///
-/// Returns one [`Counterexample`] per dead transition, with an empty
-/// trace and the initial state as placeholder for `final_state`, since
-/// dead transitions have no witness.
+/// Transitions that share a [`Transition::disjunctive_family`] are an
+/// OR-family: the family is considered live if *any* member fires, and
+/// at most one counterexample is emitted when the whole family is dead
+/// (representative = lexicographically smallest transition id).
+///
+/// Returns one [`Counterexample`] per dead transition (or dead family),
+/// with an empty trace and the initial state as placeholder for
+/// `final_state`, since dead transitions have no witness.
 pub fn find_dead_transitions(net: &CvnNet, result: &AnalysisResult) -> Vec<Counterexample> {
     use rustc_hash::FxHashSet;
 
@@ -243,11 +248,34 @@ pub fn find_dead_transitions(net: &CvnNet, result: &AnalysisResult) -> Vec<Count
         }
     }
 
-    let initial = net.initial_state();
-    let mut dead = Vec::new();
+    let mut live_families: FxHashSet<String> = FxHashSet::default();
     for t in net.transitions() {
         if fired.contains(&t.id) {
+            if let Some(family) = &t.disjunctive_family {
+                live_families.insert(family.clone());
+            }
+        }
+    }
+
+    let initial = net.initial_state();
+    let mut dead = Vec::new();
+    let mut reported_families: FxHashSet<String> = FxHashSet::default();
+
+    // Stable order so family representatives are deterministic.
+    let mut transitions: Vec<&crate::model::Transition> = net.transitions().collect();
+    transitions.sort_by(|a, b| a.id.0.cmp(&b.id.0));
+
+    for t in transitions {
+        if fired.contains(&t.id) {
             continue;
+        }
+        if let Some(family) = &t.disjunctive_family {
+            if live_families.contains(family) {
+                continue;
+            }
+            if !reported_families.insert(family.clone()) {
+                continue;
+            }
         }
         dead.push(Counterexample {
             kind: PropertyViolation::DeadTransition {
@@ -339,6 +367,91 @@ mod dead_transition_tests {
                     "t_live fires, must not be reported as dead"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn family_live_when_any_member_fires() {
+        use crate::model::{CmpOp, Expr, Val};
+        let x_true = BoolExpr::Cmp {
+            op: CmpOp::Eq,
+            lhs: Box::new(Expr::Ref("x".into())),
+            rhs: Box::new(Expr::Lit(Val::bool(true))),
+        };
+        let x_false = BoolExpr::Cmp {
+            op: CmpOp::Eq,
+            lhs: Box::new(Expr::Ref("x".into())),
+            rhs: Box::new(Expr::Lit(Val::bool(false))),
+        };
+        let net = CvnNetBuilder::new()
+            .add_control_place("p0", "main", "s0")
+            .add_control_place("p1", "main", "s1")
+            .set_return("p1")
+            .add_variable("x", Val::bool(true))
+            .add_transition("t_a", TransitionKind::Sequential)
+            .add_transition("t_b", TransitionKind::Sequential)
+            .set_disjunctive_family("t_a", "family_ab")
+            .set_disjunctive_family("t_b", "family_ab")
+            .add_input_arc("p0", "t_a", 1, x_true)
+            .add_output_arc("t_a", "p1", 1, None)
+            .add_input_arc("p0", "t_b", 1, x_false)
+            .add_output_arc("t_b", "p1", 1, None)
+            .set_initial_tokens("p0", 1)
+            .build()
+            .unwrap();
+        let result = explore(&net, &AnalysisConfig::default()).unwrap();
+        let dead = find_dead_transitions(&net, &result);
+        assert!(
+            dead.is_empty(),
+            "t_a fires under x==true; sibling t_b must not count as dead: {:?}",
+            dead.iter()
+                .map(|c| match &c.kind {
+                    PropertyViolation::DeadTransition { transition_id, .. } => {
+                        transition_id.0.clone()
+                    }
+                    _ => "?".into(),
+                })
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn family_dead_reported_once() {
+        let net = CvnNetBuilder::new()
+            .add_control_place("p0", "main", "s0")
+            .add_control_place("p1", "main", "s1")
+            .set_return("p1")
+            .add_control_place("p_unreached", "main", "s_u")
+            .add_transition("t_live", TransitionKind::Sequential)
+            .add_transition("t_a", TransitionKind::Sequential)
+            .add_transition("t_b", TransitionKind::Sequential)
+            .set_disjunctive_family("t_a", "family_ab")
+            .set_disjunctive_family("t_b", "family_ab")
+            .add_input_arc("p0", "t_live", 1, BoolExpr::True)
+            .add_output_arc("t_live", "p1", 1, None)
+            .add_input_arc("p_unreached", "t_a", 1, BoolExpr::True)
+            .add_output_arc("t_a", "p1", 1, None)
+            .add_input_arc("p_unreached", "t_b", 1, BoolExpr::True)
+            .add_output_arc("t_b", "p1", 1, None)
+            .set_initial_tokens("p0", 1)
+            .build()
+            .unwrap();
+        let result = explore(&net, &AnalysisConfig::default()).unwrap();
+        let dead = find_dead_transitions(&net, &result);
+        assert_eq!(
+            dead.len(),
+            1,
+            "whole family dead → one report, got {}",
+            dead.len()
+        );
+        match &dead[0].kind {
+            PropertyViolation::DeadTransition { transition_id, .. } => {
+                assert_eq!(
+                    transition_id.0, "t_a",
+                    "representative is lexicographically smallest id"
+                );
+            }
+            other => panic!("expected DeadTransition, got {:?}", other),
         }
     }
 }

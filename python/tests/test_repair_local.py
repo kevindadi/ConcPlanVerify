@@ -106,7 +106,7 @@ class PromptTests(unittest.TestCase):
         self.assertIn("Deadlock detected", prompt)
         # main appears only as a frozen summary, not as an editable body.
         self.assertIn("- main (normal): spawn(w1) -> join(w1)", prompt)
-        editable = prompt.split("Functions you may modify")[1].split("Other functions")[0]
+        editable = prompt.split("## Functions you may modify")[1].split("## Other functions")[0]
         self.assertIn('"w1"', editable)
         self.assertNotIn('"name": "main"', editable)
         # Global declarations travel verbatim.
