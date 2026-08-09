@@ -12,15 +12,15 @@ use std::collections::HashSet;
 
 /// Phase 2: Translate all function bodies.
 ///
-/// `referenced` lists function names targeted by `spawn`/`spawn_async`/
-/// `join`/`await`/`call` anywhere in the program. Body-less functions are
-/// modeled as a trivial skeleton only when referenced; unreferenced ones are
-/// dead code and must not enter the net (they would otherwise be reported as
-/// behavioral dead transitions).
+/// `spawned` lists function names targeted by `spawn`/`spawn_async`/
+/// `join`/`await` anywhere in the program. Body-less functions are modeled as
+/// a trivial skeleton only when spawned (so a matching `join` can complete);
+/// unreferenced or call-only ones are placeholders and must not enter the net
+/// (they would otherwise be reported as behavioral dead transitions).
 pub(crate) fn translate_functions(
     ctx: &mut TranslateContext,
     functions: &[Function],
-    referenced: &HashSet<&str>,
+    spawned: &HashSet<&str>,
 ) {
     // Pre-scan: collect condvar wait-sites and mark post-wait locks.
     for func in functions {
@@ -30,7 +30,7 @@ pub(crate) fn translate_functions(
     // Main translation pass.
     for func in functions {
         ctx.set_current_function(&func.name);
-        translate_function(ctx, func, referenced);
+        translate_function(ctx, func, spawned);
     }
 }
 
@@ -86,22 +86,17 @@ fn prescan_condvar_waits(ctx: &mut TranslateContext, fn_name: &str, body: &[Stat
     }
 }
 
-fn translate_function(ctx: &mut TranslateContext, func: &Function, referenced: &HashSet<&str>) {
-    // Ensure the first statement's control place gets an initial token
-    // only if this is the entry function (handled by the orchestrator).
-    // Here we just ensure places exist.
-    if let Some(first) = func.body.first() {
-        ctx.ensure_control_place(&func.name, &first.sid);
-    }
-    ctx.ensure_return_place(&func.name);
-
+fn translate_function(ctx: &mut TranslateContext, func: &Function, spawned: &HashSet<&str>) {
     if func.body.is_empty() {
-        // Body-less ("nobody") function: entry → single effects transition → return.
-        // Only model it when referenced (otherwise it is dead code).
-        if !referenced.contains(func.name.as_str()) {
+        // Body-less ("nobody") function: a placeholder for codegen, not a
+        // call-chain element. Model it as a trivial skeleton only when it is a
+        // spawn target (so the matching join completes); otherwise it has no
+        // control-flow effect and must stay out of the net.
+        if !spawned.contains(func.name.as_str()) {
             return;
         }
         ctx.ensure_control_place(&func.name, "s_first");
+        ctx.ensure_return_place(&func.name);
         let t_id = format!("{}_body", func.name);
         let update = func.effects.as_ref().map(|e| {
             let mut u = VarUpdate::new();
@@ -115,6 +110,14 @@ fn translate_function(ctx: &mut TranslateContext, func: &Function, referenced: &
         ctx.add_output_arc(&t_id, &cp_id(&func.name, "ret"), 1, update);
         return;
     }
+
+    // Ensure the first statement's control place gets an initial token
+    // only if this is the entry function (handled by the orchestrator).
+    // Here we just ensure places exist.
+    if let Some(first) = func.body.first() {
+        ctx.ensure_control_place(&func.name, &first.sid);
+    }
+    ctx.ensure_return_place(&func.name);
 
     for stmt in &func.body {
         translate_statement(ctx, &func.name, stmt);
@@ -612,21 +615,23 @@ fn translate_join(
 
 // ── call ────────────────────────────────────────────────────────────────
 
-/// Translate a synchronous `call f` by entering the callee's skeleton.
+/// Translate a synchronous `call f`.
 ///
-/// The callee is modeled with an entry place (`cp_f_s_first`) and a return
-/// place (`cp_f_ret`) — full body or body-less skeleton — so a call expands to
-/// a spawn-like entry transition plus a return transition, exactly like a
-/// `spawn`/`join` pair but implicit:
+/// A body-less ("nobody") callee is a codegen placeholder with no control flow:
+/// the call is one atomic pass-through transition (optionally applying its
+/// `effects.writes` as unknown updates), exactly like the former summary call.
+///
+/// A bodied callee is modeled with an entry place (`cp_f_s_first`) and a return
+/// place (`cp_f_ret`), so the call expands to a spawn-like entry transition
+/// plus a return transition, exactly like a `spawn`/`join` pair but implicit:
 ///
 ///   `t_{caller}_{sid}_call`      : input_cp → callee entry + callwait
-///   callee body / effects run
+///   callee body runs
 ///   `t_{caller}_{sid}_call_ret`  : callee ret + callwait → target_cp
 ///
-/// The parked continuation token (`callwait`) is what keeps the caller's
-/// control flow connected while the callee runs. This replaces the previous
-/// atomic-call modeling (which required a `FnSummary` and forbade calls to
-/// bodied functions via E409/E410).
+/// The parked continuation token (`callwait`) keeps the caller's control flow
+/// connected while the callee runs; this is where cross-function lock chains
+/// enter the model.
 fn translate_call(
     ctx: &mut TranslateContext,
     fn_name: &str,
@@ -640,6 +645,29 @@ fn translate_call(
         TransferPlan::Next { target_cp } | TransferPlan::Return { target_cp } => target_cp,
         _ => return,
     };
+
+    // Body-less callee: placeholder, no control flow → atomic pass-through.
+    if ctx.bodyless_functions.contains(target_fn) {
+        let t_id = tid(fn_name, &stmt.sid, "call");
+        let update = ctx.fn_effects.get(target_fn).map(|e| {
+            let mut u = VarUpdate::new();
+            for w in &e.writes {
+                u.insert(w.clone(), Expr::Lit(Val::Unknown));
+            }
+            u
+        });
+        emit_simple_transition(
+            ctx,
+            &t_id,
+            TransitionKind::Call,
+            &[&stmt.sid],
+            input_cp,
+            &target_cp,
+            BoolExpr::True,
+            update,
+        );
+        return;
+    }
 
     let t_id = tid(fn_name, &stmt.sid, "call");
     let ret_tid = tid(fn_name, &stmt.sid, "call_ret");

@@ -68,13 +68,30 @@ pub fn translate(program: &cir::ast::Program) -> Result<CvnNet, Vec<TranslateErr
     // first sid.
 
     // Build a map: fn_name → first_sid for spawned functions.
-    let referenced: std::collections::HashSet<&str> = program
+    // Body-less functions are placeholders: a call to one is an atomic
+    // pass-through, so only spawn/join targets need a modeled skeleton.
+    ctx.bodyless_functions = program
+        .functions
+        .iter()
+        .filter(|f| f.body.is_empty())
+        .map(|f| f.name.clone())
+        .collect();
+    ctx.fn_effects = program
+        .functions
+        .iter()
+        .filter_map(|f| f.effects.as_ref().map(|e| (f.name.clone(), e.clone())))
+        .collect();
+    let spawned: std::collections::HashSet<&str> = program
         .functions
         .iter()
         .flat_map(|f| f.body.iter())
-        .filter_map(|s| s.op.target_name())
+        .filter_map(|s| match &s.op {
+            cir::ast::Op::Spawn(n) | cir::ast::Op::SpawnAsync(n) => Some(n.as_str()),
+            cir::ast::Op::Join(n) | cir::ast::Op::Await(n) => Some(n.as_str()),
+            _ => None,
+        })
         .collect();
-    operation::translate_functions(&mut ctx, &program.functions, &referenced);
+    operation::translate_functions(&mut ctx, &program.functions, &spawned);
 
     // Fix spawn aliases: cp(fn, "s_first") should be the actual first sid.
     // Since the spawn transition outputs to cp(fn, "s_first"), we need to

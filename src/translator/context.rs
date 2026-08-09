@@ -102,6 +102,16 @@ pub(crate) struct TranslateContext {
     /// after reacquire).
     pub(crate) post_wait_locks: HashMap<(String, String), String>,
 
+    /// Names of body-less ("nobody") functions. These are pure placeholders
+    /// (codegen markers), not call-chain elements: a `call` to one is an atomic
+    /// pass-through, and the placeholder does not constrain control flow.
+    pub(crate) bodyless_functions: HashSet<String>,
+
+    /// Computation hints (`effects`) keyed by function name, applied as
+    /// unknown-write updates on the atomic call pass-through for body-less
+    /// callees.
+    pub(crate) fn_effects: HashMap<String, cir::ast::FunctionEffects>,
+
     /// Function currently being translated. Attached to every transition as
     /// `source_function` so repair can attribute behavior (including synthetic
     /// transitions) to a CIR function without re-scanning the program.
@@ -122,6 +132,8 @@ impl TranslateContext {
             lock_tracker: HashMap::new(),
             wait_sites: HashMap::new(),
             post_wait_locks: HashMap::new(),
+            bodyless_functions: HashSet::new(),
+            fn_effects: HashMap::new(),
             current_function: None,
             errors: Vec::new(),
         }
