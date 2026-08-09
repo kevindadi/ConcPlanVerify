@@ -96,8 +96,12 @@ impl BugKind {
 /// A thread involved in a deadlock.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DeadlockParticipant {
-    /// ConcIR function name.
+    /// CIR function name.
     pub function: String,
+    /// Source module of the function, when the program was merged from
+    /// modular fragments (cross-module repair attribution).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub module: Option<String>,
     /// Statement ID where this thread is blocked (e.g. "w1.s2").
     pub blocked_at_sid: String,
     /// Resource names currently held by this thread.
@@ -120,6 +124,10 @@ pub struct EnrichedFiringStep {
     /// no useful SID.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_function: Option<String>,
+    /// Source module of [`Self::source_function`], when the program was merged
+    /// from modular fragments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub module: Option<String>,
     /// Human-readable description (e.g. "[w1.s1] lock(mtx_a)").
     pub description: String,
 }
@@ -142,6 +150,10 @@ pub struct BugReport {
     pub involved_resources: Vec<String>,
     /// ConcIR function names involved in the bug.
     pub involved_functions: Vec<String>,
+    /// Source modules of the involved functions (distinct, sorted); empty for
+    /// single-fragment programs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub involved_modules: Vec<String>,
     /// ConcIR statements relevant to the bug (Lambda).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cir_slice: Vec<CirSliceEntry>,
@@ -159,4 +171,8 @@ pub struct CirSliceEntry {
     pub sid: String,
     pub op: String,
     pub function: String,
+    /// Source module of [`Self::function`], when the program was merged from
+    /// modular fragments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub module: Option<String>,
 }

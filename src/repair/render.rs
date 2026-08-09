@@ -221,6 +221,14 @@ fn write_state_summary(out: &mut String, report: &BugReport) {
         )
         .unwrap();
     }
+    if !report.involved_modules.is_empty() {
+        writeln!(
+            out,
+            "Involved modules: {}\n",
+            report.involved_modules.join(", ")
+        )
+        .unwrap();
+    }
 }
 
 fn write_participant_state(out: &mut String, p: &DeadlockParticipant) {
@@ -229,9 +237,14 @@ fn write_participant_state(out: &mut String, p: &DeadlockParticipant) {
     } else {
         format!("[{}]", p.holding.join(", "))
     };
+    let module = p
+        .module
+        .as_ref()
+        .map(|m| format!(" ({m})"))
+        .unwrap_or_default();
     writeln!(
         out,
-        "- `{}` at {}: holding {holding}, waiting for `{}`",
+        "- `{}`{module} at {}: holding {holding}, waiting for `{}`",
         p.function, p.blocked_at_sid, p.waiting_for
     )
     .unwrap();
@@ -243,7 +256,12 @@ fn write_cir_slice(out: &mut String, report: &BugReport) {
     }
     writeln!(out, "## Relevant ConcIR Slice\n").unwrap();
     for entry in &report.cir_slice {
-        writeln!(out, "- {}.{}: {}", entry.function, entry.sid, entry.op).unwrap();
+        let module = entry
+            .module
+            .as_ref()
+            .map(|m| format!(" ({m})"))
+            .unwrap_or_default();
+        writeln!(out, "- {}.{}{module}: {}", entry.function, entry.sid, entry.op).unwrap();
     }
     writeln!(out).unwrap();
 }

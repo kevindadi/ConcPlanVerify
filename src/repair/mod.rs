@@ -29,12 +29,18 @@ pub fn analyze(
     result: &AnalysisResult,
 ) -> Vec<BugReport> {
     let preservation = build_preservation_constraints(program);
+    let fn_to_module: HashMap<String, String> = program
+        .functions
+        .iter()
+        .filter_map(|f| f.module.as_ref().map(|m| (f.name.clone(), m.clone())))
+        .collect();
 
     let mut reports: Vec<BugReport> = result
         .deadlocks
         .iter()
         .map(|cx| {
-            let mut report = classify_counterexample(net, cx);
+            let mut report = classify_counterexample(net, cx, &fn_to_module);
+            report.involved_modules = modules_for_functions(&report.involved_functions, &fn_to_module);
             report.cir_slice = extract_cir_slice(program, &report.trace);
             report.preservation_constraints = preservation.clone();
             report
@@ -53,12 +59,13 @@ pub fn analyze(
             continue;
         }
 
-        let mut report = classify_counterexample(net, &cx);
+        let mut report = classify_counterexample(net, &cx, &fn_to_module);
         if let BugKind::DeadTransition { sids, .. } = &report.kind
             && report.involved_functions.is_empty()
         {
             report.involved_functions = functions_for_sids(program, sids);
         }
+        report.involved_modules = modules_for_functions(&report.involved_functions, &fn_to_module);
         report.cir_slice = extract_cir_slice(program, &report.trace);
         report.preservation_constraints = preservation.clone();
         reports.push(report);
@@ -159,9 +166,27 @@ fn functions_for_sids(program: &concir::ast::Program, sids: &[String]) -> Vec<St
     result
 }
 
-fn classify_counterexample(net: &CvnNet, cx: &Counterexample) -> BugReport {
+/// Distinct source modules of the given functions, sorted.
+fn modules_for_functions(
+    functions: &[String],
+    fn_to_module: &HashMap<String, String>,
+) -> Vec<String> {
+    let mut modules: Vec<String> = functions
+        .iter()
+        .filter_map(|f| fn_to_module.get(f).cloned())
+        .collect();
+    modules.sort();
+    modules.dedup();
+    modules
+}
+
+fn classify_counterexample(
+    net: &CvnNet,
+    cx: &Counterexample,
+    fn_to_module: &HashMap<String, String>,
+) -> BugReport {
     if let PropertyViolation::DeadTransition { .. } = &cx.kind {
-        return classify_dead_transition(net, cx);
+        return classify_dead_transition(net, cx, fn_to_module);
     }
     let blocked = cvn::analysis::blocked_places(net, &cx.final_state);
 
@@ -176,12 +201,13 @@ fn classify_counterexample(net: &CvnNet, cx: &Counterexample) -> BugReport {
     } else if let Some(channel_block) = classify_channel_block(net, &blocked) {
         channel_block
     } else {
-        classify_deadlock(net, cx, &blocked)
+        classify_deadlock(net, cx, &blocked, fn_to_module)
     };
 
-    let trace = enrich_trace(net, cx);
+    let trace = enrich_trace(net, cx, fn_to_module);
     let involved_resources = extract_involved_resources(net, &blocked);
     let involved_functions = extract_involved_functions(net, &blocked);
+    let involved_modules = modules_for_functions(&involved_functions, fn_to_module);
     let final_marking_summary = format_marking(net, &cx.final_state.marking);
     let repair_hint = suggestion::suggestion_for(&kind);
 
@@ -192,6 +218,7 @@ fn classify_counterexample(net: &CvnNet, cx: &Counterexample) -> BugReport {
         summary,
         involved_resources,
         involved_functions,
+        involved_modules,
         cir_slice: Vec::new(),
         preservation_constraints: Vec::new(),
         repair_hint,
@@ -309,7 +336,11 @@ fn classify_channel_block(net: &CvnNet, blocked: &[PlaceId]) -> Option<(BugKind,
     None
 }
 
-fn classify_dead_transition(net: &CvnNet, cx: &Counterexample) -> BugReport {
+fn classify_dead_transition(
+    net: &CvnNet,
+    cx: &Counterexample,
+    fn_to_module: &HashMap<String, String>,
+) -> BugReport {
     let (transition_id_str, sids): (String, Vec<String>) = match &cx.kind {
         PropertyViolation::DeadTransition {
             transition_id,
@@ -340,12 +371,13 @@ fn classify_dead_transition(net: &CvnNet, cx: &Counterexample) -> BugReport {
         "Behavioral dead transition: {anchor_label} never fires on any reachable interleaving"
     );
 
-    let trace = enrich_trace(net, cx);
+    let trace = enrich_trace(net, cx, fn_to_module);
     let final_marking_summary = format_marking(net, &cx.final_state.marking);
     let kind = BugKind::DeadTransition {
         transition: transition_id_str,
         sids,
     };
+    let involved_modules = modules_for_functions(&involved_functions, fn_to_module);
     let repair_hint = suggestion::suggestion_for(&kind);
 
     BugReport {
@@ -355,14 +387,20 @@ fn classify_dead_transition(net: &CvnNet, cx: &Counterexample) -> BugReport {
         summary,
         involved_resources: Vec::new(),
         involved_functions,
+        involved_modules,
         cir_slice: Vec::new(),
         preservation_constraints: Vec::new(),
         repair_hint,
     }
 }
 
-fn classify_deadlock(net: &CvnNet, cx: &Counterexample, blocked: &[PlaceId]) -> (BugKind, String) {
-    let participants = analyze_deadlock_participants(net, cx, blocked);
+fn classify_deadlock(
+    net: &CvnNet,
+    cx: &Counterexample,
+    blocked: &[PlaceId],
+    fn_to_module: &HashMap<String, String>,
+) -> (BugKind, String) {
+    let participants = analyze_deadlock_participants(net, cx, blocked, fn_to_module);
 
     let summary = if participants.is_empty() {
         "Deadlock detected".to_string()
@@ -378,6 +416,7 @@ fn analyze_deadlock_participants(
     net: &CvnNet,
     cx: &Counterexample,
     blocked: &[PlaceId],
+    fn_to_module: &HashMap<String, String>,
 ) -> Vec<DeadlockParticipant> {
     let place_consumers = build_place_to_consumers(net);
     let mut participants = Vec::new();
@@ -398,6 +437,7 @@ fn analyze_deadlock_participants(
 
         participants.push(DeadlockParticipant {
             function: fn_name.clone(),
+            module: fn_to_module.get(&fn_name).cloned(),
             blocked_at_sid: format!("{fn_name}.{sid}"),
             holding,
             waiting_for,
@@ -487,7 +527,11 @@ fn resource_consumed_by_function(
     consumers.iter().any(|tid| tid.0.contains(fn_name))
 }
 
-fn enrich_trace(net: &CvnNet, cx: &Counterexample) -> Vec<EnrichedFiringStep> {
+fn enrich_trace(
+    net: &CvnNet,
+    cx: &Counterexample,
+    fn_to_module: &HashMap<String, String>,
+) -> Vec<EnrichedFiringStep> {
     cx.trace
         .iter()
         .map(|step| {
@@ -497,6 +541,9 @@ fn enrich_trace(net: &CvnNet, cx: &Counterexample) -> Vec<EnrichedFiringStep> {
                 .unwrap_or(cvn::model::TransitionKind::Sequential);
             let source_function = transition
                 .and_then(|t| t.source_function.clone());
+            let module = source_function
+                .as_ref()
+                .and_then(|f| fn_to_module.get(f).cloned());
 
             let anchor_sids: Vec<String> = step.anchor_sids.iter().cloned().collect();
 
@@ -508,6 +555,7 @@ fn enrich_trace(net: &CvnNet, cx: &Counterexample) -> Vec<EnrichedFiringStep> {
                 kind,
                 anchor_sids,
                 source_function,
+                module,
                 description,
             }
         })
@@ -678,6 +726,7 @@ fn extract_cir_slice(
                     sid: stmt.sid.clone(),
                     op: format!("{:?}", stmt.op),
                     function: func.name.clone(),
+                    module: func.module.clone(),
                 });
             }
         }

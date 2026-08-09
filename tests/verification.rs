@@ -158,3 +158,57 @@ fn control_flow_and_async_fixtures_pass_the_unified_pipeline() {
         assert!(result.analysis_complete, "{relative}");
     }
 }
+
+#[test]
+fn modular_deadlock_reports_source_modules() {
+    let lock_body = |mutexes: (&str, &str)| {
+        let (first, second) = mutexes;
+        vec![
+            serde_json::json!({"sid": "s1", "op": ["res_op", first, "lock"], "transfer": ["next", "s2"]}),
+            serde_json::json!({"sid": "s2", "op": ["res_op", second, "lock"], "transfer": ["next", "s3"]}),
+            serde_json::json!({"sid": "s3", "op": ["res_op", second, "drop"], "transfer": ["next", "s4"]}),
+            serde_json::json!({"sid": "s4", "op": ["res_op", first, "drop"], "transfer": ["next", "s5"]}),
+            serde_json::json!({"sid": "s5", "op": "return", "transfer": "return"}),
+        ]
+    };
+    let program: concir::ast::Program = serde_json::from_value(serde_json::json!({
+        "program": "mod_deadlock",
+        "resources": [
+            {"name": "m1", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+            {"name": "m2", "kind": "sync", "type": "Mutex", "mode": "Sync"}
+        ],
+        "protection": [],
+        "functions": [
+            {
+                "name": "main", "kind": "normal", "module": "main",
+                "body": [
+                    {"sid": "s1", "op": ["spawn", "w1"], "transfer": ["next", "s2"]},
+                    {"sid": "s2", "op": ["spawn", "w2"], "transfer": ["next", "s3"]},
+                    {"sid": "s3", "op": ["join", "w1"], "transfer": ["next", "s4"]},
+                    {"sid": "s4", "op": ["join", "w2"], "transfer": ["next", "s5"]},
+                    {"sid": "s5", "op": "return", "transfer": "return"}
+                ]
+            },
+            {"name": "w1", "kind": "closure", "module": "alpha", "body": lock_body(("m1", "m2"))},
+            {"name": "w2", "kind": "closure", "module": "beta", "body": lock_body(("m2", "m1"))}
+        ],
+        "entry": "main"
+    }))
+    .expect("test CIR must parse");
+
+    let result = verify_program(&program, &VerificationConfig::default());
+    assert_eq!(result.status, VerificationStatus::VerifiedUnsafe);
+    assert_eq!(result.bugs.len(), 1);
+
+    let bug = &result.bugs[0];
+    assert_eq!(bug.involved_modules, vec!["alpha", "beta", "main"]);
+    // Every trace step carries the module of its source function.
+    let trace_modules: Vec<&str> = bug
+        .trace
+        .iter()
+        .filter_map(|s| s.module.as_deref())
+        .collect();
+    assert!(!trace_modules.is_empty());
+    // The CIR slice entries are module-tagged too.
+    assert!(bug.cir_slice.iter().all(|e| e.module.is_some()));
+}
