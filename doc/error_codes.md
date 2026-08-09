@@ -37,8 +37,9 @@
 
 These errors are emitted by the ConcIR validator before translation. The complete
 resource compatibility matrix and error code reference are maintained in the
-ConcIR repository (`cir/README.md`), which is the canonical schema owner. The
-translator surfaces them unchanged from `cir::validate::validate`.
+ConcIR repository (`cir/doc/error_codes.md`, with the grammar in
+`cir/doc/syntax.md`), which is the canonical schema owner. The
+translator surfaces them unchanged from `concir::validate::validate`.
 
 
 ## Builder Errors
