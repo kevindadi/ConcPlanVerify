@@ -89,6 +89,32 @@ PYTHONPATH=python python/.venv/bin/python -m cir_workflow repair \
   tests/e2e/mutex_deadlock/buggy.json
 ```
 
+## Modular generation (plan + merge)
+
+Large projects can be generated as several independently produced ConcIR
+fragments and merged into one Program before translation. Modularity is a
+generation strategy only — the CVN is always built from the single merged
+Program. The LLM planner decides when modular generation is warranted:
+
+```bash
+PYTHONPATH=python python/.venv/bin/python -m cir_workflow plan \
+  --provider deepseek \
+  --requirements "Model a server with a request queue, worker pool, and shared registry."
+```
+
+A `merge` bundle lists the entry module and one `{module, concir}` entry per
+fragment. Merge enforces global invariants (unique function names and goal ids,
+consistently declared shared resources, exactly one entry owner) and tags each
+function with its source `module`:
+
+```bash
+PYTHONPATH=python python/.venv/bin/python -m cir_workflow merge modules/bundle.json \
+  | python/.venv/bin/python -m cir_workflow analyze -
+```
+
+Cross-module `call`/`spawn` targets resolve during merge; shared resources are
+deduplicated by name and consistency-checked.
+
 Provider defaults can be overridden with `--model-id`, `--api-key-env`, `--base-url`, `--reasoning-effort`, `--thinking`, and `--no-thinking`. `--binary` selects a specific `cir2cvn` executable.
 
 ## Project Structure
@@ -108,7 +134,9 @@ src/
     ├── condvar.rs           # Condvar specialization
 python/
 ├── cir_workflow/            # LLM orchestration and Rust subprocess client
-│   └── prompt_assets/       # Generation and repair prompts for the LLM
+│   ├── plan.py              # LLM modularity planning (plan command)
+│   ├── merge.py             # Modular fragment → single Program assembly
+│   ├── prompt_assets/       # Generation and repair prompts for the LLM
 ├── tests/                   # Offline Python workflow tests
 └── pyproject.toml
 ```

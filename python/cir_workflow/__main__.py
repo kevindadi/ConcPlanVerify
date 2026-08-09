@@ -10,7 +10,9 @@ from pathlib import Path
 from .env import load_dotenv
 from .generation import GenerationWorkflow
 from .llm import create_llm_client, default_base_url
+from .merge import MergeError, load_module_bundle, merge_modules
 from .models import ModelConfig
+from .plan import PlanError, render_plan, run_plan
 from .repair import RepairWorkflow
 from .rust_cli import RustCli
 
@@ -24,7 +26,7 @@ def main() -> int:
     )
     parser.add_argument(
         "command",
-        choices=["validate", "analyze", "goals", "generate", "repair"],
+        choices=["validate", "analyze", "goals", "generate", "repair", "plan", "merge"],
     )
     parser.add_argument("input", nargs="?", help="ConcIR JSON path, or - for stdin")
     parser.add_argument("--requirements", help="Natural-language requirements for generate")
@@ -70,6 +72,20 @@ def main() -> int:
             result = rust.analyze(cir_json)
         _print_payload(result.payload, result.error)
         return result.exit_code
+
+    if args.command == "merge":
+        bundle_json = _read_input(args.input)
+        try:
+            bundle = json.loads(bundle_json)
+            modules, program_name, entry_module = load_module_bundle(bundle)
+            merged, function_to_module = merge_modules(
+                modules, program_name=program_name, entry_module=entry_module
+            )
+        except (json.JSONDecodeError, MergeError, ValueError) as error:
+            print(f"merge failed: {error}", file=sys.stderr)
+            return 1
+        print(json.dumps(merged, ensure_ascii=False, indent=2))
+        return 0
 
     provider = args.provider.lower()
     provider_defaults = {
@@ -124,6 +140,27 @@ def main() -> int:
             return 0
         print(result.error or "generation failed", file=sys.stderr)
         return 1
+
+    if args.command == "plan":
+        requirements = args.requirements
+        if args.source:
+            requirements = (requirements + "\n\n" if requirements else "") + _read_file(args.source)
+        if not requirements:
+            parser.error("plan requires --requirements or --source")
+        try:
+            plan = run_plan(
+                client,
+                requirements,
+                temperature=args.temperature,
+                max_tokens=args.max_tokens,
+            )
+        except PlanError as error:
+            print(f"plan failed: {error}", file=sys.stderr)
+            return 1
+        print(render_plan(plan))
+        print()
+        print(json.dumps(plan, ensure_ascii=False, indent=2))
+        return 0
 
     cir_json = _read_input(args.input)
     result = RepairWorkflow(
