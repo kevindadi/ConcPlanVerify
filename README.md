@@ -104,9 +104,8 @@ src/
     ├── expr_parser.rs       # CIR string → CVN expression
     ├── resource.rs          # Phase 1: resource scanning
     ├── control_flow.rs      # Transfer planning
-    ├── operation.rs         # Phase 2: operation translation
+    ├── operation.rs         # Phase 2: operation translation (incl. call expansion)
     ├── condvar.rs           # Condvar specialization
-    └── fn_summary.rs        # FnSummary indexing
 python/
 ├── cir_workflow/            # LLM orchestration and Rust subprocess client
 │   └── prompt_assets/       # Generation and repair prompts for the LLM

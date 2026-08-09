@@ -82,7 +82,6 @@ def lock_chain(threads: int, locks: int, *, buggy: bool = False) -> dict[str, An
         ],
         "protection": [],
         "functions": functions,
-        "fn_summaries": [],
         "entry": "main",
     }
 
@@ -116,7 +115,6 @@ def branch_fan(threads: int, branches: int) -> dict[str, Any]:
         ],
         "protection": [],
         "functions": functions,
-        "fn_summaries": [],
         "entry": "main",
     }
 
@@ -187,7 +185,6 @@ def lock_chain_deep(threads: int, locks: int, *, buggy: bool = True) -> dict[str
         ],
         "protection": [],
         "functions": functions,
-        "fn_summaries": [],
         "entry": "main",
     }
 

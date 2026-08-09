@@ -29,11 +29,14 @@ CIR Program ──translate()──▶ CvnNet ──analyze()──▶ Counterex
 │           ├── Pre-scan condvar wait-sites            │
 │           ├── For each function, for each statement: │
 │           │   Op + Transfer → transitions + arcs     │
+│           ├── Body-less functions → trivial skeleton │
+│           │   (entry → effects transition → return)  │
 │           └── Wire spawn s_first bridges             │
 │                                                       │
-│  Phase 3: (Integrated into Phase 2)                  │
-│           FnSummary calls → Call transitions with    │
-│           writes set to Unknown                      │
+│  Call translation: enter callee skeleton             │
+│           t_call: input → callee entry + callwait    │
+│           t_call_ret (Join): callee ret + callwait   │
+│           → caller continuation                      │
 │                                                       │
 │  Finalize: Set entry marking, builder.build()        │
 └─────────────────────────────────────────────────────┘
@@ -51,9 +54,12 @@ CIR Program ──translate()──▶ CvnNet ──analyze()──▶ Counterex
 | **expr_parser**    | `src/translator/expr_parser.rs`  | CIR string expressions → CVN `BoolExpr`/`Expr`        |
 | **resource**       | `src/translator/resource.rs`     | Phase 1: resource scanning                            |
 | **control_flow**   | `src/translator/control_flow.rs` | Transfer planning + transition emission helpers       |
-| **operation**      | `src/translator/operation.rs`    | Phase 2: Op dispatch (lock, drop, read, write, etc.)  |
+| **operation**      | `src/translator/operation.rs`    | Phase 2: Op dispatch (lock, drop, read, write, call expansion, etc.)  |
 | **condvar**        | `src/translator/condvar.rs`      | Condvar wait / notify / notify_all translation; sets `disjunctive_family` on OR-variants (see [`condvar_modeling.md`](condvar_modeling.md)) |
-| **fn_summary**     | `src/translator/fn_summary.rs`   | FnSummary indexing for Phase 2 call translation       |
+
+The `fn_summary` module was removed: every referenced function (bodied or
+body-less) is modeled with an entry/return skeleton, so `call` expands into the
+callee skeleton instead of being one atomic transition.
 
 ## Key Design Decisions
 
@@ -76,7 +82,7 @@ CIR Program ──translate()──▶ CvnNet ──analyze()──▶ Counterex
 │ Layer 1: CIR static checks │
 │ E0xx structure → E1xx names → E2xx types → E3xx resources → │
 │ E4xx concurrency pairing → E5xx lock safety → E6xx control flow → │
-│ E7xx protection mapping → E8xx FnSummary │
+│ E7xx protection mapping │
 │ │
 │ Simple errors (e.g. lock without drop) → try local auto-fix │
 │ Complex errors → error report → send back to LLM for regeneration │
@@ -87,7 +93,7 @@ CIR Program ──translate()──▶ CvnNet ──analyze()──▶ Counterex
 │ CIR → CVN translation │
 │ Phase 1: resource scan → P_r + I_m + I_v │
 │ Phase 2: function bodies → P_c + P_w + T + A_in + A_out │
-│ Phase 3: FnSummary → atomic transitions │
+│           (body-less functions → trivial skeletons; call → callee entry/return) │
 │ │
 │ Translation errors T0xx-T3xx → report → send back to LLM │
 └───────────────────────┬─────────────────────────────────────┘

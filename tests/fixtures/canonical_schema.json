@@ -1,89 +1,438 @@
 {
   "program": "canonical_schema",
   "resources": [
-    {"name": "mtx", "kind": "sync", "type": "Mutex", "mode": "Sync"},
-    {"name": "rw", "kind": "sync", "type": "RwLock", "mode": "Sync"},
-    {"name": "cv", "kind": "sync", "type": "Condvar", "mode": "Sync"},
-    {"name": "sem", "kind": "sync", "type": "Semaphore", "mode": "Sync", "count": 2},
-    {"name": "ch", "kind": "sync", "type": "Channel", "mode": "Async", "base": "Int"},
-    {"name": "state", "kind": "var", "type": "Var",
-     "base": {"Enum": ["Init", "Done"]}, "init": "Init"},
-    {"name": "count", "kind": "var", "type": "Var", "base": "Int", "init": 0},
-    {"name": "flag", "kind": "var", "type": "Atomic", "base": "Bool", "init": false}
+    {
+      "name": "mtx",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    {
+      "name": "rw",
+      "kind": "sync",
+      "type": "RwLock",
+      "mode": "Sync"
+    },
+    {
+      "name": "cv",
+      "kind": "sync",
+      "type": "Condvar",
+      "mode": "Sync"
+    },
+    {
+      "name": "sem",
+      "kind": "sync",
+      "type": "Semaphore",
+      "mode": "Sync",
+      "count": 2
+    },
+    {
+      "name": "ch",
+      "kind": "sync",
+      "type": "Channel",
+      "mode": "Async",
+      "base": "Int"
+    },
+    {
+      "name": "state",
+      "kind": "var",
+      "type": "Var",
+      "base": {
+        "Enum": [
+          "Init",
+          "Done"
+        ]
+      },
+      "init": "Init"
+    },
+    {
+      "name": "count",
+      "kind": "var",
+      "type": "Var",
+      "base": "Int",
+      "init": 0
+    },
+    {
+      "name": "flag",
+      "kind": "var",
+      "type": "Atomic",
+      "base": "Bool",
+      "init": false
+    }
   ],
   "protection": [
-    {"var": "state", "lock": "mtx"},
-    {"var": "count", "lock": "rw"}
+    {
+      "var": "state",
+      "lock": "mtx"
+    },
+    {
+      "var": "count",
+      "lock": "rw"
+    }
   ],
   "functions": [
     {
       "name": "main",
       "kind": "async",
       "body": [
-        {"sid": "s1", "op": ["spawn", "worker"], "transfer": ["next", "s2"]},
-        {"sid": "s2", "op": ["spawn_async", "async_worker"], "transfer": ["next", "s3"]},
-        {"sid": "s3", "op": ["join", "worker"], "transfer": ["next", "s4"]},
-        {"sid": "s4", "op": ["await", "async_worker"], "transfer": ["next", "s5"]},
-        {"sid": "s5", "op": "return", "transfer": "return"}
+        {
+          "sid": "s1",
+          "op": [
+            "spawn",
+            "worker"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "spawn_async",
+            "async_worker"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "join",
+            "worker"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "await",
+            "async_worker"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": "return",
+          "transfer": "return"
+        }
       ]
     },
     {
       "name": "worker",
       "kind": "closure",
       "body": [
-        {"sid": "s1", "op": ["res_op", "mtx", "lock"], "transfer": ["next", "s2"]},
-        {"sid": "s2", "op": ["res_op", "state", "write", "Done"], "transfer": ["next", "s3"]},
-        {"sid": "s3", "op": ["res_op", "cv", "notify"], "transfer": ["next", "s4"]},
-        {"sid": "s4", "op": ["res_op", "mtx", "drop"], "transfer": ["next", "s5"]},
-        {"sid": "s5", "op": "return", "transfer": "return"}
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "mtx",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "state",
+            "write",
+            "Done"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "cv",
+            "notify"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "res_op",
+            "mtx",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": "return",
+          "transfer": "return"
+        }
       ]
     },
     {
       "name": "async_worker",
       "kind": "async",
       "body": [
-        {"sid": "s1", "op": ["res_op", "sem", "acquire"], "transfer": ["next", "s2"]},
-        {"sid": "s2", "op": ["res_op", "ch", "send", "42"], "transfer": ["next", "s3"]},
-        {"sid": "s3", "op": ["res_op", "flag", "store", "true"], "transfer": ["next", "s4"]},
-        {"sid": "s4", "op": ["res_op", "sem", "release"], "transfer": ["next", "s5"]},
-        {"sid": "s5", "op": "return", "transfer": "return"}
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "sem",
+            "acquire"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "ch",
+            "send",
+            "42"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "flag",
+            "store",
+            "true"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "res_op",
+            "sem",
+            "release"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": "return",
+          "transfer": "return"
+        }
       ]
     },
     {
       "name": "reader",
       "kind": "closure",
       "body": [
-        {"sid": "s1", "op": ["res_op", "rw", "read"], "transfer": ["next", "s2"]},
-        {"sid": "s2", "op": ["res_op", "count", "read"], "transfer": ["branch", "count > 0", "s3", "s4"]},
-        {"sid": "s3", "op": ["res_op", "rw", "drop"], "transfer": ["next", "s5"]},
-        {"sid": "s4", "op": ["res_op", "rw", "drop"], "transfer": ["next", "s5"]},
-        {"sid": "s5", "op": ["res_op", "mtx", "lock"], "transfer": ["next", "s6"]},
-        {"sid": "s6", "op": ["res_op", "state", "read"], "transfer": ["switch", "state", {"Init": "s7", "Done": "s8"}]},
-        {"sid": "s7", "op": "nop", "transfer": ["next", "s9"]},
-        {"sid": "s8", "op": "nop", "transfer": ["next", "s9"]},
-        {"sid": "s9", "op": ["call", "observe"], "transfer": ["next", "s10"]},
-        {"sid": "s10", "op": ["res_op", "mtx", "drop"], "transfer": ["next", "s11"]},
-        {"sid": "s11", "op": "return", "transfer": "return"}
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "rw",
+            "read"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "count",
+            "read"
+          ],
+          "transfer": [
+            "branch",
+            "count > 0",
+            "s3",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "rw",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": [
+            "res_op",
+            "rw",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s5"
+          ]
+        },
+        {
+          "sid": "s5",
+          "op": [
+            "res_op",
+            "mtx",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s6"
+          ]
+        },
+        {
+          "sid": "s6",
+          "op": [
+            "res_op",
+            "state",
+            "read"
+          ],
+          "transfer": [
+            "switch",
+            "state",
+            {
+              "Init": "s7",
+              "Done": "s8"
+            }
+          ]
+        },
+        {
+          "sid": "s7",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s8",
+          "op": "nop",
+          "transfer": [
+            "next",
+            "s9"
+          ]
+        },
+        {
+          "sid": "s9",
+          "op": [
+            "call",
+            "observe"
+          ],
+          "transfer": [
+            "next",
+            "s10"
+          ]
+        },
+        {
+          "sid": "s10",
+          "op": [
+            "res_op",
+            "mtx",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s11"
+          ]
+        },
+        {
+          "sid": "s11",
+          "op": "return",
+          "transfer": "return"
+        }
       ]
     },
     {
       "name": "waiter",
       "kind": "closure",
       "body": [
-        {"sid": "s1", "op": ["res_op", "mtx", "lock"], "transfer": ["next", "s2"]},
-        {"sid": "s2", "op": ["res_op", "cv", "wait", "mtx"], "transfer": ["next", "s3"]},
-        {"sid": "s3", "op": ["res_op", "mtx", "drop"], "transfer": ["next", "s4"]},
-        {"sid": "s4", "op": "return", "transfer": "return"}
+        {
+          "sid": "s1",
+          "op": [
+            "res_op",
+            "mtx",
+            "lock"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": [
+            "res_op",
+            "cv",
+            "wait",
+            "mtx"
+          ],
+          "transfer": [
+            "next",
+            "s3"
+          ]
+        },
+        {
+          "sid": "s3",
+          "op": [
+            "res_op",
+            "mtx",
+            "drop"
+          ],
+          "transfer": [
+            "next",
+            "s4"
+          ]
+        },
+        {
+          "sid": "s4",
+          "op": "return",
+          "transfer": "return"
+        }
       ]
-    }
-  ],
-  "fn_summaries": [
+    },
     {
       "name": "observe",
-      "reads": ["state"],
-      "writes": [],
-      "callees": [],
-      "has_concurrency": false
+      "kind": "normal",
+      "body": [],
+      "effects": {
+        "reads": [
+          "state"
+        ],
+        "writes": []
+      }
     }
   ],
   "entry": "main",
@@ -91,13 +440,19 @@
     {
       "id": "main_reaches_return",
       "desc": "The async entry reaches its return statement",
-      "marking": {"main.s5": 1},
-      "variables": {"flag": true}
+      "marking": {
+        "main.s5": 1
+      },
+      "variables": {
+        "flag": true
+      }
     },
     {
       "id": "channel_is_empty",
       "desc": "No message remains in the channel",
-      "marking": {"ch": 0}
+      "marking": {
+        "ch": 0
+      }
     }
   ]
 }

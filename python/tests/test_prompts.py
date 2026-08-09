@@ -26,7 +26,6 @@ class PromptFeedbackTests(unittest.TestCase):
             "resources",
             "protection",
             "functions",
-            "fn_summaries",
             "entry",
             "goals",
         ):

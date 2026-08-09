@@ -2,7 +2,6 @@ mod condvar;
 mod context;
 mod control_flow;
 mod expr_parser;
-mod fn_summary;
 pub(crate) mod goals;
 mod operation;
 mod resource;
@@ -42,10 +41,6 @@ pub fn translate(program: &cir::ast::Program) -> Result<CvnNet, Vec<TranslateErr
         return Err(ctx.errors);
     }
 
-    // ── Phase 0: Index FnSummaries so Phase 2 can look them up ──────────
-
-    fn_summary::index_fn_summaries(&mut ctx, &program.fn_summaries);
-
     // ── Phase 1: Resource scanning ──────────────────────────────────────
 
     resource::scan_resources(&mut ctx, program);
@@ -73,7 +68,13 @@ pub fn translate(program: &cir::ast::Program) -> Result<CvnNet, Vec<TranslateErr
     // first sid.
 
     // Build a map: fn_name → first_sid for spawned functions.
-    operation::translate_functions(&mut ctx, &program.functions);
+    let referenced: std::collections::HashSet<&str> = program
+        .functions
+        .iter()
+        .flat_map(|f| f.body.iter())
+        .filter_map(|s| s.op.target_name())
+        .collect();
+    operation::translate_functions(&mut ctx, &program.functions, &referenced);
 
     // Fix spawn aliases: cp(fn, "s_first") should be the actual first sid.
     // Since the spawn transition outputs to cp(fn, "s_first"), we need to
@@ -122,13 +123,12 @@ pub fn translate(program: &cir::ast::Program) -> Result<CvnNet, Vec<TranslateErr
     ctx.finish()
 }
 
-/// Validate that all spawn/join/call targets reference existing functions or summaries.
+/// Validate that all spawn/join/call targets reference existing functions.
 fn validate_function_references(ctx: &mut TranslateContext, program: &cir::ast::Program) {
     let fn_names: std::collections::HashSet<&str> = program
         .functions
         .iter()
         .map(|f| f.name.as_str())
-        .chain(program.fn_summaries.iter().map(|s| s.name.as_str()))
         .collect();
 
     for func in &program.functions {

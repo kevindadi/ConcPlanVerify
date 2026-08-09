@@ -33,7 +33,7 @@
 | T301 | `AmbiguousRwLockDrop` | Cannot determine whether a RwLock drop releases a read-lock or write-lock |
 | T302 | `NoWaitSites` | A condvar notify/notify_all has no corresponding wait-sites |
 
-## CIR Validation Errors (E0xx–E8xx)
+## CIR Validation Errors (E0xx–E7xx)
 
 These errors are emitted by the CIR validator before translation. The complete
 resource compatibility matrix and error code reference are maintained in the

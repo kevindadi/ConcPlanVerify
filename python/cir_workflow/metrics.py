@@ -74,7 +74,9 @@ def cir_metrics(cir_json: str) -> dict[str, Any]:
         "call_count": op_counts["call"],
         "branch_count": branch_count,
         "switch_count": switch_count,
-        "fn_summary_count": len(_as_list(program.get("fn_summaries"))),
+        "bodyless_function_count": sum(
+            1 for f in functions if not _as_list(f.get("body"))
+        ),
         "goal_count": len(_as_list(program.get("goals"))),
         "protection_count": len(_as_list(program.get("protection"))),
         "cir_json_bytes": len(cir_json.encode("utf-8")),

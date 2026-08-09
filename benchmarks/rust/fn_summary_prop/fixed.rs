@@ -1,15 +1,15 @@
 //! Reference Rust for tests/e2e/fn_summary_prop/fixed.json.
 //! Gold verdict: SAFE with both return goals reachable. A producer writes a
 //! mutex-protected value and a consumer reads it; both call helpers that in
-//! the CIR are only described by function summaries.
+//! the CIR are modeled as body-less ("nobody") functions.
 
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-/// Modeled in CIR only via fn_summaries: no reads, no writes.
+/// Body-less in CIR: no reads, no writes.
 fn compute() {}
 
-/// Modeled in CIR only via fn_summaries: reads `result`.
+/// Body-less in CIR: reads `result`.
 fn observe(result: i32) -> i32 {
     result
 }

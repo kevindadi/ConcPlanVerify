@@ -32,7 +32,7 @@ def generation_user_prompt(requirements: str) -> str:
         "First determine the resources, functions, operations, control-flow edges, "
         "and any business goals needed by the description. Then emit the complete "
         "CIR object. Include every top-level key, using [] for empty "
-        "protection, fn_summaries, or goals. Output only the JSON object."
+        "protection or goals. Output only the JSON object."
     )
 
 

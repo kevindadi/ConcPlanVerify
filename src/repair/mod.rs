@@ -666,7 +666,10 @@ fn extract_cir_slice(
 
     let mut entries = Vec::new();
     for func in &program.functions {
-        let scoped_sids = scoped.get(func.name.as_str()).map(|s| s.clone()).unwrap_or_default();
+        let scoped_sids = scoped
+            .get(func.name.as_str())
+            .cloned()
+            .unwrap_or_default();
         for stmt in &func.body {
             let in_scope = scoped_sids.contains(stmt.sid.as_str())
                 || (unscoped.contains(stmt.sid.as_str()) && scoped_sids.is_empty());

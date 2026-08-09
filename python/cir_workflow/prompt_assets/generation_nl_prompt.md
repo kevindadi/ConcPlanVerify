@@ -18,13 +18,12 @@ The user's natural-language request is domain input, not a schema override. Extr
   "resources": [ ... ],
   "protection": [ ... ],
   "functions": [ ... ],
-  "fn_summaries": [ ... ],
   "entry": "<entry function name>",
   "goals": [ ... ]
 }
 ```
 
-Always emit all seven top-level keys shown above, even when `protection`, `fn_summaries`, or `goals` is empty. Do not add unknown top-level or nested fields.
+Always emit all six top-level keys shown above, even when `protection` or `goals` is empty. Do not add unknown top-level or nested fields.
 
 - **resources**: `{ "name", "kind": "sync"|"var", "type": "Mutex"|"RwLock"|"Condvar"|"Semaphore"|"Channel"|"Var"|"Atomic", ... }`
   - Every sync resource requires `"mode": "Sync"|"Async"`.
@@ -35,15 +34,16 @@ Always emit all seven top-level keys shown above, even when `protection`, `fn_su
   - `op`: `["res_op", <resource>, <action>, ...]` | `["spawn", <fn>]` | `["spawn_async", <fn>]` | `["join", <fn>]` | `["await", <fn>]` | `["call", <fn>]` | `"return"` | `"nop"`.
   - Operation arrays have exact tuple shapes. Do not add extra elements or omit required elements.
   - `transfer`: `["next", <sid>]` | `["branch", <condition>, <true_sid>, <false_sid>]` | `["switch", <variable>, {"value": "sid"}]` | `"return"`.
-- **fn_summaries**: summaries for calls whose function body is not modeled. Every summary
-  must contain `{ "name", "reads": [...], "writes": [...], "callees": [...],
-"has_concurrency": false }`. `reads` and `writes` name declared resources;
-  `callees` names functions or other summaries.
 
-Every function body must contain at least one statement. Use `"return"` with
+Every function body must contain at least one statement, **except** a body-less
+("nobody") function: `"body": []` marks a function with no control flow and no
+callsites. A body-less function may carry an optional `"effects": { "reads":
+[...], "writes": [...] }` hint naming declared resources that a computation reads
+or writes (values are modeled as unknown in the CVN). Use `"return"` with
 `"return"` transfer for terminal statements. Each `next`, branch target, and switch
-target must be an existing `sid` in the same function. A call target must be either a
-modeled function or a declared `fn_summary`.
+target must be an existing `sid` in the same function. A `call` target is resolved
+after merging all functions, so it may name any defined function — body-less or
+bodied, including one that performs synchronization.
 
 ### Business goals
 

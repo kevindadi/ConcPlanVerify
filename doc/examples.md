@@ -57,12 +57,15 @@ main: s1(cas flag false true) → branch(...)
 - `t_main_s1_branch_true` (CasSuccess): guard `Cmp(Eq, Ref("flag"), Lit(false))`, update `{flag: Lit(true)}`
 - `t_main_s1_branch_false` (CasFailure): guard `Not(...)`, no update
 
-## 6. FnSummary Call
+## 6. Call Expansion into a Body-less Callee
 
 **CIR** (fixtures/fn_summary.json):
 ```json
 main: s1(call validate) → s2(return)
-summary: validate reads=[result], writes=[result]
+validate: body-less (nobody), effects: writes=[result]
 ```
 
-**CVN**: `t_main_s1_call` (Call): update `{result: Lit(Unknown)}`
+**CVN**:
+- `t_main_s1_call` (Call): consumes `cp_main_s1`, produces `cp_validate_s_first` AND `cp_main_s1_callwait` (parked continuation)
+- `t_validate_body` (Sequential): consumes `cp_validate_s_first`, produces `cp_validate_ret` with update `{result: Lit(Unknown)}`
+- `t_main_s1_call_ret` (Join): consumes `cp_validate_ret` + `cp_main_s1_callwait`, produces `cp_main_s2`

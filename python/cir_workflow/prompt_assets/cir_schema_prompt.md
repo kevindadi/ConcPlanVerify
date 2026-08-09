@@ -12,7 +12,6 @@ CIR is a statement-level, verification-oriented concurrency model. Each CIR arti
   "resources": ["..."],
   "protection": ["..."],
   "functions": ["..."],
-  "fn_summaries": ["..."],
   "entry": "<entry function name>",
   "goals": ["..."]
 }
@@ -55,6 +54,11 @@ Declares which lock protects which variable. Only `Var` resources (not `Atomic`)
 ## Functions
 
 Each function has a `name`, `kind` (`"normal"`, `"async"`, or `"closure"`), and a `body` array of statements.
+
+A function with `"body": []` is a body-less ("nobody") function: no control flow,
+no callsites. It may carry an optional `"effects": { "reads": [...], "writes": [...] }`
+naming declared resources a computation touches (writes are modeled as unknown in
+the CVN).
 
 ### Statement
 

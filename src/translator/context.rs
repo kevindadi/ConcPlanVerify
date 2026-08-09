@@ -102,9 +102,6 @@ pub(crate) struct TranslateContext {
     /// after reacquire).
     pub(crate) post_wait_locks: HashMap<(String, String), String>,
 
-    /// FnSummary index: `fn_name → FnSummary`.
-    pub(crate) fn_summary_map: HashMap<String, cir::ast::FnSummary>,
-
     /// Function currently being translated. Attached to every transition as
     /// `source_function` so repair can attribute behavior (including synthetic
     /// transitions) to a CIR function without re-scanning the program.
@@ -125,7 +122,6 @@ impl TranslateContext {
             lock_tracker: HashMap::new(),
             wait_sites: HashMap::new(),
             post_wait_locks: HashMap::new(),
-            fn_summary_map: HashMap::new(),
             current_function: None,
             errors: Vec::new(),
         }
@@ -142,18 +138,18 @@ impl TranslateContext {
         self.builder = self.take_builder().add_control_place(&id, fn_name, sid);
     }
 
-    pub(crate) fn add_resource_place(
-        &mut self,
-        res_name: &str,
-        resource_type: ResourceType,
-    ) {
+    pub(crate) fn add_resource_place(&mut self, res_name: &str, resource_type: ResourceType) {
         let id = rp_id(res_name);
-        self.builder = self.take_builder().add_resource_place(&id, res_name, resource_type);
+        self.builder = self
+            .take_builder()
+            .add_resource_place(&id, res_name, resource_type);
     }
 
     pub(crate) fn add_wait_place(&mut self, cv_name: &str, fn_name: &str, sid: &str) {
         let id = wp_id(cv_name, fn_name, sid);
-        self.builder = self.take_builder().add_wait_place(&id, cv_name, fn_name, sid);
+        self.builder = self
+            .take_builder()
+            .add_wait_place(&id, cv_name, fn_name, sid);
     }
 
     pub(crate) fn set_return(&mut self, place_id: &str) {
@@ -163,10 +159,15 @@ impl TranslateContext {
     pub(crate) fn add_transition(&mut self, id: &str, kind: TransitionKind, sids: &[&str]) {
         match self.current_function.clone() {
             Some(fn_name) => {
-                self.builder =
-                    self.take_builder().add_transition_with_source(id, kind, sids, fn_name)
+                self.builder = self
+                    .take_builder()
+                    .add_transition_with_source(id, kind, sids, fn_name)
             }
-            None => self.builder = self.take_builder().add_transition_with_anchor(id, kind, sids),
+            None => {
+                self.builder = self
+                    .take_builder()
+                    .add_transition_with_anchor(id, kind, sids)
+            }
         };
     }
 

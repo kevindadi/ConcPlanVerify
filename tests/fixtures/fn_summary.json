@@ -1,7 +1,13 @@
 {
   "program": "fn_summary_test",
   "resources": [
-    {"name": "result", "kind": "var", "type": "Var", "base": "Int", "init": 0}
+    {
+      "name": "result",
+      "kind": "var",
+      "type": "Var",
+      "base": "Int",
+      "init": 0
+    }
   ],
   "protection": [],
   "functions": [
@@ -9,18 +15,36 @@
       "name": "main",
       "kind": "normal",
       "body": [
-        {"sid": "s1", "op": ["call", "validate"], "transfer": ["next", "s2"]},
-        {"sid": "s2", "op": "return", "transfer": "return"}
+        {
+          "sid": "s1",
+          "op": [
+            "call",
+            "validate"
+          ],
+          "transfer": [
+            "next",
+            "s2"
+          ]
+        },
+        {
+          "sid": "s2",
+          "op": "return",
+          "transfer": "return"
+        }
       ]
-    }
-  ],
-  "fn_summaries": [
+    },
     {
       "name": "validate",
-      "reads": ["result"],
-      "writes": ["result"],
-      "callees": [],
-      "has_concurrency": false
+      "kind": "normal",
+      "body": [],
+      "effects": {
+        "reads": [
+          "result"
+        ],
+        "writes": [
+          "result"
+        ]
+      }
     }
   ],
   "entry": "main"

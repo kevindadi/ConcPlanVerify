@@ -122,7 +122,6 @@ fn invalid_cir_stops_before_translation() {
                 "transfer": ["next", "missing"]
             }]
         }],
-        "fn_summaries": [],
         "entry": "main"
     }))
     .expect("invalid fixture should still be valid JSON/CIR syntax");

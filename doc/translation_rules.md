@@ -97,10 +97,16 @@ Both share `{f}_{sid_n}:notify_all`.
 |--------|----------------|
 | `spawn(f)` | Output arc also to `cp(f, s_first)` (fork) |
 | `join(f)` | Input arc also from `cp(f, ret)` (sync) |
-| `call(f)` | If f has body: already translated. If summary: Call transition with writes → Unknown |
+| `call(f)` | Enter callee skeleton: `t_call` (input → `cp(f,s_first)` + `cp(caller,sid)_callwait`); `t_call_ret` (Join, consumes `cp(f,ret)` + callwait → caller next) |
 
-## 5. FnSummary
+## 5. Body-less ("nobody") Functions
+
+A function with an empty body is modeled as a trivial skeleton; its optional
+`effects.writes` become a variable update on the single bridging transition:
 
 ```
-t_call: cp(caller,s) → cp(caller,s_next), update = {w: Unknown for w in writes}
+t_body: cp(f,s_first) → cp(f,ret), update = {w: Unknown for w in effects.writes}
 ```
+
+Only referenced body-less functions are modeled; unreferenced ones are dead code
+and are skipped.

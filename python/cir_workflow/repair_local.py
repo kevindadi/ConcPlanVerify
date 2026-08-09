@@ -144,7 +144,7 @@ def build_slice_prompt(
 ) -> str:
     globals_view = {
         key: program.get(key)
-        for key in ("program", "resources", "protection", "fn_summaries", "entry", "goals")
+        for key in ("program", "resources", "protection", "entry", "goals")
     }
     slice_fns = [fn for fn in program.get("functions", []) if fn.get("name") in slice_names]
     other_fns = [fn for fn in program.get("functions", []) if fn.get("name") not in slice_names]

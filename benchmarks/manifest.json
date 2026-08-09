@@ -416,7 +416,7 @@
         "canonical": "Model a producer and a consumer sharing a mutex-protected integer `result`. The producer locks, calls an unmodeled helper `compute`, writes result=1, and unlocks. The consumer locks, calls an unmodeled helper `observe` (which reads `result`), reads result, and unlocks. Provide function summaries for `compute` and `observe`. Declare goals that both threads reach return, and the model must verify safe with the goals reachable.",
         "paraphrases": [
           "A producer writes a shared value and a consumer reads it, both under one mutex. Each also calls an external function that is only described by a read/write summary, not a body. Both threads must be able to finish.",
-          "Write a plan with two threads and a protected variable where opaque library calls appear inside the critical sections; describe those calls with fn_summaries (what they read and write). Termination of both threads is a declared goal.",
+          "Write a plan with two threads and a protected variable where opaque library calls appear inside the critical sections; model those calls as body-less functions with an effects hint (what they read and write). Termination of both threads is a declared goal.",
           "Model summary-based abstraction: `compute` (no effects) and `observe` (reads result) have no bodies, only summaries. The surrounding lock/write/read protocol must verify safe and reach both return goals.",
           "Producer/consumer over a mutex-guarded int, with unmodeled helper calls captured as function summaries. All goals (both returns) must be reachable and no deadlock may exist."
         ]

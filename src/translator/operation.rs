@@ -8,9 +8,20 @@ use super::expr_parser::parse_expr;
 use crate::error::TranslateError;
 use cir::ast::{Function, Op, Statement, Transfer};
 use cvn::model::{BoolExpr, CmpOp, Expr, TransitionKind, Val, VarUpdate};
+use std::collections::HashSet;
 
 /// Phase 2: Translate all function bodies.
-pub(crate) fn translate_functions(ctx: &mut TranslateContext, functions: &[Function]) {
+///
+/// `referenced` lists function names targeted by `spawn`/`spawn_async`/
+/// `join`/`await`/`call` anywhere in the program. Body-less functions are
+/// modeled as a trivial skeleton only when referenced; unreferenced ones are
+/// dead code and must not enter the net (they would otherwise be reported as
+/// behavioral dead transitions).
+pub(crate) fn translate_functions(
+    ctx: &mut TranslateContext,
+    functions: &[Function],
+    referenced: &HashSet<&str>,
+) {
     // Pre-scan: collect condvar wait-sites and mark post-wait locks.
     for func in functions {
         prescan_condvar_waits(ctx, &func.name, &func.body);
@@ -19,7 +30,7 @@ pub(crate) fn translate_functions(ctx: &mut TranslateContext, functions: &[Funct
     // Main translation pass.
     for func in functions {
         ctx.set_current_function(&func.name);
-        translate_function(ctx, func);
+        translate_function(ctx, func, referenced);
     }
 }
 
@@ -75,7 +86,7 @@ fn prescan_condvar_waits(ctx: &mut TranslateContext, fn_name: &str, body: &[Stat
     }
 }
 
-fn translate_function(ctx: &mut TranslateContext, func: &Function) {
+fn translate_function(ctx: &mut TranslateContext, func: &Function, referenced: &HashSet<&str>) {
     // Ensure the first statement's control place gets an initial token
     // only if this is the entry function (handled by the orchestrator).
     // Here we just ensure places exist.
@@ -83,6 +94,27 @@ fn translate_function(ctx: &mut TranslateContext, func: &Function) {
         ctx.ensure_control_place(&func.name, &first.sid);
     }
     ctx.ensure_return_place(&func.name);
+
+    if func.body.is_empty() {
+        // Body-less ("nobody") function: entry → single effects transition → return.
+        // Only model it when referenced (otherwise it is dead code).
+        if !referenced.contains(func.name.as_str()) {
+            return;
+        }
+        ctx.ensure_control_place(&func.name, "s_first");
+        let t_id = format!("{}_body", func.name);
+        let update = func.effects.as_ref().map(|e| {
+            let mut u = VarUpdate::new();
+            for w in &e.writes {
+                u.insert(w.clone(), Expr::Lit(Val::Unknown));
+            }
+            u
+        });
+        ctx.add_transition(&t_id, TransitionKind::Sequential, &["s_first"]);
+        ctx.add_input_arc(&cp_id(&func.name, "s_first"), &t_id, 1, BoolExpr::True);
+        ctx.add_output_arc(&t_id, &cp_id(&func.name, "ret"), 1, update);
+        return;
+    }
 
     for stmt in &func.body {
         translate_statement(ctx, &func.name, stmt);
@@ -580,6 +612,21 @@ fn translate_join(
 
 // ── call ────────────────────────────────────────────────────────────────
 
+/// Translate a synchronous `call f` by entering the callee's skeleton.
+///
+/// The callee is modeled with an entry place (`cp_f_s_first`) and a return
+/// place (`cp_f_ret`) — full body or body-less skeleton — so a call expands to
+/// a spawn-like entry transition plus a return transition, exactly like a
+/// `spawn`/`join` pair but implicit:
+///
+///   `t_{caller}_{sid}_call`      : input_cp → callee entry + callwait
+///   callee body / effects run
+///   `t_{caller}_{sid}_call_ret`  : callee ret + callwait → target_cp
+///
+/// The parked continuation token (`callwait`) is what keeps the caller's
+/// control flow connected while the callee runs. This replaces the previous
+/// atomic-call modeling (which required a `FnSummary` and forbade calls to
+/// bodied functions via E409/E410).
 fn translate_call(
     ctx: &mut TranslateContext,
     fn_name: &str,
@@ -587,36 +634,32 @@ fn translate_call(
     target_fn: &str,
     input_cp: &str,
 ) {
-    // If the target has a FnSummary, it is handled in Phase 3.
-    // If it has a body, it is already translated (all functions are
-    // processed in Phase 2). For now, generate a simple Call transition
-    // with unknown writes from summary if available, or a plain sequential.
-    let summary = ctx.fn_summary_map.get(target_fn).cloned();
-
     let plan = plan_transfer(ctx, fn_name, &stmt.sid, &stmt.transfer);
 
-    if let TransferPlan::Next { target_cp } = plan {
-        let t_id = tid(fn_name, &stmt.sid, "call");
+    let target_cp = match plan {
+        TransferPlan::Next { target_cp } | TransferPlan::Return { target_cp } => target_cp,
+        _ => return,
+    };
 
-        let update = summary.map(|s| {
-            let mut u = VarUpdate::new();
-            for w in &s.writes {
-                u.insert(w.clone(), Expr::Lit(Val::Unknown));
-            }
-            u
-        });
+    let t_id = tid(fn_name, &stmt.sid, "call");
+    let ret_tid = tid(fn_name, &stmt.sid, "call_ret");
+    let wait_sid = format!("{}_callwait", stmt.sid);
 
-        emit_simple_transition(
-            ctx,
-            &t_id,
-            TransitionKind::Call,
-            &[&stmt.sid],
-            input_cp,
-            &target_cp,
-            BoolExpr::True,
-            update,
-        );
-    }
+    // Enter the callee and park the caller's continuation.
+    ctx.ensure_control_place(target_fn, "s_first");
+    ctx.ensure_control_place(fn_name, &wait_sid);
+    ctx.add_transition(&t_id, TransitionKind::Call, &[&stmt.sid]);
+    ctx.add_input_arc(input_cp, &t_id, 1, BoolExpr::True);
+    ctx.add_output_arc(&t_id, &cp_id(target_fn, "s_first"), 1, None);
+    ctx.add_output_arc(&t_id, &cp_id(fn_name, &wait_sid), 1, None);
+
+    // Return: consume the callee's return token and the parked continuation.
+    // Structurally a join (two control inputs), which V102 exempts for Join.
+    ctx.ensure_return_place(target_fn);
+    ctx.add_transition(&ret_tid, TransitionKind::Join, &[&stmt.sid]);
+    ctx.add_input_arc(&cp_id(target_fn, "ret"), &ret_tid, 1, BoolExpr::True);
+    ctx.add_input_arc(&cp_id(fn_name, &wait_sid), &ret_tid, 1, BoolExpr::True);
+    ctx.add_output_arc(&ret_tid, &target_cp, 1, None);
 }
 
 // ── return ──────────────────────────────────────────────────────────────

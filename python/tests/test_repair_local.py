@@ -32,7 +32,6 @@ PROGRAM = {
             ],
         },
     ],
-    "fn_summaries": [],
     "entry": "main",
     "goals": [],
 }
