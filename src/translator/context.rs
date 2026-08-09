@@ -112,6 +112,15 @@ pub(crate) struct TranslateContext {
     /// callees.
     pub(crate) fn_effects: HashMap<String, concir::ast::FunctionEffects>,
 
+    /// Typed data-flow index for call sites: callee name → modeled params in
+    /// declaration order, modeled return, and the CVN variable names they map
+    /// to. Projection principle: only `modeled` values enter the net.
+    pub(crate) fn_dataflow: HashMap<String, FnDataFlow>,
+
+    /// Empty alias map returned by [`TranslateContext::aliases_for`] for
+    /// functions without modeled params.
+    empty_aliases: HashMap<String, String>,
+
     /// Function currently being translated. Attached to every transition as
     /// `source_function` so repair can attribute behavior (including synthetic
     /// transitions) to a ConcIR function without re-scanning the program.
@@ -119,6 +128,19 @@ pub(crate) struct TranslateContext {
 
     /// Errors collected during translation.
     pub(crate) errors: Vec<TranslateError>,
+}
+
+/// Data-flow signature of a function relevant to translation.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct FnDataFlow {
+    /// Modeled parameters in declaration order (argument binding order).
+    pub(crate) modeled_params: Vec<concir::ast::ParamDecl>,
+    /// Modeled return declaration, if any.
+    pub(crate) modeled_return: Option<concir::ast::ParamDecl>,
+    /// Bare parameter name → CVN variable name (`p_{fn}_{param}`).
+    pub(crate) param_cvn: HashMap<String, String>,
+    /// CVN variable name for the modeled return (`r_{fn}_{ret}`).
+    pub(crate) return_cvn: Option<String>,
 }
 
 impl TranslateContext {
@@ -134,6 +156,8 @@ impl TranslateContext {
             post_wait_locks: HashMap::new(),
             bodyless_functions: HashSet::new(),
             fn_effects: HashMap::new(),
+            fn_dataflow: HashMap::new(),
+            empty_aliases: HashMap::new(),
             current_function: None,
             errors: Vec::new(),
         }
@@ -187,6 +211,16 @@ impl TranslateContext {
     /// transitions added until the next call are attributed to it.
     pub(crate) fn set_current_function(&mut self, fn_name: &str) {
         self.current_function = Some(fn_name.to_string());
+    }
+
+    /// Map bare parameter names to their CVN variable names for `fn_name`
+    /// (empty when the function has no modeled parameters). Passed to the
+    /// expression parser so `Ref("n")` becomes `Ref("p_f_n")`.
+    pub(crate) fn aliases_for(&self, fn_name: &str) -> &HashMap<String, String> {
+        self.fn_dataflow
+            .get(fn_name)
+            .map(|d| &d.param_cvn)
+            .unwrap_or(&self.empty_aliases)
     }
 
     /// Assign a disjunctive family to a previously added transition.

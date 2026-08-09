@@ -61,7 +61,7 @@ pub(crate) fn plan_transfer(
             ctx.ensure_control_place(fn_name, true_target);
             ctx.ensure_control_place(fn_name, false_target);
 
-            let guard = match parse_condition(cond, &ctx.all_enum_variants) {
+            let guard = match parse_condition(cond, &ctx.all_enum_variants, ctx.aliases_for(fn_name)) {
                 Ok(g) => g,
                 Err(_) => {
                     ctx.push_error(TranslateError::InvalidBranchCondition(cond.clone()));

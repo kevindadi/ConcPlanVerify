@@ -142,11 +142,11 @@ fn translate_statement(ctx: &mut TranslateContext, fn_name: &str, stmt: &Stateme
         Op::Join(f) | Op::Await(f) => {
             translate_join(ctx, fn_name, stmt, f, &input_cp);
         }
-        Op::Call(f) => {
-            translate_call(ctx, fn_name, stmt, f, &input_cp);
+        Op::Call { target, extras } => {
+            translate_call(ctx, fn_name, stmt, target, extras, &input_cp);
         }
-        Op::Return => {
-            translate_return_op(ctx, fn_name, stmt, &input_cp);
+        Op::Return(value) => {
+            translate_return_op(ctx, fn_name, stmt, value.as_deref(), &input_cp);
         }
         Op::Nop => {
             translate_nop(ctx, fn_name, stmt, &input_cp);
@@ -398,7 +398,7 @@ fn translate_write(
     let plan = plan_transfer(ctx, fn_name, &stmt.sid, &stmt.transfer);
 
     let value_expr = if let Some(val_str) = args.first() {
-        parse_expr(val_str, &ctx.all_enum_variants).unwrap_or(Expr::Lit(Val::Unknown))
+        parse_expr(val_str, &ctx.all_enum_variants, ctx.aliases_for(fn_name)).unwrap_or(Expr::Lit(Val::Unknown))
     } else {
         Expr::Lit(Val::Unknown)
     };
@@ -475,7 +475,7 @@ fn translate_store(
     let plan = plan_transfer(ctx, fn_name, &stmt.sid, &stmt.transfer);
 
     let value_expr = if let Some(val_str) = args.first() {
-        parse_expr(val_str, &ctx.all_enum_variants).unwrap_or(Expr::Lit(Val::Unknown))
+        parse_expr(val_str, &ctx.all_enum_variants, ctx.aliases_for(fn_name)).unwrap_or(Expr::Lit(Val::Unknown))
     } else {
         Expr::Lit(Val::Unknown)
     };
@@ -512,11 +512,11 @@ fn translate_cas(
 
     let expected = args
         .first()
-        .and_then(|s| parse_expr(s, &ctx.all_enum_variants).ok())
+        .and_then(|s| parse_expr(s, &ctx.all_enum_variants, ctx.aliases_for(fn_name)).ok())
         .unwrap_or(Expr::Lit(Val::Unknown));
     let desired = args
         .get(1)
-        .and_then(|s| parse_expr(s, &ctx.all_enum_variants).ok())
+        .and_then(|s| parse_expr(s, &ctx.all_enum_variants, ctx.aliases_for(fn_name)).ok())
         .unwrap_or(Expr::Lit(Val::Unknown));
 
     let success_guard = BoolExpr::Cmp {
@@ -632,11 +632,16 @@ fn translate_join(
 /// The parked continuation token (`callwait`) keeps the caller's control flow
 /// connected while the callee runs; this is where cross-function lock chains
 /// enter the model.
+///
+/// Typed data flow (projection): the call transition binds each modeled callee
+/// parameter from the argument list, and the return handoff writes the modeled
+/// return value into the caller's out-var when one is captured.
 fn translate_call(
     ctx: &mut TranslateContext,
     fn_name: &str,
     stmt: &Statement,
     target_fn: &str,
+    extras: &[String],
     input_cp: &str,
 ) {
     let plan = plan_transfer(ctx, fn_name, &stmt.sid, &stmt.transfer);
@@ -646,16 +651,31 @@ fn translate_call(
         _ => return,
     };
 
+    let df = ctx.fn_dataflow.get(target_fn).cloned().unwrap_or_default();
+    let has_return = df.return_cvn.is_some();
+    let (out_var, args): (Option<&str>, &[String]) = if has_return {
+        if extras.is_empty() {
+            (None, &[])
+        } else {
+            let out = if extras[0].is_empty() { None } else { Some(extras[0].as_str()) };
+            (out, &extras[1..])
+        }
+    } else {
+        (None, extras)
+    };
+
     // Body-less callee: placeholder, no control flow → atomic pass-through.
     if ctx.bodyless_functions.contains(target_fn) {
         let t_id = tid(fn_name, &stmt.sid, "call");
-        let update = ctx.fn_effects.get(target_fn).map(|e| {
+        let mut update = ctx.fn_effects.get(target_fn).map(|e| {
             let mut u = VarUpdate::new();
             for w in &e.writes {
                 u.insert(w.clone(), Expr::Lit(Val::Unknown));
             }
             u
         });
+        let param_update = bind_params(ctx, fn_name, &df, args);
+        merge_updates(&mut update, param_update);
         emit_simple_transition(
             ctx,
             &t_id,
@@ -676,18 +696,62 @@ fn translate_call(
     // Enter the callee and park the caller's continuation.
     ctx.ensure_control_place(target_fn, "s_first");
     ctx.ensure_control_place(fn_name, &wait_sid);
+    let param_update = bind_params(ctx, fn_name, &df, args);
     ctx.add_transition(&t_id, TransitionKind::Call, &[&stmt.sid]);
     ctx.add_input_arc(input_cp, &t_id, 1, BoolExpr::True);
-    ctx.add_output_arc(&t_id, &cp_id(target_fn, "s_first"), 1, None);
+    ctx.add_output_arc(&t_id, &cp_id(target_fn, "s_first"), 1, param_update);
     ctx.add_output_arc(&t_id, &cp_id(fn_name, &wait_sid), 1, None);
 
     // Return: consume the callee's return token and the parked continuation.
     // Structurally a join (two control inputs), which V102 exempts for Join.
+    // A captured modeled return is written into the caller's out-var.
     ctx.ensure_return_place(target_fn);
     ctx.add_transition(&ret_tid, TransitionKind::Join, &[&stmt.sid]);
     ctx.add_input_arc(&cp_id(target_fn, "ret"), &ret_tid, 1, BoolExpr::True);
     ctx.add_input_arc(&cp_id(fn_name, &wait_sid), &ret_tid, 1, BoolExpr::True);
-    ctx.add_output_arc(&ret_tid, &target_cp, 1, None);
+    let capture = match (out_var, &df.return_cvn) {
+        (Some(out), Some(ret_cvn)) => {
+            let mut u = VarUpdate::new();
+            u.insert(out.to_string(), Expr::Ref(ret_cvn.clone()));
+            Some(u)
+        }
+        _ => None,
+    };
+    ctx.add_output_arc(&ret_tid, &target_cp, 1, capture);
+}
+
+/// Build the VarUpdate binding modeled callee parameters from the argument
+/// expressions (parsed in the caller's scope).
+fn bind_params(
+    ctx: &mut TranslateContext,
+    caller_fn: &str,
+    df: &super::context::FnDataFlow,
+    args: &[String],
+) -> Option<VarUpdate> {
+    if df.modeled_params.is_empty() || args.is_empty() {
+        return None;
+    }
+    let mut update = VarUpdate::new();
+    for (param, arg) in df.modeled_params.iter().zip(args.iter()) {
+        let value = parse_expr(arg, &ctx.all_enum_variants, ctx.aliases_for(caller_fn))
+            .unwrap_or(Expr::Lit(Val::Unknown));
+        if let Some(cvn) = df.param_cvn.get(&param.name) {
+            update.insert(cvn.clone(), value);
+        }
+    }
+    Some(update)
+}
+
+fn merge_updates(target: &mut Option<VarUpdate>, other: Option<VarUpdate>) {
+    match (target.as_mut(), other) {
+        (Some(t), Some(o)) => {
+            for (k, v) in o {
+                t.insert(k, v);
+            }
+        }
+        (None, Some(o)) => *target = Some(o),
+        _ => {}
+    }
 }
 
 // ── return ──────────────────────────────────────────────────────────────
@@ -741,9 +805,24 @@ fn translate_return_op(
     ctx: &mut TranslateContext,
     fn_name: &str,
     stmt: &Statement,
+    value: Option<&str>,
     input_cp: &str,
 ) {
     let plan = plan_transfer(ctx, fn_name, &stmt.sid, &stmt.transfer);
+
+    // A modeled return value is bound by the return transition's update.
+    let update = ctx
+        .fn_dataflow
+        .get(fn_name)
+        .and_then(|df| df.return_cvn.clone())
+        .map(|ret_cvn| {
+            let value = value
+                .and_then(|v| parse_expr(v, &ctx.all_enum_variants, ctx.aliases_for(fn_name)).ok())
+                .unwrap_or(Expr::Lit(Val::Unknown));
+            let mut u = VarUpdate::new();
+            u.insert(ret_cvn, value);
+            u
+        });
 
     match plan {
         TransferPlan::Return { target_cp } => {
@@ -756,7 +835,7 @@ fn translate_return_op(
                 input_cp,
                 &target_cp,
                 BoolExpr::True,
-                None,
+                update,
             );
         }
         TransferPlan::Next { target_cp } => {
@@ -770,7 +849,7 @@ fn translate_return_op(
                 input_cp,
                 &target_cp,
                 BoolExpr::True,
-                None,
+                update,
             );
         }
         _ => {
@@ -785,7 +864,7 @@ fn translate_return_op(
                 input_cp,
                 &target_cp,
                 BoolExpr::True,
-                None,
+                update,
             );
         }
     }

@@ -81,6 +81,30 @@ pub fn translate(program: &concir::ast::Program) -> Result<CvnNet, Vec<Translate
         .iter()
         .filter_map(|f| f.effects.as_ref().map(|e| (f.name.clone(), e.clone())))
         .collect();
+
+    // Index typed data flow and materialize modeled params/returns as CVN
+    // variables (projection: unmodeled values stay out of the net).
+    for func in &program.functions {
+        let mut df = context::FnDataFlow::default();
+        for p in &func.params {
+            if p.modeled {
+                let cvn = format!("p_{}_{}", func.name, p.name);
+                ctx.add_variable(&cvn, cvn::model::Val::Unknown);
+                df.param_cvn.insert(p.name.clone(), cvn);
+                df.modeled_params.push(p.clone());
+            }
+        }
+        if let Some(r) = &func.returns {
+            if r.modeled {
+                let cvn = format!("r_{}_{}", func.name, r.name);
+                ctx.add_variable(&cvn, cvn::model::Val::Unknown);
+                df.return_cvn = Some(cvn);
+                df.modeled_return = Some(r.clone());
+            }
+        }
+        ctx.fn_dataflow.insert(func.name.clone(), df);
+    }
+
     let spawned: std::collections::HashSet<&str> = program
         .functions
         .iter()

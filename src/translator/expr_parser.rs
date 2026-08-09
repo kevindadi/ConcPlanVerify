@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use cvn::model::{BoolExpr, CmpOp, Expr, Op, Val};
 
@@ -6,9 +6,12 @@ use cvn::model::{BoolExpr, CmpOp, Expr, Op, Val};
 ///
 /// `enum_variants` provides known enum variant names so that identifiers like `"Init"`
 /// are treated as `Lit(Enum("Init"))` rather than `Ref("Init")`.
+/// `var_aliases` maps bare parameter names to their CVN variable names so a
+/// guard on a modeled parameter resolves to the materialized variable.
 pub(crate) fn parse_condition(
     cond: &str,
     enum_variants: &HashSet<String>,
+    var_aliases: &HashMap<String, String>,
 ) -> Result<BoolExpr, String> {
     let cond = cond.trim();
 
@@ -29,8 +32,8 @@ pub(crate) fn parse_condition(
             if lhs_str.is_empty() || rhs_str.is_empty() {
                 continue;
             }
-            let lhs = parse_expr(lhs_str, enum_variants)?;
-            let rhs = parse_expr(rhs_str, enum_variants)?;
+            let lhs = parse_expr(lhs_str, enum_variants, var_aliases)?;
+            let rhs = parse_expr(rhs_str, enum_variants, var_aliases)?;
             return Ok(BoolExpr::Cmp {
                 op: op.clone(),
                 lhs: Box::new(lhs),
@@ -50,6 +53,7 @@ pub(crate) fn parse_condition(
 pub(crate) fn parse_expr(
     s: &str,
     enum_variants: &HashSet<String>,
+    var_aliases: &HashMap<String, String>,
 ) -> Result<Expr, String> {
     let s = s.trim();
     if s.is_empty() {
@@ -71,8 +75,8 @@ pub(crate) fn parse_expr(
             if lhs_str.is_empty() || rhs_str.is_empty() {
                 continue;
             }
-            let lhs = parse_atom(lhs_str, enum_variants)?;
-            let rhs = parse_atom(rhs_str, enum_variants)?;
+            let lhs = parse_atom(lhs_str, enum_variants, var_aliases)?;
+            let rhs = parse_atom(rhs_str, enum_variants, var_aliases)?;
             return Ok(Expr::BinOp {
                 op: op.clone(),
                 lhs: Box::new(lhs),
@@ -81,11 +85,15 @@ pub(crate) fn parse_expr(
         }
     }
 
-    parse_atom(s, enum_variants)
+    parse_atom(s, enum_variants, var_aliases)
 }
 
 /// Parse a single atom: literal or variable reference.
-fn parse_atom(s: &str, enum_variants: &HashSet<String>) -> Result<Expr, String> {
+fn parse_atom(
+    s: &str,
+    enum_variants: &HashSet<String>,
+    var_aliases: &HashMap<String, String>,
+) -> Result<Expr, String> {
     let s = s.trim();
 
     // Boolean literals
@@ -121,9 +129,14 @@ fn parse_atom(s: &str, enum_variants: &HashSet<String>) -> Result<Expr, String> 
 
     // Unknown literal (looks like a plain identifier) → `Unknown` if it starts
     // with uppercase and is not a variable reference context.
-    // Default: treat as variable reference.
+    // Default: treat as variable reference. A modeled parameter name resolves
+    // to its materialized CVN variable.
     if !is_valid_identifier(s) {
         return Err(format!("invalid expression atom: '{s}'"));
+    }
+
+    if let Some(cvn_name) = var_aliases.get(s) {
+        return Ok(Expr::Ref(cvn_name.clone()));
     }
 
     Ok(Expr::Ref(s.to_string()))
@@ -187,7 +200,7 @@ mod tests {
 
     #[test]
     fn parse_simple_condition() {
-        let g = parse_condition("count > 0", &no_enums()).unwrap();
+        let g = parse_condition("count > 0", &no_enums(), &HashMap::new()).unwrap();
         assert_eq!(
             g,
             BoolExpr::Cmp {
@@ -200,7 +213,7 @@ mod tests {
 
     #[test]
     fn parse_eq_bool_condition() {
-        let g = parse_condition("done == true", &no_enums()).unwrap();
+        let g = parse_condition("done == true", &no_enums(), &HashMap::new()).unwrap();
         assert_eq!(
             g,
             BoolExpr::Cmp {
@@ -213,7 +226,7 @@ mod tests {
 
     #[test]
     fn parse_lt_condition() {
-        let g = parse_condition("i < 10", &no_enums()).unwrap();
+        let g = parse_condition("i < 10", &no_enums(), &HashMap::new()).unwrap();
         assert_eq!(
             g,
             BoolExpr::Cmp {
@@ -227,7 +240,7 @@ mod tests {
     #[test]
     fn parse_enum_condition() {
         let enums = with_enums(&["Init", "Running", "Done"]);
-        let g = parse_condition("state == Init", &enums).unwrap();
+        let g = parse_condition("state == Init", &enums, &HashMap::new()).unwrap();
         assert_eq!(
             g,
             BoolExpr::Cmp {
@@ -240,7 +253,7 @@ mod tests {
 
     #[test]
     fn parse_binop_expr() {
-        let e = parse_expr("count + 1", &no_enums()).unwrap();
+        let e = parse_expr("count + 1", &no_enums(), &HashMap::new()).unwrap();
         assert_eq!(
             e,
             Expr::BinOp {
@@ -253,32 +266,32 @@ mod tests {
 
     #[test]
     fn parse_literal_int() {
-        let e = parse_expr("42", &no_enums()).unwrap();
+        let e = parse_expr("42", &no_enums(), &HashMap::new()).unwrap();
         assert_eq!(e, Expr::Lit(Val::int(42)));
     }
 
     #[test]
     fn parse_literal_bool() {
-        assert_eq!(parse_expr("true", &no_enums()).unwrap(), Expr::Lit(Val::bool(true)));
-        assert_eq!(parse_expr("false", &no_enums()).unwrap(), Expr::Lit(Val::bool(false)));
+        assert_eq!(parse_expr("true", &no_enums(), &HashMap::new()).unwrap(), Expr::Lit(Val::bool(true)));
+        assert_eq!(parse_expr("false", &no_enums(), &HashMap::new()).unwrap(), Expr::Lit(Val::bool(false)));
     }
 
     #[test]
     fn parse_var_ref() {
-        let e = parse_expr("my_var", &no_enums()).unwrap();
+        let e = parse_expr("my_var", &no_enums(), &HashMap::new()).unwrap();
         assert_eq!(e, Expr::Ref("my_var".into()));
     }
 
     #[test]
     fn parse_enum_value() {
         let enums = with_enums(&["Running"]);
-        let e = parse_expr("Running", &enums).unwrap();
+        let e = parse_expr("Running", &enums, &HashMap::new()).unwrap();
         assert_eq!(e, Expr::Lit(Val::enum_val("Running")));
     }
 
     #[test]
     fn parse_sub_expr() {
-        let e = parse_expr("count - 1", &no_enums()).unwrap();
+        let e = parse_expr("count - 1", &no_enums(), &HashMap::new()).unwrap();
         assert_eq!(
             e,
             Expr::BinOp {
@@ -291,7 +304,7 @@ mod tests {
 
     #[test]
     fn invalid_condition_no_op() {
-        assert!(parse_condition("foobar", &no_enums()).is_err());
+        assert!(parse_condition("foobar", &no_enums(), &HashMap::new()).is_err());
     }
 
     #[test]
