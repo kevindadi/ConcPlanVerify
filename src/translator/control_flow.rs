@@ -1,11 +1,11 @@
-use cir::ast::Transfer;
+use concir::ast::Transfer;
 use cvn::model::{BoolExpr, TransitionKind, VarUpdate};
 
 use super::context::{TranslateContext, cp_id, tid};
 use super::expr_parser::parse_condition;
 use crate::error::TranslateError;
 
-/// Outcome of translating a CIR Transfer — consumed by the operation layer
+/// Outcome of translating a ConcIR Transfer — consumed by the operation layer
 /// to wire the output side of a transition.
 pub(crate) enum TransferPlan {
     /// Single successor: one transition already wired.
@@ -36,7 +36,7 @@ pub(crate) struct SwitchArm {
     pub label: String,
 }
 
-/// Analyse a CIR Transfer and produce a TransferPlan.
+/// Analyse a ConcIR Transfer and produce a TransferPlan.
 ///
 /// This does NOT create transitions — it merely computes the plan. The caller
 /// (operation layer) decides how to combine it with the `op`.

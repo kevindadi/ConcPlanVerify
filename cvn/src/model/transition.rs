@@ -116,15 +116,15 @@ pub struct Transition {
     /// keeps the per-transition semantics.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub disjunctive_family: Option<String>,
-    /// Anchor mapping μ(t): SIDs from the CIR that this transition corresponds to.
+    /// Anchor mapping μ(t): SIDs from the ConcIR that this transition corresponds to.
     /// Only available with the `cir-anchor` feature.
     #[cfg(feature = "cir-anchor")]
     #[serde(default, skip_serializing_if = "SmallVec::is_empty")]
     pub anchor_sids: SmallVec<[String; 2]>,
-    /// CIR function that produced this transition, when known. Covers every
+    /// ConcIR function that produced this transition, when known. Covers every
     /// transition (including synthetic ones such as condvar reacquire and
     /// spawn bridges) so repair can attribute behavior to a function without
-    /// re-scanning the CIR program. Only available with the `cir-anchor` feature.
+    /// re-scanning the ConcIR program. Only available with the `cir-anchor` feature.
     #[cfg(feature = "cir-anchor")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_function: Option<String>,
@@ -144,7 +144,7 @@ impl Transition {
         }
     }
 
-    /// Create a new transition with CIR statement ID anchors.
+    /// Create a new transition with ConcIR statement ID anchors.
     #[cfg(feature = "cir-anchor")]
     pub fn with_anchor(
         id: impl Into<TransitionId>,
@@ -166,14 +166,14 @@ impl Transition {
         self
     }
 
-    /// Set the CIR function that produced this transition.
+    /// Set the ConcIR function that produced this transition.
     #[cfg(feature = "cir-anchor")]
     pub fn with_source_function(mut self, fn_name: impl Into<String>) -> Self {
         self.source_function = Some(fn_name.into());
         self
     }
 
-    /// Returns the CIR statement ID anchors for this transition.
+    /// Returns the ConcIR statement ID anchors for this transition.
     #[cfg(feature = "cir-anchor")]
     pub fn anchor_sids(&self) -> &SmallVec<[String; 2]> {
         &self.anchor_sids

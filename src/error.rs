@@ -1,9 +1,9 @@
 use std::fmt;
 
-/// Error codes and messages produced during CIR → CVN translation.
+/// Error codes and messages produced during ConcIR → CVN translation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TranslateError {
-    // ── T0xx: Invalid CIR input ──
+    // ── T0xx: Invalid ConcIR input ──
 
     /// T001 — The program's `entry` field names a function that does not exist.
     MissingEntry(String),

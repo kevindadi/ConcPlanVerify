@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use std::path::Path;
 
-use cir::ast::Program;
+use concir::ast::Program;
 use cvn::model::PlaceId;
 use cvn::net::CvnNet;
 

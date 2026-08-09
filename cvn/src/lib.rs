@@ -7,9 +7,9 @@
 //!
 //! | Feature | Default | Description |
 //! |---------|---------|-------------|
-//! | `cir-anchor` | off | Transitions carry CIR statement ID anchors for mapping counterexamples back to source locations |
+//! | `cir-anchor` | off | Transitions carry ConcIR statement ID anchors for mapping counterexamples back to source locations |
 //!
-//! When `cir-anchor` is enabled, transitions can carry CIR statement ID anchors
+//! When `cir-anchor` is enabled, transitions can carry ConcIR statement ID anchors
 //! via [`Transition::with_anchor()`](model::Transition::with_anchor) and
 //! [`CvnNetBuilder::add_transition_with_anchor()`](builder::CvnNetBuilder::add_transition_with_anchor).
 //! Use [`CvnNetBuilder::build_with_anchor_check()`](builder::CvnNetBuilder::build_with_anchor_check)

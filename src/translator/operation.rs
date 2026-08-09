@@ -6,7 +6,7 @@ use super::control_flow::{
 };
 use super::expr_parser::parse_expr;
 use crate::error::TranslateError;
-use cir::ast::{Function, Op, Statement, Transfer};
+use concir::ast::{Function, Op, Statement, Transfer};
 use cvn::model::{BoolExpr, CmpOp, Expr, TransitionKind, Val, VarUpdate};
 use std::collections::HashSet;
 

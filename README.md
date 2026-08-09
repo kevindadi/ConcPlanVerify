@@ -1,15 +1,15 @@
 # cir2cvn
 
-Translator from **CIR** (Concurrency Intermediate Representation) to **CVN** (Concurrency Verification Net), with a Python CLI for LLM-driven CIR generation and repair.
+Translator from **ConcIR** (Concurrency Intermediate Representation) to **CVN** (Concurrency Verification Net), with a Python CLI for LLM-driven ConcIR generation and repair.
 
 ## Overview
 
-This crate implements a faithful 1:1 translation from CIR programs into CVN Petri nets
+This crate implements a faithful 1:1 translation from ConcIR programs into CVN Petri nets
 suitable for state-space exploration and deadlock/livelock detection. It is the bridge
-between LLM-generated CIR and the CVN analysis back-end (which performs model checking).
+between LLM-generated ConcIR and the CVN analysis back-end (which performs model checking).
 
 ```text
-User Requirements --(Python + DeepSeek/Qwen)--> CIR JSON
+User Requirements --(Python + DeepSeek/Qwen)--> ConcIR JSON
                                               |
                               (Rust cir2cvn subprocess)
                                               v
@@ -33,7 +33,7 @@ let enabled = net.enabled_transitions(&state);
 
 ## CLI Workflow
 
-The default workflow is Python. Python owns LLM interaction, prompts, JSON extraction, and the generation/repair loop. Rust remains the source of truth for CIR schema validation, CIR-to-CVN translation, state-space analysis, and goal reachability. The boundary is JSON over stdin/stdout through the `cir2cvn` binary.
+The default workflow is Python. Python owns LLM interaction, prompts, JSON extraction, and the generation/repair loop. Rust remains the source of truth for ConcIR schema validation, ConcIR-to-CVN translation, state-space analysis, and goal reachability. The boundary is JSON over stdin/stdout through the `cir2cvn` binary.
 
 Install the Python dependencies from the repository root:
 
@@ -59,7 +59,7 @@ Build the Rust verifier, or let the Python CLI build it when the release binary 
 cargo build --release --bin cir2cvn
 ```
 
-Validate and analyze CIR without an LLM:
+Validate and analyze ConcIR without an LLM:
 
 ```bash
 PYTHONPATH=python python/.venv/bin/python -m cir_workflow validate tests/fixtures/canonical_schema.json
@@ -67,7 +67,7 @@ PYTHONPATH=python python/.venv/bin/python -m cir_workflow analyze tests/e2e/mute
 PYTHONPATH=python python/.venv/bin/python -m cir_workflow goals tests/fixtures/unmet_goal.json
 ```
 
-Generate CIR with DeepSeek. The default model is `deepseek-v4-pro`, the default key is `DEEPSEEK_API_KEY`, and the default request enables high reasoning effort and thinking:
+Generate ConcIR with DeepSeek. The default model is `deepseek-v4-pro`, the default key is `DEEPSEEK_API_KEY`, and the default request enables high reasoning effort and thinking:
 
 ```bash
 PYTHONPATH=python python/.venv/bin/python -m cir_workflow generate \
@@ -75,7 +75,7 @@ PYTHONPATH=python python/.venv/bin/python -m cir_workflow generate \
   --requirements "Model a producer and consumer sharing a bounded channel."
 ```
 
-Generate or repair CIR with Qwen. Qwen uses `responses.create(model=..., input=...)`. Supply the workspace endpoint when it is required by the DashScope account:
+Generate or repair ConcIR with Qwen. Qwen uses `responses.create(model=..., input=...)`. Supply the workspace endpoint when it is required by the DashScope account:
 
 ```bash
 PYTHONPATH=python python/.venv/bin/python -m cir_workflow generate \
@@ -101,7 +101,7 @@ src/
 └── translator/
     ├── mod.rs               # Three-phase orchestration
     ├── context.rs           # Translation context
-    ├── expr_parser.rs       # CIR string → CVN expression
+    ├── expr_parser.rs       # ConcIR string → CVN expression
     ├── resource.rs          # Phase 1: resource scanning
     ├── control_flow.rs      # Transfer planning
     ├── operation.rs         # Phase 2: operation translation (incl. call expansion)
@@ -140,6 +140,6 @@ PYTHONPATH=python python/.venv/bin/python -m unittest discover -s python/tests
 
 ## Dependencies
 
-- **cir** (`cir`) — CIR library (vendored in-repo under `cir/`)
+- **cir** (`cir`) — ConcIR library (vendored in-repo under `cir/`)
 - **cvn** — CVN library with `cir-anchor` feature (vendored in-repo under `cvn/`)
 - **openai** — official Python SDK used by the DeepSeek and Qwen clients

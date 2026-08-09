@@ -225,8 +225,8 @@ fn reconstruct_trace(
 ///
 /// A transition is *behaviorally dead* when it does not appear on any
 /// edge of the reachability graph: i.e. no reachable state enables it.
-/// Soundness relative to the CIR follows from the forward-simulation
-/// theorem (see `paper/sections/properties.tex`): if the anchored CIR
+/// Soundness relative to the ConcIR follows from the forward-simulation
+/// theorem (see `paper/sections/properties.tex`): if the anchored ConcIR
 /// statement could fire on any interleaving, the transition would
 /// appear on some edge here.
 ///

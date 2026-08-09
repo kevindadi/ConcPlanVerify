@@ -12,14 +12,14 @@ use crate::error::TranslateError;
 use context::{TranslateContext, cp_id};
 use cvn::net::CvnNet;
 
-/// Translate a CIR program into a CVN.
+/// Translate a ConcIR program into a CVN.
 ///
 /// This is the single public entry point of the translator.
 /// Internally it executes three phases in order:
 ///   1. Resource scanning  — generate resource places, initial marking, and variable store
 ///   2. Function body translation — generate control places, transitions, and arcs
 ///   3. FnSummary translation — generate atomic transitions for un-modeled functions
-pub fn translate(program: &cir::ast::Program) -> Result<CvnNet, Vec<TranslateError>> {
+pub fn translate(program: &concir::ast::Program) -> Result<CvnNet, Vec<TranslateError>> {
     let mut ctx = TranslateContext::new();
 
     // ── Input validation (T0xx) ─────────────────────────────────────────
@@ -86,8 +86,8 @@ pub fn translate(program: &cir::ast::Program) -> Result<CvnNet, Vec<TranslateErr
         .iter()
         .flat_map(|f| f.body.iter())
         .filter_map(|s| match &s.op {
-            cir::ast::Op::Spawn(n) | cir::ast::Op::SpawnAsync(n) => Some(n.as_str()),
-            cir::ast::Op::Join(n) | cir::ast::Op::Await(n) => Some(n.as_str()),
+            concir::ast::Op::Spawn(n) | concir::ast::Op::SpawnAsync(n) => Some(n.as_str()),
+            concir::ast::Op::Join(n) | concir::ast::Op::Await(n) => Some(n.as_str()),
             _ => None,
         })
         .collect();
@@ -141,7 +141,7 @@ pub fn translate(program: &cir::ast::Program) -> Result<CvnNet, Vec<TranslateErr
 }
 
 /// Validate that all spawn/join/call targets reference existing functions.
-fn validate_function_references(ctx: &mut TranslateContext, program: &cir::ast::Program) {
+fn validate_function_references(ctx: &mut TranslateContext, program: &concir::ast::Program) {
     let fn_names: std::collections::HashSet<&str> = program
         .functions
         .iter()

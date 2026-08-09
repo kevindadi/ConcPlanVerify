@@ -1,9 +1,9 @@
-//! Generate DOT visualizations for all CIR fixtures and examples.
+//! Generate DOT visualizations for all ConcIR fixtures and examples.
 //!
 //! Run with: cargo test --test generate_dots -- --ignored
 //!
 //! Outputs to:
-//!   dots/cir/   — CIR control-flow DOT files
+//!   dots/cir/   — ConcIR control-flow DOT files
 //!   dots/cvn/   — CVN Petri-net DOT files (only for translatable inputs)
 
 mod common;
@@ -11,7 +11,7 @@ mod common;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use cir::ast::Program;
+use concir::ast::Program;
 
 fn output_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("dots")
@@ -31,7 +31,7 @@ fn generate_for(json_path: &Path, stem: &str) {
     fs::create_dir_all(&cir_dir).unwrap();
     fs::create_dir_all(&cvn_dir).unwrap();
 
-    // CIR DOT
+    // ConcIR DOT
     let cir_dot = program.to_dot();
     let cir_path = cir_dir.join(format!("{stem}.dot"));
     fs::write(&cir_path, &cir_dot).unwrap();
@@ -76,7 +76,7 @@ fn generate_all_dots() {
         }
     }
 
-    eprintln!("\n=== CIR examples ===");
+    eprintln!("\n=== ConcIR examples ===");
     let examples_dir = root.join("cir/examples");
     if examples_dir.is_dir() {
         let mut entries: Vec<_> = fs::read_dir(&examples_dir)

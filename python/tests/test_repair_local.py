@@ -114,7 +114,7 @@ class PromptTests(unittest.TestCase):
     def test_slice_prompt_output_contract_requests_fragment(self):
         prompt = build_slice_prompt(PROGRAM, ["w1"], feedback="x")
         self.assertIn('{"functions": [{"name": ..., "kind": ..., "body": [...]}', prompt)
-        self.assertIn("Do not output the full CIR", prompt)
+        self.assertIn("Do not output the full ConcIR", prompt)
 
 
 if __name__ == "__main__":

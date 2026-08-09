@@ -138,7 +138,7 @@ impl CvnNetBuilder {
         self
     }
 
-    /// Add a transition with CIR statement ID anchors.
+    /// Add a transition with ConcIR statement ID anchors.
     #[cfg(feature = "cir-anchor")]
     pub fn add_transition_with_anchor(
         mut self,
@@ -156,7 +156,7 @@ impl CvnNetBuilder {
         self
     }
 
-    /// Add a transition with CIR anchors and the source function that
+    /// Add a transition with ConcIR anchors and the source function that
     /// produced it.
     #[cfg(feature = "cir-anchor")]
     pub fn add_transition_with_source(
@@ -313,7 +313,7 @@ impl CvnNetBuilder {
     /// Build the CVN network with additional anchor completeness validation (W7).
     ///
     /// Like [`build()`](Self::build), but additionally checks that every transition
-    /// has at least one CIR statement ID anchor (V105).
+    /// has at least one ConcIR statement ID anchor (V105).
     #[cfg(feature = "cir-anchor")]
     pub fn build_with_anchor_check(self) -> Result<CvnNet, Vec<CvnError>> {
         let (net, input_arcs, output_arcs) = self.build_net();

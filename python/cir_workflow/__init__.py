@@ -1,7 +1,7 @@
-"""Python orchestration layer for LLM-driven CIR generation and repair.
+"""Python orchestration layer for LLM-driven ConcIR generation and repair.
 
 The package owns model interaction and repair-loop control. Rust remains the
-source of truth for CIR validation, translation, and verification.
+source of truth for ConcIR validation, translation, and verification.
 """
 
 from .generation import GenerationResult, GenerationWorkflow

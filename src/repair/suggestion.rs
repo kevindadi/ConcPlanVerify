@@ -3,7 +3,7 @@ use super::report::BugKind;
 /// Generate an instance-specific repair hint from the detected bug's concrete data.
 ///
 /// This produces a short, actionable hint that references the specific resources
-/// and functions involved. The general repair strategy and CIR examples are
+/// and functions involved. The general repair strategy and ConcIR examples are
 /// provided by the per-bug-type templates in `templates/*.md`.
 pub fn suggestion_for(kind: &BugKind) -> Option<String> {
     match kind {

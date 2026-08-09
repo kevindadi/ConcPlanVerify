@@ -1,4 +1,4 @@
-"""Subprocess boundary to the Rust CIR/CVN verification CLI."""
+"""Subprocess boundary to the Rust ConcIR/CVN verification CLI."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ _BINARY_NAME = "cir2cvn.exe" if os.name == "nt" else "cir2cvn"
 
 
 class RustCli:
-    """Invoke ``cir2cvn`` with CIR JSON on stdin and JSON on stdout."""
+    """Invoke ``cir2cvn`` with ConcIR JSON on stdin and JSON on stdout."""
 
     def __init__(
         self,

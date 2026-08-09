@@ -1,12 +1,12 @@
-//! Unified CIR verification pipeline.
+//! Unified ConcIR verification pipeline.
 //!
-//! Every user-facing entry point should use this module so that static CIR
+//! Every user-facing entry point should use this module so that static ConcIR
 //! validation, translation sanity checks, state-space exploration, bug
 //! reports, and business goals have one consistent contract.
 
 use std::time::Instant;
 
-use cir::diagnostic::ValidationReport;
+use concir::diagnostic::ValidationReport;
 use cvn::analysis::{AnalysisConfig, SearchStrategy, UnmetGoal};
 use serde::Serialize;
 
@@ -146,14 +146,14 @@ impl VerificationResult {
     }
 }
 
-/// Verify a parsed CIR program through all available layers.
+/// Verify a parsed ConcIR program through all available layers.
 pub fn verify_program(
-    program: &cir::ast::Program,
+    program: &concir::ast::Program,
     config: &VerificationConfig,
 ) -> VerificationResult {
     let total = Instant::now();
     let validation_start = Instant::now();
-    let validation = cir::validate::validate(program);
+    let validation = concir::validate::validate(program);
     let validation_ms = elapsed_ms(validation_start);
 
     if !validation.valid {

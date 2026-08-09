@@ -1,4 +1,4 @@
-"""Command-line entry point for the Python CIR workflow."""
+"""Command-line entry point for the Python ConcIR workflow."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from .rust_cli import RustCli
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Translator from CIR (Concurrency Intermediate Representation) "
+            "Translator from ConcIR (Concurrency Intermediate Representation) "
             "to CVN (Concurrency Verification Net)"
         )
     )
@@ -26,7 +26,7 @@ def main() -> int:
         "command",
         choices=["validate", "analyze", "goals", "generate", "repair"],
     )
-    parser.add_argument("input", nargs="?", help="CIR JSON path, or - for stdin")
+    parser.add_argument("input", nargs="?", help="ConcIR JSON path, or - for stdin")
     parser.add_argument("--requirements", help="Natural-language requirements for generate")
     parser.add_argument("--source", help="Source file to include in generate")
     parser.add_argument("--binary", help="Path to cir2cvn binary")

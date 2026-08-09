@@ -1,4 +1,4 @@
-"""Parametric CIR generators and the scaling sweep runner.
+"""Parametric ConcIR generators and the scaling sweep runner.
 
 Three patterns, all statically valid by construction:
 
@@ -11,7 +11,7 @@ Three patterns, all statically valid by construction:
                          that value (both arms stay live across schedules).
 
 The sweep runs ``cir2cvn --analyze`` for every (pattern, threads, locks/branches)
-point and records CIR size, CVN size, state counts, and stage timings —
+point and records ConcIR size, CVN size, state counts, and stage timings —
 the raw data for locating the state-explosion knee.
 
 Usage (from the repository root):
@@ -298,9 +298,9 @@ def run_llm_legs(
 ) -> list[dict[str, Any]]:
     """Generate + codegen legs of the scaling sweep.
 
-    For each point: (1) NL requirement -> CIR generation, verified by the
-    full analyze; (2) CIR -> Rust codegen from the verified-safe CIR (the
-    generated one when it verified, otherwise the parametric gold CIR), so
+    For each point: (1) NL requirement -> ConcIR generation, verified by the
+    full analyze; (2) ConcIR -> Rust codegen from the verified-safe ConcIR (the
+    generated one when it verified, otherwise the parametric gold ConcIR), so
     the code-size trend is measured even where generation fell short.
     """
 
@@ -318,7 +318,7 @@ def run_llm_legs(
             "gold_cir_metrics": cir_metrics(gold_json),
         }
 
-        # Large points need generous completion budget (thinking + long CIR).
+        # Large points need generous completion budget (thinking + long ConcIR).
         generation = GenerationWorkflow(client, rust_cli, max_tokens=8192).run(
             requirement(pattern, threads, size)
         )
@@ -372,11 +372,11 @@ def run_llm_legs(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="CIR scaling sweep")
+    parser = argparse.ArgumentParser(description="ConcIR scaling sweep")
     parser.add_argument("--out", help="sweep output JSON path")
     parser.add_argument(
         "--emit-case",
-        help="write one generated CIR to benchmarks/cir/: pattern,threads,size",
+        help="write one generated ConcIR to benchmarks/cir/: pattern,threads,size",
     )
     parser.add_argument("--binary", help="path to the cir2cvn binary")
     parser.add_argument(

@@ -1,6 +1,6 @@
-"""CIR size metrics for experiment reporting.
+"""ConcIR size metrics for experiment reporting.
 
-Computes the structural size of one CIR ``Program`` JSON document. The
+Computes the structural size of one ConcIR ``Program`` JSON document. The
 fields follow the experiment design in ``todo.md`` so every analyze /
 generate / repair round can attach a comparable size record.
 """
@@ -12,7 +12,7 @@ from typing import Any
 
 
 def cir_metrics(cir_json: str) -> dict[str, Any]:
-    """Return the size metrics for one CIR JSON document.
+    """Return the size metrics for one ConcIR JSON document.
 
     Raises ``ValueError`` when the document is not a JSON object; individual
     missing sections simply count as zero so the collector also works on
@@ -21,7 +21,7 @@ def cir_metrics(cir_json: str) -> dict[str, Any]:
 
     program = json.loads(cir_json)
     if not isinstance(program, dict):
-        raise ValueError("CIR JSON root must be an object")
+        raise ValueError("ConcIR JSON root must be an object")
 
     resources = _as_list(program.get("resources"))
     functions = _as_list(program.get("functions"))

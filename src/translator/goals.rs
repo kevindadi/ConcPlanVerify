@@ -1,6 +1,6 @@
-//! Translate CIR `BusinessGoal`s into CVN [`GoalSpec`]s.
+//! Translate ConcIR `BusinessGoal`s into CVN [`GoalSpec`]s.
 //!
-//! Each [`cir::ast::BusinessGoal`] carries two dictionaries:
+//! Each [`concir::ast::BusinessGoal`] carries two dictionaries:
 //!
 //! * `marking`    — user-level place or resource name → expected token count
 //! * `variables`  — CVN variable name → expected concrete value
@@ -8,7 +8,7 @@
 //! The translator resolves these into CVN predicates using the same naming
 //! convention as [`super::context`]:
 //!
-//! * Keys matching a CIR resource name are mapped to the resource place
+//! * Keys matching a ConcIR resource name are mapped to the resource place
 //!   `rp_{name}`. For resources whose *initial* token count is 0 (Channel
 //!   and Condvar signal places), a requested count of 0 is interpreted as
 //!   [`GoalPredicate::Empty`] (i.e. "no pending messages / no residual
@@ -29,7 +29,7 @@
 
 use std::collections::HashSet;
 
-use cir::ast::{BaseType, ComplexBaseType, Program, Resource};
+use concir::ast::{BaseType, ComplexBaseType, Program, Resource};
 use cvn::analysis::goal::{GoalPredicate, GoalSpec};
 use cvn::model::{ConcreteVal, PlaceId};
 use serde_json::Value;

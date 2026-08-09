@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use cir::ast::{BaseType, ComplexBaseType, Op, Program};
+use concir::ast::{BaseType, ComplexBaseType, Op, Program};
 use cvn::model::ResourceType;
 
 use super::context::{ResKind, TranslateContext, nw_var_name, rp_id};
@@ -123,7 +123,7 @@ fn compute_rwlock_n(program: &Program) -> u32 {
     (spawned.len() as u32) + 1
 }
 
-/// Extract enum variant names from a CIR `BaseType`, if it is an Enum.
+/// Extract enum variant names from a ConcIR `BaseType`, if it is an Enum.
 fn extract_enum_variants(base: &Option<BaseType>) -> Vec<String> {
     match base {
         Some(BaseType::Complex(ComplexBaseType::Enum(variants))) => variants.clone(),

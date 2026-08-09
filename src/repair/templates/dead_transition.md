@@ -1,7 +1,7 @@
 ## Repair Strategy: Behavioral Dead Transition
 
 The CVN reachability analysis proved that the reported transition
-**never fires on any feasible interleaving**. The CIR statement anchored
+**never fires on any feasible interleaving**. The ConcIR statement anchored
 to that transition is effectively unreachable, which almost always
 indicates a logical defect upstream rather than a concurrency race.
 
@@ -32,7 +32,7 @@ Do **not** respond by deleting the dead statement unless the preserved
 business goals remain reachable without it — the point of the check is
 that the author's intended behaviour is currently unrealisable.
 
-### CIR edit checklist
+### ConcIR edit checklist
 
 - Keep all declared resources, protection entries, functions, and
   `goals` unchanged in identity; only the control flow / guard

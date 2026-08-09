@@ -1,5 +1,5 @@
 //! Reference Rust for benchmarks/cir/scale_branch_fan_4x2/buggy.json.
-//! Gold verdict: safe. Four workers write their id to an unsynchronized-in-CIR
+//! Gold verdict: safe. Four workers write their id to an unsynchronized-in-ConcIR
 //! shared integer (modeled here with a mutex for Rust soundness), then walk
 //! two chained branches on the observed value. Every branch arm terminates,
 //! so all interleavings complete. Scaling case: ~29k CVN states.

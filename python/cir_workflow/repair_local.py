@@ -1,4 +1,4 @@
-"""Local (slice-based) CIR repair: regenerate only the implicated functions.
+"""Local (slice-based) ConcIR repair: regenerate only the implicated functions.
 
 Slice policy
 ------------
@@ -12,16 +12,16 @@ The slice is that function set. The LLM receives:
   notify/send/spawn order) so cross-thread lock ordering stays visible,
 
 and must answer with replacement bodies for slice functions only. Python
-splices the replacements into the original CIR, so every non-slice byte is
+splices the replacements into the original ConcIR, so every non-slice byte is
 guaranteed unchanged — this structurally rules out the "silent semantic
-drift" observed in whole-CIR repair (e.g. a Var quietly becoming an Atomic).
+drift" observed in whole-ConcIR repair (e.g. a Var quietly becoming an Atomic).
 
 Expansion and fallback
 ----------------------
 If a repair round produces bugs implicating functions outside the current
 slice, the slice is expanded and local repair continues. When the slice
 cannot be determined (no implicated functions) or ``max_slice_rounds`` is
-exhausted, the workflow falls back to whole-CIR repair with full feedback.
+exhausted, the workflow falls back to whole-ConcIR repair with full feedback.
 """
 
 from __future__ import annotations
@@ -150,7 +150,7 @@ def build_slice_prompt(
     other_fns = [fn for fn in program.get("functions", []) if fn.get("name") not in slice_names]
 
     sections = [
-        "# Local CIR Repair Request",
+        "# Local ConcIR Repair Request",
         "Verification found a concurrency defect. Repair it by rewriting ONLY "
         "the functions listed under 'Functions you may modify'. Every other "
         "part of the program (declarations and all other functions) is FROZEN "
@@ -175,7 +175,7 @@ def build_slice_prompt(
         '{"functions": [{"name": ..., "kind": ..., "body": [...]}, ...]} '
         "containing complete replacement definitions for the functions you "
         "changed (a subset of 'Functions you may modify'). Do not output the "
-        "full CIR, do not include frozen functions, no explanatory text."
+        "full ConcIR, do not include frozen functions, no explanatory text."
     )
     return "\n\n".join(sections)
 

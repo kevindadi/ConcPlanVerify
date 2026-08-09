@@ -44,7 +44,7 @@ pub(crate) fn na_var_name(fn_name: &str, sid: &str) -> String {
 
 // ── Resource info ───────────────────────────────────────────────────────────
 
-/// Classification of a CIR resource for translation purposes.
+/// Classification of a ConcIR resource for translation purposes.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) enum ResKind {
@@ -110,11 +110,11 @@ pub(crate) struct TranslateContext {
     /// Computation hints (`effects`) keyed by function name, applied as
     /// unknown-write updates on the atomic call pass-through for body-less
     /// callees.
-    pub(crate) fn_effects: HashMap<String, cir::ast::FunctionEffects>,
+    pub(crate) fn_effects: HashMap<String, concir::ast::FunctionEffects>,
 
     /// Function currently being translated. Attached to every transition as
     /// `source_function` so repair can attribute behavior (including synthetic
-    /// transitions) to a CIR function without re-scanning the program.
+    /// transitions) to a ConcIR function without re-scanning the program.
     current_function: Option<String>,
 
     /// Errors collected during translation.

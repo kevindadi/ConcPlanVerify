@@ -1,6 +1,6 @@
 ## Repair Strategy — Unreachable Business Goal
 
-The translated CIR is free of concurrency bugs (no deadlock, no blocked
+The translated ConcIR is free of concurrency bugs (no deadlock, no blocked
 channel operation, no lost condvar signal), but the declared business
 goal was never witnessed in the state-space exploration. This means the
 program, while *safe*, has dropped the functional behavior the user
@@ -34,5 +34,5 @@ Typical causes, in order of frequency:
 
 ### Output
 
-Produce a complete revised CIR JSON. Keep all existing resources,
+Produce a complete revised ConcIR JSON. Keep all existing resources,
 protection entries, functions, and the declared goal set unchanged.

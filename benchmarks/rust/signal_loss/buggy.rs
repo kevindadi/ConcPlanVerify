@@ -7,7 +7,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 
 fn main() {
-    // `ready` is the protected flag; the Mutex is `mtx` in the CIR.
+    // `ready` is the protected flag; the Mutex is `mtx` in the ConcIR.
     let pair = Arc::new((Mutex::new(false), Condvar::new()));
 
     let pair_w = Arc::clone(&pair);

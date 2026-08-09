@@ -4,10 +4,10 @@
 
 ## Overview
 
-`cir2cvn` is a stateless translator that converts a CIR (Concurrency Intermediate Representation) program into a CVN (Concurrency Verification Net) — a weighted P/T Petri net with global variable guards suitable for state-space exploration and deadlock detection.
+`cir2cvn` is a stateless translator that converts a ConcIR (Concurrency Intermediate Representation) program into a CVN (Concurrency Verification Net) — a weighted P/T Petri net with global variable guards suitable for state-space exploration and deadlock detection.
 
 ```
-CIR Program ──translate()──▶ CvnNet ──analyze()──▶ Counterexample
+ConcIR Program ──translate()──▶ CvnNet ──analyze()──▶ Counterexample
 ```
 
 ## Three-Phase Translation Pipeline
@@ -51,7 +51,7 @@ CIR Program ──translate()──▶ CvnNet ──analyze()──▶ Counterex
 | **validate**       | `src/validate.rs`                | Post-translation structural sanity checks             |
 | **translator/mod** | `src/translator/mod.rs`          | Three-phase orchestration, input validation           |
 | **context**        | `src/translator/context.rs`      | `TranslateContext`: builder wrapper, naming, tracking |
-| **expr_parser**    | `src/translator/expr_parser.rs`  | CIR string expressions → CVN `BoolExpr`/`Expr`        |
+| **expr_parser**    | `src/translator/expr_parser.rs`  | ConcIR string expressions → CVN `BoolExpr`/`Expr`        |
 | **resource**       | `src/translator/resource.rs`     | Phase 1: resource scanning                            |
 | **control_flow**   | `src/translator/control_flow.rs` | Transfer planning + transition emission helpers       |
 | **operation**      | `src/translator/operation.rs`    | Phase 2: Op dispatch (lock, drop, read, write, call expansion, etc.)  |
@@ -65,8 +65,8 @@ callee skeleton instead of being one atomic transition.
 
 1. **Stateless function**: `translate(cir) → cvn` — no cross-invocation state
 2. **1:1 faithful translation**: No optimization, no merging, no dead-code elimination
-3. **CIR `protection` field ignored**: It is a static check concern, not translated
-4. **CIR `mode` field ignored**: Sync/Async distinction is a CIR-layer concern
+3. **ConcIR `protection` field ignored**: It is a static check concern, not translated
+4. **ConcIR `mode` field ignored**: Sync/Async distinction is a ConcIR-layer concern
 5. **read + next → Sequential**: Preserves anchor mapping completeness
 6. **Post-wait lock → Sequential**: When a condvar wait's resume target is a lock on the same mutex, the lock is translated as Sequential (lock already held by the auto-inserted reacquire)
 7. **notify_all → na flags**: Broadcast via per-wait-site boolean flags (not dynamic arc weights); wait/notify OR-variants share `Transition::disjunctive_family` so dead-transition analysis does not flag unused siblings
@@ -74,12 +74,12 @@ callee skeleton instead of being one atomic transition.
 
 ┌─────────────────────────────────────────────────────────────┐
 │ LLM generation front-end │
-│ User requirements + System Prompt → LLM → CIR JSON │
+│ User requirements + System Prompt → LLM → ConcIR JSON │
 └───────────────────────┬─────────────────────────────────────┘
 │
 ▼
 ┌───────────────────────────────────────────────────────────┐
-│ Layer 1: CIR static checks │
+│ Layer 1: ConcIR static checks │
 │ E0xx structure → E1xx names → E2xx types → E3xx resources → │
 │ E4xx concurrency pairing → E5xx lock safety → E6xx control flow → │
 │ E7xx protection mapping │
@@ -90,7 +90,7 @@ callee skeleton instead of being one atomic transition.
 │ Pass
 ▼
 ┌───────────────────────────────────────────────────────────┐
-│ CIR → CVN translation │
+│ ConcIR → CVN translation │
 │ Phase 1: resource scan → P_r + I_m + I_v │
 │ Phase 2: function bodies → P_c + P_w + T + A_in + A_out │
 │           (body-less functions → trivial skeletons; call → callee entry/return) │
@@ -125,7 +125,7 @@ callee skeleton instead of being one atomic transition.
 ▼
 ┌──────────────┐
 │ Send back to LLM │
-│ Regenerate CIR │
+│ Regenerate ConcIR │
 └──────┬───────┘
 │
 ▼

@@ -2,7 +2,7 @@
 
 > Version 0.1.0 — Last updated 2026-03-16
 
-## T0xx — Invalid CIR Input
+## T0xx — Invalid ConcIR Input
 
 | Code | Error | Description |
 |------|-------|-------------|
@@ -33,9 +33,9 @@
 | T301 | `AmbiguousRwLockDrop` | Cannot determine whether a RwLock drop releases a read-lock or write-lock |
 | T302 | `NoWaitSites` | A condvar notify/notify_all has no corresponding wait-sites |
 
-## CIR Validation Errors (E0xx–E7xx)
+## ConcIR Validation Errors (E0xx–E7xx)
 
-These errors are emitted by the CIR validator before translation. The complete
+These errors are emitted by the ConcIR validator before translation. The complete
 resource compatibility matrix and error code reference are maintained in the
 ConcIR repository (`cir/README.md`), which is the canonical schema owner. The
 translator surfaces them unchanged from `cir::validate::validate`.

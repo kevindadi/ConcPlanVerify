@@ -28,10 +28,10 @@ pub fn render_text(report: &BugReport) -> String {
 /// Used when the CVN analysis reports no concurrency bugs but one or
 /// more `BusinessGoal`s are unreachable in the state space. The prompt
 /// lists the unmet predicates, attaches the preservation constraints
-/// derived from the current CIR, and appends the `goal_unmet.md`
+/// derived from the current ConcIR, and appends the `goal_unmet.md`
 /// strategy template.
 pub fn render_goal_repair_prompt(
-    program: &cir::ast::Program,
+    program: &concir::ast::Program,
     unmet: &[cvn::analysis::UnmetGoal],
     original_cir_json: &str,
 ) -> String {
@@ -41,7 +41,7 @@ pub fn render_goal_repair_prompt(
     writeln!(out, "## Status\n").unwrap();
     writeln!(
         out,
-        "The CIR translates to a CVN with no concurrency bugs, but **{}** declared business goal(s) are unreachable.\n",
+        "The ConcIR translates to a CVN with no concurrency bugs, but **{}** declared business goal(s) are unreachable.\n",
         unmet.len()
     )
     .unwrap();
@@ -58,7 +58,7 @@ pub fn render_goal_repair_prompt(
     }
     writeln!(out).unwrap();
 
-    // Preservation constraints from the CIR (resources + protection + goals).
+    // Preservation constraints from the ConcIR (resources + protection + goals).
     let constraints = super::build_preservation_constraints(program);
     if !constraints.is_empty() {
         writeln!(out, "## Preservation Constraints\n").unwrap();
@@ -70,13 +70,13 @@ pub fn render_goal_repair_prompt(
 
     writeln!(out, "{TEMPLATE_GOAL_UNMET}\n").unwrap();
 
-    writeln!(out, "## Current CIR\n").unwrap();
+    writeln!(out, "## Current ConcIR\n").unwrap();
     writeln!(out, "```json\n{original_cir_json}\n```\n").unwrap();
 
     writeln!(out, "## Output\n").unwrap();
     writeln!(
         out,
-        "Output the complete revised CIR JSON. Do not drop any resource, protection entry, function, or goal."
+        "Output the complete revised ConcIR JSON. Do not drop any resource, protection entry, function, or goal."
     )
     .unwrap();
 
@@ -85,8 +85,8 @@ pub fn render_goal_repair_prompt(
 
 /// Render a full LLM repair prompt following the paper's Table 4 structure:
 /// Bug kind, Witness trace, Bug-state summary, Held resources,
-/// Waiting relations, CIR slice, Preservation constraints,
-/// Repair strategy (per-bug template), Current CIR, Output contract.
+/// Waiting relations, ConcIR slice, Preservation constraints,
+/// Repair strategy (per-bug template), Current ConcIR, Output contract.
 pub fn render_repair_prompt(report: &BugReport, original_cir_json: &str) -> String {
     let mut out = String::new();
 
@@ -102,7 +102,7 @@ pub fn render_repair_prompt(report: &BugReport, original_cir_json: &str) -> Stri
     // 3 + 4 + 5. Bug-state summary, Held resources, Waiting relations
     write_state_summary(&mut out, report);
 
-    // 6. Relevant CIR slice (Lambda)
+    // 6. Relevant ConcIR slice (Lambda)
     write_cir_slice(&mut out, report);
 
     // 7. Preservation constraints (Gamma_ctx)
@@ -111,15 +111,15 @@ pub fn render_repair_prompt(report: &BugReport, original_cir_json: &str) -> Stri
     // 8. Repair strategy (per-bug-type template with examples)
     write_repair_template(&mut out, report);
 
-    // 9. Current CIR (full JSON)
-    writeln!(out, "## Current CIR\n").unwrap();
+    // 9. Current ConcIR (full JSON)
+    writeln!(out, "## Current ConcIR\n").unwrap();
     writeln!(out, "```json\n{original_cir_json}\n```\n").unwrap();
 
     // Output contract
     writeln!(out, "## Output\n").unwrap();
     writeln!(
         out,
-        "Output the complete revised CIR JSON. Do not omit any function or resource."
+        "Output the complete revised ConcIR JSON. Do not omit any function or resource."
     )
     .unwrap();
 
@@ -194,7 +194,7 @@ fn write_state_summary(out: &mut String, report: &BugReport) {
             .unwrap();
             writeln!(
                 out,
-                "- The anchored CIR statement cannot execute regardless of interleaving"
+                "- The anchored ConcIR statement cannot execute regardless of interleaving"
             )
             .unwrap();
         }
@@ -241,7 +241,7 @@ fn write_cir_slice(out: &mut String, report: &BugReport) {
     if report.cir_slice.is_empty() {
         return;
     }
-    writeln!(out, "## Relevant CIR Slice\n").unwrap();
+    writeln!(out, "## Relevant ConcIR Slice\n").unwrap();
     for entry in &report.cir_slice {
         writeln!(out, "- {}.{}: {}", entry.function, entry.sid, entry.op).unwrap();
     }

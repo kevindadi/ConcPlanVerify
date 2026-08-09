@@ -1,6 +1,6 @@
 //! Unified error types for CVN validation and analysis.
 //!
-//! Error codes use the `V` prefix (to distinguish from CIR's `E` prefix):
+//! Error codes use the `V` prefix (to distinguish from ConcIR's `E` prefix):
 //! - V0xx: structural errors
 //! - V1xx: well-formedness violations
 //! - V2xx: branch completeness violations

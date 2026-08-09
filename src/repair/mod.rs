@@ -1,7 +1,7 @@
 //! Bug report generation and LLM repair infrastructure.
 //!
 //! This module converts low-level CVN counterexamples into enriched
-//! [`BugReport`]s with CIR-level semantics, and can render them as
+//! [`BugReport`]s with ConcIR-level semantics, and can render them as
 //! human-readable text or LLM repair prompts.
 
 pub mod render;
@@ -24,7 +24,7 @@ use std::fmt::Write;
 /// are computed from the reachability graph via
 /// [`cvn::analysis::find_dead_transitions`].
 pub fn analyze(
-    program: &cir::ast::Program,
+    program: &concir::ast::Program,
     net: &CvnNet,
     result: &AnalysisResult,
 ) -> Vec<BugReport> {
@@ -146,7 +146,7 @@ fn deadlock_dominated_dead_transitions(
         .collect()
 }
 
-fn functions_for_sids(program: &cir::ast::Program, sids: &[String]) -> Vec<String> {
+fn functions_for_sids(program: &concir::ast::Program, sids: &[String]) -> Vec<String> {
     let mut result: Vec<String> = Vec::new();
     for func in &program.functions {
         if func.body.iter().any(|stmt| sids.contains(&stmt.sid)) {
@@ -642,13 +642,13 @@ fn format_marking(net: &CvnNet, marking: &cvn::model::Marking) -> String {
     out
 }
 
-/// Extract CIR statements relevant to the bug trace (Lambda in the diagnostic tuple).
+/// Extract ConcIR statements relevant to the bug trace (Lambda in the diagnostic tuple).
 ///
 /// SIDs are only unique within a function, so attribution uses the
 /// (function, sid) pair: `source_function` (when present) scopes the SID
 /// lookup, otherwise every function's statements are considered.
 fn extract_cir_slice(
-    program: &cir::ast::Program,
+    program: &concir::ast::Program,
     trace: &[report::EnrichedFiringStep],
 ) -> Vec<report::CirSliceEntry> {
     let mut scoped: HashMap<&str, HashSet<&str>> = HashMap::new();
@@ -685,8 +685,8 @@ fn extract_cir_slice(
     entries
 }
 
-/// Build preservation constraints from the CIR program (Gamma_ctx).
-pub(crate) fn build_preservation_constraints(program: &cir::ast::Program) -> Vec<String> {
+/// Build preservation constraints from the ConcIR program (Gamma_ctx).
+pub(crate) fn build_preservation_constraints(program: &concir::ast::Program) -> Vec<String> {
     let mut constraints = Vec::new();
 
     for res in &program.resources {

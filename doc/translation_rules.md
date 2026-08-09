@@ -2,7 +2,7 @@
 
 > Version 0.1.0 — Last updated 2026-03-16
 
-This document defines the mapping from CIR constructs to CVN elements.
+This document defines the mapping from ConcIR constructs to CVN elements.
 
 Notation: `cp(f,s)` = control place for function `f`, statement `s`;
 `rp(x)` = resource place for resource `x`;
@@ -10,7 +10,7 @@ Notation: `cp(f,s)` = control place for function `f`, statement `s`;
 
 ## 1. Control Flow
 
-| CIR Transfer | CVN Generation |
+| ConcIR Transfer | CVN Generation |
 |-------------|----------------|
 | `next(s2)` | Output arc to `cp(f, s2)` |
 | `branch(cond, s_t, s_f)` | Two transitions sharing input `cp(f, s_cur)`: true-branch with guard `cond`, false-branch with guard `Not(cond)` |
@@ -19,7 +19,7 @@ Notation: `cp(f,s)` = control place for function `f`, statement `s`;
 
 ## 2. Resource Operations
 
-| CIR Op | Input Arcs | Output Arcs | Update |
+| ConcIR Op | Input Arcs | Output Arcs | Update |
 |--------|-----------|-------------|--------|
 | `lock(mtx)` | `cp(f,s) w=1`, `rp(mtx) w=1` | `cp(f,s_next) w=1` | — |
 | `drop(mtx)` | `cp(f,s) w=1` | `cp(f,s_next) w=1`, `rp(mtx) w=1` | — |
@@ -93,7 +93,7 @@ Both share `{f}_{sid_n}:notify_all`.
 
 ## 4. Concurrency
 
-| CIR Op | CVN Translation |
+| ConcIR Op | CVN Translation |
 |--------|----------------|
 | `spawn(f)` | Output arc also to `cp(f, s_first)` (fork) |
 | `join(f)` | Input arc also from `cp(f, ret)` (sync) |

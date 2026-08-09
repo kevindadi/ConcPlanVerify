@@ -15,7 +15,7 @@ use smallvec::SmallVec;
 ///   place.
 /// * [`PropertyViolation::DeadTransition`] — a transition is behaviorally
 ///   dead: it never appears on any edge of the reachability graph, so
-///   the corresponding CIR statement cannot execute on any feasible
+///   the corresponding ConcIR statement cannot execute on any feasible
 ///   interleaving.
 ///
 /// Related bug classes such as *signal loss* and *channel block* are
@@ -36,12 +36,12 @@ pub enum PropertyViolation {
     Deadlock,
     /// Behavioral dead transition: the transition is never fired on any
     /// reachable edge of the state graph. Payload carries the offending
-    /// transition's identifier and its anchored CIR sid(s) when the
+    /// transition's identifier and its anchored ConcIR sid(s) when the
     /// `cir-anchor` feature is enabled.
     DeadTransition {
         /// The transition that never fires.
         transition_id: TransitionId,
-        /// The CIR statement identifiers anchored to this transition.
+        /// The ConcIR statement identifiers anchored to this transition.
         #[cfg(feature = "cir-anchor")]
         #[serde(default, skip_serializing_if = "SmallVec::is_empty")]
         anchor_sids: SmallVec<[String; 2]>,
@@ -53,7 +53,7 @@ pub enum PropertyViolation {
 pub struct FiringStep {
     /// The transition that fired.
     pub transition_id: TransitionId,
-    /// The CIR statement IDs anchored to this transition (μ(t)).
+    /// The ConcIR statement IDs anchored to this transition (μ(t)).
     /// Only available with the `cir-anchor` feature.
     #[cfg(feature = "cir-anchor")]
     #[serde(default, skip_serializing_if = "SmallVec::is_empty")]

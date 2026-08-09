@@ -10,7 +10,7 @@ A signal loss occurs when a `notify` or `notify_all` fires before any thread has
 4. Make sure `notify` happens AFTER writing the predicate to true, not before.
 5. The waiter must hold the mutex when reading the predicate and when calling wait.
 
-### Example: Buggy CIR (signal loss)
+### Example: Buggy ConcIR (signal loss)
 
 The waiter enters `wait` unconditionally — if the notifier runs first, the signal is lost:
 
@@ -27,7 +27,7 @@ The waiter enters `wait` unconditionally — if the notifier runs first, the sig
 }
 ```
 
-### Fixed CIR
+### Fixed ConcIR
 
 Add a while-loop: read the predicate, branch — if true skip wait, if false wait then loop back:
 

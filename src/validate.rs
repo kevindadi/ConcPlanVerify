@@ -4,7 +4,7 @@ use cvn::net::CvnNet;
 ///
 /// These are lightweight structural checks that complement the CVN builder's
 /// own well-formedness validation. They catch translation bugs rather than
-/// CIR input errors.
+/// ConcIR input errors.
 pub fn check_translation(net: &CvnNet) -> Vec<String> {
     let mut warnings = Vec::new();
 

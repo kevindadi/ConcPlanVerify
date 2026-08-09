@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use cvn::model::{BoolExpr, CmpOp, Expr, Op, Val};
 
-/// Parse a CIR branch condition string (e.g. `"count > 0"`) into a CVN `BoolExpr`.
+/// Parse a ConcIR branch condition string (e.g. `"count > 0"`) into a CVN `BoolExpr`.
 ///
 /// `enum_variants` provides known enum variant names so that identifiers like `"Init"`
 /// are treated as `Lit(Enum("Init"))` rather than `Ref("Init")`.
@@ -42,7 +42,7 @@ pub(crate) fn parse_condition(
     Err(format!("no comparison operator found in condition: '{cond}'"))
 }
 
-/// Parse a CIR value string into a CVN `Expr`.
+/// Parse a ConcIR value string into a CVN `Expr`.
 ///
 /// Handles literals (`5`, `true`, `false`), variable references (`count`),
 /// enum literals (if the identifier is in `enum_variants`), and simple binary
@@ -138,7 +138,7 @@ fn is_valid_identifier(s: &str) -> bool {
     chars.all(|c| c.is_alphanumeric() || c == '_')
 }
 
-/// Convert a CIR `init` JSON value into a CVN `Val`.
+/// Convert a ConcIR `init` JSON value into a CVN `Val`.
 pub(crate) fn json_value_to_val(v: &serde_json::Value) -> Val {
     match v {
         serde_json::Value::Bool(b) => Val::bool(*b),
@@ -160,7 +160,7 @@ pub(crate) fn json_value_to_val(v: &serde_json::Value) -> Val {
     }
 }
 
-/// Convert a CIR `init` JSON value into a CVN `Val`, using enum variant knowledge.
+/// Convert a ConcIR `init` JSON value into a CVN `Val`, using enum variant knowledge.
 pub(crate) fn json_value_to_val_with_variants(
     v: &serde_json::Value,
     enum_variants: &HashSet<String>,

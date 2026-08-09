@@ -5,9 +5,9 @@ Runs the methods from the experiment design in ``todo.md`` over the cases of
 
 Methods:
 
-- ``analyze``        — no LLM; run ``cir2cvn --analyze`` on the gold buggy CIR
+- ``analyze``        — no LLM; run ``cir2cvn --analyze`` on the gold buggy ConcIR
                        and score the verdict against the manifest expectation.
-- ``validate_only``  — no LLM; static CIR validation only (ablation showing
+- ``validate_only``  — no LLM; static ConcIR validation only (ablation showing
                        what schema checks alone can catch).
 - ``repair_cvn``     — full CVN pipeline: repair loop with structured feedback.
 - ``repair_status_only`` — diagnostic ablation: feedback reduced to
@@ -16,18 +16,18 @@ Methods:
                        (the Rust analyzer still judges acceptance).
 - ``repair_local``   — slice-based repair: only the functions implicated by
                        the bug reports are regenerated and spliced back into
-                       the otherwise-frozen CIR; falls back to whole-CIR
+                       the otherwise-frozen ConcIR; falls back to whole-ConcIR
                        repair when the slice cannot be determined or is
                        exhausted.
 - ``generate``       — natural-language generation from the manifest
-                       requirements, then a full analyze of the produced CIR.
-- ``codegen``        — verified CIR -> Rust: only runs on a CIR that analyzes
+                       requirements, then a full analyze of the produced ConcIR.
+- ``codegen``        — verified ConcIR -> Rust: only runs on a ConcIR that analyzes
                        as verified_safe; the LLM implements the plan and
                        ``cargo check`` judges acceptance (up to 3 rounds).
 - ``llm_judge``      — LLM-only detection baseline: one-shot classification
-                       of the case CIR (bug / safe, kind, suspect sids) with
+                       of the case ConcIR (bug / safe, kind, suspect sids) with
                        no verifier in the loop, scored against gold.
-- ``pipeline``       — the full user story: NL requirement -> CIR generation
+- ``pipeline``       — the full user story: NL requirement -> ConcIR generation
                        -> CVN verification (with repair rounds inside the
                        generation loop) -> Rust codegen, gated on
                        verified_safe. Uses the canonical requirement only.
@@ -165,7 +165,7 @@ def _score(case: dict[str, Any], analyze_result: RustCliResult) -> dict[str, Any
 
 
 def _safe_cir_metrics(cir_json: str | None) -> dict[str, Any] | None:
-    """CIR metrics for possibly-malformed LLM candidates; None when unparseable."""
+    """ConcIR metrics for possibly-malformed LLM candidates; None when unparseable."""
 
     if not cir_json:
         return None
@@ -290,10 +290,10 @@ class ExperimentRunner:
     def _run_analyze(self, case: dict[str, Any]) -> dict[str, Any]:
         cir_json = self._buggy_cir(case)
         if cir_json is None:
-            # Safe-only cases (no buggy CIR) are analyzed through `fixed`.
+            # Safe-only cases (no buggy ConcIR) are analyzed through `fixed`.
             rel = case.get("cir", {}).get("fixed")
             if not rel:
-                return {"skipped": "case has neither buggy nor fixed CIR"}
+                return {"skipped": "case has neither buggy nor fixed ConcIR"}
             cir_json = (self.repo_root / rel).read_text(encoding="utf-8")
         result = self.rust_cli.analyze(cir_json)
         return {
@@ -306,7 +306,7 @@ class ExperimentRunner:
     def _run_validate_only(self, case: dict[str, Any]) -> dict[str, Any]:
         cir_json = self._buggy_cir(case)
         if cir_json is None:
-            return {"skipped": "case has no buggy CIR"}
+            return {"skipped": "case has no buggy ConcIR"}
         result = self.rust_cli.validate(cir_json)
         expected = expected_verdict(case)
         if result.payload is None:
@@ -339,7 +339,7 @@ class ExperimentRunner:
 
         cir_json = self._buggy_cir(case)
         if cir_json is None:
-            return {"skipped": "case has no buggy CIR"}
+            return {"skipped": "case has no buggy ConcIR"}
         result = self.rust_cli.analyze_no_goals(cir_json)
         expected = expected_verdict(case)
         actual = verdict_from_status(result.status)
@@ -358,7 +358,7 @@ class ExperimentRunner:
     def _run_repair(self, case: dict[str, Any], feedback_mode: str) -> dict[str, Any]:
         cir_json = self._buggy_cir(case)
         if cir_json is None:
-            return {"skipped": "case has no buggy CIR"}
+            return {"skipped": "case has no buggy ConcIR"}
         workflow = RepairWorkflow(
             self.client(),
             self.rust_cli,
@@ -399,7 +399,7 @@ class ExperimentRunner:
 
         cir_json = self._buggy_cir(case)
         if cir_json is None:
-            return {"skipped": "case has no buggy CIR"}
+            return {"skipped": "case has no buggy ConcIR"}
         workflow = LocalRepairWorkflow(
             self.client(),
             self.rust_cli,
@@ -459,7 +459,7 @@ class ExperimentRunner:
         }
 
     def _run_codegen(self, case: dict[str, Any]) -> dict[str, Any]:
-        """Verified CIR -> Rust. Gate: the source CIR must analyze verified_safe."""
+        """Verified ConcIR -> Rust. Gate: the source ConcIR must analyze verified_safe."""
 
         rel = case.get("cir", {}).get("fixed") or (
             case.get("cir", {}).get("buggy")
@@ -467,13 +467,13 @@ class ExperimentRunner:
             else None
         )
         if not rel:
-            return {"skipped": "case has no verified-safe CIR (fixed or safe buggy)"}
+            return {"skipped": "case has no verified-safe ConcIR (fixed or safe buggy)"}
         cir_json = (self.repo_root / rel).read_text(encoding="utf-8")
 
         gate = self.rust_cli.analyze(cir_json)
         if gate.status != "verified_safe":
             return {
-                "skipped": f"source CIR is not verified_safe (status={gate.status})",
+                "skipped": f"source ConcIR is not verified_safe (status={gate.status})",
                 "rust_cli": _rust_cli_record(gate),
             }
 
@@ -525,12 +525,12 @@ class ExperimentRunner:
         if cir_json is None:
             rel = case.get("cir", {}).get("fixed")
             if not rel:
-                return {"skipped": "case has neither buggy nor fixed CIR"}
+                return {"skipped": "case has neither buggy nor fixed ConcIR"}
             cir_json = (self.repo_root / rel).read_text(encoding="utf-8")
 
         system_prompt = (
-            "You are an expert reviewer of CIR (Concurrency Intermediate "
-            "Representation) plans. Analyze the given CIR for concurrency "
+            "You are an expert reviewer of ConcIR (Concurrency Intermediate "
+            "Representation) plans. Analyze the given ConcIR for concurrency "
             "defects: deadlocks (circular lock waits, channel/join blocking), "
             "lost condvar signals, statements that can never execute, and "
             "declared goals that no execution can satisfy.\n\n"
@@ -548,7 +548,7 @@ class ExperimentRunner:
         try:
             content, usage = self.client().chat(
                 system_prompt,
-                f"CIR to review:\n```json\n{cir_json}\n```",
+                f"ConcIR to review:\n```json\n{cir_json}\n```",
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
             )
@@ -591,14 +591,14 @@ class ExperimentRunner:
         }
 
     def _run_pipeline(self, case: dict[str, Any]) -> dict[str, Any]:
-        """NL -> CIR -> verify (+repair) -> Rust, the end-to-end user story."""
+        """NL -> ConcIR -> verify (+repair) -> Rust, the end-to-end user story."""
 
         requirement = (case.get("requirements") or {}).get("canonical")
         if not requirement:
             return {"skipped": "case has no canonical requirement"}
         record: dict[str, Any] = {"stages": {}}
 
-        # Stage 1: NL -> CIR (static-validation retry loop inside).
+        # Stage 1: NL -> ConcIR (static-validation retry loop inside).
         generation = GenerationWorkflow(
             self.client(),
             self.rust_cli,
@@ -647,7 +647,7 @@ class ExperimentRunner:
 
         record["cir_metrics"] = cir_metrics(cir_json)
 
-        # Stage 3: verified CIR -> Rust, cargo check as the oracle.
+        # Stage 3: verified ConcIR -> Rust, cargo check as the oracle.
         codegen = CodegenWorkflow(
             self.client(),
             scratch=self.repo_root / "target" / "codegen-check",

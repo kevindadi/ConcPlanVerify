@@ -1,4 +1,4 @@
-"""CIR verification and LLM repair loop."""
+"""ConcIR verification and LLM repair loop."""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ class RepairWorkflow:
     def _feedback(self, result: RustCliResult) -> str:
         if self.feedback_mode == "none":
             return (
-                "The CIR failed concurrency verification. Find and fix the "
+                "The ConcIR failed concurrency verification. Find and fix the "
                 "concurrency defect."
             )
         if self.feedback_mode == "status_only":
@@ -102,7 +102,7 @@ class RepairWorkflow:
             try:
                 parsed = json.loads(candidate)
                 if not isinstance(parsed, dict):
-                    raise ValueError("CIR JSON root must be an object")
+                    raise ValueError("ConcIR JSON root must be an object")
                 canonical = json.dumps(parsed, ensure_ascii=False, indent=2)
             except (json.JSONDecodeError, ValueError) as error:
                 rounds.append(RepairRound(
@@ -114,7 +114,7 @@ class RepairWorkflow:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                 ))
-                feedback = f"CIR JSON parse error: {error}\nCurrent candidate:\n{candidate}"
+                feedback = f"ConcIR JSON parse error: {error}\nCurrent candidate:\n{candidate}"
                 current = candidate
                 continue
 

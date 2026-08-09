@@ -9,7 +9,7 @@ A channel block occurs when a `send` or `recv` operation on a channel cannot com
 3. If you need to recv and then update mutex-protected data, recv first without the lock, then lock and update.
 4. Ensure send/recv are properly paired: every send must have a matching recv.
 
-### Example: Buggy CIR (channel block)
+### Example: Buggy ConcIR (channel block)
 
 Both sender and receiver hold `mtx` while performing channel operations. If receiver locks first, it blocks on `recv` while holding `mtx`, preventing sender from locking `mtx` to send:
 
@@ -37,7 +37,7 @@ Both sender and receiver hold `mtx` while performing channel operations. If rece
 }
 ```
 
-### Fixed CIR
+### Fixed ConcIR
 
 Move `recv` before the lock acquisition in the receiver:
 

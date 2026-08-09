@@ -15,7 +15,7 @@ class PromptFeedbackTests(unittest.TestCase):
 
         self.assertIn("<domain_requirements>", prompt)
         self.assertIn(requirements, prompt)
-        self.assertIn("complete CIR JSON object", prompt)
+        self.assertIn("complete ConcIR JSON object", prompt)
         self.assertIn("Output only the JSON object", prompt)
 
     def test_generation_system_prompt_requires_complete_top_level_shape(self):

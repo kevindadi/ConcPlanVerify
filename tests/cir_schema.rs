@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use cir::ast::Program;
+use concir::ast::Program;
 
 fn load_canonical_fixture() -> Program {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -14,9 +14,9 @@ fn load_canonical_fixture() -> Program {
 #[test]
 fn canonical_schema_parses_and_validates() {
     let program = load_canonical_fixture();
-    let report = cir::validate::validate(&program);
+    let report = concir::validate::validate(&program);
 
-    assert!(report.valid, "canonical CIR is invalid: {:?}", report.diagnostics);
+    assert!(report.valid, "canonical ConcIR is invalid: {:?}", report.diagnostics);
     assert!(report
         .diagnostics
         .iter()
@@ -26,7 +26,7 @@ fn canonical_schema_parses_and_validates() {
 #[test]
 fn canonical_schema_translates_and_goals_have_no_warnings() {
     let program = load_canonical_fixture();
-    let net = cir2cvn::translate(&program).expect("canonical CIR should translate");
+    let net = cir2cvn::translate(&program).expect("canonical ConcIR should translate");
     assert!(net.place_count() > 0);
     assert!(net.transition_count() > 0);
 
@@ -105,7 +105,7 @@ fn resource_actions_have_canonical_names_and_arity() {
     "#;
 
     let program: Program = serde_json::from_str(source).expect("JSON shape should parse");
-    let report = cir::validate::validate(&program);
+    let report = concir::validate::validate(&program);
 
     assert!(!report.valid);
     assert!(report.diagnostics.iter().any(|d| d.code == "E310"));
@@ -134,7 +134,7 @@ fn resource_action_arity_is_strict() {
     "#;
 
     let program: Program = serde_json::from_str(source).expect("JSON shape should parse");
-    let report = cir::validate::validate(&program);
+    let report = concir::validate::validate(&program);
 
     assert!(!report.valid);
     assert_eq!(

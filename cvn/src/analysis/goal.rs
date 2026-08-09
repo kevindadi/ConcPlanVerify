@@ -81,7 +81,7 @@ impl GoalPredicate {
 /// simultaneously satisfied in some reachable state.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GoalSpec {
-    /// Stable identifier (mirrors the originating CIR goal id).
+    /// Stable identifier (mirrors the originating ConcIR goal id).
     pub id: String,
 
     /// Optional human-readable description.

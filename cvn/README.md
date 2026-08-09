@@ -7,10 +7,10 @@ CVN (Concurrency Verification Net) is domain-specialized for concurrency bug det
 ## How it works
 
 ```
-CIR (Concurrency IR) ──translate──▶ CVN ──analyze──▶ Counterexample ──map──▶ CIR sid
+ConcIR (Concurrency IR) ──translate──▶ CVN ──analyze──▶ Counterexample ──map──▶ ConcIR sid
 ```
 
-This library handles the **CVN layer only** — CIR parsing and CIR→CVN translation are out of scope.
+This library handles the **CVN layer only** — ConcIR parsing and ConcIR→CVN translation are out of scope.
 
 ## Quick start
 
@@ -38,7 +38,7 @@ assert!(result.deadlocks.is_empty());
 
 | Feature | Default | Description |
 |---------|---------|-------------|
-| `cir-anchor` | off | Transitions carry CIR statement ID anchors for mapping counterexamples back to source locations |
+| `cir-anchor` | off | Transitions carry ConcIR statement ID anchors for mapping counterexamples back to source locations |
 
 When `cir-anchor` is enabled, use `add_transition_with_anchor()` to attach SIDs and
 `build_with_anchor_check()` to enforce W7 (every transition must have at least one anchor).
@@ -82,7 +82,7 @@ CVN = ( P, T, A_in, A_out, V, I_m, I_v, μ )
 | A_out ⊆ T × P | Output arcs with weight and optional var update |
 | V | Global variable store |
 | I_m, I_v | Initial marking and variable values |
-| μ: T → 𝒫(SID) | Anchor mapping to CIR statement IDs (requires `cir-anchor` feature) |
+| μ: T → 𝒫(SID) | Anchor mapping to ConcIR statement IDs (requires `cir-anchor` feature) |
 
 ## Key features
 
@@ -91,7 +91,7 @@ CVN = ( P, T, A_in, A_out, V, I_m, I_v, μ )
 - **Builder pattern**: `CvnNetBuilder` with comprehensive well-formedness validation at build time
 - **petgraph integration**: the net is a `DiGraph<NetNode, NetEdge>` bipartite graph, accessible via `net.petgraph()` for custom algorithms
 - **State space search**: BFS (shortest counterexample) and DFS (lower memory), configurable state limit
-- **Deadlock detection**: automatic detection with counterexample traces (anchored to CIR SIDs when `cir-anchor` is enabled)
+- **Deadlock detection**: automatic detection with counterexample traces (anchored to ConcIR SIDs when `cir-anchor` is enabled)
 - **DOT export**: Graphviz visualization with styled nodes by place type
 
 ## Error codes

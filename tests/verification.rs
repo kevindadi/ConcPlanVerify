@@ -7,7 +7,7 @@ fn repo_path(relative: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join(relative)
 }
 
-fn load_program(relative: &str) -> cir::ast::Program {
+fn load_program(relative: &str) -> concir::ast::Program {
     let path = repo_path(relative);
     let source = std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()));
@@ -109,7 +109,7 @@ fn state_limit_produces_an_incomplete_result() {
 
 #[test]
 fn invalid_cir_stops_before_translation() {
-    let program: cir::ast::Program = serde_json::from_value(serde_json::json!({
+    let program: concir::ast::Program = serde_json::from_value(serde_json::json!({
         "program": "invalid",
         "resources": [],
         "protection": [],
@@ -124,7 +124,7 @@ fn invalid_cir_stops_before_translation() {
         }],
         "entry": "main"
     }))
-    .expect("invalid fixture should still be valid JSON/CIR syntax");
+    .expect("invalid fixture should still be valid JSON/ConcIR syntax");
 
     let result = verify_program(&program, &VerificationConfig::default());
     assert_eq!(result.status, VerificationStatus::InvalidModel);

@@ -1,9 +1,9 @@
 //! `cir2cvn` CLI driver used by the Python workflow.
 //!
-//! Three subcommands are exposed, all reading CIR JSON either from a file
+//! Three subcommands are exposed, all reading ConcIR JSON either from a file
 //! path or from stdin (`-`):
 //!
-//! * `--validate`  → run CIR static checks (58 rules). Exit 0 if valid.
+//! * `--validate`  → run ConcIR static checks (58 rules). Exit 0 if valid.
 //! * `--analyze`   → run the complete verification pipeline and print its
 //!                   structured JSON result.
 //! * `--goals`     → compatibility alias for the same complete verification
@@ -16,7 +16,7 @@ use std::fs;
 use std::io::{self, Read};
 use std::process;
 
-use cir::ast::Program;
+use concir::ast::Program;
 use serde_json::json;
 
 fn main() {
@@ -86,7 +86,7 @@ fn cmd_validate(source: &str) -> i32 {
             return 2;
         }
     };
-    let report = cir::validate::validate(&program);
+    let report = concir::validate::validate(&program);
     let status = if report.valid { "valid" } else { "invalid_model" };
     let payload = json!({
         "status": status,

@@ -73,7 +73,7 @@ class WorkflowTests(unittest.TestCase):
         first_prompt = llm.calls[0][1]
         second_prompt = llm.calls[1][1]
         self.assertIn(requirements, first_prompt)
-        self.assertIn("complete CIR JSON object", first_prompt)
+        self.assertIn("complete ConcIR JSON object", first_prompt)
         self.assertIn(requirements, second_prompt)
         self.assertIn("E101 [functions[0].body[0].op[1]]", second_prompt)
         self.assertIn("undefined resource 'queue'", second_prompt)

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Benchmark corpus for ConcPlanVerify experiments. Paths are relative to the repository root. `expected.outcome` is the gold verdict for the buggy CIR: `bug` (verified_unsafe with `bug_kind`), `goals_unmet` (no deadlock but declared goals unreachable), or `safe` (negative control, must be verified_safe).",
+  "description": "Benchmark corpus for ConcPlanVerify experiments. Paths are relative to the repository root. `expected.outcome` is the gold verdict for the buggy ConcIR: `bug` (verified_unsafe with `bug_kind`), `goals_unmet` (no deadlock but declared goals unreachable), or `safe` (negative control, must be verified_safe).",
   "cases": [
     {
       "id": "mutex_deadlock",
@@ -228,7 +228,7 @@
         "buggy": "benchmarks/rust/goal_unreachable/buggy.rs",
         "fixed": "benchmarks/rust/goal_unreachable/fixed.rs"
       },
-      "notes": "Pure goal-level defect: no deadlock and no dead transitions, but the declared goal (x reaches 3) is unreachable. With --no-goals the buggy CIR is misaccepted as verified_safe, which is exactly what the goal ablation measures.",
+      "notes": "Pure goal-level defect: no deadlock and no dead transitions, but the declared goal (x reaches 3) is unreachable. With --no-goals the buggy ConcIR is misaccepted as verified_safe, which is exactly what the goal ablation measures.",
       "requirements": {
         "canonical": "Model two worker threads that each write a distinct value to a shared integer x protected by a mutex (worker 1 writes 1, worker 2 writes 2; the fix changes worker 1 to write 3). Main spawns and joins both. Declare a business goal that some execution reaches x == 3.",
         "paraphrases": [
@@ -309,7 +309,7 @@
         "buggy": "benchmarks/rust/goal_constrained_deadlock/buggy.rs",
         "fixed": "benchmarks/rust/goal_constrained_deadlock/fixed.rs"
       },
-      "notes": "Lock-order deadlock under a business goal that blocks normalize-style repair. w1/w2 take m1->m2; w3's else-arm takes m2->m1 and is the ONLY writer of result=99. Goal g_result_special requires result==99 reachable. A rewrite that makes every arm write the same value (or deletes the else-arm) clears the deadlock but yields goals_unmet — verified offline by dropping the 99 write on the fixed CIR. Correct repair: reorder locks on that arm only, keep write 99.",
+      "notes": "Lock-order deadlock under a business goal that blocks normalize-style repair. w1/w2 take m1->m2; w3's else-arm takes m2->m1 and is the ONLY writer of result=99. Goal g_result_special requires result==99 reachable. A rewrite that makes every arm write the same value (or deletes the else-arm) clears the deadlock but yields goals_unmet — verified offline by dropping the 99 write on the fixed ConcIR. Correct repair: reorder locks on that arm only, keep write 99.",
       "requirements": {
         "canonical": "Model three workers over mutexes m1, m2 and shared integers flag and result. Workers 1 and 2 write their id to flag, acquire m1 then m2, write their id to result, and release. Worker 3 writes 3 to flag, branches on whether flag still equals 3: the true arm locks only m1 and writes result=3; the false arm must write the special business payload result=99 after acquiring BOTH mutexes. Main spawns and joins all three. Declare the business goal that some schedule observes result == 99. Every interleaving must terminate without deadlock, and the goal must remain reachable.",
         "paraphrases": [
@@ -490,7 +490,7 @@
         "buggy": "benchmarks/rust/deep_lock_chain_4x3/buggy.rs",
         "fixed": "benchmarks/rust/deep_lock_chain_4x3/fixed.rs"
       },
-      "notes": "Deeply buried lock-order bug (cir_workflow.scaling lock_chain_deep 4x3): 4 workers x 2 branch arms all follow m1->m2->m3, except worker 3's else-arm which hoists m2 before m1 (its if-arm skips m2, so intra-function order checks E505 pass). The circular wait is reachable only through that arm under contention; CVN finds it at ~44k states. Designed so an LLM reading the CIR cannot spot the defect among 8 near-identical lock sequences.",
+      "notes": "Deeply buried lock-order bug (cir_workflow.scaling lock_chain_deep 4x3): 4 workers x 2 branch arms all follow m1->m2->m3, except worker 3's else-arm which hoists m2 before m1 (its if-arm skips m2, so intra-function order checks E505 pass). The circular wait is reachable only through that arm under contention; CVN finds it at ~44k states. Designed so an LLM reading the ConcIR cannot spot the defect among 8 near-identical lock sequences.",
       "requirements": {
         "canonical": "Model four worker threads over three mutexes m1, m2, m3 and a shared flag. Each worker writes its id to the flag, reads it back, and branches; on both arms it acquires all three mutexes in the global order m1, m2, m3 and releases them in reverse. Main spawns and joins all four. Every interleaving must terminate.",
         "paraphrases": [

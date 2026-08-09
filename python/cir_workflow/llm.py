@@ -1,4 +1,4 @@
-"""Official OpenAI SDK clients for the Python CIR workflow.
+"""Official OpenAI SDK clients for the Python ConcIR workflow.
 
 DeepSeek and Qwen expose different OpenAI-compatible surfaces in this
 project: DeepSeek uses Chat Completions while Qwen uses Responses. The

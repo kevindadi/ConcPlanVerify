@@ -1,4 +1,4 @@
-use cir::ast::{Statement, Transfer};
+use concir::ast::{Statement, Transfer};
 use cvn::model::{BoolExpr, CmpOp, Expr, TransitionKind, Val, VarUpdate};
 
 use super::context::{

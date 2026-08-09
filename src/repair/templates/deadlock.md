@@ -9,7 +9,7 @@ A deadlock occurs when two or more threads each hold a lock and wait for a lock 
 3. Do NOT change the operations performed between lock and drop — only reorder the lock/drop pairs.
 4. Every lock must still have a matching drop in the same function.
 
-### Example: Buggy CIR (deadlock)
+### Example: Buggy ConcIR (deadlock)
 
 Two threads acquire two mutexes in opposite order:
 
@@ -39,7 +39,7 @@ Two threads acquire two mutexes in opposite order:
 }
 ```
 
-### Fixed CIR
+### Fixed ConcIR
 
 Make `w2` acquire locks in the same order as `w1` (mtx_a before mtx_b):
 

@@ -1,8 +1,8 @@
-//! End-to-end tests: CIR (buggy) → translate → explore → assert bug → fixed → verify
+//! End-to-end tests: ConcIR (buggy) → translate → explore → assert bug → fixed → verify
 
 use std::path::Path;
 
-use cir::ast::Program;
+use concir::ast::Program;
 use cvn::analysis::{check_goals, explore, find_dead_transitions, AnalysisConfig};
 use cvn::net::CvnNet;
 
@@ -93,8 +93,8 @@ fn run_buggy_test(dir_name: &str) {
         let cir_json = serde_json::to_string_pretty(&buggy).unwrap();
         let prompt = cir2cvn::repair::render::render_repair_prompt(report, &cir_json);
         assert!(
-            prompt.contains("## Current CIR"),
-            "[{dir_name}] prompt missing CIR section"
+            prompt.contains("## Current ConcIR"),
+            "[{dir_name}] prompt missing ConcIR section"
         );
         assert!(
             prompt.contains("## Repair Strategy") || prompt.contains("Repair Strategy"),
@@ -134,7 +134,7 @@ fn run_fixed_test(dir_name: &str) {
 /// concrete deadlock:
 /// 1. the CVN search must find no deadlock (the bug is a partial deadlock /
 ///    behaviour regression, not a real deadlock), and
-/// 2. every business goal declared in the CIR must be reported as unmet by
+/// 2. every business goal declared in the ConcIR must be reported as unmet by
 ///    [`cvn::analysis::check_goals`].
 fn run_goal_buggy_test(dir_name: &str) {
     let dir = e2e_dir().join(dir_name);

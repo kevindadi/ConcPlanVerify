@@ -45,7 +45,7 @@ fn bodyless_call_does_not_model_skeleton() {
 /// chains become visible to the analysis.
 #[test]
 fn call_expands_through_bodied_callee_skeleton() {
-    let program: cir::ast::Program = serde_json::from_value(json!({
+    let program: concir::ast::Program = serde_json::from_value(json!({
         "program": "bodied_call",
         "resources": [
             {"name": "m1", "kind": "sync", "type": "Mutex", "mode": "Sync"}
@@ -78,7 +78,7 @@ fn call_expands_through_bodied_callee_skeleton() {
         ],
         "entry": "main"
     }))
-    .expect("test CIR must parse");
+    .expect("test ConcIR must parse");
     let net = cir2cvn::translate(&program).expect("translation should succeed");
 
     // Entry transition enters the callee and parks the continuation.

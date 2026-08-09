@@ -3,12 +3,12 @@ mod category1_control_flow;
 mod category2_resource;
 mod category3_guard_update;
 
-/// Integration tests using the CIR examples from the vendored `cir/` tree.
+/// Integration tests using the ConcIR examples from the vendored `cir/` tree.
 mod cir_examples {
     use crate::common;
     use std::path::Path;
 
-    fn load_cir_example(name: &str) -> cir::ast::Program {
+    fn load_cir_example(name: &str) -> concir::ast::Program {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("cir/examples")
             .join(name);

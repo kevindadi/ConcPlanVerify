@@ -98,7 +98,7 @@ const judged: Judge[] = [
   { case: "scale_branch_fan_4x2", gold: "safe", claimed: "safe", kind: null, note: "correct", tone: "neutral" },
 ];
 
-// codegen: results/codegen.json + codegen_v2.json (verified CIR -> Rust, cargo check acceptance, all 1 round)
+// codegen: results/codegen.json + codegen_v2.json (verified ConcIR -> Rust, cargo check acceptance, all 1 round)
 type Codegen = { case: string; stmts: number; loc: number; spawns: number; tokens: number };
 const codegen: Codegen[] = [
   { case: "mutex_deadlock", stmts: 15, loc: 24, spawns: 2, tokens: 1939 },
@@ -265,7 +265,7 @@ export default function ExperimentReport() {
         <div id="s1" />
         <H2>1 · Bug detection: CVN state-space analysis vs static validation only (20 cases)</H2>
         <Text tone="secondary">
-          For each case&apos;s gold buggy CIR, run <Text as="span" weight="semibold">cir2cvn --analyze</Text>
+          For each case&apos;s gold buggy ConcIR, run <Text as="span" weight="semibold">cir2cvn --analyze</Text>
           (translation + state-space exploration + goals) and <Text as="span" weight="semibold">--validate</Text> (static rules only).
           CVN verdicts are correct on all 16 defect cases; static validation misses all behavioral bugs (its job is schema/structure
           checking; this ablation confirms the necessity of state-space analysis).
@@ -422,7 +422,7 @@ export default function ExperimentReport() {
         <H2>4b · Local regeneration vs full repair (12-case A/B, feedback summarized)</H2>
         <Text tone="secondary">
           Local regeneration (repair_local): slice by the function set implicated in the bug report; the LLM rewrites only sliced
-          functions (others shown frozen as one-line sync summaries); Python splices back into the original CIR—non-slice parts are
+          functions (others shown frozen as one-line sync summaries); Python splices back into the original ConcIR—non-slice parts are
           byte-identical. signal_loss succeeds in-slice; dual_condvar identifies 3/3 functions but the fix must simultaneously remove
           the cross-function mutual condvar handshake and unify to m1→m2 lock order, so after slice exhaustion it falls back to full
           repair and succeeds. When the slice cannot localize (pure goals defects) or rounds are exhausted, fall back to full repair.
@@ -468,12 +468,12 @@ export default function ExperimentReport() {
       {/* ── 5. Generation experiments ── */}
       <Stack gap={12} style={{ scrollMarginTop: 88 }}>
         <div id="s5" />
-        <H2>5 · Generation experiment: natural language → CIR (10 cases × 5 requirements)</H2>
+        <H2>5 · Generation experiment: natural language → ConcIR (10 cases × 5 requirements)</H2>
         <Text tone="secondary">
-          For each case, generate CIR from 1 canonical requirement + 4 paraphrases (≤5 validation-retry rounds), then run full
+          For each case, generate ConcIR from 1 canonical requirement + 4 paraphrases (≤5 validation-retry rounds), then run full
           analyze on successful generations. Overall only {genValid}/50 pass static validation and {genSafe}/50 end verified_safe.
           Lock-order patterns (mutex / three-way / semaphore) nearly all succeed; channel, CAS, condvar, and branching patterns nearly
-          all exhaust 5 rounds—the bottleneck is CIR schema detail (res_op action names, branch/transfer shapes), not concurrency
+          all exhaust 5 rounds—the bottleneck is ConcIR schema detail (res_op action names, branch/transfer shapes), not concurrency
           semantics.
         </Text>
         <BarChart
@@ -510,7 +510,7 @@ export default function ExperimentReport() {
           state-space exploration—negligible vs a single LLM call at 10–60 s; the verifier is not a closed-loop bottleneck.
         </Text>
         <Table
-          headers={["Case", "CIR stmts", "places (control/resource/wait)", "transitions", "arcs (in/out)", "reachable states", "verify time"]}
+          headers={["Case", "ConcIR stmts", "places (control/resource/wait)", "transitions", "arcs (in/out)", "reachable states", "verify time"]}
           rows={analyze.map((a) => {
             const [c, r, w] = placesByKind[a.case] ?? [0, 0, 0];
             return [
@@ -556,14 +556,14 @@ export default function ExperimentReport() {
           scaling dimension.
         </Callout>
 
-        <H2>7b · Scaling LLM legs: NL → generate CIR → verify → code</H2>
+        <H2>7b · Scaling LLM legs: NL → generate ConcIR → verify → code</H2>
         <Text tone="secondary">
-          On 6 representative sweep points, also run the LLM legs: the same NL requirement generates CIR (≤5 rounds, verified_safe
-          acceptance); on success, codegen from the generated CIR; on failure, fall back to gold CIR for codegen (isolating the two
+          On 6 representative sweep points, also run the LLM legs: the same NL requirement generates ConcIR (≤5 rounds, verified_safe
+          acceptance); on success, codegen from the generated ConcIR; on failure, fall back to gold ConcIR for codegen (isolating the two
           failure surfaces).
         </Text>
         <Table
-          headers={["mode × scale", "gold stmts", "generated CIR", "rounds", "token", "states", "codegen (source)", "token", "LOC"]}
+          headers={["mode × scale", "gold stmts", "generated ConcIR", "rounds", "token", "states", "codegen (source)", "token", "LOC"]}
           rows={[
             ["lock chain 2×2", "15", "verified_safe", "3", "12,556", "57", "pass (generated)", "2,226", "24"],
             ["lock chain 3×2", "22", "verified_safe", "1", "3,840", "111", "pass (generated)", "2,757", "32"],
@@ -577,7 +577,7 @@ export default function ExperimentReport() {
           striped
         />
         <Text tone="tertiary" size="small">
-          Lock-chain mode 4/4 generation succeeds with no scale degradation (4×3 and 6×3 generated CIR stmt counts match gold;
+          Lock-chain mode 4/4 generation succeeds with no scale degradation (4×3 and 6×3 generated ConcIR stmt counts match gold;
           state spaces same order)—&quot;generation ability degrades with scale&quot; does not hold for pure lock-order; at 3×2 the model
           produced a leaner equivalent (12 vs 22 stmts). Both branch_fan points exhaust 5 rounds at static validation, consistent with
           §5: the bottleneck is branch/switch schema detail, not concurrency modeling, wasting 22k–36k tokens—few-shot exemplars are
@@ -590,7 +590,7 @@ export default function ExperimentReport() {
         <div id="s8" />
         <H2>8 · LLM-only judging vs CVN: deep-buried bugs and false-positive probes (16 cases)</H2>
         <Text tone="secondary">
-          Single-shot judging with no oracle: the LLM reads CIR directly and reports bug/safe, kind, and suspected locus. To stress
+          Single-shot judging with no oracle: the LLM reads ConcIR directly and reports bug/safe, kind, and suspected locus. To stress
           it, we added a deep-buried bug case (deep_lock_chain_4x3: 4 workers × 2 branch arms = 8 near-identical lock-order segments;
           only w3&apos;s else arm advances m2 early; the if arm skips m2 to bypass intra-function lock-order static rule E505) and its
           safe twin.
@@ -610,7 +610,7 @@ export default function ExperimentReport() {
         <Grid columns={2} gap={16}>
           <Callout tone="danger" title="Real false positive obtained: cas_race">
             The LLM misreads a &quot;branch on CAS result&quot; as a &quot;branch on variable value,&quot; infers a permanently false condition, and
-            reports DeadTransition—a false positive on a safe case. CVN models both CAS success/failure transfers per CIR semantics
+            reports DeadTransition—a false positive on a safe case. CVN models both CAS success/failure transfers per ConcIR semantics
             and judges safe. This shows LLM judging is unreliable on semantic detail; the verifier&apos;s value is not &quot;can it find bugs&quot;
             but &quot;what it says is necessarily correct.&quot;
           </Callout>
@@ -632,28 +632,28 @@ export default function ExperimentReport() {
       {/* ── 9. codegen ── */}
       <Stack gap={12} style={{ scrollMarginTop: 88 }}>
         <div id="s9" />
-        <H2>9 · Code generation: verified CIR → Rust (cargo check acceptance)</H2>
+        <H2>9 · Code generation: verified ConcIR → Rust (cargo check acceptance)</H2>
         <Text tone="secondary">
-          The last link of the user story: given a verified CIR plan, the LLM generates main.rs under a &quot;structure-faithful mapping&quot;
+          The last link of the user story: given a verified ConcIR plan, the LLM generates main.rs under a &quot;structure-faithful mapping&quot;
           constraint, accepted by `cargo check` (≤3 rounds). 18/18 all pass in 1 round. An earlier codegen run was blocked on
           signal_loss by a historical DeadTransition gate false positive from a fixed fixture; current condvar variant grouping and
-          repair-layer suffix filtering removed that artifact, and this round passes. dual_condvar&apos;s fixed CIR removes the mutual
+          repair-layer suffix filtering removed that artifact, and this round passes. dual_condvar&apos;s fixed ConcIR removes the mutual
           waiting condvar handshake so both threads acquire locks in m1→m2 order and pass verification. The end-to-end pipeline
-          (requirement → CIR → verify → code) smoke-succeeds on mutex_deadlock and semaphore_throttle at ~7k tokens per chain.
+          (requirement → ConcIR → verify → code) smoke-succeeds on mutex_deadlock and semaphore_throttle at ~7k tokens per chain.
         </Text>
         <BarChart
           categories={codegen.map((c) => shortName(c.case))}
           series={[
-            { name: "CIR stmt count", data: codegen.map((c) => c.stmts), tone: "info" as const },
+            { name: "ConcIR stmt count", data: codegen.map((c) => c.stmts), tone: "info" as const },
             { name: "generated code LOC", data: codegen.map((c) => c.loc), tone: "success" as const },
           ]}
           height={260}
         />
         <Text tone="tertiary" size="small">
-          CIR stmt count vs non-empty non-comment lines of generated Rust. Lock-chain CIR is stmt-heavy but code can fold
+          ConcIR stmt count vs non-empty non-comment lines of generated Rust. Lock-chain ConcIR is stmt-heavy but code can fold
           (scale_lock_chain_6x3: 55 stmts → 24 lines; the model folds 6 identical workers into a loop); deep_lock_chain_4x3_safe does
           not fold (104 lines). Folding is semantically equivalent but breaks stmt-level 1:1 correspondence—hence the need for a
-          &quot;CIR ↔ Rust consistency check&quot; (todo §5). Sources: results/codegen.json, results/pipeline_smoke.json.
+          &quot;ConcIR ↔ Rust consistency check&quot; (todo §5). Sources: results/codegen.json, results/pipeline_smoke.json.
         </Text>
       </Stack>
 
@@ -664,7 +664,7 @@ export default function ExperimentReport() {
         <Text tone="secondary">
           New goal_constrained_deadlock (3 workers, ~2k states) and dense twin (4 workers, ~65k states): deadlock buried in w3&apos;s
           else arm (m2→m1); the same arm is the only path writing result=99; the business goal requires 99 reachable. Offline probe:
-          changing 99→3 on the fixed CIR yields goals_unmet—&quot;delete the arm / unify the write&quot; clears the deadlock but fails
+          changing 99→3 on the fixed ConcIR yields goals_unmet—&quot;delete the arm / unify the write&quot; clears the deadlock but fails
           acceptance.
         </Text>
         <Table

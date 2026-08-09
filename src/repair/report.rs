@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// [`BugKind::Deadlock`] — a state with no enabled transitions where at
 /// least one thread has not reached its return place — and
 /// [`BugKind::DeadTransition`] — a transition that never fires on any
-/// edge of the reachability graph (its anchored CIR statement is
+/// edge of the reachability graph (its anchored ConcIR statement is
 /// behaviorally unreachable). Both are primary, independent soundness
 /// claims.
 ///
@@ -70,13 +70,13 @@ pub enum BugKind {
     /// reachable edge of the CVN state graph.
     ///
     /// Corresponds to [`cvn::analysis::PropertyViolation::DeadTransition`].
-    /// The anchored CIR statement is behaviorally unreachable; this
+    /// The anchored ConcIR statement is behaviorally unreachable; this
     /// typically indicates unreachable code (e.g., a `branch` whose
     /// condition is statically falsified) or a missing producer.
     DeadTransition {
         /// CVN transition identifier that never fires.
         transition: String,
-        /// CIR statement id(s) anchored to the dead transition, if any.
+        /// ConcIR statement id(s) anchored to the dead transition, if any.
         sids: Vec<String>,
     },
 }
@@ -96,7 +96,7 @@ impl BugKind {
 /// A thread involved in a deadlock.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DeadlockParticipant {
-    /// CIR function name.
+    /// ConcIR function name.
     pub function: String,
     /// Statement ID where this thread is blocked (e.g. "w1.s2").
     pub blocked_at_sid: String,
@@ -106,16 +106,16 @@ pub struct DeadlockParticipant {
     pub waiting_for: String,
 }
 
-/// A single step in the counterexample trace, enriched with CIR-level info.
+/// A single step in the counterexample trace, enriched with ConcIR-level info.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EnrichedFiringStep {
     /// CVN transition ID (e.g. "t_w1_s1_lock").
     pub transition_id: String,
     /// Classification of the transition.
     pub kind: TransitionKind,
-    /// CIR statement IDs anchored to this transition.
+    /// ConcIR statement IDs anchored to this transition.
     pub anchor_sids: Vec<String>,
-    /// CIR function that produced this transition, when known. Covers
+    /// ConcIR function that produced this transition, when known. Covers
     /// synthetic transitions (condvar reacquire, spawn bridges) that may have
     /// no useful SID.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -124,7 +124,7 @@ pub struct EnrichedFiringStep {
     pub description: String,
 }
 
-/// A complete bug report combining CVN analysis with CIR-level semantics.
+/// A complete bug report combining CVN analysis with ConcIR-level semantics.
 ///
 /// Corresponds to the diagnostic tuple D = (kappa, pi_mu, Sigma_state,
 /// Sigma_wait, Lambda, Gamma_ctx, H) from the paper.
@@ -140,9 +140,9 @@ pub struct BugReport {
     pub summary: String,
     /// Resource names involved in the bug.
     pub involved_resources: Vec<String>,
-    /// CIR function names involved in the bug.
+    /// ConcIR function names involved in the bug.
     pub involved_functions: Vec<String>,
-    /// CIR statements relevant to the bug (Lambda).
+    /// ConcIR statements relevant to the bug (Lambda).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cir_slice: Vec<CirSliceEntry>,
     /// Preservation constraints: resource/protection/goal invariants (Gamma_ctx).
@@ -153,7 +153,7 @@ pub struct BugReport {
     pub repair_hint: Option<String>,
 }
 
-/// A CIR statement entry in the bug report's CIR slice (Lambda).
+/// A ConcIR statement entry in the bug report's ConcIR slice (Lambda).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CirSliceEntry {
     pub sid: String,

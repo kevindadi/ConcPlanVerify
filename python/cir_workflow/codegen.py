@@ -1,14 +1,14 @@
-"""Verified-CIR to Rust code generation (the last pipeline stage).
+"""Verified-ConcIR to Rust code generation (the last pipeline stage).
 
 Workflow position: the user states a concurrency requirement in natural
-language; the LLM first produces CIR; the CVN pipeline verifies it; only a
-``verified_safe`` CIR reaches this stage, where the LLM writes the concrete
+language; the LLM first produces ConcIR; the CVN pipeline verifies it; only a
+``verified_safe`` ConcIR reaches this stage, where the LLM writes the concrete
 Rust program *from the verified plan* instead of directly from the prose.
 
 The acceptance oracle here is ``cargo check`` on a scratch package: compiler
 errors are fed back for up to ``max_rounds`` attempts. The result carries
 code-size metrics (LOC, bytes, functions, thread spawns, sync-primitive
-uses) so scaling experiments can relate CIR size -> CVN size -> code size.
+uses) so scaling experiments can relate ConcIR size -> CVN size -> code size.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ _RUST_BLOCK_RE = re.compile(r"```(?:rust|rs)?\s*\n(.*?)```", re.DOTALL)
 
 def codegen_system_prompt() -> str:
     return (
-        "You are an expert Rust concurrency engineer. You receive a CIR "
+        "You are an expert Rust concurrency engineer. You receive a ConcIR "
         "(Concurrency Intermediate Representation) JSON plan that has ALREADY "
         "been formally verified as free of deadlocks and dead transitions, "
         "with all declared goals reachable. Your job is to implement that "
@@ -52,14 +52,14 @@ def codegen_system_prompt() -> str:
         "Rules:\n"
         "- Produce one complete, standalone `main.rs` using only the Rust "
         "standard library (std::sync, std::thread, std::sync::mpsc).\n"
-        "- Map CIR constructs literally: each non-main function becomes a "
+        "- Map ConcIR constructs literally: each non-main function becomes a "
         "closure run on its own thread; `spawn`/`join` map to "
         "`thread::spawn`/`JoinHandle::join`; Mutex -> std::sync::Mutex, "
         "Condvar -> std::sync::Condvar, Semaphore -> a small permit counter "
         "built from Mutex+Condvar, Channel -> std::sync::mpsc; `res_op` "
         "lock/drop pairs delimit guard scopes (use explicit `drop(guard)` "
-        "when the CIR drops early or out of declaration order).\n"
-        "- Preserve the CIR's acquisition ORDER exactly. Do not reorder, "
+        "when the ConcIR drops early or out of declaration order).\n"
+        "- Preserve the ConcIR's acquisition ORDER exactly. Do not reorder, "
         "merge, or 'improve' the synchronization: the verified plan is the "
         "specification.\n"
         "- Branch statements become `if`/`else` on the same condition over "
@@ -75,17 +75,17 @@ def codegen_user_prompt(cir_json: str, requirement: str | None) -> str:
     parts = []
     if requirement:
         parts.append(f"Original natural-language requirement:\n{requirement}\n")
-    parts.append(f"Verified CIR plan:\n```json\n{cir_json}\n```")
+    parts.append(f"Verified ConcIR plan:\n```json\n{cir_json}\n```")
     parts.append("Implement this plan as a complete Rust main.rs.")
     return "\n".join(parts)
 
 
 def codegen_retry_prompt(cir_json: str, code: str, cargo_errors: str) -> str:
     return (
-        "Your previous Rust implementation of the verified CIR plan failed "
+        "Your previous Rust implementation of the verified ConcIR plan failed "
         "`cargo check`. Fix every compiler error while keeping the "
         "concurrency structure of the plan unchanged.\n\n"
-        f"Verified CIR plan:\n```json\n{cir_json}\n```\n\n"
+        f"Verified ConcIR plan:\n```json\n{cir_json}\n```\n\n"
         f"Previous code:\n```rust\n{code}\n```\n\n"
         f"cargo check errors:\n{cargo_errors}\n\n"
         "Answer with exactly one fenced ```rust code block."

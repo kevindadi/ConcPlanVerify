@@ -1,4 +1,4 @@
-"""Natural-language to CIR generation loop."""
+"""Natural-language to ConcIR generation loop."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ class GenerationWorkflow:
                 user_prompt = generation_retry_prompt(
                     requirements,
                     issue=(
-                        "The previous model request failed. Generate the complete CIR "
+                        "The previous model request failed. Generate the complete ConcIR "
                         f"again. Previous error: {error}"
                     ),
                 )
@@ -70,7 +70,7 @@ class GenerationWorkflow:
             try:
                 parsed: dict[str, Any] = json.loads(candidate)
                 if not isinstance(parsed, dict):
-                    raise ValueError("CIR JSON root must be an object")
+                    raise ValueError("ConcIR JSON root must be an object")
             except (json.JSONDecodeError, ValueError) as error:
                 rounds.append(GenerationRound(
                     round=round_number,
@@ -82,7 +82,7 @@ class GenerationWorkflow:
                 ))
                 user_prompt = generation_retry_prompt(
                     requirements,
-                    issue=f"The previous answer was not valid CIR JSON. Parse error: {error}",
+                    issue=f"The previous answer was not valid ConcIR JSON. Parse error: {error}",
                     current_cir=candidate,
                 )
                 continue
@@ -109,7 +109,7 @@ class GenerationWorkflow:
             user_prompt = generation_retry_prompt(
                 requirements,
                 issue=(
-                    "The Rust CIR validator rejected the previous candidate. Fix every "
+                    "The Rust ConcIR validator rejected the previous candidate. Fix every "
                     "reported issue.\n\n"
                     f"{feedback}"
                 ),
