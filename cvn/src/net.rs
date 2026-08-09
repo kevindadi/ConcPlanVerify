@@ -61,6 +61,10 @@ pub struct CvnNet {
     initial_marking: Marking,
     /// Initial variable store.
     initial_vars: VarStore,
+    /// Declared value domains for Int variables: `var → (lo, hi)`. A variable
+    /// update leaving its domain disables the transition (sound boundedness
+    /// for counter loops; keeps the state space finite).
+    var_domains: FxHashMap<String, (i64, i64)>,
 }
 
 impl CvnNet {
@@ -71,6 +75,7 @@ impl CvnNet {
         transition_index: FxHashMap<TransitionId, NodeIndex>,
         initial_marking: Marking,
         initial_vars: VarStore,
+        var_domains: FxHashMap<String, (i64, i64)>,
     ) -> Self {
         Self {
             graph,
@@ -78,7 +83,13 @@ impl CvnNet {
             transition_index,
             initial_marking,
             initial_vars,
+            var_domains,
         }
+    }
+
+    /// The declared Int value domain of `var`, if bounded.
+    pub fn var_domain(&self, var: &str) -> Option<(i64, i64)> {
+        self.var_domains.get(var).copied()
     }
 
     /// Access the underlying petgraph directed graph.
@@ -193,6 +204,22 @@ impl CvnNet {
             let guard_result = eval_guard(&arc.guard, &state.vars);
             if guard_result == GuardResult::False {
                 return false;
+            }
+        }
+        // A variable update leaving its declared Int domain disables the
+        // transition (models bounded counters: the loop stops at the bound).
+        for arc in self.output_arcs(tid) {
+            if let Some(update) = &arc.update {
+                for (var_name, expr) in update {
+                    let Some((lo, hi)) = self.var_domains.get(var_name) else {
+                        continue;
+                    };
+                    if let Val::Concrete(ConcreteVal::Int(v)) = eval_expr(expr, &state.vars)
+                        && (v < *lo || v > *hi)
+                    {
+                        return false;
+                    }
+                }
             }
         }
         true

@@ -74,6 +74,7 @@ pub(crate) fn scan_resources(ctx: &mut TranslateContext, program: &Program) {
                 } else {
                     ctx.add_variable(&res.name, cvn::model::Val::Unknown);
                 }
+                set_bounded_domain(ctx, &res.name, &res.base);
             }
             ("var", "Atomic") => {
                 let enum_variants = extract_enum_variants(&res.base);
@@ -94,6 +95,7 @@ pub(crate) fn scan_resources(ctx: &mut TranslateContext, program: &Program) {
                 } else {
                     ctx.add_variable(&res.name, cvn::model::Val::Unknown);
                 }
+                set_bounded_domain(ctx, &res.name, &res.base);
             }
             _ => {
                 ctx.push_error(TranslateError::UnknownResourceType(format!(
@@ -124,9 +126,15 @@ fn compute_rwlock_n(program: &Program) -> u32 {
 }
 
 /// Extract enum variant names from a ConcIR `BaseType`, if it is an Enum.
-fn extract_enum_variants(base: &Option<BaseType>) -> Vec<String> {
-    match base {
+fn extract_enum_variants(base: &Option<BaseType>) -> Vec<String> {    match base {
         Some(BaseType::Complex(ComplexBaseType::Enum(variants))) => variants.clone(),
         _ => Vec::new(),
+    }
+}
+
+/// Declare the Int value domain of a variable whose base is a bounded Int.
+fn set_bounded_domain(ctx: &mut TranslateContext, var_name: &str, base: &Option<BaseType>) {
+    if let Some(BaseType::Complex(ComplexBaseType::BoundedInt { lo, hi })) = base {
+        ctx.set_variable_domain(var_name, *lo, *hi);
     }
 }

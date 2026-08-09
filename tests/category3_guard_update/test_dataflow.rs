@@ -116,3 +116,55 @@ fn dataflow_reaches_goal_through_called_parameters() {
         result.unmet_goals
     );
 }
+
+/// An infinite-looking counter loop (`s1 → count=count+1 → s1`, no exit guard)
+/// with a BOUNDED Int counter terminates: the increment leaving the domain
+/// disables the transition, so exploration completes instead of exhausting the
+/// state budget.
+#[test]
+fn bounded_int_counter_loop_terminates() {
+    let program: concir::ast::Program = serde_json::from_value(json!({
+        "program": "bounded_loop",
+        "resources": [
+            {"name": "count", "kind": "var", "type": "Var", "base": {"Int": [0, 4]}, "init": 0}
+        ],
+        "protection": [],
+        "functions": [
+            {
+                "name": "main", "kind": "normal",
+                "body": [
+                    {"sid": "s1", "op": ["spawn", "worker"], "transfer": ["next", "s2"]},
+                    {"sid": "s2", "op": ["join", "worker"], "transfer": ["next", "s3"]},
+                    {"sid": "s3", "op": "return", "transfer": "return"}
+                ]
+            },
+            {
+                "name": "worker", "kind": "closure",
+                "body": [
+                    {"sid": "s1", "op": ["res_op", "count", "write", "count + 1"], "transfer": ["next", "s2"]},
+                    {"sid": "s2", "op": "nop", "transfer": ["next", "s1"]}
+                ]
+            }
+        ],
+        "entry": "main"
+    }))
+    .expect("test CIR must parse");
+
+    let net = cir2cvn::translate(&program).expect("translation should succeed");
+
+    // The variable carries its declared domain.
+    assert_eq!(net.var_domain("count"), Some((0, 4)));
+
+    // Exploration terminates well within a tiny state budget (no unbounded
+    // growth): count stays in [0,4] and the loop stops at the bound.
+    let config = cvn::analysis::AnalysisConfig {
+        strategy: cvn::analysis::SearchStrategy::Bfs,
+        max_states: 100_000,
+    };
+    let result = cvn::analysis::explore(&net, &config).expect("exploration must terminate");
+    assert!(
+        result.state_count < 100,
+        "bounded counter loop should terminate in a tiny state space, explored {} states",
+        result.state_count
+    );
+}

@@ -38,6 +38,7 @@ pub struct CvnNetBuilder {
     output_arcs: Vec<OutputArcData>,
     initial_tokens: FxHashMap<String, u32>,
     initial_vars: IndexMap<String, Val>,
+    var_domains: FxHashMap<String, (i64, i64)>,
     return_places: Vec<String>,
 }
 
@@ -57,6 +58,7 @@ impl CvnNetBuilder {
             output_arcs: Vec::new(),
             initial_tokens: FxHashMap::default(),
             initial_vars: IndexMap::new(),
+            var_domains: FxHashMap::default(),
             return_places: Vec::new(),
         }
     }
@@ -240,6 +242,13 @@ impl CvnNetBuilder {
         self
     }
 
+    /// Declare the Int value domain of a variable. Variable updates leaving
+    /// the domain disable their transition, keeping the state space finite.
+    pub fn set_variable_domain(mut self, name: impl Into<String>, lo: i64, hi: i64) -> Self {
+        self.var_domains.insert(name.into(), (lo, hi));
+        self
+    }
+
     /// Construct the graph and apply return flags; shared by both build methods.
     fn build_net(mut self) -> (CvnNet, Vec<InputArcData>, Vec<OutputArcData>) {
         for pid in &self.return_places {
@@ -291,6 +300,7 @@ impl CvnNetBuilder {
             transition_index,
             initial_marking,
             self.initial_vars,
+            self.var_domains,
         );
 
         (net, self.input_arcs, self.output_arcs)

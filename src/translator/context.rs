@@ -262,6 +262,11 @@ impl TranslateContext {
         self.builder = self.take_builder().add_variable(name, initial_value);
     }
 
+    /// Declare the Int value domain of a variable (bounded Int base type).
+    pub(crate) fn set_variable_domain(&mut self, name: &str, lo: i64, hi: i64) {
+        self.builder = self.take_builder().set_variable_domain(name, lo, hi);
+    }
+
     // ── Control place management ────────────────────────────────────────
 
     /// Ensure a control place exists for `(fn_name, sid)`. No-op if already added.

@@ -90,6 +90,13 @@ pub fn translate(program: &concir::ast::Program) -> Result<CvnNet, Vec<Translate
             if p.modeled {
                 let cvn = format!("p_{}_{}", func.name, p.name);
                 ctx.add_variable(&cvn, cvn::model::Val::Unknown);
+                if let concir::ast::BaseType::Complex(concir::ast::ComplexBaseType::BoundedInt {
+                    lo,
+                    hi,
+                }) = &p.param_type
+                {
+                    ctx.set_variable_domain(&cvn, *lo, *hi);
+                }
                 df.param_cvn.insert(p.name.clone(), cvn);
                 df.modeled_params.push(p.clone());
             }
