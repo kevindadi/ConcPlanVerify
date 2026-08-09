@@ -115,6 +115,11 @@ pub struct EnrichedFiringStep {
     pub kind: TransitionKind,
     /// CIR statement IDs anchored to this transition.
     pub anchor_sids: Vec<String>,
+    /// CIR function that produced this transition, when known. Covers
+    /// synthetic transitions (condvar reacquire, spawn bridges) that may have
+    /// no useful SID.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_function: Option<String>,
     /// Human-readable description (e.g. "[w1.s1] lock(mtx_a)").
     pub description: String,
 }

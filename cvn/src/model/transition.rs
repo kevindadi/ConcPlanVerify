@@ -121,6 +121,13 @@ pub struct Transition {
     #[cfg(feature = "cir-anchor")]
     #[serde(default, skip_serializing_if = "SmallVec::is_empty")]
     pub anchor_sids: SmallVec<[String; 2]>,
+    /// CIR function that produced this transition, when known. Covers every
+    /// transition (including synthetic ones such as condvar reacquire and
+    /// spawn bridges) so repair can attribute behavior to a function without
+    /// re-scanning the CIR program. Only available with the `cir-anchor` feature.
+    #[cfg(feature = "cir-anchor")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_function: Option<String>,
 }
 
 impl Transition {
@@ -132,6 +139,8 @@ impl Transition {
             disjunctive_family: None,
             #[cfg(feature = "cir-anchor")]
             anchor_sids: SmallVec::new(),
+            #[cfg(feature = "cir-anchor")]
+            source_function: None,
         }
     }
 
@@ -147,12 +156,20 @@ impl Transition {
             kind,
             disjunctive_family: None,
             anchor_sids: sids.into_iter().map(Into::into).collect(),
+            source_function: None,
         }
     }
 
     /// Assign this transition to a disjunctive family.
     pub fn with_disjunctive_family(mut self, family: impl Into<String>) -> Self {
         self.disjunctive_family = Some(family.into());
+        self
+    }
+
+    /// Set the CIR function that produced this transition.
+    #[cfg(feature = "cir-anchor")]
+    pub fn with_source_function(mut self, fn_name: impl Into<String>) -> Self {
+        self.source_function = Some(fn_name.into());
         self
     }
 

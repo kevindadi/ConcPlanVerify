@@ -54,7 +54,9 @@ pub fn analyze(
         }
 
         let mut report = classify_counterexample(net, &cx);
-        if let BugKind::DeadTransition { sids, .. } = &report.kind {
+        if let BugKind::DeadTransition { sids, .. } = &report.kind
+            && report.involved_functions.is_empty()
+        {
             report.involved_functions = functions_for_sids(program, sids);
         }
         report.cir_slice = extract_cir_slice(program, &report.trace);
@@ -319,7 +321,10 @@ fn classify_dead_transition(net: &CvnNet, cx: &Counterexample) -> BugReport {
         _ => (String::new(), Vec::new()),
     };
 
-    let involved_functions: Vec<String> = Vec::new();
+    let source_function = net
+        .transition(&TransitionId::new(transition_id_str.clone()))
+        .and_then(|t| t.source_function.clone());
+    let involved_functions: Vec<String> = source_function.iter().cloned().collect();
 
     let anchor_label = if sids.is_empty() {
         format!("transition {}", transition_id_str)
@@ -490,15 +495,19 @@ fn enrich_trace(net: &CvnNet, cx: &Counterexample) -> Vec<EnrichedFiringStep> {
             let kind = transition
                 .map(|t| t.kind.clone())
                 .unwrap_or(cvn::model::TransitionKind::Sequential);
+            let source_function = transition
+                .and_then(|t| t.source_function.clone());
 
             let anchor_sids: Vec<String> = step.anchor_sids.iter().cloned().collect();
 
-            let description = format_step_description(&step.transition_id, &kind, &anchor_sids);
+            let description =
+                format_step_description(&step.transition_id, &kind, &anchor_sids, &source_function);
 
             EnrichedFiringStep {
                 transition_id: step.transition_id.0.clone(),
                 kind,
                 anchor_sids,
+                source_function,
                 description,
             }
         })
@@ -509,6 +518,7 @@ fn format_step_description(
     tid: &TransitionId,
     kind: &cvn::model::TransitionKind,
     anchor_sids: &[String],
+    source_function: &Option<String>,
 ) -> String {
     use cvn::model::TransitionKind as TK;
 
@@ -547,7 +557,10 @@ fn format_step_description(
     };
 
     if anchor_sids.is_empty() {
-        format!("{kind_str} ({})", tid.0)
+        match source_function {
+            Some(fn_name) => format!("{kind_str} ({}) — in {fn_name}", tid.0),
+            None => format!("{kind_str} ({})", tid.0),
+        }
     } else {
         format!("{kind_str} — {}", anchor_sids.join(", "))
     }
@@ -630,19 +643,34 @@ fn format_marking(net: &CvnNet, marking: &cvn::model::Marking) -> String {
 }
 
 /// Extract CIR statements relevant to the bug trace (Lambda in the diagnostic tuple).
+///
+/// SIDs are only unique within a function, so attribution uses the
+/// (function, sid) pair: `source_function` (when present) scopes the SID
+/// lookup, otherwise every function's statements are considered.
 fn extract_cir_slice(
     program: &cir::ast::Program,
     trace: &[report::EnrichedFiringStep],
 ) -> Vec<report::CirSliceEntry> {
-    let trace_sids: HashSet<String> = trace
-        .iter()
-        .flat_map(|step| step.anchor_sids.iter().cloned())
-        .collect();
+    let mut scoped: HashMap<&str, HashSet<&str>> = HashMap::new();
+    let mut unscoped: HashSet<&str> = HashSet::new();
+
+    for step in trace {
+        match &step.source_function {
+            Some(fn_name) => scoped
+                .entry(fn_name.as_str())
+                .or_default()
+                .extend(step.anchor_sids.iter().map(String::as_str)),
+            None => unscoped.extend(step.anchor_sids.iter().map(String::as_str)),
+        }
+    }
 
     let mut entries = Vec::new();
     for func in &program.functions {
+        let scoped_sids = scoped.get(func.name.as_str()).map(|s| s.clone()).unwrap_or_default();
         for stmt in &func.body {
-            if trace_sids.contains(&stmt.sid) {
+            let in_scope = scoped_sids.contains(stmt.sid.as_str())
+                || (unscoped.contains(stmt.sid.as_str()) && scoped_sids.is_empty());
+            if in_scope {
                 entries.push(report::CirSliceEntry {
                     sid: stmt.sid.clone(),
                     op: format!("{:?}", stmt.op),

@@ -156,6 +156,27 @@ impl CvnNetBuilder {
         self
     }
 
+    /// Add a transition with CIR anchors and the source function that
+    /// produced it.
+    #[cfg(feature = "cir-anchor")]
+    pub fn add_transition_with_source(
+        mut self,
+        id: impl Into<String>,
+        kind: TransitionKind,
+        sids: &[impl AsRef<str>],
+        source_function: impl Into<String>,
+    ) -> Self {
+        let id = id.into();
+        let t = Transition::with_anchor(
+            TransitionId::new(id.clone()),
+            kind,
+            sids.iter().map(|s| s.as_ref().to_string()),
+        )
+        .with_source_function(source_function);
+        self.transitions.insert(id, t);
+        self
+    }
+
     /// Assign a disjunctive family id to an existing transition.
     ///
     /// Transitions that share the same family are treated as OR-variants by

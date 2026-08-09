@@ -105,6 +105,11 @@ pub(crate) struct TranslateContext {
     /// FnSummary index: `fn_name → FnSummary`.
     pub(crate) fn_summary_map: HashMap<String, cir::ast::FnSummary>,
 
+    /// Function currently being translated. Attached to every transition as
+    /// `source_function` so repair can attribute behavior (including synthetic
+    /// transitions) to a CIR function without re-scanning the program.
+    current_function: Option<String>,
+
     /// Errors collected during translation.
     pub(crate) errors: Vec<TranslateError>,
 }
@@ -121,6 +126,7 @@ impl TranslateContext {
             wait_sites: HashMap::new(),
             post_wait_locks: HashMap::new(),
             fn_summary_map: HashMap::new(),
+            current_function: None,
             errors: Vec::new(),
         }
     }
@@ -155,9 +161,19 @@ impl TranslateContext {
     }
 
     pub(crate) fn add_transition(&mut self, id: &str, kind: TransitionKind, sids: &[&str]) {
-        self.builder = self
-            .take_builder()
-            .add_transition_with_anchor(id, kind, sids);
+        match self.current_function.clone() {
+            Some(fn_name) => {
+                self.builder =
+                    self.take_builder().add_transition_with_source(id, kind, sids, fn_name)
+            }
+            None => self.builder = self.take_builder().add_transition_with_anchor(id, kind, sids),
+        };
+    }
+
+    /// Set the function whose statements are being translated. All
+    /// transitions added until the next call are attributed to it.
+    pub(crate) fn set_current_function(&mut self, fn_name: &str) {
+        self.current_function = Some(fn_name.to_string());
     }
 
     /// Assign a disjunctive family to a previously added transition.

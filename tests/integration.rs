@@ -59,6 +59,30 @@ mod cir_examples {
     }
 
     #[test]
+    fn transitions_carry_source_function() {
+        let program = load_cir_example("producer_consumer.json");
+        let net = cir2cvn::translate(&program).expect("translation should succeed");
+
+        let mut transitions = net.transitions().collect::<Vec<_>>();
+        assert!(!transitions.is_empty());
+        assert!(
+            transitions.iter().all(|t| t.source_function.is_some()),
+            "every transition should carry its source function"
+        );
+
+        // Every transition's source function must be a real function in the program.
+        let fns: Vec<&str> = program.functions.iter().map(|f| f.name.as_str()).collect();
+        for t in transitions.drain(..) {
+            let fn_name = t.source_function.as_deref().expect("source function");
+            assert!(
+                fns.contains(&fn_name),
+                "transition {} has unknown source function {fn_name}",
+                t.id
+            );
+        }
+    }
+
+    #[test]
     fn complex_rwlock_translates() {
         let program = load_cir_example("complex_rwlock.json");
         let net = cir2cvn::translate(&program).expect("translation should succeed");

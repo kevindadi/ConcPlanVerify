@@ -18,6 +18,7 @@ pub(crate) fn translate_functions(ctx: &mut TranslateContext, functions: &[Funct
 
     // Main translation pass.
     for func in functions {
+        ctx.set_current_function(&func.name);
         translate_function(ctx, func);
     }
 }

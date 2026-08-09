@@ -91,6 +91,7 @@ pub fn translate(program: &cir::ast::Program) -> Result<CvnNet, Vec<TranslateErr
                 let from = cp_id(&func.name, "s_first");
                 let to = cp_id(&func.name, &first_stmt.sid);
                 let bridge_tid = format!("{}_s_first_bridge", func.name);
+                ctx.set_current_function(&func.name);
                 ctx.add_transition(
                     &bridge_tid,
                     cvn::model::TransitionKind::Sequential,
