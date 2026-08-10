@@ -1,7 +1,7 @@
 use crate::common;
 use cir2cvn::{verify_program, VerificationConfig};
-use cvn::model::TransitionId;
 use serde_json::json;
+use unipn::analysis::{AnalysisConfig, SearchStrategy, explore};
 
 /// Bounded typed data flow with projection:
 /// - modeled params are materialized as namespaced CVN variables
@@ -50,7 +50,7 @@ fn modeled_params_materialize_and_guard_resolves() {
     let net = cir2cvn::translate(&dataflow_program()).expect("translation should succeed");
 
     // Modeled param + return vars are in the store.
-    let vars = net.initial_vars();
+    let vars = common::initial_vars(&net);
     assert!(vars.contains_key("p_worker_n"), "param var missing: {vars:?}");
     assert!(vars.contains_key("r_worker_out"), "return var missing: {vars:?}");
     // Projection: the unmodeled param stays out of the net entirely.
@@ -60,40 +60,33 @@ fn modeled_params_materialize_and_guard_resolves() {
     );
 
     // The call transition binds p_worker_n = 5.
-    let call = TransitionId::new("main_s1_call");
-    let call_out = net.output_arcs(&call);
-    let bindings: String = call_out
+    let call_update = common::output_update_by_name(&net, "main_s1_call", "worker.s_first")
+        .expect("call should carry a param binding update");
+    let bindings: Vec<String> = call_update
         .iter()
-        .filter_map(|a| a.update.as_ref())
-        .flat_map(|u| u.iter().map(|(k, v)| format!("{k}={v:?}")))
-        .collect::<Vec<_>>()
-        .join(",");
-    assert!(bindings.contains("p_worker_n"), "call should bind param, got: {bindings}");
+        .map(|(k, v)| format!("{k}={v:?}"))
+        .collect();
+    assert!(
+        bindings.iter().any(|b| b.starts_with("p_worker_n")),
+        "call should bind param, got: {bindings:?}"
+    );
 
     // The worker branch guard reads the namespaced param variable.
-    let true_tid = TransitionId::new("worker_s1_branch_true");
-    let guard_json = net
-        .input_arcs(&true_tid)
-        .first()
-        .map(|a| serde_json::to_string(&a.guard).unwrap())
-        .unwrap_or_default();
+    let guard = common::input_guard_by_name(&net, "worker_s1_branch_true", "worker.s1")
+        .expect("worker branch guard");
+    let guard_json = serde_json::to_string(&guard).unwrap();
     assert!(
         guard_json.contains("p_worker_n"),
         "guard should reference p_worker_n, got: {guard_json}"
     );
 
     // The call_ret handoff captures the modeled return into the caller Var.
-    let ret = TransitionId::new("main_s1_call_ret");
-    let ret_out = net.output_arcs(&ret);
-    let capture: String = ret_out
-        .iter()
-        .filter_map(|a| a.update.as_ref())
-        .flat_map(|u| u.iter().map(|(k, v)| format!("{k}={v:?}")))
-        .collect::<Vec<_>>()
-        .join(",");
+    let capture = common::output_update_by_name(&net, "main_s1_call_ret", "main.s2")
+        .expect("call_ret should carry a capture update");
+    let capture_keys: Vec<&String> = capture.keys().collect();
     assert!(
-        capture.contains("result") && capture.contains("r_worker_out"),
-        "call_ret should capture r_worker_out into result, got: {capture}"
+        capture_keys.contains(&&"result".to_string()),
+        "call_ret should capture into result, got: {capture_keys:?}"
     );
 }
 
@@ -157,14 +150,15 @@ fn bounded_int_counter_loop_terminates() {
 
     // Exploration terminates well within a tiny state budget (no unbounded
     // growth): count stays in [0,4] and the loop stops at the bound.
-    let config = cvn::analysis::AnalysisConfig {
-        strategy: cvn::analysis::SearchStrategy::Bfs,
+    let config = AnalysisConfig {
+        strategy: SearchStrategy::Bfs,
         max_states: 100_000,
+        ..AnalysisConfig::default()
     };
-    let result = cvn::analysis::explore(&net, &config).expect("exploration must terminate");
+    let result = explore(&net, &config);
     assert!(
-        result.state_count < 100,
+        result.state_count() < 100,
         "bounded counter loop should terminate in a tiny state space, explored {} states",
-        result.state_count
+        result.state_count()
     );
 }

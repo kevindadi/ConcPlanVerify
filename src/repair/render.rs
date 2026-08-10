@@ -32,7 +32,7 @@ pub fn render_text(report: &BugReport) -> String {
 /// strategy template.
 pub fn render_goal_repair_prompt(
     program: &concir::ast::Program,
-    unmet: &[cvn::analysis::UnmetGoal],
+    unmet: &[crate::goals::UnmetGoal],
     original_cir_json: &str,
 ) -> String {
     let mut out = String::new();

@@ -1,4 +1,4 @@
-use cvn::model::TransitionKind;
+use unipn::model::TransitionKind;
 use serde::{Deserialize, Serialize};
 
 /// Classification of a detected concurrency bug.

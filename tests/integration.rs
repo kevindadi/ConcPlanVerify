@@ -7,6 +7,7 @@ mod category3_guard_update;
 mod cir_examples {
     use crate::common;
     use std::path::Path;
+    use unipn::NetLike;
 
     fn load_cir_example(name: &str) -> concir::ast::Program {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -23,13 +24,13 @@ mod cir_examples {
         let program = load_cir_example("producer_consumer.json");
         let net = cir2cvn::translate(&program).expect("translation should succeed");
 
-        assert!(net.place_count() > 0);
-        assert!(net.transition_count() > 0);
+        assert!(net.num_places() > 0);
+        assert!(net.num_transitions() > 0);
 
-        assert_eq!(common::initial_tokens(&net, "rp_mtx"), 1);
-        assert_eq!(common::initial_tokens(&net, "cp_main_s1"), 1);
+        assert_eq!(common::initial_tokens(&net, "mtx"), 1);
+        assert_eq!(common::initial_tokens(&net, "main.s1"), 1);
 
-        let vars = net.initial_vars();
+        let vars = common::initial_vars(&net);
         assert!(vars.contains_key("count"));
     }
 
@@ -38,10 +39,10 @@ mod cir_examples {
         let program = load_cir_example("state_machine.json");
         let net = cir2cvn::translate(&program).expect("translation should succeed");
 
-        assert!(net.place_count() > 0);
-        assert!(net.transition_count() > 0);
+        assert!(net.num_places() > 0);
+        assert!(net.num_transitions() > 0);
 
-        let vars = net.initial_vars();
+        let vars = common::initial_vars(&net);
         assert!(vars.contains_key("state"));
     }
 
@@ -50,12 +51,11 @@ mod cir_examples {
         let program = load_cir_example("with_summary.json");
         let net = cir2cvn::translate(&program).expect("translation should succeed");
 
-        assert!(net.place_count() > 0);
-        assert!(net.transition_count() > 0);
+        assert!(net.num_places() > 0);
+        assert!(net.num_transitions() > 0);
 
         // The call to validate should produce a Call transition.
-        let tid = cvn::model::TransitionId::new("worker_s11_call");
-        assert!(net.transition(&tid).is_some());
+        assert!(common::has_transition(&net, "worker_s11_call"));
     }
 
     #[test]
@@ -63,17 +63,17 @@ mod cir_examples {
         let program = load_cir_example("producer_consumer.json");
         let net = cir2cvn::translate(&program).expect("translation should succeed");
 
-        let mut transitions = net.transitions().collect::<Vec<_>>();
+        let mut transitions = net.transitions().to_vec();
         assert!(!transitions.is_empty());
         assert!(
-            transitions.iter().all(|t| t.source_function.is_some()),
+            transitions.iter().all(|t| t.scope.is_some()),
             "every transition should carry its source function"
         );
 
         // Every transition's source function must be a real function in the program.
         let fns: Vec<&str> = program.functions.iter().map(|f| f.name.as_str()).collect();
         for t in transitions.drain(..) {
-            let fn_name = t.source_function.as_deref().expect("source function");
+            let fn_name = t.scope.as_deref().expect("source function");
             assert!(
                 fns.contains(&fn_name),
                 "transition {} has unknown source function {fn_name}",
@@ -87,12 +87,12 @@ mod cir_examples {
         let program = load_cir_example("complex_rwlock.json");
         let net = cir2cvn::translate(&program).expect("translation should succeed");
 
-        assert!(net.place_count() > 0);
-        assert!(net.transition_count() > 0);
+        assert!(net.num_places() > 0);
+        assert!(net.num_transitions() > 0);
 
         // RwLock place exists with N tokens.
-        assert!(common::has_place(&net, "rp_rw"));
-        let rw_tokens = common::initial_tokens(&net, "rp_rw");
+        assert!(common::has_place(&net, "rw"));
+        let rw_tokens = common::initial_tokens(&net, "rw");
         assert!(rw_tokens >= 2, "RwLock should have N >= 2 tokens, got {rw_tokens}");
     }
 

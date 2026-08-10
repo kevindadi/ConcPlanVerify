@@ -1,28 +1,33 @@
 use std::collections::{HashMap, HashSet};
 
-use cvn::builder::CvnNetBuilder;
-use cvn::model::{BoolExpr, ResourceType, TransitionKind, Val, VarUpdate};
+use unipn::model::{ControlSub, PlaceKind, ResourceType, TransitionKind};
+use unipn::{BoolExpr, Net, NetBuilder, PlaceId, TransitionId, Val, VarUpdate};
 
 use crate::error::TranslateError;
 
 // ── Naming helpers ──────────────────────────────────────────────────────────
+//
+// These produce the *map keys* used across the translator. The actual
+// `Place::name` / `Transition::name` stored on the built net use parse-friendly
+// forms (see `add_control_place` etc.) so the repair layer can recover
+// (fn, sid) / res_name / cv_name without re-scanning the ConcIR.
 
-/// Control place id: `cp_{fn_name}_{sid}`
+/// Control place key: `cp_{fn_name}_{sid}`
 pub(crate) fn cp_id(fn_name: &str, sid: &str) -> String {
     format!("cp_{fn_name}_{sid}")
 }
 
-/// Resource place id: `rp_{res_name}`
+/// Resource place key: `rp_{res_name}`
 pub(crate) fn rp_id(res_name: &str) -> String {
     format!("rp_{res_name}")
 }
 
-/// Wait place id: `wp_{cv_name}_{fn_name}_{sid}`
+/// Wait place key: `wp_{cv_name}_{fn_name}_{sid}`
 pub(crate) fn wp_id(cv_name: &str, fn_name: &str, sid: &str) -> String {
     format!("wp_{cv_name}_{fn_name}_{sid}")
 }
 
-/// Reacquire place id: `ra_{fn_name}_{sid}`
+/// Reacquire place key: `ra_{fn_name}_{sid}`
 pub(crate) fn ra_id(fn_name: &str, wait_sid: &str) -> String {
     format!("ra_{fn_name}_{wait_sid}")
 }
@@ -76,7 +81,12 @@ pub(crate) struct WaitSite {
 // ── TranslateContext ────────────────────────────────────────────────────────
 
 pub(crate) struct TranslateContext {
-    builder: CvnNetBuilder,
+    builder: NetBuilder,
+
+    /// String place key → net place index.
+    place_map: HashMap<String, PlaceId>,
+    /// String transition key → net transition index.
+    trans_map: HashMap<String, TransitionId>,
 
     /// Already-registered control places `(fn_name, sid)`.
     pub(crate) control_places: HashSet<(String, String)>,
@@ -122,7 +132,7 @@ pub(crate) struct TranslateContext {
     empty_aliases: HashMap<String, String>,
 
     /// Function currently being translated. Attached to every transition as
-    /// `source_function` so repair can attribute behavior (including synthetic
+    /// `scope` so repair can attribute behavior (including synthetic
     /// transitions) to a ConcIR function without re-scanning the program.
     current_function: Option<String>,
 
@@ -146,7 +156,9 @@ pub(crate) struct FnDataFlow {
 impl TranslateContext {
     pub(crate) fn new() -> Self {
         Self {
-            builder: CvnNetBuilder::new(),
+            builder: NetBuilder::new(),
+            place_map: HashMap::new(),
+            trans_map: HashMap::new(),
             control_places: HashSet::new(),
             resource_map: HashMap::new(),
             all_enum_variants: HashSet::new(),
@@ -163,48 +175,56 @@ impl TranslateContext {
         }
     }
 
-    // ── Builder delegation (uses std::mem::take for consuming-self API) ──
-
-    fn take_builder(&mut self) -> CvnNetBuilder {
-        std::mem::take(&mut self.builder)
+    fn place_index(&mut self, key: &str) -> PlaceId {
+        *self.place_map.get(key).expect("unknown place key")
     }
 
+    fn trans_index(&mut self, key: &str) -> TransitionId {
+        *self.trans_map.get(key).expect("unknown transition key")
+    }
+
+    // ── Node creation ─────────────────────────────────────────────────────
+
     pub(crate) fn add_control_place(&mut self, fn_name: &str, sid: &str) {
-        let id = cp_id(fn_name, sid);
-        self.builder = self.take_builder().add_control_place(&id, fn_name, sid);
+        let key = cp_id(fn_name, sid);
+        if self.place_map.contains_key(&key) {
+            return;
+        }
+        let name = format!("{fn_name}.{sid}");
+        let idx = self.builder.add_place(name, PlaceKind::Control(ControlSub::Statement));
+        self.place_map.insert(key, idx);
     }
 
     pub(crate) fn add_resource_place(&mut self, res_name: &str, resource_type: ResourceType) {
-        let id = rp_id(res_name);
-        self.builder = self
-            .take_builder()
-            .add_resource_place(&id, res_name, resource_type);
+        let key = rp_id(res_name);
+        if self.place_map.contains_key(&key) {
+            return;
+        }
+        let idx = self
+            .builder
+            .add_place(res_name.to_string(), PlaceKind::Resource(resource_type));
+        self.place_map.insert(key, idx);
     }
 
     pub(crate) fn add_wait_place(&mut self, cv_name: &str, fn_name: &str, sid: &str) {
-        let id = wp_id(cv_name, fn_name, sid);
-        self.builder = self
-            .take_builder()
-            .add_wait_place(&id, cv_name, fn_name, sid);
-    }
-
-    pub(crate) fn set_return(&mut self, place_id: &str) {
-        self.builder = self.take_builder().set_return(place_id);
+        let key = wp_id(cv_name, fn_name, sid);
+        if self.place_map.contains_key(&key) {
+            return;
+        }
+        let name = format!("{cv_name}@{fn_name}.{sid}");
+        let idx = self.builder.add_place(name, PlaceKind::Control(ControlSub::WaitPoint));
+        self.place_map.insert(key, idx);
     }
 
     pub(crate) fn add_transition(&mut self, id: &str, kind: TransitionKind, sids: &[&str]) {
-        match self.current_function.clone() {
-            Some(fn_name) => {
-                self.builder = self
-                    .take_builder()
-                    .add_transition_with_source(id, kind, sids, fn_name)
-            }
-            None => {
-                self.builder = self
-                    .take_builder()
-                    .add_transition_with_anchor(id, kind, sids)
-            }
-        };
+        let idx = self.builder.add_transition(id.to_string(), kind);
+        self.trans_map.insert(id.to_string(), idx);
+        for sid in sids {
+            self.builder.set_anchor(idx, (*sid).to_string());
+        }
+        if let Some(fn_name) = &self.current_function {
+            self.builder.set_scope(idx, fn_name.clone());
+        }
     }
 
     /// Set the function whose statements are being translated. All
@@ -225,9 +245,8 @@ impl TranslateContext {
 
     /// Assign a disjunctive family to a previously added transition.
     pub(crate) fn set_disjunctive_family(&mut self, transition_id: &str, family: &str) {
-        self.builder = self
-            .take_builder()
-            .set_disjunctive_family(transition_id, family);
+        let idx = self.trans_index(transition_id);
+        self.builder.set_family(idx, family.to_string());
     }
 
     pub(crate) fn add_input_arc(
@@ -237,9 +256,9 @@ impl TranslateContext {
         weight: u32,
         guard: BoolExpr,
     ) {
-        self.builder = self
-            .take_builder()
-            .add_input_arc(place_id, transition_id, weight, guard);
+        let p = self.place_index(place_id);
+        let t = self.trans_index(transition_id);
+        self.builder.add_input_arc(p, t, weight, guard);
     }
 
     pub(crate) fn add_output_arc(
@@ -249,22 +268,23 @@ impl TranslateContext {
         weight: u32,
         update: Option<VarUpdate>,
     ) {
-        self.builder = self
-            .take_builder()
-            .add_output_arc(transition_id, place_id, weight, update);
+        let t = self.trans_index(transition_id);
+        let p = self.place_index(place_id);
+        self.builder.add_output_arc(t, p, weight, update);
     }
 
     pub(crate) fn set_initial_tokens(&mut self, place_id: &str, count: u32) {
-        self.builder = self.take_builder().set_initial_tokens(place_id, count);
+        let p = self.place_index(place_id);
+        self.builder.set_initial_tokens(p, count);
     }
 
     pub(crate) fn add_variable(&mut self, name: &str, initial_value: Val) {
-        self.builder = self.take_builder().add_variable(name, initial_value);
+        self.builder.add_variable(name.to_string(), initial_value);
     }
 
     /// Declare the Int value domain of a variable (bounded Int base type).
     pub(crate) fn set_variable_domain(&mut self, name: &str, lo: i64, hi: i64) {
-        self.builder = self.take_builder().set_variable_domain(name, lo, hi);
+        self.builder.set_variable_domain(name.to_string(), lo, hi);
     }
 
     // ── Control place management ────────────────────────────────────────
@@ -277,24 +297,30 @@ impl TranslateContext {
         }
     }
 
-    /// Ensure a reacquire place `ra_{fn_name}_{sid}` exists. Modeled as a
-    /// control place with a distinctive id prefix.
+    /// Ensure a reacquire place exists. Modeled as a `Reacquire` control place.
     pub(crate) fn ensure_reacquire_place(&mut self, fn_name: &str, sid: &str) {
         let ra_sid = format!("{sid}_ra");
         let key = (fn_name.to_string(), ra_sid.clone());
         if self.control_places.insert(key) {
-            let id = ra_id(fn_name, sid);
-            self.builder = self.take_builder().add_control_place(&id, fn_name, &ra_sid);
+            let key_id = ra_id(fn_name, sid);
+            let name = format!("{fn_name}.{sid}#ra");
+            let idx = self
+                .builder
+                .add_place(name, PlaceKind::Control(ControlSub::Reacquire));
+            self.place_map.insert(key_id, idx);
         }
     }
 
-    /// Ensure the return place exists for a function.
+    /// Ensure the return place exists for a function (thread-terminal).
     pub(crate) fn ensure_return_place(&mut self, fn_name: &str) {
         let key = (fn_name.to_string(), "ret".to_string());
         if self.control_places.insert(key) {
-            self.add_control_place(fn_name, "ret");
-            let id = cp_id(fn_name, "ret");
-            self.set_return(&id);
+            let key_id = cp_id(fn_name, "ret");
+            let name = format!("{fn_name}.ret");
+            let idx = self
+                .builder
+                .add_place(name, PlaceKind::Control(ControlSub::ThreadEnd));
+            self.place_map.insert(key_id, idx);
         }
     }
 
@@ -308,16 +334,11 @@ impl TranslateContext {
         !self.errors.is_empty()
     }
 
-    /// Consume the context and return either the built CvnNet or accumulated errors.
-    pub(crate) fn finish(self) -> Result<cvn::net::CvnNet, Vec<TranslateError>> {
+    /// Consume the context and return either the built Net or accumulated errors.
+    pub(crate) fn finish(self) -> Result<Net, Vec<TranslateError>> {
         if self.has_errors() {
             return Err(self.errors);
         }
-        self.builder.build_with_anchor_check().map_err(|cvn_errs| {
-            cvn_errs
-                .into_iter()
-                .map(|e| TranslateError::BuilderError(e.to_string()))
-                .collect()
-        })
+        Ok(self.builder.build())
     }
 }

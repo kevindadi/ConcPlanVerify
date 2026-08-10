@@ -3,13 +3,13 @@
 //! Three subcommands are exposed, all reading ConcIR JSON either from a file
 //! path or from stdin (`-`):
 //!
-//! * `--validate`  → run ConcIR static checks (58 rules). Exit 0 if valid.
-//! * `--analyze`   → run the complete verification pipeline and print its
-//!                   structured JSON result.
-//! * `--goals`     → compatibility alias for the same complete verification
-//!                   pipeline, including goal reachability.
-//! * `--no-goals`  → same pipeline with goal checking disabled (goal-ablation
-//!                   experiments).
+//! * `--validate` → run ConcIR static checks (58 rules). Exit 0 if valid.
+//! * `--analyze` → run the complete verification pipeline and print its
+//!   structured JSON result.
+//! * `--goals` → compatibility alias for the same complete verification
+//!   pipeline, including goal reachability.
+//! * `--no-goals` → same pipeline with goal checking disabled (goal-ablation
+//!   experiments).
 
 use std::env;
 use std::fs;

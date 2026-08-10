@@ -1,6 +1,7 @@
 use crate::common;
-use cvn::model::{Expr, TransitionId, TransitionKind, Val};
 use serde_json::json;
+use unipn::model::{TransitionKind};
+use unipn::{Expr, Val};
 
 /// Call to a body-less ("nobody") callee is an atomic pass-through: the callee
 /// is a codegen placeholder with no control flow, so the caller's control flow
@@ -9,21 +10,17 @@ use serde_json::json;
 fn fn_summary_call_transition() {
     let net = common::translate_fixture("fn_summary.json");
 
-    let tid = TransitionId::new("main_s1_call");
-    let t = net.transition(&tid).unwrap();
-    assert!(matches!(t.kind, TransitionKind::Call));
+    let k = common::transition_kind(&net, "main_s1_call").unwrap();
+    assert_eq!(k, TransitionKind::Call);
 }
 
 #[test]
 fn fn_summary_writes_unknown() {
     let net = common::translate_fixture("fn_summary.json");
 
-    let tid = TransitionId::new("main_s1_call");
-    let out = net.output_arcs(&tid);
+    let out = common::output_arcs(&net, "main_s1_call");
     assert!(!out.is_empty());
-    let update = out[0]
-        .update
-        .as_ref()
+    let update = common::output_update_by_name(&net, "main_s1_call", &out[0].0)
         .expect("body-less call should apply effects writes");
     assert_eq!(update.get("result"), Some(&Expr::Lit(Val::Unknown)));
 }
@@ -33,10 +30,10 @@ fn bodyless_call_does_not_model_skeleton() {
     let net = common::translate_fixture("fn_summary.json");
 
     // The placeholder callee must not enter the net (no skeleton, no places).
-    assert!(!common::has_place(&net, "cp_validate_s_first"));
-    assert!(!common::has_place(&net, "cp_validate_ret"));
-    assert!(net.transition(&TransitionId::new("main_s1_call_ret")).is_none());
-    assert!(net.transition(&TransitionId::new("validate_body")).is_none());
+    assert!(!common::has_place(&net, "validate.s_first"));
+    assert!(!common::has_place(&net, "validate.ret"));
+    assert!(!common::has_transition(&net, "main_s1_call_ret"));
+    assert!(!common::has_transition(&net, "validate_body"));
 }
 
 /// Call to a bodied callee expands into its skeleton: enter the callee entry,
@@ -82,16 +79,16 @@ fn call_expands_through_bodied_callee_skeleton() {
     let net = cir2cvn::translate(&program).expect("translation should succeed");
 
     // Entry transition enters the callee and parks the continuation.
-    assert!(net.transition(&TransitionId::new("w_s1_call")).is_some());
-    assert!(common::has_place(&net, "cp_helper_s_first"));
-    assert!(common::has_place(&net, "cp_w_s1_callwait"));
+    assert!(common::has_transition(&net, "w_s1_call"));
+    assert!(common::has_place(&net, "helper.s_first"));
+    assert!(common::has_place(&net, "w.s1_callwait"));
 
     // Return handoff consumes callee return + parked continuation (Join).
-    let ret = net.transition(&TransitionId::new("w_s1_call_ret")).expect("call return handoff");
-    assert!(matches!(ret.kind, TransitionKind::Join));
-    assert!(common::has_place(&net, "cp_helper_ret"));
+    let k = common::transition_kind(&net, "w_s1_call_ret").unwrap();
+    assert_eq!(k, TransitionKind::Join);
+    assert!(common::has_place(&net, "helper.ret"));
 
     // The callee body (lock/drop) is in the model.
-    assert!(net.transition(&TransitionId::new("helper_s1_lock")).is_some());
-    assert!(net.transition(&TransitionId::new("helper_s2_unlock")).is_some());
+    assert!(common::has_transition(&net, "helper_s1_lock"));
+    assert!(common::has_transition(&net, "helper_s2_unlock"));
 }

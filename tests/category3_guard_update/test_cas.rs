@@ -1,25 +1,24 @@
 use crate::common;
-use cvn::model::{TransitionId, TransitionKind};
+use unipn::model::TransitionKind;
 
 #[test]
 fn cas_creates_success_and_failure() {
     let net = common::translate_fixture("cas.json");
 
-    let t_succ = net.transition(&TransitionId::new("main_s1_branch_true")).unwrap();
-    let t_fail = net.transition(&TransitionId::new("main_s1_branch_false")).unwrap();
-
-    assert!(matches!(t_succ.kind, TransitionKind::CasSuccess));
-    assert!(matches!(t_fail.kind, TransitionKind::CasFailure));
+    let k_succ = common::transition_kind(&net, "main_s1_branch_true").unwrap();
+    let k_fail = common::transition_kind(&net, "main_s1_branch_false").unwrap();
+    assert_eq!(k_succ, TransitionKind::CasSuccess);
+    assert_eq!(k_fail, TransitionKind::CasFailure);
 }
 
 #[test]
 fn cas_success_has_update() {
     let net = common::translate_fixture("cas.json");
 
-    let tid = TransitionId::new("main_s1_branch_true");
-    let out = net.output_arcs(&tid);
+    let out = common::output_arcs(&net, "main_s1_branch_true");
     assert!(!out.is_empty());
-    let update = out[0].update.as_ref().expect("CAS success should have update");
+    let update = common::output_update_by_name(&net, "main_s1_branch_true", &out[0].0)
+        .expect("CAS success should have update");
     assert!(update.contains_key("flag"));
 }
 
@@ -27,8 +26,7 @@ fn cas_success_has_update() {
 fn cas_failure_no_update() {
     let net = common::translate_fixture("cas.json");
 
-    let tid = TransitionId::new("main_s1_branch_false");
-    let out = net.output_arcs(&tid);
+    let out = common::output_arcs(&net, "main_s1_branch_false");
     assert!(!out.is_empty());
-    assert!(out[0].update.is_none());
+    assert!(common::output_update_by_name(&net, "main_s1_branch_false", &out[0].0).is_none());
 }

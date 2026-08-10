@@ -1,44 +1,53 @@
-use cvn::net::CvnNet;
+use unipn::model::{ControlSub, PlaceKind};
+use unipn::{Net, NetLike, TransitionId};
 
 /// Optional post-translation sanity checks.
 ///
-/// These are lightweight structural checks that complement the CVN builder's
+/// These are lightweight structural checks that complement the net builder's
 /// own well-formedness validation. They catch translation bugs rather than
 /// ConcIR input errors.
-pub fn check_translation(net: &CvnNet) -> Vec<String> {
+pub fn check_translation(net: &Net) -> Vec<String> {
     let mut warnings = Vec::new();
 
-    // Check 1: Every non-resource, non-wait place should have at least one
-    // incoming or outgoing arc (i.e. it participates in the net).
+    // Check 1: Every non-resource, non-wait control place should have at least
+    // one incoming or outgoing arc (i.e. it participates in the net).
     for place in net.places() {
-        if place.is_resource() || place.is_wait() {
+        let is_wait = matches!(
+            place.kind,
+            PlaceKind::Control(ControlSub::WaitPoint)
+        );
+        if is_wait || !place.is_control_flow() {
             continue;
         }
-        let pid = &place.id;
+        let pid = place.id;
         let has_incoming = net
             .transitions()
-            .any(|t| net.output_arcs(&t.id).iter().any(|a| a.place == *pid));
+            .iter()
+            .any(|t| net.post_arcs(t.id).iter().any(|(p, _)| *p == pid));
         let has_outgoing = net
             .transitions()
-            .any(|t| net.input_arcs(&t.id).iter().any(|a| a.place == *pid));
-        let has_initial_token = net.initial_marking().get(pid).copied().unwrap_or(0) > 0;
+            .iter()
+            .any(|t| net.pre_arcs(t.id).iter().any(|(p, _)| *p == pid));
+        let has_initial_token = net.initial_state().marking.tokens(pid) > 0;
 
         if !has_incoming && !has_outgoing && !has_initial_token {
-            warnings.push(format!("orphan control place: {pid}"));
+            warnings.push(format!("orphan control place: {}", place.name));
         }
     }
 
     // Check 2: Every transition should have at least one input arc.
-    for t in net.transitions() {
-        if net.input_arcs(&t.id).is_empty() {
-            warnings.push(format!("transition {} has no input arcs", t.id));
+    for t in 0..net.num_transitions() {
+        let tid = TransitionId(t);
+        if net.pre_arcs(tid).is_empty() {
+            warnings.push(format!("transition {} has no input arcs", net.transition_label(tid)));
         }
     }
 
     // Check 3: Every transition should have at least one output arc.
-    for t in net.transitions() {
-        if net.output_arcs(&t.id).is_empty() {
-            warnings.push(format!("transition {} has no output arcs", t.id));
+    for t in 0..net.num_transitions() {
+        let tid = TransitionId(t);
+        if net.post_arcs(tid).is_empty() {
+            warnings.push(format!("transition {} has no output arcs", net.transition_label(tid)));
         }
     }
 

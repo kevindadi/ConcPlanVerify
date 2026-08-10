@@ -1,4 +1,5 @@
 use crate::common;
+use unipn::NetLike;
 
 #[test]
 fn protection_does_not_produce_cvn_structure() {
@@ -8,6 +9,6 @@ fn protection_does_not_produce_cvn_structure() {
 
     // No extra places or transitions should appear from protection.
     // Just verify the net is well-formed.
-    assert!(net.place_count() > 0);
-    assert!(net.transition_count() > 0);
+    assert!(net.num_places() > 0);
+    assert!(net.num_transitions() > 0);
 }

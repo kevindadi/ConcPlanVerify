@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use concir::ast::Program;
+use unipn::NetLike;
 
 fn load_canonical_fixture() -> Program {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -27,10 +28,10 @@ fn canonical_schema_parses_and_validates() {
 fn canonical_schema_translates_and_goals_have_no_warnings() {
     let program = load_canonical_fixture();
     let net = cir2cvn::translate(&program).expect("canonical ConcIR should translate");
-    assert!(net.place_count() > 0);
-    assert!(net.transition_count() > 0);
+    assert!(net.num_places() > 0);
+    assert!(net.num_transitions() > 0);
 
-    let (goals, warnings) = cir2cvn::translate_goals(&program);
+    let (goals, warnings) = cir2cvn::translate_goals(&program, &net);
     assert_eq!(goals.len(), 2);
     assert!(warnings.is_empty(), "unexpected goal warnings: {warnings:?}");
 }

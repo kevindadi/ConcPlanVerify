@@ -40,7 +40,7 @@ fn generate_for(json_path: &Path, stem: &str) {
     // CVN DOT (translate, skip on error)
     match cir2cvn::translate(&program) {
         Ok(net) => {
-            let cvn_dot = cvn::export::to_dot(&net);
+            let cvn_dot = unipn::export::to_dot(&net);
             let cvn_path = cvn_dir.join(format!("{stem}.dot"));
             fs::write(&cvn_path, &cvn_dot).unwrap();
             eprintln!("  wrote {}", cvn_path.display());

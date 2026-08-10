@@ -1,8 +1,9 @@
 //! Bug report generation and LLM repair infrastructure.
 //!
-//! This module converts low-level CVN counterexamples into enriched
-//! [`BugReport`]s with ConcIR-level semantics, and can render them as
-//! human-readable text or LLM repair prompts.
+//! This module converts low-level counterexamples into enriched [`BugReport`]s
+//! with ConcIR-level semantics, and can render them as human-readable text or
+//! LLM repair prompts.
+#![allow(clippy::collapsible_if)]
 
 pub mod render;
 pub mod report;
@@ -10,23 +11,26 @@ pub mod suggestion;
 
 pub use report::{BugKind, BugReport, DeadlockParticipant, EnrichedFiringStep};
 
-use cvn::analysis::{AnalysisResult, Counterexample, PropertyViolation};
-use cvn::model::{PlaceId, PlaceKind, TransitionId};
-use cvn::net::CvnNet;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
-/// Analyze CVN counterexamples and produce enriched bug reports.
+use unipn::analysis::{
+    Counterexample, PropertyViolation, ReachabilityGraph, blocked_places, find_dead_transitions,
+};
+use unipn::model::{ControlSub, Place, PlaceKind, ResourceType, TransitionKind};
+use unipn::netlike::NetLike;
+use unipn::{Net, PlaceId, TransitionId};
+
+/// Analyze counterexamples and produce enriched bug reports.
 ///
-/// Each CVN [`Counterexample`] is classified into a more specific
-/// [`BugKind`] by inspecting the net structure and the final state.
-/// Deadlocks come from `result.deadlocks`; behavioral dead transitions
-/// are computed from the reachability graph via
-/// [`cvn::analysis::find_dead_transitions`].
+/// Each [`Counterexample`] is classified into a more specific [`BugKind`] by
+/// inspecting the net structure and the final state. Deadlocks come from
+/// `result.deadlocks`; behavioral dead transitions are computed from the
+/// reachability graph via [`find_dead_transitions`].
 pub fn analyze(
     program: &concir::ast::Program,
-    net: &CvnNet,
-    result: &AnalysisResult,
+    net: &Net,
+    result: &ReachabilityGraph,
 ) -> Vec<BugReport> {
     let preservation = build_preservation_constraints(program);
     let fn_to_module: HashMap<String, String> = program
@@ -48,10 +52,10 @@ pub fn analyze(
         .collect();
 
     let deadlock_suffixes = deadlock_dominated_dead_transitions(net, result);
-    for cx in cvn::analysis::find_dead_transitions(net, result) {
+    for cx in find_dead_transitions(net, result) {
         let is_deadlock_suffix = match &cx.kind {
-            PropertyViolation::DeadTransition { transition_id, .. } => {
-                deadlock_suffixes.contains(transition_id)
+            PropertyViolation::DeadTransition { transition, .. } => {
+                deadlock_suffixes.contains(transition)
             }
             _ => false,
         };
@@ -78,14 +82,14 @@ pub fn analyze(
 /// a reachable deadlock. This keeps independent unreachable-code diagnostics
 /// while avoiding downstream repair targets for the same deadlock.
 fn deadlock_dominated_dead_transitions(
-    net: &CvnNet,
-    result: &AnalysisResult,
+    net: &Net,
+    result: &ReachabilityGraph,
 ) -> HashSet<TransitionId> {
     let roots: HashSet<PlaceId> = result
         .deadlocks
         .iter()
-        .flat_map(|cx| cvn::analysis::blocked_places(net, &cx.final_state))
-        .filter(|pid| net.place(pid).map(|p| p.is_control_flow()).unwrap_or(false))
+        .flat_map(|cx| blocked_places(net, &cx.final_state))
+        .filter(|pid| net.place(*pid).map(|p| p.is_control_flow()).unwrap_or(false))
         .collect();
 
     if roots.is_empty() {
@@ -95,32 +99,32 @@ fn deadlock_dominated_dead_transitions(
     let mut successors: HashMap<PlaceId, HashSet<PlaceId>> = HashMap::new();
     for tid in net.transition_ids() {
         let inputs: Vec<PlaceId> = net
-            .input_arcs(tid)
+            .pre_arcs(tid)
             .into_iter()
-            .filter(|arc| {
-                net.place(&arc.place)
+            .filter(|(p, _)| {
+                net.place(*p)
                     .map(|place| place.is_control_flow())
                     .unwrap_or(false)
             })
-            .map(|arc| arc.place.clone())
+            .map(|(p, _)| p)
             .collect();
         let outputs: Vec<PlaceId> = net
-            .output_arcs(tid)
+            .post_arcs(tid)
             .into_iter()
-            .filter(|arc| {
-                net.place(&arc.place)
+            .filter(|(p, _)| {
+                net.place(*p)
                     .map(|place| place.is_control_flow())
                     .unwrap_or(false)
             })
-            .map(|arc| arc.place.clone())
+            .map(|(p, _)| p)
             .collect();
 
         for input in &inputs {
             for output in &outputs {
                 successors
-                    .entry(input.clone())
+                    .entry(*input)
                     .or_default()
-                    .insert(output.clone());
+                    .insert(*output);
             }
         }
     }
@@ -130,24 +134,24 @@ fn deadlock_dominated_dead_transitions(
     while let Some(place) = pending.pop() {
         if let Some(next_places) = successors.get(&place) {
             for next in next_places {
-                if downstream.insert(next.clone()) {
-                    pending.push(next.clone());
+                if downstream.insert(*next) {
+                    pending.push(*next);
                 }
             }
         }
     }
 
-    cvn::analysis::find_dead_transitions(net, result)
+    find_dead_transitions(net, result)
         .into_iter()
         .filter_map(|cx| match cx.kind {
-            PropertyViolation::DeadTransition { transition_id, .. }
-                if net.input_arcs(&transition_id).into_iter().any(|arc| {
-                    downstream.contains(&arc.place)
+            PropertyViolation::DeadTransition { transition, .. }
+                if net.pre_arcs(transition).into_iter().any(|(p, _)| {
+                    downstream.contains(&p)
                         && net
-                            .place(&arc.place)
+                            .place(p)
                             .map(|place| place.is_control_flow())
                             .unwrap_or(false)
-                }) => Some(transition_id),
+                }) => Some(transition),
             _ => None,
         })
         .collect()
@@ -180,19 +184,42 @@ fn modules_for_functions(
     modules
 }
 
+// ── Place name decoding ─────────────────────────────────────────────────────
+//
+// The translator stores parse-friendly names: control `"{fn}.{sid}"`, wait
+// `"{cv}@{fn}.{sid}"`, reacquire `"{fn}.{sid}#ra"`, resource = res_name.
+
+/// `(fn_name, sid)` from a control / wait / reacquire place name.
+fn place_fn_sid(place: &Place) -> (String, String) {
+    let name = place.name.as_str();
+    let rest = name.split_once('@').map(|(_, r)| r).unwrap_or(name);
+    let rest = rest.split_once('#').map(|(r, _)| r).unwrap_or(rest);
+    match rest.split_once('.') {
+        Some((f, s)) => (f.to_string(), s.to_string()),
+        None => (String::new(), String::new()),
+    }
+}
+
+/// `cv_name` from a wait place name (`"{cv}@..."`).
+fn place_cv_name(place: &Place) -> Option<String> {
+    place.name.split_once('@').map(|(c, _)| c.to_string())
+}
+
 fn classify_counterexample(
-    net: &CvnNet,
+    net: &Net,
     cx: &Counterexample,
     fn_to_module: &HashMap<String, String>,
 ) -> BugReport {
     if let PropertyViolation::DeadTransition { .. } = &cx.kind {
         return classify_dead_transition(net, cx, fn_to_module);
     }
-    let blocked = cvn::analysis::blocked_places(net, &cx.final_state);
+    let blocked = blocked_places(net, &cx.final_state);
 
-    let has_wait_place = blocked
-        .iter()
-        .any(|pid| net.place(pid).map(|p| p.is_wait()).unwrap_or(false));
+    let has_wait_place = blocked.iter().any(|pid| {
+        net.place(*pid)
+            .map(|p| matches!(p.kind, PlaceKind::Control(ControlSub::WaitPoint)))
+            .unwrap_or(false)
+    });
 
     let has_signal_loss_trace = detect_signal_loss_in_trace(net, cx);
 
@@ -228,14 +255,13 @@ fn classify_counterexample(
 /// Detect if a CondvarNotifyLost or CondvarNotifyAllLost transition
 /// fired in the counterexample trace, indicating that a signal was
 /// sent when no waiter was present.
-fn detect_signal_loss_in_trace(net: &CvnNet, cx: &Counterexample) -> bool {
+fn detect_signal_loss_in_trace(net: &Net, cx: &Counterexample) -> bool {
     cx.trace.iter().any(|step| {
-        net.transition(&step.transition_id)
+        net.transition(step.transition)
             .map(|t| {
                 matches!(
                     t.kind,
-                    cvn::model::TransitionKind::CondvarNotifyLost
-                        | cvn::model::TransitionKind::CondvarNotifyAllLost
+                    TransitionKind::CondvarNotifyLost | TransitionKind::CondvarNotifyAllLost
                 )
             })
             .unwrap_or(false)
@@ -243,7 +269,7 @@ fn detect_signal_loss_in_trace(net: &CvnNet, cx: &Counterexample) -> bool {
 }
 
 fn classify_signal_loss(
-    net: &CvnNet,
+    net: &Net,
     cx: &Counterexample,
     blocked: &[PlaceId],
 ) -> (BugKind, String) {
@@ -251,15 +277,13 @@ fn classify_signal_loss(
     let mut notifier_tid = String::new();
 
     for pid in blocked {
-        if let Some(place) = net.place(pid) {
-            if let PlaceKind::Wait {
-                cv_name,
-                fn_name,
-                sid,
-            } = &place.kind
-            {
+        if let Some(place) = net.place(*pid) {
+            if matches!(place.kind, PlaceKind::Control(ControlSub::WaitPoint)) {
+                let (fn_name, sid) = place_fn_sid(place);
                 waiter_tid = format!("{fn_name}.{sid}");
-                notifier_tid = format!("notify({cv_name})");
+                if let Some(cv) = place_cv_name(place) {
+                    notifier_tid = format!("notify({cv})");
+                }
             }
         }
     }
@@ -267,13 +291,12 @@ fn classify_signal_loss(
     if waiter_tid.is_empty() {
         // Look for a CondvarNotifyLost/CondvarNotifyAllLost transition in the trace.
         for step in &cx.trace {
-            if let Some(t) = net.transition(&step.transition_id) {
+            if let Some(t) = net.transition(step.transition) {
                 if matches!(
                     t.kind,
-                    cvn::model::TransitionKind::CondvarNotifyLost
-                        | cvn::model::TransitionKind::CondvarNotifyAllLost
+                    TransitionKind::CondvarNotifyLost | TransitionKind::CondvarNotifyAllLost
                 ) {
-                    notifier_tid = t.id.0.clone();
+                    notifier_tid = net.transition_label(step.transition);
                     break;
                 }
             }
@@ -292,7 +315,7 @@ fn classify_signal_loss(
 
 /// Check if a deadlock is actually a channel block: a blocked transition
 /// requires tokens from a channel resource place.
-fn classify_channel_block(net: &CvnNet, blocked: &[PlaceId]) -> Option<(BugKind, String)> {
+fn classify_channel_block(net: &Net, blocked: &[PlaceId]) -> Option<(BugKind, String)> {
     let place_consumers = build_place_to_consumers(net);
 
     for pid in blocked {
@@ -301,29 +324,26 @@ fn classify_channel_block(net: &CvnNet, blocked: &[PlaceId]) -> Option<(BugKind,
         };
 
         for tid in consumers {
-            for input_arc in net.input_arcs(tid) {
-                if let Some(place) = net.place(&input_arc.place) {
-                    if let PlaceKind::Resource {
-                        res_name,
-                        resource_type: cvn::model::ResourceType::Channel,
-                    } = &place.kind
-                    {
+            for (p, _) in net.pre_arcs(*tid) {
+                if let Some(place) = net.place(p) {
+                    if matches!(place.kind, PlaceKind::Resource(ResourceType::Channel)) {
                         let kind_label = net
-                            .transition(tid)
+                            .transition(*tid)
                             .map(|t| match t.kind {
-                                cvn::model::TransitionKind::Send => "send",
-                                cvn::model::TransitionKind::Recv => "recv",
+                                TransitionKind::Send => "send",
+                                TransitionKind::Recv => "recv",
                                 _ => "recv",
                             })
                             .unwrap_or("recv");
 
                         let summary = format!(
-                            "Channel block: {kind_label} on channel {res_name} has no matching counterpart"
+                            "Channel block: {kind_label} on channel {} has no matching counterpart",
+                            place.name
                         );
                         return Some((
                             BugKind::ChannelBlock {
                                 blocked_op: kind_label.to_string(),
-                                channel: res_name.clone(),
+                                channel: place.name.clone(),
                             },
                             summary,
                         ));
@@ -337,24 +357,24 @@ fn classify_channel_block(net: &CvnNet, blocked: &[PlaceId]) -> Option<(BugKind,
 }
 
 fn classify_dead_transition(
-    net: &CvnNet,
+    net: &Net,
     cx: &Counterexample,
     fn_to_module: &HashMap<String, String>,
 ) -> BugReport {
     let (transition_id_str, sids): (String, Vec<String>) = match &cx.kind {
-        PropertyViolation::DeadTransition {
-            transition_id,
-            anchor_sids,
-        } => (
-            transition_id.0.clone(),
-            anchor_sids.iter().cloned().collect(),
+        PropertyViolation::DeadTransition { transition, anchors } => (
+            net.transition_label(*transition),
+            anchors.clone(),
         ),
         _ => (String::new(), Vec::new()),
     };
 
-    let source_function = net
-        .transition(&TransitionId::new(transition_id_str.clone()))
-        .and_then(|t| t.source_function.clone());
+    let source_function = match &cx.kind {
+        PropertyViolation::DeadTransition { transition, .. } => {
+            net.transition(*transition).and_then(|t| t.scope.clone())
+        }
+        _ => None,
+    };
     let involved_functions: Vec<String> = source_function.iter().cloned().collect();
 
     let anchor_label = if sids.is_empty() {
@@ -395,7 +415,7 @@ fn classify_dead_transition(
 }
 
 fn classify_deadlock(
-    net: &CvnNet,
+    net: &Net,
     cx: &Counterexample,
     blocked: &[PlaceId],
     fn_to_module: &HashMap<String, String>,
@@ -413,7 +433,7 @@ fn classify_deadlock(
 }
 
 fn analyze_deadlock_participants(
-    net: &CvnNet,
+    net: &Net,
     cx: &Counterexample,
     blocked: &[PlaceId],
     fn_to_module: &HashMap<String, String>,
@@ -422,17 +442,23 @@ fn analyze_deadlock_participants(
     let mut participants = Vec::new();
 
     for pid in blocked {
-        let Some(place) = net.place(pid) else {
+        let Some(place) = net.place(*pid) else {
             continue;
         };
 
-        let (fn_name, sid) = match &place.kind {
-            PlaceKind::Control { fn_name, sid } => (fn_name.clone(), sid.clone()),
-            PlaceKind::Wait { fn_name, sid, .. } => (fn_name.clone(), sid.clone()),
-            _ => continue,
-        };
+        let is_control = matches!(
+            place.kind,
+            PlaceKind::Control(_)
+        );
+        if !is_control {
+            continue;
+        }
+        let (fn_name, sid) = place_fn_sid(place);
+        if fn_name.is_empty() {
+            continue;
+        }
 
-        let waiting_for = find_waiting_resource(net, pid, &place_consumers);
+        let waiting_for = find_waiting_resource(net, *pid, &place_consumers);
         let holding = find_held_resources(net, &cx.final_state.marking, &fn_name, &place_consumers);
 
         participants.push(DeadlockParticipant {
@@ -448,11 +474,11 @@ fn analyze_deadlock_participants(
 }
 
 /// Build a map from place IDs to the transitions that consume tokens from them.
-fn build_place_to_consumers(net: &CvnNet) -> HashMap<PlaceId, Vec<TransitionId>> {
+fn build_place_to_consumers(net: &Net) -> HashMap<PlaceId, Vec<TransitionId>> {
     let mut map: HashMap<PlaceId, Vec<TransitionId>> = HashMap::new();
     for tid in net.transition_ids() {
-        for arc in net.input_arcs(tid) {
-            map.entry(arc.place.clone()).or_default().push(tid.clone());
+        for (p, _) in net.pre_arcs(tid) {
+            map.entry(p).or_default().push(tid);
         }
     }
     map
@@ -461,20 +487,20 @@ fn build_place_to_consumers(net: &CvnNet) -> HashMap<PlaceId, Vec<TransitionId>>
 /// Find which resource a blocked place is waiting for by checking
 /// outgoing transitions' input arcs for resource places without tokens.
 fn find_waiting_resource(
-    net: &CvnNet,
-    blocked_place_id: &PlaceId,
+    net: &Net,
+    blocked_place_id: PlaceId,
     place_consumers: &HashMap<PlaceId, Vec<TransitionId>>,
 ) -> String {
-    let consumers = match place_consumers.get(blocked_place_id) {
+    let consumers = match place_consumers.get(&blocked_place_id) {
         Some(c) => c,
         None => return String::new(),
     };
 
     for tid in consumers {
-        for input_arc in net.input_arcs(tid) {
-            if let Some(place) = net.place(&input_arc.place) {
-                if let PlaceKind::Resource { res_name, .. } = &place.kind {
-                    return res_name.clone();
+        for (p, _) in net.pre_arcs(*tid) {
+            if let Some(place) = net.place(p) {
+                if matches!(place.kind, PlaceKind::Resource(_)) {
+                    return place.name.clone();
                 }
             }
         }
@@ -486,28 +512,28 @@ fn find_waiting_resource(
 /// that have fewer tokens than their initial count, and whose consuming
 /// transition belongs to this function.
 fn find_held_resources(
-    net: &CvnNet,
-    marking: &cvn::model::Marking,
+    net: &Net,
+    marking: &unipn::Marking,
     fn_name: &str,
     place_consumers: &HashMap<PlaceId, Vec<TransitionId>>,
 ) -> Vec<String> {
     let mut held = Vec::new();
-    let initial = net.initial_marking();
+    let initial = net.initial_state().marking;
 
     for pid in net.place_ids() {
         let Some(place) = net.place(pid) else {
             continue;
         };
-        let PlaceKind::Resource { res_name, .. } = &place.kind else {
+        if !matches!(place.kind, PlaceKind::Resource(_)) {
             continue;
-        };
+        }
 
-        let init_tokens = initial.get(pid).copied().unwrap_or(0);
-        let curr_tokens = marking.get(pid).copied().unwrap_or(0);
+        let init_tokens = initial.tokens(pid);
+        let curr_tokens = marking.tokens(pid);
 
         if curr_tokens < init_tokens {
-            if resource_consumed_by_function(pid, fn_name, place_consumers) {
-                held.push(res_name.clone());
+            if resource_consumed_by_function(net, pid, fn_name, place_consumers) {
+                held.push(place.name.clone());
             }
         }
     }
@@ -515,43 +541,46 @@ fn find_held_resources(
 }
 
 /// Check if any transition that consumes from this resource place
-/// has an ID containing the function name (convention: "t_{fn_name}_...").
+/// is attributed to the given function (via its name/scope).
 fn resource_consumed_by_function(
-    resource_pid: &PlaceId,
+    net: &Net,
+    resource_pid: PlaceId,
     fn_name: &str,
     place_consumers: &HashMap<PlaceId, Vec<TransitionId>>,
 ) -> bool {
-    let Some(consumers) = place_consumers.get(resource_pid) else {
+    let Some(consumers) = place_consumers.get(&resource_pid) else {
         return false;
     };
-    consumers.iter().any(|tid| tid.0.contains(fn_name))
+    consumers
+        .iter()
+        .any(|tid| net.transition_label(*tid).contains(fn_name))
 }
 
 fn enrich_trace(
-    net: &CvnNet,
+    net: &Net,
     cx: &Counterexample,
     fn_to_module: &HashMap<String, String>,
 ) -> Vec<EnrichedFiringStep> {
     cx.trace
         .iter()
         .map(|step| {
-            let transition = net.transition(&step.transition_id);
+            let transition = net.transition(step.transition);
             let kind = transition
                 .map(|t| t.kind.clone())
-                .unwrap_or(cvn::model::TransitionKind::Sequential);
-            let source_function = transition
-                .and_then(|t| t.source_function.clone());
+                .unwrap_or(TransitionKind::Sequential);
+            let source_function = transition.and_then(|t| t.scope.clone());
             let module = source_function
                 .as_ref()
                 .and_then(|f| fn_to_module.get(f).cloned());
 
-            let anchor_sids: Vec<String> = step.anchor_sids.iter().cloned().collect();
+            let anchor_sids: Vec<String> = step.anchors.clone();
+            let tid_label = net.transition_label(step.transition);
 
             let description =
-                format_step_description(&step.transition_id, &kind, &anchor_sids, &source_function);
+                format_step_description(&tid_label, &kind, &anchor_sids, &source_function);
 
             EnrichedFiringStep {
-                transition_id: step.transition_id.0.clone(),
+                transition_id: tid_label,
                 kind,
                 anchor_sids,
                 source_function,
@@ -563,15 +592,18 @@ fn enrich_trace(
 }
 
 fn format_step_description(
-    tid: &TransitionId,
-    kind: &cvn::model::TransitionKind,
+    tid: &str,
+    kind: &TransitionKind,
     anchor_sids: &[String],
     source_function: &Option<String>,
 ) -> String {
-    use cvn::model::TransitionKind as TK;
+    use unipn::model::TransitionKind as TK;
 
     let kind_str = match kind {
         TK::Sequential => "sequential",
+        TK::Goto => "goto",
+        TK::FunctionEnter => "function_enter",
+        TK::FunctionExit => "function_exit",
         TK::Lock => "lock",
         TK::Unlock => "unlock",
         TK::ReadLock => "read_lock",
@@ -601,20 +633,28 @@ fn format_step_description(
         TK::CondvarNotifyAll => "condvar_notify_all",
         TK::CondvarNotifyAllLost => "condvar_notify_all_lost",
         TK::Return => "return",
-        _ => "unknown",
+        TK::Drop => "drop",
+        TK::AtomicCmpXchg => "atomic_cmp_xchg",
+        TK::UnsafeRead => "unsafe_read",
+        TK::UnsafeWrite => "unsafe_write",
+        TK::UnsafeAccess => "unsafe_access",
+        TK::TestBarrier => "test_barrier",
+        TK::TestInject => "test_inject",
+        TK::TestPoint => "test_point",
+        TK::Other(s) => return format!("{s} ({tid})"),
     };
 
     if anchor_sids.is_empty() {
         match source_function {
-            Some(fn_name) => format!("{kind_str} ({}) — in {fn_name}", tid.0),
-            None => format!("{kind_str} ({})", tid.0),
+            Some(fn_name) => format!("{kind_str} ({tid}) — in {fn_name}"),
+            None => format!("{kind_str} ({tid})"),
         }
     } else {
         format!("{kind_str} — {}", anchor_sids.join(", "))
     }
 }
 
-fn extract_involved_resources(net: &CvnNet, blocked: &[PlaceId]) -> Vec<String> {
+fn extract_involved_resources(net: &Net, blocked: &[PlaceId]) -> Vec<String> {
     let place_consumers = build_place_to_consumers(net);
     let mut resources = HashSet::new();
 
@@ -623,10 +663,10 @@ fn extract_involved_resources(net: &CvnNet, blocked: &[PlaceId]) -> Vec<String> 
             continue;
         };
         for tid in consumers {
-            for input_arc in net.input_arcs(tid) {
-                if let Some(place) = net.place(&input_arc.place) {
-                    if let PlaceKind::Resource { res_name, .. } = &place.kind {
-                        resources.insert(res_name.clone());
+            for (p, _) in net.pre_arcs(*tid) {
+                if let Some(place) = net.place(p) {
+                    if matches!(place.kind, PlaceKind::Resource(_)) {
+                        resources.insert(place.name.clone());
                     }
                 }
             }
@@ -638,16 +678,16 @@ fn extract_involved_resources(net: &CvnNet, blocked: &[PlaceId]) -> Vec<String> 
     sorted
 }
 
-fn extract_involved_functions(net: &CvnNet, blocked: &[PlaceId]) -> Vec<String> {
+fn extract_involved_functions(net: &Net, blocked: &[PlaceId]) -> Vec<String> {
     let mut functions = HashSet::new();
 
     for pid in blocked {
-        if let Some(place) = net.place(pid) {
-            match &place.kind {
-                PlaceKind::Control { fn_name, .. } | PlaceKind::Wait { fn_name, .. } => {
-                    functions.insert(fn_name.clone());
+        if let Some(place) = net.place(*pid) {
+            if place.is_control_flow() {
+                let (fn_name, _) = place_fn_sid(place);
+                if !fn_name.is_empty() {
+                    functions.insert(fn_name);
                 }
-                _ => {}
             }
         }
     }
@@ -657,28 +697,22 @@ fn extract_involved_functions(net: &CvnNet, blocked: &[PlaceId]) -> Vec<String> 
     sorted
 }
 
-fn format_marking(net: &CvnNet, marking: &cvn::model::Marking) -> String {
+fn format_marking(net: &Net, marking: &unipn::Marking) -> String {
     let mut parts = Vec::new();
-    let mut entries: Vec<_> = marking.iter().filter(|(_, count)| **count > 0).collect();
-    entries.sort_by_key(|(pid, _)| &pid.0);
+    let mut entries: Vec<_> = marking.iter_nonzero().collect();
+    entries.sort_by_key(|(pid, _)| pid.0);
 
     for (pid, count) in entries {
         let label = if let Some(place) = net.place(pid) {
             match &place.kind {
-                PlaceKind::Control { fn_name, sid } => format!("{fn_name}.{sid}"),
-                PlaceKind::Resource { res_name, .. } => format!("R({res_name})"),
-                PlaceKind::Wait {
-                    cv_name,
-                    fn_name,
-                    sid,
-                } => {
-                    format!("W({cv_name}@{fn_name}.{sid})")
-                }
+                PlaceKind::Control(ControlSub::WaitPoint) => format!("W({})", place.name),
+                PlaceKind::Resource(_) => format!("R({})", place.name),
+                PlaceKind::Control(_) => place.name.clone(),
             }
         } else {
-            pid.0.clone()
+            format!("p{}", pid.0)
         };
-        if *count == 1 {
+        if count == 1 {
             parts.push(label);
         } else {
             parts.push(format!("{label}×{count}"));

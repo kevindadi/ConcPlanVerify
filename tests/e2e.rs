@@ -3,8 +3,8 @@
 use std::path::Path;
 
 use concir::ast::Program;
-use cvn::analysis::{check_goals, explore, find_dead_transitions, AnalysisConfig};
-use cvn::net::CvnNet;
+use unipn::analysis::{explore, find_dead_transitions, AnalysisConfig};
+use unipn::netlike::NetLike;
 
 use serde::Deserialize;
 
@@ -26,7 +26,7 @@ fn load_cir(path: &Path) -> Program {
         .unwrap_or_else(|e| panic!("failed to parse {}: {e}", path.display()))
 }
 
-fn translate(program: &Program) -> CvnNet {
+fn translate(program: &Program) -> unipn::Net {
     cir2cvn::translate(program).unwrap_or_else(|errs| {
         let msgs: Vec<String> = errs.iter().map(|e| e.to_string()).collect();
         panic!("translation failed: {}", msgs.join("; "));
@@ -41,7 +41,7 @@ fn run_buggy_test(dir_name: &str) {
     let buggy = load_cir(&buggy_path);
     let net = translate(&buggy);
     let config = AnalysisConfig::default();
-    let result = explore(&net, &config).expect("state space exploration should succeed");
+    let result = explore(&net, &config);
 
     if expected_path.exists() {
         let expected: ExpectedBug = serde_json::from_str(
@@ -120,7 +120,7 @@ fn run_fixed_test(dir_name: &str) {
     let fixed = load_cir(&fixed_path);
     let net = translate(&fixed);
     let config = AnalysisConfig::default();
-    let result = explore(&net, &config).expect("state space exploration should succeed");
+    let result = explore(&net, &config);
 
     assert!(
         result.deadlocks.is_empty(),
@@ -135,7 +135,7 @@ fn run_fixed_test(dir_name: &str) {
 /// 1. the CVN search must find no deadlock (the bug is a partial deadlock /
 ///    behaviour regression, not a real deadlock), and
 /// 2. every business goal declared in the ConcIR must be reported as unmet by
-///    [`cvn::analysis::check_goals`].
+///    [`cir2cvn::goals::check_goals`].
 fn run_goal_buggy_test(dir_name: &str) {
     let dir = e2e_dir().join(dir_name);
     let buggy = load_cir(&dir.join("buggy.json"));
@@ -146,7 +146,7 @@ fn run_goal_buggy_test(dir_name: &str) {
 
     let net = translate(&buggy);
     let config = AnalysisConfig::default();
-    let result = explore(&net, &config).expect("state space exploration should succeed");
+    let result = explore(&net, &config);
 
     assert!(
         result.deadlocks.is_empty(),
@@ -154,12 +154,12 @@ fn run_goal_buggy_test(dir_name: &str) {
         result.deadlocks.len()
     );
 
-    let (specs, warnings) = cir2cvn::translate_goals(&buggy);
+    let (specs, warnings) = cir2cvn::translate_goals(&buggy, &net);
     assert!(
         warnings.is_empty(),
         "[{dir_name}/buggy] goal translation warnings: {warnings:?}"
     );
-    let unmet = check_goals(&net, &specs, &config).expect("goal check should succeed");
+    let unmet = cir2cvn::goals::check_goals(&result, &specs);
     assert_eq!(
         unmet.len(),
         specs.len(),
@@ -181,7 +181,7 @@ fn run_goal_fixed_test(dir_name: &str) {
     let fixed = load_cir(&fixed_path);
     let net = translate(&fixed);
     let config = AnalysisConfig::default();
-    let result = explore(&net, &config).expect("state space exploration should succeed");
+    let result = explore(&net, &config);
 
     assert!(
         result.deadlocks.is_empty(),
@@ -189,12 +189,12 @@ fn run_goal_fixed_test(dir_name: &str) {
         result.deadlocks.len()
     );
 
-    let (specs, warnings) = cir2cvn::translate_goals(&fixed);
+    let (specs, warnings) = cir2cvn::translate_goals(&fixed, &net);
     assert!(
         warnings.is_empty(),
         "[{dir_name}/fixed] goal translation warnings: {warnings:?}"
     );
-    let unmet = check_goals(&net, &specs, &config).expect("goal check should succeed");
+    let unmet = cir2cvn::goals::check_goals(&result, &specs);
     assert!(
         unmet.is_empty(),
         "[{dir_name}/fixed] expected all goals reachable, but {} remained unmet: {:?}",
@@ -247,7 +247,7 @@ fn e2e_signal_loss_fixed_full_pipeline_is_safe() {
 fn e2e_signal_loss_buggy_repair_feedback_filters_deadlock_suffixes() {
     let program = load_cir(&e2e_dir().join("signal_loss/buggy.json"));
     let net = translate(&program);
-    let result = explore(&net, &AnalysisConfig::default()).expect("state space exploration should succeed");
+    let result = explore(&net, &AnalysisConfig::default());
 
     let reports = cir2cvn::repair::analyze(&program, &net, &result);
     assert!(
@@ -348,13 +348,13 @@ fn e2e_dual_condvar_fixed() {
 fn e2e_dual_condvar_buggy_repair_feedback_filters_deadlock_suffixes() {
     let program = load_cir(&e2e_dir().join("dual_condvar/buggy.json"));
     let net = translate(&program);
-    let result = explore(&net, &AnalysisConfig::default()).expect("state space exploration should succeed");
+    let result = explore(&net, &AnalysisConfig::default());
 
     let raw_dead_transitions = find_dead_transitions(&net, &result);
     assert!(
         raw_dead_transitions.iter().any(|cx| matches!(
             &cx.kind,
-            cvn::analysis::PropertyViolation::DeadTransition { .. }
+            unipn::analysis::PropertyViolation::DeadTransition { .. }
         )),
         "raw CVN analysis should retain downstream dead-transition observations"
     );
@@ -493,7 +493,7 @@ fn run_dead_transition_fixed_test(dir_name: &str) {
     let fixed = load_cir(&fixed_path);
     let net = translate(&fixed);
     let config = AnalysisConfig::default();
-    let result = explore(&net, &config).expect("state space exploration should succeed");
+    let result = explore(&net, &config);
 
     assert!(
         result.deadlocks.is_empty(),
@@ -508,8 +508,8 @@ fn run_dead_transition_fixed_test(dir_name: &str) {
         dead.len(),
         dead.iter()
             .map(|cx| match &cx.kind {
-                cvn::analysis::PropertyViolation::DeadTransition { transition_id, .. } =>
-                    transition_id.0.clone(),
+                unipn::analysis::PropertyViolation::DeadTransition { transition, .. } =>
+                    net.transition_label(*transition),
                 _ => "<other>".into(),
             })
             .collect::<Vec<_>>()
@@ -525,7 +525,7 @@ fn e2e_dead_transition_buggy() {
 fn e2e_dead_transition_buggy_repair_feedback_retains_independent_report() {
     let program = load_cir(&e2e_dir().join("dead_transition/buggy.json"));
     let net = translate(&program);
-    let result = explore(&net, &AnalysisConfig::default()).expect("state space exploration should succeed");
+    let result = explore(&net, &AnalysisConfig::default());
 
     let raw_dead_transitions = find_dead_transitions(&net, &result);
     assert!(

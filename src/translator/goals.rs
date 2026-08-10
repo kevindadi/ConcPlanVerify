@@ -1,50 +1,44 @@
-//! Translate ConcIR `BusinessGoal`s into CVN [`GoalSpec`]s.
+//! Translate ConcIR `BusinessGoal`s into [`crate::goals::GoalSpec`]s.
 //!
 //! Each [`concir::ast::BusinessGoal`] carries two dictionaries:
 //!
 //! * `marking`    — user-level place or resource name → expected token count
 //! * `variables`  — CVN variable name → expected concrete value
 //!
-//! The translator resolves these into CVN predicates using the same naming
-//! convention as [`super::context`]:
+//! Keys are resolved against the **built net** by place name:
 //!
-//! * Keys matching a ConcIR resource name are mapped to the resource place
-//!   `rp_{name}`. For resources whose *initial* token count is 0 (Channel
-//!   and Condvar signal places), a requested count of 0 is interpreted as
-//!   [`GoalPredicate::Empty`] (i.e. "no pending messages / no residual
-//!   signal"), which is the semantically meaningful check. Any non-zero
-//!   count falls back to [`GoalPredicate::Reachable`].
-//! * Keys of the form `"{fn}.{sid}"` are mapped to the control place
-//!   `cp_{fn}_{sid}` — useful for "thread X reached its return point".
-//! * Keys starting with `cp_`, `rp_`, `wp_`, or `ra_` are treated as raw
-//!   place IDs (advanced users / tooling-generated goals).
-//! * Keys beginning with `var:` (e.g. `var:state`) attach to the CVN
-//!   variable store even though they live in the marking map; this is
-//!   tolerated for robustness but normally users should use
-//!   `BusinessGoal.variables`.
+//! * Keys of the form `"{fn}.{sid}"` map to the control place named `{fn}.{sid}`.
+//! * Keys matching a resource name map to the resource place of that name.
+//! * Keys starting with `cp_`, `rp_`, `wp_`, or `ra_` are treated as raw place
+//!   references: the prefix is stripped and matched against place names; an
+//!   unresolvable raw id is passed through as an always-unsatisfied predicate
+//!   (the goal is reported unmet) rather than a warning.
+//! * For resources whose *initial* token count is 0 (Channel and Condvar signal
+//!   places), a requested count of 0 is interpreted as [`GoalPredicate::Empty`].
 //!
-//! Unrecognised keys produce a warning-level diagnostic (collected into
-//! the returned error vector but non-fatal: [`translate_goals`] still
-//! returns the successfully-translated subset).
+//! Unrecognised keys produce a warning-level diagnostic (non-fatal:
+//! [`translate_goals`] still returns the successfully-translated subset).
 
-use std::collections::HashSet;
+#![allow(clippy::collapsible_if)]
+
+use std::collections::{HashMap, HashSet};
 
 use concir::ast::{BaseType, ComplexBaseType, Program, Resource};
-use cvn::analysis::goal::{GoalPredicate, GoalSpec};
-use cvn::model::{ConcreteVal, PlaceId};
 use serde_json::Value;
+use unipn::{ConcreteVal, PlaceId};
 
-use super::context::{cp_id, rp_id};
+use crate::goals::{GoalPredicate, GoalSpec};
 
-/// Translate all business goals declared in `program` into CVN goal specs.
+/// Translate all business goals declared in `program` into goal specs over the
+/// built `net`.
 ///
-/// Returns `(specs, warnings)` where `warnings` lists goals that could not
-/// be fully translated (e.g., unknown resource names).
-pub fn translate_goals(program: &Program) -> (Vec<GoalSpec>, Vec<String>) {
+/// Returns `(specs, warnings)` where `warnings` lists goals that could not be
+/// fully translated (e.g., unknown resource names).
+pub fn translate_goals(program: &Program, net: &unipn::Net) -> (Vec<GoalSpec>, Vec<String>) {
     let mut specs = Vec::new();
     let mut warnings = Vec::new();
 
-    let resource_by_name: std::collections::HashMap<&str, &Resource> =
+    let resource_by_name: HashMap<&str, &Resource> =
         program.resources.iter().map(|r| (r.name.as_str(), r)).collect();
     let enum_variants: HashSet<String> = collect_enum_variants(program);
     let var_names: HashSet<&str> = program
@@ -54,15 +48,21 @@ pub fn translate_goals(program: &Program) -> (Vec<GoalSpec>, Vec<String>) {
         .map(|r| r.name.as_str())
         .collect();
 
+    let place_by_name: HashMap<&str, PlaceId> = net
+        .places()
+        .iter()
+        .map(|p| (p.name.as_str(), p.id))
+        .collect();
+
     for goal in &program.goals {
         let mut predicates = Vec::new();
 
         for (key, count) in &goal.marking {
-            match marking_predicate(key, *count, &resource_by_name) {
+            match marking_predicate(key, *count, &resource_by_name, &place_by_name) {
                 Ok(pred) => predicates.push(pred),
                 Err(msg) => warnings.push(format!(
-                    "goal '{}': marking key '{}' — {}",
-                    goal.id, key, msg
+                    "goal '{}': marking key '{}' — {msg}",
+                    goal.id, key
                 )),
             }
         }
@@ -80,8 +80,8 @@ pub fn translate_goals(program: &Program) -> (Vec<GoalSpec>, Vec<String>) {
             match variable_predicate(var, value, &enum_variants) {
                 Ok(pred) => predicates.push(pred),
                 Err(msg) => warnings.push(format!(
-                    "goal '{}': variable '{}' — {}",
-                    goal.id, var, msg
+                    "goal '{}': variable '{}' — {msg}",
+                    goal.id, var
                 )),
             }
         }
@@ -107,39 +107,60 @@ pub fn translate_goals(program: &Program) -> (Vec<GoalSpec>, Vec<String>) {
 fn marking_predicate(
     key: &str,
     count: u32,
-    resources: &std::collections::HashMap<&str, &Resource>,
+    resources: &HashMap<&str, &Resource>,
+    place_by_name: &HashMap<&str, PlaceId>,
 ) -> Result<GoalPredicate, String> {
-    // Raw place IDs are accepted as-is.
+    // Raw place references (old-style prefixed ids). Prefix-strip and match
+    // against place names; unresolvable ids are passed through as
+    // always-unsatisfied predicates so the goal is reported unmet.
     if key.starts_with("cp_")
         || key.starts_with("rp_")
         || key.starts_with("wp_")
         || key.starts_with("ra_")
     {
-        return Ok(reachability_predicate(PlaceId::new(key), count, false));
+        let stripped = strip_prefix(key);
+        let place = place_by_name
+            .get(stripped)
+            .copied()
+            .or_else(|| {
+                // rp_<res> → resource named <res>.
+                resources
+                    .get(stripped)
+                    .and_then(|_| place_by_name.get(stripped).copied())
+            })
+            .unwrap_or(PlaceId(place_by_name.len()));
+
+        return Ok(reachability_predicate(place, count, false));
     }
 
-    // "fn.sid" → control place.
-    if let Some((fn_name, sid)) = key.split_once('.') {
-        if !fn_name.is_empty() && !sid.is_empty() {
-            return Ok(reachability_predicate(
-                PlaceId::new(cp_id(fn_name, sid)),
-                count,
-                false,
-            ));
+    // "fn.sid" → control place named "{fn}.{sid}".
+    if let Some(place) = place_by_name.get(key) {
+        let starts_empty = resources
+            .get(key)
+            .map(|r| resource_starts_empty(r))
+            .unwrap_or(false);
+        return Ok(reachability_predicate(*place, count, starts_empty));
+    }
+
+    // Resource name → resource place.
+    if let Some(res) = resources.get(key) {
+        if let Some(place) = place_by_name.get(key) {
+            return Ok(reachability_predicate(*place, count, resource_starts_empty(res)));
         }
     }
 
-    // Resource name lookup.
-    if let Some(res) = resources.get(key) {
-        let starts_empty = resource_starts_empty(res);
-        return Ok(reachability_predicate(
-            PlaceId::new(rp_id(key)),
-            count,
-            starts_empty,
-        ));
-    }
-
     Err("not a known resource, not a control-place reference, and not a raw place id".to_string())
+}
+
+/// Strip the `cp_`/`rp_`/`wp_`/`ra_` prefix (the remainder is matched against
+/// place names).
+fn strip_prefix(key: &str) -> &str {
+    for p in ["cp_", "rp_", "wp_", "ra_"] {
+        if let Some(rest) = key.strip_prefix(p) {
+            return rest;
+        }
+    }
+    key
 }
 
 /// Resources whose initial token count is 0.
@@ -147,8 +168,8 @@ fn marking_predicate(
 /// For these places, a user goal of `count == 0` is meaningful as an
 /// "empty / no residual" check. For all other resources (Mutex / RwLock /
 /// Semaphore) the initial tokens are positive and `count == 0` just
-/// degenerates to `tokens >= 0` which always holds, so we keep the
-/// standard reachability semantics.
+/// degenerates to `tokens >= 0` which always holds, so we keep the standard
+/// reachability semantics.
 fn resource_starts_empty(res: &Resource) -> bool {
     matches!(
         (res.kind.as_str(), res.res_type.as_str()),
@@ -156,11 +177,7 @@ fn resource_starts_empty(res: &Resource) -> bool {
     )
 }
 
-fn reachability_predicate(
-    place: PlaceId,
-    count: u32,
-    starts_empty: bool,
-) -> GoalPredicate {
+fn reachability_predicate(place: PlaceId, count: u32, starts_empty: bool) -> GoalPredicate {
     if count == 0 && starts_empty {
         GoalPredicate::Empty { place }
     } else {
@@ -183,10 +200,7 @@ fn variable_predicate(
     })
 }
 
-fn json_to_concrete(
-    v: &Value,
-    enum_variants: &HashSet<String>,
-) -> Result<ConcreteVal, String> {
+fn json_to_concrete(v: &Value, enum_variants: &HashSet<String>) -> Result<ConcreteVal, String> {
     match v {
         Value::Bool(b) => Ok(ConcreteVal::Bool(*b)),
         Value::Number(n) => {

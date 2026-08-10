@@ -1,33 +1,29 @@
 use crate::common;
-use cvn::model::{PlaceId, TransitionId, TransitionKind};
+use unipn::model::TransitionKind;
 
 #[test]
 fn channel_initial_empty() {
     let net = common::translate_fixture("channel.json");
-    assert!(common::has_place(&net, "rp_ch"));
-    assert_eq!(common::initial_tokens(&net, "rp_ch"), 0);
+    assert!(common::has_place(&net, "ch"));
+    assert_eq!(common::initial_tokens(&net, "ch"), 0);
 }
 
 #[test]
 fn channel_send_produces_token() {
     let net = common::translate_fixture("channel.json");
 
-    let tid = TransitionId::new("sender_s1_send");
-    let t = net.transition(&tid).unwrap();
-    assert!(matches!(t.kind, TransitionKind::Send));
+    assert!(common::transition_kind(&net, "sender_s1_send").is_some_and(|k| k == TransitionKind::Send));
 
-    let out = net.output_arcs(&tid);
-    assert!(out.iter().any(|a| a.place == PlaceId::new("rp_ch")));
+    let out = common::output_arcs(&net, "sender_s1_send");
+    assert!(out.iter().any(|(n, _)| n == "ch"));
 }
 
 #[test]
 fn channel_recv_consumes_token() {
     let net = common::translate_fixture("channel.json");
 
-    let tid = TransitionId::new("receiver_s1_recv");
-    let t = net.transition(&tid).unwrap();
-    assert!(matches!(t.kind, TransitionKind::Recv));
+    assert!(common::transition_kind(&net, "receiver_s1_recv").is_some_and(|k| k == TransitionKind::Recv));
 
-    let in_arcs = net.input_arcs(&tid);
-    assert!(in_arcs.iter().any(|a| a.place == PlaceId::new("rp_ch")));
+    let in_arcs = common::input_arcs(&net, "receiver_s1_recv");
+    assert!(in_arcs.iter().any(|(n, _)| n == "ch"));
 }

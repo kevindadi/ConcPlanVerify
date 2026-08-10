@@ -1,39 +1,35 @@
 use crate::common;
-use cvn::model::{PlaceId, TransitionId, TransitionKind};
+use unipn::model::TransitionKind;
 
 #[test]
 fn spawn_creates_fork() {
     let net = common::translate_fixture("spawn_join.json");
 
-    let tid = TransitionId::new("main_s1_spawn");
-    let t = net.transition(&tid).unwrap();
-    assert!(matches!(t.kind, TransitionKind::Spawn));
+    assert!(common::transition_kind(&net, "main_s1_spawn").is_some_and(|k| k == TransitionKind::Spawn));
 
-    let out = net.output_arcs(&tid);
-    // Should produce two tokens: one to cp_main_s2, one to worker's first place.
+    let out = common::output_arcs(&net, "main_s1_spawn");
+    // Should produce two tokens: one to main.s2, one to worker's first place.
     assert_eq!(out.len(), 2);
-    assert!(out.iter().any(|a| a.place == PlaceId::new("cp_main_s2")));
+    assert!(out.iter().any(|(n, _)| n == "main.s2"));
 }
 
 #[test]
 fn join_creates_synchronization() {
     let net = common::translate_fixture("spawn_join.json");
 
-    let tid = TransitionId::new("main_s2_join");
-    let t = net.transition(&tid).unwrap();
-    assert!(matches!(t.kind, TransitionKind::Join));
+    assert!(common::transition_kind(&net, "main_s2_join").is_some_and(|k| k == TransitionKind::Join));
 
-    let in_arcs = net.input_arcs(&tid);
-    // Should consume from cp_main_s2 AND cp_worker_ret.
+    let in_arcs = common::input_arcs(&net, "main_s2_join");
+    // Should consume from main.s2 AND worker.ret.
     assert_eq!(in_arcs.len(), 2);
-    assert!(in_arcs.iter().any(|a| a.place == PlaceId::new("cp_main_s2")));
-    assert!(in_arcs.iter().any(|a| a.place == PlaceId::new("cp_worker_ret")));
+    assert!(in_arcs.iter().any(|(n, _)| n == "main.s2"));
+    assert!(in_arcs.iter().any(|(n, _)| n == "worker.ret"));
 }
 
 #[test]
 fn spawn_join_initial_marking() {
     let net = common::translate_fixture("spawn_join.json");
 
-    assert_eq!(common::initial_tokens(&net, "cp_main_s1"), 1);
-    assert_eq!(common::initial_tokens(&net, "cp_worker_s1"), 0);
+    assert_eq!(common::initial_tokens(&net, "main.s1"), 1);
+    assert_eq!(common::initial_tokens(&net, "worker.s1"), 0);
 }

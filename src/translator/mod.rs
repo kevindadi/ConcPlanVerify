@@ -1,3 +1,5 @@
+#![allow(clippy::collapsible_if)]
+
 mod condvar;
 mod context;
 mod control_flow;
@@ -10,7 +12,7 @@ pub use goals::translate_goals;
 
 use crate::error::TranslateError;
 use context::{TranslateContext, cp_id};
-use cvn::net::CvnNet;
+use unipn::Net;
 
 /// Translate a ConcIR program into a CVN.
 ///
@@ -19,7 +21,7 @@ use cvn::net::CvnNet;
 ///   1. Resource scanning  — generate resource places, initial marking, and variable store
 ///   2. Function body translation — generate control places, transitions, and arcs
 ///   3. FnSummary translation — generate atomic transitions for un-modeled functions
-pub fn translate(program: &concir::ast::Program) -> Result<CvnNet, Vec<TranslateError>> {
+pub fn translate(program: &concir::ast::Program) -> Result<Net, Vec<TranslateError>> {
     let mut ctx = TranslateContext::new();
 
     // ── Input validation (T0xx) ─────────────────────────────────────────
@@ -89,7 +91,7 @@ pub fn translate(program: &concir::ast::Program) -> Result<CvnNet, Vec<Translate
         for p in &func.params {
             if p.modeled {
                 let cvn = format!("p_{}_{}", func.name, p.name);
-                ctx.add_variable(&cvn, cvn::model::Val::Unknown);
+                ctx.add_variable(&cvn, unipn::Val::Unknown);
                 if let concir::ast::BaseType::Complex(concir::ast::ComplexBaseType::BoundedInt {
                     lo,
                     hi,
@@ -104,7 +106,7 @@ pub fn translate(program: &concir::ast::Program) -> Result<CvnNet, Vec<Translate
         if let Some(r) = &func.returns {
             if r.modeled {
                 let cvn = format!("r_{}_{}", func.name, r.name);
-                ctx.add_variable(&cvn, cvn::model::Val::Unknown);
+                ctx.add_variable(&cvn, unipn::Val::Unknown);
                 df.return_cvn = Some(cvn);
                 df.modeled_return = Some(r.clone());
             }
@@ -143,14 +145,14 @@ pub fn translate(program: &concir::ast::Program) -> Result<CvnNet, Vec<Translate
                 ctx.set_current_function(&func.name);
                 ctx.add_transition(
                     &bridge_tid,
-                    cvn::model::TransitionKind::Sequential,
+                    unipn::TransitionKind::Sequential,
                     &[&first_stmt.sid],
                 );
                 ctx.add_input_arc(
                     &from,
                     &bridge_tid,
                     1,
-                    cvn::model::BoolExpr::True,
+                    unipn::BoolExpr::True,
                 );
                 ctx.add_output_arc(&bridge_tid, &to, 1, None);
             }

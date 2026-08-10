@@ -7,9 +7,12 @@
 use std::time::Instant;
 
 use concir::diagnostic::ValidationReport;
-use cvn::analysis::{AnalysisConfig, SearchStrategy, UnmetGoal};
 use serde::Serialize;
+use unipn::analysis::{AnalysisConfig, SearchStrategy};
+use unipn::model::{ControlSub, PlaceKind};
+use unipn::NetLike;
 
+use crate::goals::check_goals;
 use crate::repair::{analyze, BugReport};
 
 /// Configuration shared by generation, repair, CLI, and GUI verification.
@@ -37,6 +40,7 @@ impl VerificationConfig {
         AnalysisConfig {
             strategy: self.strategy,
             max_states: self.max_states.max(1),
+            ..AnalysisConfig::default()
         }
     }
 }
@@ -63,7 +67,7 @@ pub struct VerificationTimings {
     pub total_ms: f64,
 }
 
-/// Place counts partitioned by [`cvn::model::PlaceKind`].
+/// Place counts partitioned by [`PlaceKind`].
 #[derive(Clone, Copy, Debug, Default, Serialize)]
 pub struct PlacesByKind {
     pub control: usize,
@@ -71,27 +75,17 @@ pub struct PlacesByKind {
     pub wait: usize,
 }
 
-fn net_size_metrics(net: &cvn::net::CvnNet) -> (PlacesByKind, usize, usize) {
-    use cvn::model::PlaceKind;
-    use cvn::net::NetEdge;
-
+fn net_size_metrics(net: &unipn::Net) -> (PlacesByKind, usize, usize) {
     let mut by_kind = PlacesByKind::default();
     for place in net.places() {
-        match place.kind {
-            PlaceKind::Control { .. } => by_kind.control += 1,
-            PlaceKind::Resource { .. } => by_kind.resource += 1,
-            PlaceKind::Wait { .. } => by_kind.wait += 1,
+        match &place.kind {
+            PlaceKind::Control(ControlSub::WaitPoint) => by_kind.wait += 1,
+            PlaceKind::Control(_) => by_kind.control += 1,
+            PlaceKind::Resource(_) => by_kind.resource += 1,
         }
     }
-
-    let mut input_arcs = 0;
-    let mut output_arcs = 0;
-    for edge in net.petgraph().edge_weights() {
-        match edge {
-            NetEdge::Input(_) => input_arcs += 1,
-            NetEdge::Output(_) => output_arcs += 1,
-        }
-    }
+    let input_arcs = net.pre().iter().count();
+    let output_arcs = net.post().iter().count();
     (by_kind, input_arcs, output_arcs)
 }
 
@@ -114,7 +108,7 @@ pub struct VerificationResult {
     pub max_states: usize,
     pub analysis_error: Option<String>,
     pub bugs: Vec<BugReport>,
-    pub unmet_goals: Vec<UnmetGoal>,
+    pub unmet_goals: Vec<crate::goals::UnmetGoal>,
     pub goal_warnings: Vec<String>,
     pub declared_goal_count: usize,
     pub timings: VerificationTimings,
@@ -181,7 +175,7 @@ pub fn verify_program(
     let translation_ms = elapsed_ms(translation_start);
 
     let analysis_start = Instant::now();
-    let analysis = cvn::analysis::explore(&net, &config.analysis_config());
+    let analysis = unipn::analysis::explore(&net, &config.analysis_config());
     let analysis_ms = elapsed_ms(analysis_start);
     let (places_by_kind, input_arcs, output_arcs) = net_size_metrics(&net);
     let mut result = VerificationResult {
@@ -189,12 +183,12 @@ pub fn verify_program(
         validation,
         translation_errors: Vec::new(),
         translation_warnings: crate::validate::check_translation(&net),
-        places: net.place_count(),
-        transitions: net.transition_count(),
+        places: net.num_places(),
+        transitions: net.num_transitions(),
         places_by_kind,
         input_arcs,
         output_arcs,
-        cvn_dot: Some(cvn::export::to_dot(&net)),
+        cvn_dot: Some(unipn::export::to_dot(&net)),
         state_count: 0,
         analysis_complete: false,
         max_states: config.max_states,
@@ -211,18 +205,18 @@ pub fn verify_program(
         },
     };
 
-    let analysis_result = match analysis {
-        Ok(value) => value,
-        Err(error) => {
-            result.analysis_error = Some(error.to_string());
-            result.timings.total_ms = elapsed_ms(total);
-            return result;
-        }
-    };
-
-    result.state_count = analysis_result.state_count;
+    result.state_count = analysis.state_count();
+    if analysis.truncated {
+        result.analysis_complete = false;
+        result.analysis_error = Some(format!(
+            "state space explosion: exceeded {} states",
+            config.max_states
+        ));
+        result.timings.total_ms = elapsed_ms(total);
+        return result;
+    }
     result.analysis_complete = true;
-    result.bugs = analyze(program, &net, &analysis_result);
+    result.bugs = analyze(program, &net, &analysis);
     if !config.analyze_dead_transitions {
         result
             .bugs
@@ -231,7 +225,7 @@ pub fn verify_program(
 
     if config.check_goals && !program.goals.is_empty() {
         let goals_start = Instant::now();
-        let (specs, mut warnings) = crate::translate_goals(program);
+        let (specs, mut warnings) = crate::translate_goals(program, &net);
         // A goal that already holds in the initial state constrains nothing
         // about the concurrent behavior: it would pass even if every thread
         // were deleted. Flag it as too weak instead of silently accepting.
@@ -246,7 +240,7 @@ pub fn verify_program(
             }
         }
         result.goal_warnings = warnings;
-        result.unmet_goals = cvn::analysis::check_goals_in_result(&analysis_result, &specs);
+        result.unmet_goals = check_goals(&analysis, &specs);
         result.timings.goals_ms = elapsed_ms(goals_start);
     }
 

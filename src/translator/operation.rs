@@ -1,3 +1,5 @@
+#![allow(clippy::collapsible_if)]
+
 use super::condvar;
 use super::context::{LockKind, ResKind, TranslateContext, cp_id, na_var_name, rp_id, tid};
 use super::control_flow::{
@@ -7,7 +9,7 @@ use super::control_flow::{
 use super::expr_parser::parse_expr;
 use crate::error::TranslateError;
 use concir::ast::{Function, Op, Statement, Transfer};
-use cvn::model::{BoolExpr, CmpOp, Expr, TransitionKind, Val, VarUpdate};
+use unipn::{BoolExpr, CmpOp, Expr, TransitionKind, Val, VarUpdate};
 use std::collections::HashSet;
 
 /// Phase 2: Translate all function bodies.
@@ -205,8 +207,7 @@ fn translate_lock(
     // Check if this is a post-wait lock (already acquired by reacquire).
     let is_post_wait = ctx
         .post_wait_locks
-        .get(&(fn_name.to_string(), stmt.sid.clone()))
-        .is_some();
+        .contains_key(&(fn_name.to_string(), stmt.sid.clone()));
 
     if is_post_wait {
         // Translate as Sequential — lock already held.

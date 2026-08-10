@@ -1,5 +1,5 @@
 use concir::ast::{Statement, Transfer};
-use cvn::model::{BoolExpr, CmpOp, Expr, TransitionKind, Val, VarUpdate};
+use unipn::{BoolExpr, CmpOp, Expr, TransitionKind, Val, VarUpdate};
 
 use super::context::{
     ResKind, TranslateContext, cp_id, na_var_name, nw_var_name, ra_id, rp_id, tid, wp_id,
@@ -73,7 +73,7 @@ pub(crate) fn translate_wait(
         update.insert(
             nw_var.clone(),
             Expr::BinOp {
-                op: cvn::model::Op::Add,
+                op: unipn::Op::Add,
                 lhs: Box::new(Expr::Ref(nw_var.clone())),
                 rhs: Box::new(Expr::Lit(Val::int(1))),
             },
@@ -98,7 +98,7 @@ pub(crate) fn translate_wait(
         update.insert(
             nw_var.clone(),
             Expr::BinOp {
-                op: cvn::model::Op::Sub,
+                op: unipn::Op::Sub,
                 lhs: Box::new(Expr::Ref(nw_var.clone())),
                 rhs: Box::new(Expr::Lit(Val::int(1))),
             },
@@ -127,7 +127,7 @@ pub(crate) fn translate_wait(
         update.insert(
             nw_var.clone(),
             Expr::BinOp {
-                op: cvn::model::Op::Sub,
+                op: unipn::Op::Sub,
                 lhs: Box::new(Expr::Ref(nw_var.clone())),
                 rhs: Box::new(Expr::Lit(Val::int(1))),
             },

@@ -1,5 +1,7 @@
+#![allow(clippy::collapsible_if)]
+
 use concir::ast::Transfer;
-use cvn::model::{BoolExpr, TransitionKind, VarUpdate};
+use unipn::{BoolExpr, TransitionKind, VarUpdate};
 
 use super::context::{TranslateContext, cp_id, tid};
 use super::expr_parser::parse_condition;
@@ -9,9 +11,7 @@ use crate::error::TranslateError;
 /// to wire the output side of a transition.
 pub(crate) enum TransferPlan {
     /// Single successor: one transition already wired.
-    Next {
-        target_cp: String,
-    },
+    Next { target_cp: String },
     /// Branch: two transitions created (true / false).
     Branch {
         true_tid: String,
@@ -21,13 +21,9 @@ pub(crate) enum TransferPlan {
         guard: BoolExpr,
     },
     /// Switch: multiple transitions (one per label).
-    Switch {
-        arms: Vec<SwitchArm>,
-    },
+    Switch { arms: Vec<SwitchArm> },
     /// Return: target is the function's return place.
-    Return {
-        target_cp: String,
-    },
+    Return { target_cp: String },
 }
 
 pub(crate) struct SwitchArm {
@@ -61,13 +57,14 @@ pub(crate) fn plan_transfer(
             ctx.ensure_control_place(fn_name, true_target);
             ctx.ensure_control_place(fn_name, false_target);
 
-            let guard = match parse_condition(cond, &ctx.all_enum_variants, ctx.aliases_for(fn_name)) {
-                Ok(g) => g,
-                Err(_) => {
-                    ctx.push_error(TranslateError::InvalidBranchCondition(cond.clone()));
-                    BoolExpr::True
-                }
-            };
+            let guard =
+                match parse_condition(cond, &ctx.all_enum_variants, ctx.aliases_for(fn_name)) {
+                    Ok(g) => g,
+                    Err(_) => {
+                        ctx.push_error(TranslateError::InvalidBranchCondition(cond.clone()));
+                        BoolExpr::True
+                    }
+                };
 
             TransferPlan::Branch {
                 true_tid: tid(fn_name, sid, "branch_true"),
@@ -102,6 +99,7 @@ pub(crate) fn plan_transfer(
 
 /// Emit a single transition with one control-flow input arc and one
 /// control-flow output arc. Used for simple sequential operations.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn emit_simple_transition(
     ctx: &mut TranslateContext,
     transition_id: &str,
@@ -118,6 +116,7 @@ pub(crate) fn emit_simple_transition(
 }
 
 /// Emit branch-pair transitions sharing the same control-flow input.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn emit_branch_transitions(
     ctx: &mut TranslateContext,
     anchor_sids: &[&str],
@@ -141,6 +140,7 @@ pub(crate) fn emit_branch_transitions(
 
 /// Emit switch transitions sharing the same control-flow input, with
 /// per-label guards.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn emit_switch_transitions(
     ctx: &mut TranslateContext,
     anchor_sids: &[&str],
@@ -149,12 +149,10 @@ pub(crate) fn emit_switch_transitions(
     arms: &[SwitchArm],
 ) {
     for arm in arms {
-        let guard = cvn::model::BoolExpr::Cmp {
-            op: cvn::model::CmpOp::Eq,
-            lhs: Box::new(cvn::model::Expr::Ref(switch_var.to_string())),
-            rhs: Box::new(cvn::model::Expr::Lit(cvn::model::Val::enum_val(
-                &arm.label,
-            ))),
+        let guard = unipn::BoolExpr::Cmp {
+            op: unipn::CmpOp::Eq,
+            lhs: Box::new(unipn::Expr::Ref(switch_var.to_string())),
+            rhs: Box::new(unipn::Expr::Lit(unipn::Val::enum_val(&arm.label))),
         };
         ctx.add_transition(
             &arm.tid,

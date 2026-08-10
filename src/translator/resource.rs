@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use concir::ast::{BaseType, ComplexBaseType, Op, Program};
-use cvn::model::ResourceType;
+use unipn::model::ResourceType;
 
 use super::context::{ResKind, TranslateContext, nw_var_name, rp_id};
 use super::expr_parser::json_value_to_val_with_variants;
@@ -36,7 +36,7 @@ pub(crate) fn scan_resources(ctx: &mut TranslateContext, program: &Program) {
                     .insert(res.name.clone(), ResKind::Condvar);
                 ctx.add_resource_place(&res.name, ResourceType::Condvar);
                 // rp(cv) starts with 0 tokens (no pending notifications).
-                ctx.add_variable(&nw_var_name(&res.name), cvn::model::Val::int(0));
+                ctx.add_variable(&nw_var_name(&res.name), unipn::Val::int(0));
             }
             ("sync", "Semaphore") => {
                 let count = res.count.unwrap_or(1) as u32;
@@ -72,7 +72,7 @@ pub(crate) fn scan_resources(ctx: &mut TranslateContext, program: &Program) {
                     let val = json_value_to_val_with_variants(init, &variant_set);
                     ctx.add_variable(&res.name, val);
                 } else {
-                    ctx.add_variable(&res.name, cvn::model::Val::Unknown);
+                    ctx.add_variable(&res.name, unipn::Val::Unknown);
                 }
                 set_bounded_domain(ctx, &res.name, &res.base);
             }
@@ -93,7 +93,7 @@ pub(crate) fn scan_resources(ctx: &mut TranslateContext, program: &Program) {
                     let val = json_value_to_val_with_variants(init, &variant_set);
                     ctx.add_variable(&res.name, val);
                 } else {
-                    ctx.add_variable(&res.name, cvn::model::Val::Unknown);
+                    ctx.add_variable(&res.name, unipn::Val::Unknown);
                 }
                 set_bounded_domain(ctx, &res.name, &res.base);
             }

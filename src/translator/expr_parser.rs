@@ -1,6 +1,8 @@
+#![allow(clippy::collapsible_if)]
+
 use std::collections::{HashMap, HashSet};
 
-use cvn::model::{BoolExpr, CmpOp, Expr, Op, Val};
+use unipn::{BoolExpr, CmpOp, Expr, Op, Val};
 
 /// Parse a ConcIR branch condition string (e.g. `"count > 0"`) into a CVN `BoolExpr`.
 ///
@@ -42,7 +44,9 @@ pub(crate) fn parse_condition(
         }
     }
 
-    Err(format!("no comparison operator found in condition: '{cond}'"))
+    Err(format!(
+        "no comparison operator found in condition: '{cond}'"
+    ))
 }
 
 /// Parse a ConcIR value string into a CVN `Expr`.
@@ -272,8 +276,14 @@ mod tests {
 
     #[test]
     fn parse_literal_bool() {
-        assert_eq!(parse_expr("true", &no_enums(), &HashMap::new()).unwrap(), Expr::Lit(Val::bool(true)));
-        assert_eq!(parse_expr("false", &no_enums(), &HashMap::new()).unwrap(), Expr::Lit(Val::bool(false)));
+        assert_eq!(
+            parse_expr("true", &no_enums(), &HashMap::new()).unwrap(),
+            Expr::Lit(Val::bool(true))
+        );
+        assert_eq!(
+            parse_expr("false", &no_enums(), &HashMap::new()).unwrap(),
+            Expr::Lit(Val::bool(false))
+        );
     }
 
     #[test]
@@ -309,7 +319,10 @@ mod tests {
 
     #[test]
     fn json_val_bool() {
-        assert_eq!(json_value_to_val(&serde_json::json!(false)), Val::bool(false));
+        assert_eq!(
+            json_value_to_val(&serde_json::json!(false)),
+            Val::bool(false)
+        );
     }
 
     #[test]
