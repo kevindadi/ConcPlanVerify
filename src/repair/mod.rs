@@ -37,12 +37,12 @@ pub fn analyze(
         .iter()
         .filter_map(|f| f.module.as_ref().map(|m| (f.name.clone(), m.clone())))
         .collect();
+    let initial_marking = result.states[result.initial].marking.clone();
 
-    let mut reports: Vec<BugReport> = result
-        .deadlocks
+    let mut reports: Vec<BugReport> = find_deadlocks(net, result)
         .iter()
         .map(|cx| {
-            let mut report = classify_counterexample(net, cx, &fn_to_module);
+            let mut report = classify_counterexample(net, cx, &fn_to_module, &initial_marking);
             report.involved_modules = modules_for_functions(&report.involved_functions, &fn_to_module);
             report.cir_slice = extract_cir_slice(program, &report.trace);
             report.preservation_constraints = preservation.clone();
@@ -62,7 +62,7 @@ pub fn analyze(
             continue;
         }
 
-        let mut report = classify_counterexample(net, &cx, &fn_to_module);
+        let mut report = classify_counterexample(net, &cx, &fn_to_module, &initial_marking);
         if let BugKind::DeadTransition { sids, .. } = &report.kind
             && report.involved_functions.is_empty()
         {
@@ -84,11 +84,10 @@ fn deadlock_dominated_dead_transitions(
     net: &CvnNet,
     result: &ReachabilityGraph<CvnState>,
 ) -> HashSet<TransitionId> {
-    let roots: HashSet<PlaceId> = result
-        .deadlocks
+    let roots: HashSet<PlaceId> = find_deadlocks(net, result)
         .iter()
         .flat_map(|cx| blocked_places(net, &cx.final_state))
-        .filter(|pid| net.place(*pid).map(|p| p.is_control_flow()).unwrap_or(false))
+        .filter(|pid| net.is_control_flow(*pid))
         .collect();
 
     if roots.is_empty() {
@@ -100,22 +99,14 @@ fn deadlock_dominated_dead_transitions(
         let inputs: Vec<PlaceId> = net
             .pre_arcs(tid)
             .into_iter()
-            .filter(|(p, _)| {
-                net.place(*p)
-                    .map(|place| place.is_control_flow())
-                    .unwrap_or(false)
-            })
-            .map(|(p, _)| p)
+            .filter(|arc| net.is_control_flow(arc.place))
+            .map(|arc| arc.place)
             .collect();
         let outputs: Vec<PlaceId> = net
             .post_arcs(tid)
             .into_iter()
-            .filter(|(p, _)| {
-                net.place(*p)
-                    .map(|place| place.is_control_flow())
-                    .unwrap_or(false)
-            })
-            .map(|(p, _)| p)
+            .filter(|arc| net.is_control_flow(arc.place))
+            .map(|arc| arc.place)
             .collect();
 
         for input in &inputs {
@@ -144,13 +135,13 @@ fn deadlock_dominated_dead_transitions(
         .into_iter()
         .filter_map(|cx| match cx.kind {
             PropertyViolation::DeadTransition { transition, .. }
-                if net.pre_arcs(transition).into_iter().any(|(p, _)| {
-                    downstream.contains(&p)
-                        && net
-                            .place(p)
-                            .map(|place| place.is_control_flow())
-                            .unwrap_or(false)
-                }) => Some(transition),
+                if net
+                    .pre_arcs(transition)
+                    .into_iter()
+                    .any(|arc| downstream.contains(&arc.place) && net.is_control_flow(arc.place)) =>
+            {
+                Some(transition)
+            }
             _ => None,
         })
         .collect()
@@ -208,6 +199,7 @@ fn classify_counterexample(
     net: &CvnNet,
     cx: &Counterexample,
     fn_to_module: &HashMap<String, String>,
+    initial_marking: &unipn::Marking,
 ) -> BugReport {
     if let PropertyViolation::DeadTransition { .. } = &cx.kind {
         return classify_dead_transition(net, cx, fn_to_module);
@@ -227,7 +219,7 @@ fn classify_counterexample(
     } else if let Some(channel_block) = classify_channel_block(net, &blocked) {
         channel_block
     } else {
-        classify_deadlock(net, cx, &blocked, fn_to_module)
+        classify_deadlock(net, cx, &blocked, fn_to_module, initial_marking)
     };
 
     let trace = enrich_trace(net, cx, fn_to_module);
@@ -259,7 +251,7 @@ fn detect_signal_loss_in_trace(net: &CvnNet, cx: &Counterexample) -> bool {
         net.transition(step.transition)
             .map(|t| {
                 matches!(
-                    t.kind,
+                    t.kind.kind,
                     TransitionKind::CondvarNotifyLost | TransitionKind::CondvarNotifyAllLost
                 )
             })
@@ -292,7 +284,7 @@ fn classify_signal_loss(
         for step in &cx.trace {
             if let Some(t) = net.transition(step.transition) {
                 if matches!(
-                    t.kind,
+                    t.kind.kind,
                     TransitionKind::CondvarNotifyLost | TransitionKind::CondvarNotifyAllLost
                 ) {
                     notifier_tid = net.transition_label(step.transition);
@@ -323,12 +315,12 @@ fn classify_channel_block(net: &CvnNet, blocked: &[PlaceId]) -> Option<(BugKind,
         };
 
         for tid in consumers {
-            for (p, _) in net.pre_arcs(*tid) {
-                if let Some(place) = net.place(p) {
+            for arc in net.pre_arcs(*tid) {
+                if let Some(place) = net.place(arc.place) {
                     if matches!(place.kind, PlaceKind::Resource(ResourceType::Channel)) {
                         let kind_label = net
                             .transition(*tid)
-                            .map(|t| match t.kind {
+                            .map(|t| match t.kind.kind {
                                 TransitionKind::Send => "send",
                                 TransitionKind::Recv => "recv",
                                 _ => "recv",
