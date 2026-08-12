@@ -1,11 +1,9 @@
 use std::path::Path;
 
 use concir::ast::Program;
-use unipn::NetLike;
 
 fn load_canonical_fixture() -> Program {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/canonical_schema.json");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/canonical_schema.json");
     let source = std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("failed to read {}: {e}", path.display()));
     serde_json::from_str(&source)
@@ -17,23 +15,32 @@ fn canonical_schema_parses_and_validates() {
     let program = load_canonical_fixture();
     let report = concir::validate::validate(&program);
 
-    assert!(report.valid, "canonical ConcIR is invalid: {:?}", report.diagnostics);
-    assert!(report
-        .diagnostics
-        .iter()
-        .all(|diagnostic| diagnostic.code != "E601"));
+    assert!(
+        report.valid,
+        "canonical ConcIR is invalid: {:?}",
+        report.diagnostics
+    );
+    assert!(
+        report
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code != "E601")
+    );
 }
 
 #[test]
 fn canonical_schema_translates_and_goals_have_no_warnings() {
     let program = load_canonical_fixture();
-    let net = cir2cvn::translate(&program).expect("canonical ConcIR should translate");
+    let (net, _) = cir2cvn::translate(&program).expect("canonical ConcIR should translate");
     assert!(net.num_places() > 0);
     assert!(net.num_transitions() > 0);
 
     let (goals, warnings) = cir2cvn::translate_goals(&program, &net);
     assert_eq!(goals.len(), 2);
-    assert!(warnings.is_empty(), "unexpected goal warnings: {warnings:?}");
+    assert!(
+        warnings.is_empty(),
+        "unexpected goal warnings: {warnings:?}"
+    );
 }
 
 #[test]
@@ -60,8 +67,9 @@ fn legacy_unknown_fields_are_rejected() {
 
 #[test]
 fn operation_tuples_have_strict_shapes() {
-    assert!(serde_json::from_str::<Program>(
-        r#"{
+    assert!(
+        serde_json::from_str::<Program>(
+            r#"{
           "program":"bad_op",
           "resources":[], "protection":[],
           "functions":[{"name":"main","kind":"normal","body":[
@@ -69,11 +77,13 @@ fn operation_tuples_have_strict_shapes() {
           ]}],
           "entry":"main"
         }"#
-    )
-    .is_err());
+        )
+        .is_err()
+    );
 
-    assert!(serde_json::from_str::<Program>(
-        r#"{
+    assert!(
+        serde_json::from_str::<Program>(
+            r#"{
           "program":"bad_transfer",
           "resources":[], "protection":[],
           "functions":[{"name":"main","kind":"normal","body":[
@@ -81,8 +91,9 @@ fn operation_tuples_have_strict_shapes() {
           ]}],
           "entry":"main"
         }"#
-    )
-    .is_err());
+        )
+        .is_err()
+    );
 }
 
 #[test]

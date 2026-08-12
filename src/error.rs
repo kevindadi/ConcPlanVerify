@@ -4,7 +4,6 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TranslateError {
     // ── T0xx: Invalid ConcIR input ──
-
     /// T001 — The program's `entry` field names a function that does not exist.
     MissingEntry(String),
     /// T002 — The entry function has an empty body.
@@ -13,7 +12,6 @@ pub enum TranslateError {
     UnknownFunction(String),
 
     // ── T1xx: Resource translation errors ──
-
     /// T101 — Unrecognized resource type string.
     UnknownResourceType(String),
     /// T102 — Condvar `wait` references a lock that does not exist in resources.
@@ -22,29 +20,20 @@ pub enum TranslateError {
     CondvarLockNotMutex(String),
 
     // ── T2xx: Control-flow translation errors ──
-
     /// T201 — A transfer target sid does not exist in the function body.
-    InvalidTarget {
-        sid: String,
-        fn_name: String,
-    },
+    InvalidTarget { sid: String, fn_name: String },
     /// T202 — Branch condition string cannot be parsed.
     InvalidBranchCondition(String),
     /// T203 — Switch variable is not an Enum type.
     SwitchNotEnum(String),
 
     // ── T3xx: Consistency errors ──
-
     /// T301 — Cannot determine whether a RwLock drop releases a read-lock or write-lock.
-    AmbiguousRwLockDrop {
-        fn_name: String,
-        sid: String,
-    },
+    AmbiguousRwLockDrop { fn_name: String, sid: String },
     /// T302 — A condvar notify/notify_all has no corresponding wait-sites.
     NoWaitSites(String),
 
     // ── Builder / internal errors ──
-
     /// Wrapper for errors produced by [`CvnNetBuilder::build`].
     BuilderError(String),
 }
@@ -59,19 +48,28 @@ impl fmt::Display for TranslateError {
                 write!(f, "T002: entry function '{name}' has empty body")
             }
             Self::UnknownFunction(name) => {
-                write!(f, "T003: spawn/join/call references unknown function '{name}'")
+                write!(
+                    f,
+                    "T003: spawn/join/call references unknown function '{name}'"
+                )
             }
             Self::UnknownResourceType(ty) => {
                 write!(f, "T101: unknown resource type '{ty}'")
             }
             Self::CondvarLockNotFound(lock) => {
-                write!(f, "T102: condvar wait references non-existent lock '{lock}'")
+                write!(
+                    f,
+                    "T102: condvar wait references non-existent lock '{lock}'"
+                )
             }
             Self::CondvarLockNotMutex(lock) => {
                 write!(f, "T103: condvar wait lock '{lock}' is not a Mutex")
             }
             Self::InvalidTarget { sid, fn_name } => {
-                write!(f, "T201: transfer target sid '{sid}' not found in function '{fn_name}'")
+                write!(
+                    f,
+                    "T201: transfer target sid '{sid}' not found in function '{fn_name}'"
+                )
             }
             Self::InvalidBranchCondition(cond) => {
                 write!(f, "T202: invalid branch condition '{cond}'")

@@ -5,7 +5,9 @@ use unipn::model::TransitionKind;
 fn spawn_creates_fork() {
     let net = common::translate_fixture("spawn_join.json");
 
-    assert!(common::transition_kind(&net, "main_s1_spawn").is_some_and(|k| k == TransitionKind::Spawn));
+    assert!(
+        common::transition_kind(&net, "main_s1_spawn").is_some_and(|k| k == TransitionKind::Spawn)
+    );
 
     let out = common::output_arcs(&net, "main_s1_spawn");
     // Should produce two tokens: one to main.s2, one to worker's first place.
@@ -17,7 +19,9 @@ fn spawn_creates_fork() {
 fn join_creates_synchronization() {
     let net = common::translate_fixture("spawn_join.json");
 
-    assert!(common::transition_kind(&net, "main_s2_join").is_some_and(|k| k == TransitionKind::Join));
+    assert!(
+        common::transition_kind(&net, "main_s2_join").is_some_and(|k| k == TransitionKind::Join)
+    );
 
     let in_arcs = common::input_arcs(&net, "main_s2_join");
     // Should consume from main.s2 AND worker.ret.

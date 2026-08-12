@@ -38,11 +38,7 @@ fn run() -> i32 {
     let source = match read_input(input) {
         Ok(s) => s,
         Err(e) => {
-            return emit_error(
-                "input_error",
-                format!("error reading '{input}': {e}"),
-                2,
-            );
+            return emit_error("input_error", format!("error reading '{input}': {e}"), 2);
         }
     };
 
@@ -82,18 +78,28 @@ fn cmd_validate(source: &str) -> i32 {
         Ok(program) => program,
         Err(error) => {
             let payload = invalid_json_payload(&error);
-            println!("{}", serde_json::to_string(&payload).expect("JSON serialization"));
+            println!(
+                "{}",
+                serde_json::to_string(&payload).expect("JSON serialization")
+            );
             return 2;
         }
     };
     let report = concir::validate::validate(&program);
-    let status = if report.valid { "valid" } else { "invalid_model" };
+    let status = if report.valid {
+        "valid"
+    } else {
+        "invalid_model"
+    };
     let payload = json!({
         "status": status,
         "valid": report.valid,
         "diagnostics": report.diagnostics,
     });
-    println!("{}", serde_json::to_string(&payload).expect("JSON serialization"));
+    println!(
+        "{}",
+        serde_json::to_string(&payload).expect("JSON serialization")
+    );
     if report.valid { 0 } else { 1 }
 }
 
@@ -104,7 +110,10 @@ fn cmd_verify(source: &str, check_goals: bool) -> i32 {
         Ok(program) => program,
         Err(error) => {
             let payload = invalid_json_payload(&error);
-            println!("{}", serde_json::to_string(&payload).expect("JSON serialization"));
+            println!(
+                "{}",
+                serde_json::to_string(&payload).expect("JSON serialization")
+            );
             return 2;
         }
     };
@@ -131,7 +140,10 @@ fn emit_error(status: &str, message: impl Into<String>, exit_code: i32) -> i32 {
         "status": status,
         "error": message.into(),
     });
-    println!("{}", serde_json::to_string(&payload).expect("JSON serialization"));
+    println!(
+        "{}",
+        serde_json::to_string(&payload).expect("JSON serialization")
+    );
     exit_code
 }
 

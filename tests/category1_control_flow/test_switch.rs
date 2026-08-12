@@ -30,7 +30,11 @@ fn switch_all_share_input() {
 fn switch_targets_correct_places() {
     let net = common::translate_fixture("switch.json");
 
-    let pairs = [("Init", "main.s6"), ("Running", "main.s7"), ("Done", "main.s8")];
+    let pairs = [
+        ("Init", "main.s6"),
+        ("Running", "main.s7"),
+        ("Done", "main.s8"),
+    ];
     for (label, expected_cp) in &pairs {
         let name = format!("main_s5_switch_{label}");
         let out = common::output_arcs(&net, &name);

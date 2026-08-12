@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use unipn::model::{ControlSub, PlaceKind, ResourceType, TransitionKind};
-use unipn::{BoolExpr, CvnNet, CvnBuilder, PlaceId, TransitionId, Val, VarUpdate};
+use unipn::{BoolExpr, CvnBuilder, CvnNet, PlaceId, TransitionId, Val, VarUpdate};
 
 use crate::error::TranslateError;
 
@@ -191,7 +191,9 @@ impl TranslateContext {
             return;
         }
         let name = format!("{fn_name}.{sid}");
-        let idx = self.builder.add_place(name, PlaceKind::Control(ControlSub::Statement));
+        let idx = self
+            .builder
+            .add_place(name, PlaceKind::Control(ControlSub::Statement));
         self.place_map.insert(key, idx);
     }
 
@@ -212,7 +214,9 @@ impl TranslateContext {
             return;
         }
         let name = format!("{cv_name}@{fn_name}.{sid}");
-        let idx = self.builder.add_place(name, PlaceKind::Control(ControlSub::WaitPoint));
+        let idx = self
+            .builder
+            .add_place(name, PlaceKind::Control(ControlSub::WaitPoint));
         self.place_map.insert(key, idx);
     }
 

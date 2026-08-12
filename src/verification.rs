@@ -13,7 +13,7 @@ use unipn::model::{ControlSub, PlaceKind};
 use unipn::net::ArcDir;
 
 use crate::goals::check_goals;
-use crate::repair::{analyze, BugReport};
+use crate::repair::{BugReport, analyze};
 
 /// Configuration shared by generation, repair, CLI, and GUI verification.
 #[derive(Clone, Debug)]

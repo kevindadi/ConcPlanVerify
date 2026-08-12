@@ -43,7 +43,8 @@ pub fn analyze(
         .iter()
         .map(|cx| {
             let mut report = classify_counterexample(net, cx, &fn_to_module, &initial_marking);
-            report.involved_modules = modules_for_functions(&report.involved_functions, &fn_to_module);
+            report.involved_modules =
+                modules_for_functions(&report.involved_functions, &fn_to_module);
             report.cir_slice = extract_cir_slice(program, &report.trace);
             report.preservation_constraints = preservation.clone();
             report
@@ -111,10 +112,7 @@ fn deadlock_dominated_dead_transitions(
 
         for input in &inputs {
             for output in &outputs {
-                successors
-                    .entry(*input)
-                    .or_default()
-                    .insert(*output);
+                successors.entry(*input).or_default().insert(*output);
             }
         }
     }
@@ -135,10 +133,9 @@ fn deadlock_dominated_dead_transitions(
         .into_iter()
         .filter_map(|cx| match cx.kind {
             PropertyViolation::DeadTransition { transition, .. }
-                if net
-                    .pre_arcs(transition)
-                    .into_iter()
-                    .any(|arc| downstream.contains(&arc.place) && net.is_control_flow(arc.place)) =>
+                if net.pre_arcs(transition).into_iter().any(|arc| {
+                    downstream.contains(&arc.place) && net.is_control_flow(arc.place)
+                }) =>
             {
                 Some(transition)
             }
@@ -353,17 +350,17 @@ fn classify_dead_transition(
     fn_to_module: &HashMap<String, String>,
 ) -> BugReport {
     let (transition_id_str, sids): (String, Vec<String>) = match &cx.kind {
-        PropertyViolation::DeadTransition { transition, anchors } => (
-            net.transition_label(*transition),
-            anchors.clone(),
-        ),
+        PropertyViolation::DeadTransition {
+            transition,
+            anchors,
+        } => (net.transition_label(*transition), anchors.clone()),
         _ => (String::new(), Vec::new()),
     };
 
     let source_function = match &cx.kind {
-        PropertyViolation::DeadTransition { transition, .. } => {
-            net.transition(*transition).and_then(|t| t.kind.scope.clone())
-        }
+        PropertyViolation::DeadTransition { transition, .. } => net
+            .transition(*transition)
+            .and_then(|t| t.kind.scope.clone()),
         _ => None,
     };
     let involved_functions: Vec<String> = source_function.iter().cloned().collect();
@@ -440,10 +437,7 @@ fn analyze_deadlock_participants(
             continue;
         };
 
-        let is_control = matches!(
-            place.kind,
-            PlaceKind::Control(_)
-        );
+        let is_control = matches!(place.kind, PlaceKind::Control(_));
         if !is_control {
             continue;
         }
@@ -748,10 +742,7 @@ fn extract_cir_slice(
 
     let mut entries = Vec::new();
     for func in &program.functions {
-        let scoped_sids = scoped
-            .get(func.name.as_str())
-            .cloned()
-            .unwrap_or_default();
+        let scoped_sids = scoped.get(func.name.as_str()).cloned().unwrap_or_default();
         for stmt in &func.body {
             let in_scope = scoped_sids.contains(stmt.sid.as_str())
                 || (unscoped.contains(stmt.sid.as_str()) && scoped_sids.is_empty());

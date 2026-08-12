@@ -150,12 +150,7 @@ pub fn translate(
                     unipn::TransitionKind::Sequential,
                     &[&first_stmt.sid],
                 );
-                ctx.add_input_arc(
-                    &from,
-                    &bridge_tid,
-                    1,
-                    unipn::BoolExpr::True,
-                );
+                ctx.add_input_arc(&from, &bridge_tid, 1, unipn::BoolExpr::True);
                 ctx.add_output_arc(&bridge_tid, &to, 1, None);
             }
         }
@@ -177,11 +172,8 @@ pub fn translate(
 
 /// Validate that all spawn/join/call targets reference existing functions.
 fn validate_function_references(ctx: &mut TranslateContext, program: &concir::ast::Program) {
-    let fn_names: std::collections::HashSet<&str> = program
-        .functions
-        .iter()
-        .map(|f| f.name.as_str())
-        .collect();
+    let fn_names: std::collections::HashSet<&str> =
+        program.functions.iter().map(|f| f.name.as_str()).collect();
 
     for func in &program.functions {
         for stmt in &func.body {
