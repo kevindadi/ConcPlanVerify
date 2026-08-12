@@ -9,8 +9,8 @@ use super::control_flow::{
 use super::expr_parser::parse_expr;
 use crate::error::TranslateError;
 use concir::ast::{Function, Op, Statement, Transfer};
-use unipn::{BoolExpr, CmpOp, Expr, TransitionKind, Val, VarUpdate};
 use std::collections::HashSet;
+use unipn::{BoolExpr, CmpOp, Expr, TransitionKind, Val, VarUpdate};
 
 /// Phase 2: Translate all function bodies.
 ///
@@ -399,7 +399,8 @@ fn translate_write(
     let plan = plan_transfer(ctx, fn_name, &stmt.sid, &stmt.transfer);
 
     let value_expr = if let Some(val_str) = args.first() {
-        parse_expr(val_str, &ctx.all_enum_variants, ctx.aliases_for(fn_name)).unwrap_or(Expr::Lit(Val::Unknown))
+        parse_expr(val_str, &ctx.all_enum_variants, ctx.aliases_for(fn_name))
+            .unwrap_or(Expr::Lit(Val::Unknown))
     } else {
         Expr::Lit(Val::Unknown)
     };
@@ -476,7 +477,8 @@ fn translate_store(
     let plan = plan_transfer(ctx, fn_name, &stmt.sid, &stmt.transfer);
 
     let value_expr = if let Some(val_str) = args.first() {
-        parse_expr(val_str, &ctx.all_enum_variants, ctx.aliases_for(fn_name)).unwrap_or(Expr::Lit(Val::Unknown))
+        parse_expr(val_str, &ctx.all_enum_variants, ctx.aliases_for(fn_name))
+            .unwrap_or(Expr::Lit(Val::Unknown))
     } else {
         Expr::Lit(Val::Unknown)
     };
@@ -658,7 +660,11 @@ fn translate_call(
         if extras.is_empty() {
             (None, &[])
         } else {
-            let out = if extras[0].is_empty() { None } else { Some(extras[0].as_str()) };
+            let out = if extras[0].is_empty() {
+                None
+            } else {
+                Some(extras[0].as_str())
+            };
             (out, &extras[1..])
         }
     } else {

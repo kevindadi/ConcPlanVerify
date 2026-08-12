@@ -8,4 +8,6 @@ pub mod verification;
 pub use error::TranslateError;
 pub use goals::{GoalPredicate, GoalSpec, UnmetGoal, check_goals};
 pub use translator::{translate, translate_goals};
-pub use verification::{verify_program, VerificationConfig, VerificationResult, VerificationStatus};
+pub use verification::{
+    VerificationConfig, VerificationResult, VerificationStatus, verify_program,
+};

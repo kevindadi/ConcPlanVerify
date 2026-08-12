@@ -3,8 +3,8 @@
 use std::path::Path;
 
 use concir::ast::Program;
-use unipn::analysis::{explore, find_dead_transitions, AnalysisConfig};
-use unipn::netlike::NetLike;
+use unipn::analysis::{AnalysisConfig, explore};
+use unipn::cvn::find_dead_transitions;
 
 use serde::Deserialize;
 
@@ -26,7 +26,7 @@ fn load_cir(path: &Path) -> Program {
         .unwrap_or_else(|e| panic!("failed to parse {}: {e}", path.display()))
 }
 
-fn translate(program: &Program) -> unipn::Net {
+fn translate(program: &Program) -> (unipn::CvnNet, unipn::CvnState) {
     cir2cvn::translate(program).unwrap_or_else(|errs| {
         let msgs: Vec<String> = errs.iter().map(|e| e.to_string()).collect();
         panic!("translation failed: {}", msgs.join("; "));
@@ -39,15 +39,13 @@ fn run_buggy_test(dir_name: &str) {
     let expected_path = dir.join("expected_bug.json");
 
     let buggy = load_cir(&buggy_path);
-    let net = translate(&buggy);
+    let (net, initial) = translate(&buggy);
     let config = AnalysisConfig::default();
-    let result = explore(&net, &config);
+    let result = explore(&net, initial, &config);
 
     if expected_path.exists() {
-        let expected: ExpectedBug = serde_json::from_str(
-            &std::fs::read_to_string(&expected_path).unwrap(),
-        )
-        .unwrap();
+        let expected: ExpectedBug =
+            serde_json::from_str(&std::fs::read_to_string(&expected_path).unwrap()).unwrap();
 
         let reports = cir2cvn::repair::analyze(&buggy, &net, &result);
         assert!(
@@ -102,9 +100,9 @@ fn run_buggy_test(dir_name: &str) {
         );
     } else {
         assert!(
-            result.deadlocks.is_empty(),
+            unipn::cvn::find_deadlocks(&net, &result).is_empty(),
             "[{dir_name}] expected no bugs but found {} deadlocks",
-            result.deadlocks.len()
+            unipn::cvn::find_deadlocks(&net, &result).len()
         );
     }
 }
@@ -118,15 +116,18 @@ fn run_fixed_test(dir_name: &str) {
     }
 
     let fixed = load_cir(&fixed_path);
-    let net = translate(&fixed);
+    let (net, initial) = translate(&fixed);
     let config = AnalysisConfig::default();
-    let result = explore(&net, &config);
+    let result = explore(&net, initial, &config);
 
     assert!(
-        result.deadlocks.is_empty(),
+        unipn::cvn::find_deadlocks(&net, &result).is_empty(),
         "[{dir_name}/fixed] expected no deadlocks but found {}. First deadlock trace len: {}",
-        result.deadlocks.len(),
-        result.deadlocks.first().map(|d| d.trace.len()).unwrap_or(0)
+        unipn::cvn::find_deadlocks(&net, &result).len(),
+        unipn::cvn::find_deadlocks(&net, &result)
+            .first()
+            .map(|d| d.trace.len())
+            .unwrap_or(0)
     );
 }
 
@@ -144,14 +145,14 @@ fn run_goal_buggy_test(dir_name: &str) {
         "[{dir_name}/buggy] fixture must declare at least one business goal"
     );
 
-    let net = translate(&buggy);
+    let (net, initial) = translate(&buggy);
     let config = AnalysisConfig::default();
-    let result = explore(&net, &config);
+    let result = explore(&net, initial, &config);
 
     assert!(
-        result.deadlocks.is_empty(),
+        unipn::cvn::find_deadlocks(&net, &result).is_empty(),
         "[{dir_name}/buggy] expected a *partial* deadlock (no CVN deadlock), but found {}",
-        result.deadlocks.len()
+        unipn::cvn::find_deadlocks(&net, &result).len()
     );
 
     let (specs, warnings) = cir2cvn::translate_goals(&buggy, &net);
@@ -179,14 +180,14 @@ fn run_goal_fixed_test(dir_name: &str) {
     }
 
     let fixed = load_cir(&fixed_path);
-    let net = translate(&fixed);
+    let (net, initial) = translate(&fixed);
     let config = AnalysisConfig::default();
-    let result = explore(&net, &config);
+    let result = explore(&net, initial, &config);
 
     assert!(
-        result.deadlocks.is_empty(),
+        unipn::cvn::find_deadlocks(&net, &result).is_empty(),
         "[{dir_name}/fixed] expected no deadlocks but found {}",
-        result.deadlocks.len()
+        unipn::cvn::find_deadlocks(&net, &result).len()
     );
 
     let (specs, warnings) = cir2cvn::translate_goals(&fixed, &net);
@@ -246,8 +247,8 @@ fn e2e_signal_loss_fixed_full_pipeline_is_safe() {
 #[test]
 fn e2e_signal_loss_buggy_repair_feedback_filters_deadlock_suffixes() {
     let program = load_cir(&e2e_dir().join("signal_loss/buggy.json"));
-    let net = translate(&program);
-    let result = explore(&net, &AnalysisConfig::default());
+    let (net, initial) = translate(&program);
+    let result = explore(&net, initial, &AnalysisConfig::default());
 
     let reports = cir2cvn::repair::analyze(&program, &net, &result);
     assert!(
@@ -255,7 +256,10 @@ fn e2e_signal_loss_buggy_repair_feedback_filters_deadlock_suffixes() {
             .iter()
             .any(|report| matches!(&report.kind, cir2cvn::repair::BugKind::SignalLoss { .. })),
         "repair feedback should retain the primary SignalLoss report: {:?}",
-        reports.iter().map(|report| report.kind.name()).collect::<Vec<_>>()
+        reports
+            .iter()
+            .map(|report| report.kind.name())
+            .collect::<Vec<_>>()
     );
     assert!(
         reports.iter().all(|report| {
@@ -265,7 +269,10 @@ fn e2e_signal_loss_buggy_repair_feedback_filters_deadlock_suffixes() {
             )
         }),
         "signal-loss feedback should contain no independent DeadTransition targets: {:?}",
-        reports.iter().map(|report| report.kind.name()).collect::<Vec<_>>()
+        reports
+            .iter()
+            .map(|report| report.kind.name())
+            .collect::<Vec<_>>()
     );
 }
 
@@ -347,8 +354,8 @@ fn e2e_dual_condvar_fixed() {
 #[test]
 fn e2e_dual_condvar_buggy_repair_feedback_filters_deadlock_suffixes() {
     let program = load_cir(&e2e_dir().join("dual_condvar/buggy.json"));
-    let net = translate(&program);
-    let result = explore(&net, &AnalysisConfig::default());
+    let (net, initial) = translate(&program);
+    let result = explore(&net, initial, &AnalysisConfig::default());
 
     let raw_dead_transitions = find_dead_transitions(&net, &result);
     assert!(
@@ -365,7 +372,10 @@ fn e2e_dual_condvar_buggy_repair_feedback_filters_deadlock_suffixes() {
             .iter()
             .any(|report| matches!(&report.kind, cir2cvn::repair::BugKind::SignalLoss { .. })),
         "repair feedback should retain the primary SignalLoss report: {:?}",
-        reports.iter().map(|report| report.kind.name()).collect::<Vec<_>>()
+        reports
+            .iter()
+            .map(|report| report.kind.name())
+            .collect::<Vec<_>>()
     );
     assert!(
         reports.iter().all(|report| {
@@ -375,7 +385,10 @@ fn e2e_dual_condvar_buggy_repair_feedback_filters_deadlock_suffixes() {
             )
         }),
         "deadlock suffixes should not become independent repair targets: {:?}",
-        reports.iter().map(|report| report.kind.name()).collect::<Vec<_>>()
+        reports
+            .iter()
+            .map(|report| report.kind.name())
+            .collect::<Vec<_>>()
     );
 }
 
@@ -437,7 +450,10 @@ fn goal_trivial_buggy_is_flagged_as_too_weak() {
     let result = verify_benchmark("benchmarks/cir/goal_trivial/buggy.json");
     assert_eq!(result.status, cir2cvn::VerificationStatus::GoalsUnmet);
     assert!(
-        result.goal_warnings.iter().any(|w| w.contains("initial state")),
+        result
+            .goal_warnings
+            .iter()
+            .any(|w| w.contains("initial state")),
         "expected triviality warning, got: {:?}",
         result.goal_warnings
     );
@@ -491,14 +507,14 @@ fn run_dead_transition_fixed_test(dir_name: &str) {
     }
 
     let fixed = load_cir(&fixed_path);
-    let net = translate(&fixed);
+    let (net, initial) = translate(&fixed);
     let config = AnalysisConfig::default();
-    let result = explore(&net, &config);
+    let result = explore(&net, initial, &config);
 
     assert!(
-        result.deadlocks.is_empty(),
+        unipn::cvn::find_deadlocks(&net, &result).is_empty(),
         "[{dir_name}/fixed] expected no deadlocks but found {}",
-        result.deadlocks.len()
+        unipn::cvn::find_deadlocks(&net, &result).len()
     );
 
     let dead = find_dead_transitions(&net, &result);
@@ -524,8 +540,8 @@ fn e2e_dead_transition_buggy() {
 #[test]
 fn e2e_dead_transition_buggy_repair_feedback_retains_independent_report() {
     let program = load_cir(&e2e_dir().join("dead_transition/buggy.json"));
-    let net = translate(&program);
-    let result = explore(&net, &AnalysisConfig::default());
+    let (net, initial) = translate(&program);
+    let result = explore(&net, initial, &AnalysisConfig::default());
 
     let raw_dead_transitions = find_dead_transitions(&net, &result);
     assert!(
@@ -540,7 +556,10 @@ fn e2e_dead_transition_buggy_repair_feedback_retains_independent_report() {
             cir2cvn::repair::BugKind::DeadTransition { .. }
         )),
         "independent dead transition should remain repairable feedback: {:?}",
-        reports.iter().map(|report| report.kind.name()).collect::<Vec<_>>()
+        reports
+            .iter()
+            .map(|report| report.kind.name())
+            .collect::<Vec<_>>()
     );
 }
 

@@ -1,5 +1,5 @@
 use crate::common;
-use cir2cvn::{verify_program, VerificationConfig};
+use cir2cvn::{VerificationConfig, verify_program};
 use serde_json::json;
 use unipn::analysis::{AnalysisConfig, SearchStrategy, explore};
 
@@ -47,12 +47,18 @@ fn dataflow_program() -> concir::ast::Program {
 
 #[test]
 fn modeled_params_materialize_and_guard_resolves() {
-    let net = cir2cvn::translate(&dataflow_program()).expect("translation should succeed");
+    let net = common::translate_program(&dataflow_program());
 
     // Modeled param + return vars are in the store.
     let vars = common::initial_vars(&net);
-    assert!(vars.contains_key("p_worker_n"), "param var missing: {vars:?}");
-    assert!(vars.contains_key("r_worker_out"), "return var missing: {vars:?}");
+    assert!(
+        vars.contains_key("p_worker_n"),
+        "param var missing: {vars:?}"
+    );
+    assert!(
+        vars.contains_key("r_worker_out"),
+        "return var missing: {vars:?}"
+    );
     // Projection: the unmodeled param stays out of the net entirely.
     assert!(
         !vars.contains_key("p_worker_label"),
@@ -95,12 +101,14 @@ fn dataflow_reaches_goal_through_called_parameters() {
     // A goal on the captured return (result == 42) must be reachable: the
     // value flows call-arg → param → guard → return → captured Var.
     let mut program = dataflow_program();
-    program.goals = vec![serde_json::from_value(json!({
-        "id": "g_result",
-        "marking": {},
-        "variables": {"result": 42}
-    }))
-    .expect("goal must parse")];
+    program.goals = vec![
+        serde_json::from_value(json!({
+            "id": "g_result",
+            "marking": {},
+            "variables": {"result": 42}
+        }))
+        .expect("goal must parse"),
+    ];
 
     let result = verify_program(&program, &VerificationConfig::default());
     assert!(
@@ -143,10 +151,13 @@ fn bounded_int_counter_loop_terminates() {
     }))
     .expect("test CIR must parse");
 
-    let net = cir2cvn::translate(&program).expect("translation should succeed");
+    let net = common::translate_program(&program);
 
     // The variable carries its declared domain.
-    assert_eq!(net.var_domain("count"), Some((0, 4)));
+    assert_eq!(
+        net.initial.extra.domains.get("count").copied(),
+        Some((0, 4))
+    );
 
     // Exploration terminates well within a tiny state budget (no unbounded
     // growth): count stays in [0,4] and the loop stops at the bound.
@@ -155,7 +166,7 @@ fn bounded_int_counter_loop_terminates() {
         max_states: 100_000,
         ..AnalysisConfig::default()
     };
-    let result = explore(&net, &config);
+    let result = explore(&net.net, net.initial.clone(), &config);
     assert!(
         result.state_count() < 100,
         "bounded counter loop should terminate in a tiny state space, explored {} states",

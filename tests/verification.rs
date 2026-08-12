@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use cir2cvn::{verify_program, VerificationConfig, VerificationStatus};
+use cir2cvn::{VerificationConfig, VerificationStatus, verify_program};
 
 fn repo_path(relative: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join(relative)
@@ -34,7 +34,11 @@ fn run_cli_input(mode: &str, input: &str) -> (bool, serde_json::Value) {
         .spawn()
         .and_then(|mut child| {
             use std::io::Write;
-            child.stdin.take().expect("CLI stdin should be piped").write_all(input.as_bytes())?;
+            child
+                .stdin
+                .take()
+                .expect("CLI stdin should be piped")
+                .write_all(input.as_bytes())?;
             let output = child.wait_with_output()?;
             Ok(output)
         })
@@ -74,11 +78,13 @@ fn buggy_fixture_is_reported_with_a_nonzero_exit() {
     let (success, output) = run_cli("--analyze", "tests/e2e/mutex_deadlock/buggy.json");
     assert!(!success, "unsafe verification must fail CI: {output}");
     assert_eq!(output["status"], "verified_unsafe");
-    assert!(output["bugs"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .any(|bug| { bug["kind"]["Deadlock"].is_object() }));
+    assert!(
+        output["bugs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|bug| { bug["kind"]["Deadlock"].is_object() })
+    );
 }
 
 #[test]

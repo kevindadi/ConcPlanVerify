@@ -12,7 +12,7 @@ pub use goals::translate_goals;
 
 use crate::error::TranslateError;
 use context::{TranslateContext, cp_id};
-use unipn::Net;
+use unipn::{CvnNet, CvnState};
 
 /// Translate a ConcIR program into a CVN.
 ///
@@ -21,7 +21,9 @@ use unipn::Net;
 ///   1. Resource scanning  — generate resource places, initial marking, and variable store
 ///   2. Function body translation — generate control places, transitions, and arcs
 ///   3. FnSummary translation — generate atomic transitions for un-modeled functions
-pub fn translate(program: &concir::ast::Program) -> Result<Net, Vec<TranslateError>> {
+pub fn translate(
+    program: &concir::ast::Program,
+) -> Result<(CvnNet, CvnState), Vec<TranslateError>> {
     let mut ctx = TranslateContext::new();
 
     // ── Input validation (T0xx) ─────────────────────────────────────────
@@ -148,12 +150,7 @@ pub fn translate(program: &concir::ast::Program) -> Result<Net, Vec<TranslateErr
                     unipn::TransitionKind::Sequential,
                     &[&first_stmt.sid],
                 );
-                ctx.add_input_arc(
-                    &from,
-                    &bridge_tid,
-                    1,
-                    unipn::BoolExpr::True,
-                );
+                ctx.add_input_arc(&from, &bridge_tid, 1, unipn::BoolExpr::True);
                 ctx.add_output_arc(&bridge_tid, &to, 1, None);
             }
         }
@@ -175,11 +172,8 @@ pub fn translate(program: &concir::ast::Program) -> Result<Net, Vec<TranslateErr
 
 /// Validate that all spawn/join/call targets reference existing functions.
 fn validate_function_references(ctx: &mut TranslateContext, program: &concir::ast::Program) {
-    let fn_names: std::collections::HashSet<&str> = program
-        .functions
-        .iter()
-        .map(|f| f.name.as_str())
-        .collect();
+    let fn_names: std::collections::HashSet<&str> =
+        program.functions.iter().map(|f| f.name.as_str()).collect();
 
     for func in &program.functions {
         for stmt in &func.body {

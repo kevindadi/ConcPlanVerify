@@ -1,5 +1,5 @@
-use unipn::model::TransitionKind;
 use serde::{Deserialize, Serialize};
+use unipn::model::TransitionKind;
 
 /// Classification of a detected concurrency bug.
 ///

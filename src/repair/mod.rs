@@ -14,23 +14,22 @@ pub use report::{BugKind, BugReport, DeadlockParticipant, EnrichedFiringStep};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
-use unipn::analysis::{
-    Counterexample, PropertyViolation, ReachabilityGraph, blocked_places, find_dead_transitions,
-};
-use unipn::model::{ControlSub, Place, PlaceKind, ResourceType, TransitionKind};
-use unipn::netlike::NetLike;
-use unipn::{Net, PlaceId, TransitionId};
+use unipn::analysis::{Counterexample, PropertyViolation, ReachabilityGraph};
+use unipn::cvn::{blocked_places, find_dead_transitions, find_deadlocks};
+use unipn::model::{ControlSub, PlaceKind, ResourceType, TransitionKind};
+use unipn::net::Place;
+use unipn::{CvnNet, CvnState, PlaceId, TransitionId};
 
 /// Analyze counterexamples and produce enriched bug reports.
 ///
 /// Each [`Counterexample`] is classified into a more specific [`BugKind`] by
 /// inspecting the net structure and the final state. Deadlocks come from
-/// `result.deadlocks`; behavioral dead transitions are computed from the
+/// `find_deadlocks(net, result)`; behavioral dead transitions are computed from the
 /// reachability graph via [`find_dead_transitions`].
 pub fn analyze(
     program: &concir::ast::Program,
-    net: &Net,
-    result: &ReachabilityGraph,
+    net: &CvnNet,
+    result: &ReachabilityGraph<CvnState>,
 ) -> Vec<BugReport> {
     let preservation = build_preservation_constraints(program);
     let fn_to_module: HashMap<String, String> = program
@@ -38,13 +37,14 @@ pub fn analyze(
         .iter()
         .filter_map(|f| f.module.as_ref().map(|m| (f.name.clone(), m.clone())))
         .collect();
+    let initial_marking = result.states[result.initial].marking.clone();
 
-    let mut reports: Vec<BugReport> = result
-        .deadlocks
+    let mut reports: Vec<BugReport> = find_deadlocks(net, result)
         .iter()
         .map(|cx| {
-            let mut report = classify_counterexample(net, cx, &fn_to_module);
-            report.involved_modules = modules_for_functions(&report.involved_functions, &fn_to_module);
+            let mut report = classify_counterexample(net, cx, &fn_to_module, &initial_marking);
+            report.involved_modules =
+                modules_for_functions(&report.involved_functions, &fn_to_module);
             report.cir_slice = extract_cir_slice(program, &report.trace);
             report.preservation_constraints = preservation.clone();
             report
@@ -63,7 +63,7 @@ pub fn analyze(
             continue;
         }
 
-        let mut report = classify_counterexample(net, &cx, &fn_to_module);
+        let mut report = classify_counterexample(net, &cx, &fn_to_module, &initial_marking);
         if let BugKind::DeadTransition { sids, .. } = &report.kind
             && report.involved_functions.is_empty()
         {
@@ -82,14 +82,13 @@ pub fn analyze(
 /// a reachable deadlock. This keeps independent unreachable-code diagnostics
 /// while avoiding downstream repair targets for the same deadlock.
 fn deadlock_dominated_dead_transitions(
-    net: &Net,
-    result: &ReachabilityGraph,
+    net: &CvnNet,
+    result: &ReachabilityGraph<CvnState>,
 ) -> HashSet<TransitionId> {
-    let roots: HashSet<PlaceId> = result
-        .deadlocks
+    let roots: HashSet<PlaceId> = find_deadlocks(net, result)
         .iter()
         .flat_map(|cx| blocked_places(net, &cx.final_state))
-        .filter(|pid| net.place(*pid).map(|p| p.is_control_flow()).unwrap_or(false))
+        .filter(|pid| net.is_control_flow(*pid))
         .collect();
 
     if roots.is_empty() {
@@ -101,30 +100,19 @@ fn deadlock_dominated_dead_transitions(
         let inputs: Vec<PlaceId> = net
             .pre_arcs(tid)
             .into_iter()
-            .filter(|(p, _)| {
-                net.place(*p)
-                    .map(|place| place.is_control_flow())
-                    .unwrap_or(false)
-            })
-            .map(|(p, _)| p)
+            .filter(|arc| net.is_control_flow(arc.place))
+            .map(|arc| arc.place)
             .collect();
         let outputs: Vec<PlaceId> = net
             .post_arcs(tid)
             .into_iter()
-            .filter(|(p, _)| {
-                net.place(*p)
-                    .map(|place| place.is_control_flow())
-                    .unwrap_or(false)
-            })
-            .map(|(p, _)| p)
+            .filter(|arc| net.is_control_flow(arc.place))
+            .map(|arc| arc.place)
             .collect();
 
         for input in &inputs {
             for output in &outputs {
-                successors
-                    .entry(*input)
-                    .or_default()
-                    .insert(*output);
+                successors.entry(*input).or_default().insert(*output);
             }
         }
     }
@@ -145,13 +133,12 @@ fn deadlock_dominated_dead_transitions(
         .into_iter()
         .filter_map(|cx| match cx.kind {
             PropertyViolation::DeadTransition { transition, .. }
-                if net.pre_arcs(transition).into_iter().any(|(p, _)| {
-                    downstream.contains(&p)
-                        && net
-                            .place(p)
-                            .map(|place| place.is_control_flow())
-                            .unwrap_or(false)
-                }) => Some(transition),
+                if net.pre_arcs(transition).into_iter().any(|arc| {
+                    downstream.contains(&arc.place) && net.is_control_flow(arc.place)
+                }) =>
+            {
+                Some(transition)
+            }
             _ => None,
         })
         .collect()
@@ -190,7 +177,7 @@ fn modules_for_functions(
 // `"{cv}@{fn}.{sid}"`, reacquire `"{fn}.{sid}#ra"`, resource = res_name.
 
 /// `(fn_name, sid)` from a control / wait / reacquire place name.
-fn place_fn_sid(place: &Place) -> (String, String) {
+fn place_fn_sid(place: &Place<PlaceKind>) -> (String, String) {
     let name = place.name.as_str();
     let rest = name.split_once('@').map(|(_, r)| r).unwrap_or(name);
     let rest = rest.split_once('#').map(|(r, _)| r).unwrap_or(rest);
@@ -201,14 +188,15 @@ fn place_fn_sid(place: &Place) -> (String, String) {
 }
 
 /// `cv_name` from a wait place name (`"{cv}@..."`).
-fn place_cv_name(place: &Place) -> Option<String> {
+fn place_cv_name(place: &Place<PlaceKind>) -> Option<String> {
     place.name.split_once('@').map(|(c, _)| c.to_string())
 }
 
 fn classify_counterexample(
-    net: &Net,
-    cx: &Counterexample,
+    net: &CvnNet,
+    cx: &Counterexample<CvnState>,
     fn_to_module: &HashMap<String, String>,
+    initial_marking: &unipn::Marking,
 ) -> BugReport {
     if let PropertyViolation::DeadTransition { .. } = &cx.kind {
         return classify_dead_transition(net, cx, fn_to_module);
@@ -228,7 +216,7 @@ fn classify_counterexample(
     } else if let Some(channel_block) = classify_channel_block(net, &blocked) {
         channel_block
     } else {
-        classify_deadlock(net, cx, &blocked, fn_to_module)
+        classify_deadlock(net, cx, &blocked, fn_to_module, initial_marking)
     };
 
     let trace = enrich_trace(net, cx, fn_to_module);
@@ -255,12 +243,12 @@ fn classify_counterexample(
 /// Detect if a CondvarNotifyLost or CondvarNotifyAllLost transition
 /// fired in the counterexample trace, indicating that a signal was
 /// sent when no waiter was present.
-fn detect_signal_loss_in_trace(net: &Net, cx: &Counterexample) -> bool {
+fn detect_signal_loss_in_trace(net: &CvnNet, cx: &Counterexample<CvnState>) -> bool {
     cx.trace.iter().any(|step| {
         net.transition(step.transition)
             .map(|t| {
                 matches!(
-                    t.kind,
+                    t.kind.kind,
                     TransitionKind::CondvarNotifyLost | TransitionKind::CondvarNotifyAllLost
                 )
             })
@@ -269,8 +257,8 @@ fn detect_signal_loss_in_trace(net: &Net, cx: &Counterexample) -> bool {
 }
 
 fn classify_signal_loss(
-    net: &Net,
-    cx: &Counterexample,
+    net: &CvnNet,
+    cx: &Counterexample<CvnState>,
     blocked: &[PlaceId],
 ) -> (BugKind, String) {
     let mut waiter_tid = String::new();
@@ -293,7 +281,7 @@ fn classify_signal_loss(
         for step in &cx.trace {
             if let Some(t) = net.transition(step.transition) {
                 if matches!(
-                    t.kind,
+                    t.kind.kind,
                     TransitionKind::CondvarNotifyLost | TransitionKind::CondvarNotifyAllLost
                 ) {
                     notifier_tid = net.transition_label(step.transition);
@@ -315,7 +303,7 @@ fn classify_signal_loss(
 
 /// Check if a deadlock is actually a channel block: a blocked transition
 /// requires tokens from a channel resource place.
-fn classify_channel_block(net: &Net, blocked: &[PlaceId]) -> Option<(BugKind, String)> {
+fn classify_channel_block(net: &CvnNet, blocked: &[PlaceId]) -> Option<(BugKind, String)> {
     let place_consumers = build_place_to_consumers(net);
 
     for pid in blocked {
@@ -324,12 +312,12 @@ fn classify_channel_block(net: &Net, blocked: &[PlaceId]) -> Option<(BugKind, St
         };
 
         for tid in consumers {
-            for (p, _) in net.pre_arcs(*tid) {
-                if let Some(place) = net.place(p) {
+            for arc in net.pre_arcs(*tid) {
+                if let Some(place) = net.place(arc.place) {
                     if matches!(place.kind, PlaceKind::Resource(ResourceType::Channel)) {
                         let kind_label = net
                             .transition(*tid)
-                            .map(|t| match t.kind {
+                            .map(|t| match t.kind.kind {
                                 TransitionKind::Send => "send",
                                 TransitionKind::Recv => "recv",
                                 _ => "recv",
@@ -357,22 +345,22 @@ fn classify_channel_block(net: &Net, blocked: &[PlaceId]) -> Option<(BugKind, St
 }
 
 fn classify_dead_transition(
-    net: &Net,
-    cx: &Counterexample,
+    net: &CvnNet,
+    cx: &Counterexample<CvnState>,
     fn_to_module: &HashMap<String, String>,
 ) -> BugReport {
     let (transition_id_str, sids): (String, Vec<String>) = match &cx.kind {
-        PropertyViolation::DeadTransition { transition, anchors } => (
-            net.transition_label(*transition),
-            anchors.clone(),
-        ),
+        PropertyViolation::DeadTransition {
+            transition,
+            anchors,
+        } => (net.transition_label(*transition), anchors.clone()),
         _ => (String::new(), Vec::new()),
     };
 
     let source_function = match &cx.kind {
-        PropertyViolation::DeadTransition { transition, .. } => {
-            net.transition(*transition).and_then(|t| t.scope.clone())
-        }
+        PropertyViolation::DeadTransition { transition, .. } => net
+            .transition(*transition)
+            .and_then(|t| t.kind.scope.clone()),
         _ => None,
     };
     let involved_functions: Vec<String> = source_function.iter().cloned().collect();
@@ -415,12 +403,14 @@ fn classify_dead_transition(
 }
 
 fn classify_deadlock(
-    net: &Net,
-    cx: &Counterexample,
+    net: &CvnNet,
+    cx: &Counterexample<CvnState>,
     blocked: &[PlaceId],
     fn_to_module: &HashMap<String, String>,
+    initial_marking: &unipn::Marking,
 ) -> (BugKind, String) {
-    let participants = analyze_deadlock_participants(net, cx, blocked, fn_to_module);
+    let participants =
+        analyze_deadlock_participants(net, cx, blocked, fn_to_module, initial_marking);
 
     let summary = if participants.is_empty() {
         "Deadlock detected".to_string()
@@ -433,10 +423,11 @@ fn classify_deadlock(
 }
 
 fn analyze_deadlock_participants(
-    net: &Net,
-    cx: &Counterexample,
+    net: &CvnNet,
+    cx: &Counterexample<CvnState>,
     blocked: &[PlaceId],
     fn_to_module: &HashMap<String, String>,
+    initial_marking: &unipn::Marking,
 ) -> Vec<DeadlockParticipant> {
     let place_consumers = build_place_to_consumers(net);
     let mut participants = Vec::new();
@@ -446,10 +437,7 @@ fn analyze_deadlock_participants(
             continue;
         };
 
-        let is_control = matches!(
-            place.kind,
-            PlaceKind::Control(_)
-        );
+        let is_control = matches!(place.kind, PlaceKind::Control(_));
         if !is_control {
             continue;
         }
@@ -459,7 +447,13 @@ fn analyze_deadlock_participants(
         }
 
         let waiting_for = find_waiting_resource(net, *pid, &place_consumers);
-        let holding = find_held_resources(net, &cx.final_state.marking, &fn_name, &place_consumers);
+        let holding = find_held_resources(
+            net,
+            &cx.final_state.marking,
+            &fn_name,
+            &place_consumers,
+            initial_marking,
+        );
 
         participants.push(DeadlockParticipant {
             function: fn_name.clone(),
@@ -474,11 +468,11 @@ fn analyze_deadlock_participants(
 }
 
 /// Build a map from place IDs to the transitions that consume tokens from them.
-fn build_place_to_consumers(net: &Net) -> HashMap<PlaceId, Vec<TransitionId>> {
+fn build_place_to_consumers(net: &CvnNet) -> HashMap<PlaceId, Vec<TransitionId>> {
     let mut map: HashMap<PlaceId, Vec<TransitionId>> = HashMap::new();
     for tid in net.transition_ids() {
-        for (p, _) in net.pre_arcs(tid) {
-            map.entry(p).or_default().push(tid);
+        for arc in net.pre_arcs(tid) {
+            map.entry(arc.place).or_default().push(tid);
         }
     }
     map
@@ -487,7 +481,7 @@ fn build_place_to_consumers(net: &Net) -> HashMap<PlaceId, Vec<TransitionId>> {
 /// Find which resource a blocked place is waiting for by checking
 /// outgoing transitions' input arcs for resource places without tokens.
 fn find_waiting_resource(
-    net: &Net,
+    net: &CvnNet,
     blocked_place_id: PlaceId,
     place_consumers: &HashMap<PlaceId, Vec<TransitionId>>,
 ) -> String {
@@ -497,8 +491,8 @@ fn find_waiting_resource(
     };
 
     for tid in consumers {
-        for (p, _) in net.pre_arcs(*tid) {
-            if let Some(place) = net.place(p) {
+        for arc in net.pre_arcs(*tid) {
+            if let Some(place) = net.place(arc.place) {
                 if matches!(place.kind, PlaceKind::Resource(_)) {
                     return place.name.clone();
                 }
@@ -512,13 +506,13 @@ fn find_waiting_resource(
 /// that have fewer tokens than their initial count, and whose consuming
 /// transition belongs to this function.
 fn find_held_resources(
-    net: &Net,
+    net: &CvnNet,
     marking: &unipn::Marking,
     fn_name: &str,
     place_consumers: &HashMap<PlaceId, Vec<TransitionId>>,
+    initial_marking: &unipn::Marking,
 ) -> Vec<String> {
     let mut held = Vec::new();
-    let initial = net.initial_state().marking;
 
     for pid in net.place_ids() {
         let Some(place) = net.place(pid) else {
@@ -528,7 +522,7 @@ fn find_held_resources(
             continue;
         }
 
-        let init_tokens = initial.tokens(pid);
+        let init_tokens = initial_marking.tokens(pid);
         let curr_tokens = marking.tokens(pid);
 
         if curr_tokens < init_tokens {
@@ -543,7 +537,7 @@ fn find_held_resources(
 /// Check if any transition that consumes from this resource place
 /// is attributed to the given function (via its name/scope).
 fn resource_consumed_by_function(
-    net: &Net,
+    net: &CvnNet,
     resource_pid: PlaceId,
     fn_name: &str,
     place_consumers: &HashMap<PlaceId, Vec<TransitionId>>,
@@ -557,8 +551,8 @@ fn resource_consumed_by_function(
 }
 
 fn enrich_trace(
-    net: &Net,
-    cx: &Counterexample,
+    net: &CvnNet,
+    cx: &Counterexample<CvnState>,
     fn_to_module: &HashMap<String, String>,
 ) -> Vec<EnrichedFiringStep> {
     cx.trace
@@ -566,9 +560,9 @@ fn enrich_trace(
         .map(|step| {
             let transition = net.transition(step.transition);
             let kind = transition
-                .map(|t| t.kind.clone())
+                .map(|t| t.kind.kind.clone())
                 .unwrap_or(TransitionKind::Sequential);
-            let source_function = transition.and_then(|t| t.scope.clone());
+            let source_function = transition.and_then(|t| t.kind.scope.clone());
             let module = source_function
                 .as_ref()
                 .and_then(|f| fn_to_module.get(f).cloned());
@@ -654,7 +648,7 @@ fn format_step_description(
     }
 }
 
-fn extract_involved_resources(net: &Net, blocked: &[PlaceId]) -> Vec<String> {
+fn extract_involved_resources(net: &CvnNet, blocked: &[PlaceId]) -> Vec<String> {
     let place_consumers = build_place_to_consumers(net);
     let mut resources = HashSet::new();
 
@@ -663,8 +657,8 @@ fn extract_involved_resources(net: &Net, blocked: &[PlaceId]) -> Vec<String> {
             continue;
         };
         for tid in consumers {
-            for (p, _) in net.pre_arcs(*tid) {
-                if let Some(place) = net.place(p) {
+            for arc in net.pre_arcs(*tid) {
+                if let Some(place) = net.place(arc.place) {
                     if matches!(place.kind, PlaceKind::Resource(_)) {
                         resources.insert(place.name.clone());
                     }
@@ -678,12 +672,12 @@ fn extract_involved_resources(net: &Net, blocked: &[PlaceId]) -> Vec<String> {
     sorted
 }
 
-fn extract_involved_functions(net: &Net, blocked: &[PlaceId]) -> Vec<String> {
+fn extract_involved_functions(net: &CvnNet, blocked: &[PlaceId]) -> Vec<String> {
     let mut functions = HashSet::new();
 
     for pid in blocked {
         if let Some(place) = net.place(*pid) {
-            if place.is_control_flow() {
+            if net.is_control_flow(*pid) {
                 let (fn_name, _) = place_fn_sid(place);
                 if !fn_name.is_empty() {
                     functions.insert(fn_name);
@@ -697,10 +691,10 @@ fn extract_involved_functions(net: &Net, blocked: &[PlaceId]) -> Vec<String> {
     sorted
 }
 
-fn format_marking(net: &Net, marking: &unipn::Marking) -> String {
+fn format_marking(net: &CvnNet, marking: &unipn::Marking) -> String {
     let mut parts = Vec::new();
     let mut entries: Vec<_> = marking.iter_nonzero().collect();
-    entries.sort_by_key(|(pid, _)| pid.0);
+    entries.sort_by_key(|(pid, _)| pid.index());
 
     for (pid, count) in entries {
         let label = if let Some(place) = net.place(pid) {
@@ -710,7 +704,7 @@ fn format_marking(net: &Net, marking: &unipn::Marking) -> String {
                 PlaceKind::Control(_) => place.name.clone(),
             }
         } else {
-            format!("p{}", pid.0)
+            format!("p{}", pid.index())
         };
         if count == 1 {
             parts.push(label);
@@ -748,10 +742,7 @@ fn extract_cir_slice(
 
     let mut entries = Vec::new();
     for func in &program.functions {
-        let scoped_sids = scoped
-            .get(func.name.as_str())
-            .cloned()
-            .unwrap_or_default();
+        let scoped_sids = scoped.get(func.name.as_str()).cloned().unwrap_or_default();
         for stmt in &func.body {
             let in_scope = scoped_sids.contains(stmt.sid.as_str())
                 || (unscoped.contains(stmt.sid.as_str()) && scoped_sids.is_empty());

@@ -12,7 +12,9 @@ fn channel_initial_empty() {
 fn channel_send_produces_token() {
     let net = common::translate_fixture("channel.json");
 
-    assert!(common::transition_kind(&net, "sender_s1_send").is_some_and(|k| k == TransitionKind::Send));
+    assert!(
+        common::transition_kind(&net, "sender_s1_send").is_some_and(|k| k == TransitionKind::Send)
+    );
 
     let out = common::output_arcs(&net, "sender_s1_send");
     assert!(out.iter().any(|(n, _)| n == "ch"));
@@ -22,7 +24,10 @@ fn channel_send_produces_token() {
 fn channel_recv_consumes_token() {
     let net = common::translate_fixture("channel.json");
 
-    assert!(common::transition_kind(&net, "receiver_s1_recv").is_some_and(|k| k == TransitionKind::Recv));
+    assert!(
+        common::transition_kind(&net, "receiver_s1_recv")
+            .is_some_and(|k| k == TransitionKind::Recv)
+    );
 
     let in_arcs = common::input_arcs(&net, "receiver_s1_recv");
     assert!(in_arcs.iter().any(|(n, _)| n == "ch"));

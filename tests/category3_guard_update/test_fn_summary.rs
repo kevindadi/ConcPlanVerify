@@ -1,6 +1,6 @@
 use crate::common;
 use serde_json::json;
-use unipn::model::{TransitionKind};
+use unipn::model::TransitionKind;
 use unipn::{Expr, Val};
 
 /// Call to a body-less ("nobody") callee is an atomic pass-through: the callee
@@ -76,7 +76,7 @@ fn call_expands_through_bodied_callee_skeleton() {
         "entry": "main"
     }))
     .expect("test ConcIR must parse");
-    let net = cir2cvn::translate(&program).expect("translation should succeed");
+    let net = common::translate_program(&program);
 
     // Entry transition enters the callee and parks the continuation.
     assert!(common::has_transition(&net, "w_s1_call"));

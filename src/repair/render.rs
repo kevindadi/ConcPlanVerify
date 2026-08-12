@@ -48,11 +48,7 @@ pub fn render_goal_repair_prompt(
 
     writeln!(out, "## Unmet Goals\n").unwrap();
     for g in unmet {
-        let label = g
-            .goal
-            .desc
-            .as_deref()
-            .unwrap_or(g.goal.id.as_str());
+        let label = g.goal.desc.as_deref().unwrap_or(g.goal.id.as_str());
         writeln!(out, "- `{}` ({})", g.goal.id, label).unwrap();
         writeln!(out, "  {}", g.reason).unwrap();
     }
@@ -170,16 +166,32 @@ fn write_state_summary(out: &mut String, report: &BugReport) {
             notifier_tid,
             waiter_tid,
         } => {
-            writeln!(out, "- Notifier ({notifier_tid}) executed notify before waiter entered wait").unwrap();
+            writeln!(
+                out,
+                "- Notifier ({notifier_tid}) executed notify before waiter entered wait"
+            )
+            .unwrap();
             writeln!(out, "- Waiter blocked at: {waiter_tid}").unwrap();
-            writeln!(out, "- The notification was lost because waiter_count = 0 at notification time").unwrap();
+            writeln!(
+                out,
+                "- The notification was lost because waiter_count = 0 at notification time"
+            )
+            .unwrap();
         }
         BugKind::ChannelBlock {
             blocked_op,
             channel,
         } => {
-            writeln!(out, "- Channel `{channel}`: `{blocked_op}` operation is permanently blocked").unwrap();
-            writeln!(out, "- No matching counterpart can execute because of lock contention or missing pair").unwrap();
+            writeln!(
+                out,
+                "- Channel `{channel}`: `{blocked_op}` operation is permanently blocked"
+            )
+            .unwrap();
+            writeln!(
+                out,
+                "- No matching counterpart can execute because of lock contention or missing pair"
+            )
+            .unwrap();
         }
         BugKind::DeadTransition { transition, sids } => {
             let sid_label = if sids.is_empty() {
@@ -261,7 +273,12 @@ fn write_cir_slice(out: &mut String, report: &BugReport) {
             .as_ref()
             .map(|m| format!(" ({m})"))
             .unwrap_or_default();
-        writeln!(out, "- {}.{}{module}: {}", entry.function, entry.sid, entry.op).unwrap();
+        writeln!(
+            out,
+            "- {}.{}{module}: {}",
+            entry.function, entry.sid, entry.op
+        )
+        .unwrap();
     }
     writeln!(out).unwrap();
 }

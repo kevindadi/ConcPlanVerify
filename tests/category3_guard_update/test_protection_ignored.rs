@@ -1,5 +1,4 @@
 use crate::common;
-use unipn::NetLike;
 
 #[test]
 fn protection_does_not_produce_cvn_structure() {

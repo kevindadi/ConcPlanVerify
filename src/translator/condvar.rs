@@ -89,7 +89,11 @@ pub(crate) fn translate_wait(
     // ── 2. t_wake1: wp(sid) + rp(cv) → ra(sid)
     //    update: nw_cv -= 1
     let wake1_tid = tid(fn_name, &stmt.sid, "cv_wake1");
-    ctx.add_transition(&wake1_tid, TransitionKind::CondvarWakeByNotify, &[&stmt.sid]);
+    ctx.add_transition(
+        &wake1_tid,
+        TransitionKind::CondvarWakeByNotify,
+        &[&stmt.sid],
+    );
     ctx.set_disjunctive_family(&wake1_tid, &wait_wake_family);
     ctx.add_input_arc(&wp, &wake1_tid, 1, BoolExpr::True);
     ctx.add_input_arc(&rp_id(cv_name), &wake1_tid, 1, BoolExpr::True);

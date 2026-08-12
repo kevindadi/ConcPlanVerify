@@ -18,10 +18,8 @@ fn output_dir() -> PathBuf {
 }
 
 fn load_json(path: &Path) -> Program {
-    let json = fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-    serde_json::from_str(&json)
-        .unwrap_or_else(|e| panic!("parse {}: {e}", path.display()))
+    let json = fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    serde_json::from_str(&json).unwrap_or_else(|e| panic!("parse {}: {e}", path.display()))
 }
 
 fn generate_for(json_path: &Path, stem: &str) {
@@ -39,8 +37,8 @@ fn generate_for(json_path: &Path, stem: &str) {
 
     // CVN DOT (translate, skip on error)
     match cir2cvn::translate(&program) {
-        Ok(net) => {
-            let cvn_dot = unipn::export::to_dot(&net);
+        Ok((net, _)) => {
+            let cvn_dot = unipn::cvn::to_dot(&net);
             let cvn_path = cvn_dir.join(format!("{stem}.dot"));
             fs::write(&cvn_path, &cvn_dot).unwrap();
             eprintln!("  wrote {}", cvn_path.display());
@@ -48,7 +46,10 @@ fn generate_for(json_path: &Path, stem: &str) {
         Err(errs) => {
             eprintln!(
                 "  skip CVN for {stem}: {}",
-                errs.iter().map(|e| e.to_string()).collect::<Vec<_>>().join("; ")
+                errs.iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join("; ")
             );
         }
     }

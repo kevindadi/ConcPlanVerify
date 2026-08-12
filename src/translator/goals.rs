@@ -34,12 +34,15 @@ use crate::goals::{GoalPredicate, GoalSpec};
 ///
 /// Returns `(specs, warnings)` where `warnings` lists goals that could not be
 /// fully translated (e.g., unknown resource names).
-pub fn translate_goals(program: &Program, net: &unipn::Net) -> (Vec<GoalSpec>, Vec<String>) {
+pub fn translate_goals(program: &Program, net: &unipn::CvnNet) -> (Vec<GoalSpec>, Vec<String>) {
     let mut specs = Vec::new();
     let mut warnings = Vec::new();
 
-    let resource_by_name: HashMap<&str, &Resource> =
-        program.resources.iter().map(|r| (r.name.as_str(), r)).collect();
+    let resource_by_name: HashMap<&str, &Resource> = program
+        .resources
+        .iter()
+        .map(|r| (r.name.as_str(), r))
+        .collect();
     let enum_variants: HashSet<String> = collect_enum_variants(program);
     let var_names: HashSet<&str> = program
         .resources
@@ -48,22 +51,18 @@ pub fn translate_goals(program: &Program, net: &unipn::Net) -> (Vec<GoalSpec>, V
         .map(|r| r.name.as_str())
         .collect();
 
-    let place_by_name: HashMap<&str, PlaceId> = net
-        .places()
-        .iter()
-        .map(|p| (p.name.as_str(), p.id))
-        .collect();
+    let place_by_name: HashMap<&str, PlaceId> =
+        net.places.iter().map(|p| (p.name.as_str(), p.id)).collect();
 
     for goal in &program.goals {
         let mut predicates = Vec::new();
 
         for (key, count) in &goal.marking {
-            match marking_predicate(key, *count, &resource_by_name, &place_by_name) {
+            match marking_predicate(key, *count as usize, &resource_by_name, &place_by_name) {
                 Ok(pred) => predicates.push(pred),
-                Err(msg) => warnings.push(format!(
-                    "goal '{}': marking key '{}' — {msg}",
-                    goal.id, key
-                )),
+                Err(msg) => {
+                    warnings.push(format!("goal '{}': marking key '{}' — {msg}", goal.id, key))
+                }
             }
         }
 
@@ -79,10 +78,9 @@ pub fn translate_goals(program: &Program, net: &unipn::Net) -> (Vec<GoalSpec>, V
             }
             match variable_predicate(var, value, &enum_variants) {
                 Ok(pred) => predicates.push(pred),
-                Err(msg) => warnings.push(format!(
-                    "goal '{}': variable '{}' — {msg}",
-                    goal.id, var
-                )),
+                Err(msg) => {
+                    warnings.push(format!("goal '{}': variable '{}' — {msg}", goal.id, var))
+                }
             }
         }
 
@@ -106,7 +104,7 @@ pub fn translate_goals(program: &Program, net: &unipn::Net) -> (Vec<GoalSpec>, V
 
 fn marking_predicate(
     key: &str,
-    count: u32,
+    count: usize,
     resources: &HashMap<&str, &Resource>,
     place_by_name: &HashMap<&str, PlaceId>,
 ) -> Result<GoalPredicate, String> {
@@ -145,7 +143,11 @@ fn marking_predicate(
     // Resource name → resource place.
     if let Some(res) = resources.get(key) {
         if let Some(place) = place_by_name.get(key) {
-            return Ok(reachability_predicate(*place, count, resource_starts_empty(res)));
+            return Ok(reachability_predicate(
+                *place,
+                count,
+                resource_starts_empty(res),
+            ));
         }
     }
 
@@ -177,7 +179,7 @@ fn resource_starts_empty(res: &Resource) -> bool {
     )
 }
 
-fn reachability_predicate(place: PlaceId, count: u32, starts_empty: bool) -> GoalPredicate {
+fn reachability_predicate(place: PlaceId, count: usize, starts_empty: bool) -> GoalPredicate {
     if count == 0 && starts_empty {
         GoalPredicate::Empty { place }
     } else {
