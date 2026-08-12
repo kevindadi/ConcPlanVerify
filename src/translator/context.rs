@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use unipn::model::{ControlSub, PlaceKind, ResourceType, TransitionKind};
-use unipn::{BoolExpr, Net, NetBuilder, PlaceId, TransitionId, Val, VarUpdate};
+use unipn::{BoolExpr, CvnNet, CvnBuilder, PlaceId, TransitionId, Val, VarUpdate};
 
 use crate::error::TranslateError;
 
@@ -56,7 +56,7 @@ pub(crate) enum ResKind {
     Mutex,
     RwLock,
     Condvar,
-    Semaphore { count: u32 },
+    Semaphore { count: usize },
     Channel,
     Var { enum_variants: Vec<String> },
     Atomic { enum_variants: Vec<String> },
@@ -81,7 +81,7 @@ pub(crate) struct WaitSite {
 // ── TranslateContext ────────────────────────────────────────────────────────
 
 pub(crate) struct TranslateContext {
-    builder: NetBuilder,
+    builder: CvnBuilder,
 
     /// String place key → net place index.
     place_map: HashMap<String, PlaceId>,
@@ -98,7 +98,7 @@ pub(crate) struct TranslateContext {
     pub(crate) all_enum_variants: HashSet<String>,
 
     /// RwLock N value (max concurrent readers = spawn count + 1).
-    pub(crate) rwlock_n: u32,
+    pub(crate) rwlock_n: usize,
 
     /// Per-function lock-kind tracker: `(fn_name, resource_name) → LockKind`.
     /// Used to determine weight on RwLock drop.
@@ -156,7 +156,7 @@ pub(crate) struct FnDataFlow {
 impl TranslateContext {
     pub(crate) fn new() -> Self {
         Self {
-            builder: NetBuilder::new(),
+            builder: CvnBuilder::new(),
             place_map: HashMap::new(),
             trans_map: HashMap::new(),
             control_places: HashSet::new(),
@@ -253,7 +253,7 @@ impl TranslateContext {
         &mut self,
         place_id: &str,
         transition_id: &str,
-        weight: u32,
+        weight: usize,
         guard: BoolExpr,
     ) {
         let p = self.place_index(place_id);
@@ -265,7 +265,7 @@ impl TranslateContext {
         &mut self,
         transition_id: &str,
         place_id: &str,
-        weight: u32,
+        weight: usize,
         update: Option<VarUpdate>,
     ) {
         let t = self.trans_index(transition_id);
@@ -273,7 +273,7 @@ impl TranslateContext {
         self.builder.add_output_arc(t, p, weight, update);
     }
 
-    pub(crate) fn set_initial_tokens(&mut self, place_id: &str, count: u32) {
+    pub(crate) fn set_initial_tokens(&mut self, place_id: &str, count: usize) {
         let p = self.place_index(place_id);
         self.builder.set_initial_tokens(p, count);
     }
@@ -334,8 +334,9 @@ impl TranslateContext {
         !self.errors.is_empty()
     }
 
-    /// Consume the context and return either the built Net or accumulated errors.
-    pub(crate) fn finish(self) -> Result<Net, Vec<TranslateError>> {
+    /// Consume the context and return either the built net + initial state or
+    /// accumulated errors.
+    pub(crate) fn finish(self) -> Result<(CvnNet, unipn::CvnState), Vec<TranslateError>> {
         if self.has_errors() {
             return Err(self.errors);
         }

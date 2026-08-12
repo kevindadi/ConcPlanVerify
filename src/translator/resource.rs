@@ -39,7 +39,7 @@ pub(crate) fn scan_resources(ctx: &mut TranslateContext, program: &Program) {
                 ctx.add_variable(&nw_var_name(&res.name), unipn::Val::int(0));
             }
             ("sync", "Semaphore") => {
-                let count = res.count.unwrap_or(1) as u32;
+                let count = res.count.unwrap_or(1) as usize;
                 ctx.resource_map
                     .insert(res.name.clone(), ResKind::Semaphore { count });
                 ctx.add_resource_place(
@@ -110,7 +110,7 @@ pub(crate) fn scan_resources(ctx: &mut TranslateContext, program: &Program) {
 /// Compute the RwLock N value: number of distinct thread contexts.
 ///
 /// N = (unique function names referenced by spawn/spawn_async) + 1 (for entry).
-fn compute_rwlock_n(program: &Program) -> u32 {
+fn compute_rwlock_n(program: &Program) -> usize {
     let mut spawned: HashSet<&str> = HashSet::new();
     for func in &program.functions {
         for stmt in &func.body {
@@ -122,7 +122,7 @@ fn compute_rwlock_n(program: &Program) -> u32 {
             }
         }
     }
-    (spawned.len() as u32) + 1
+    (spawned.len() as usize) + 1
 }
 
 /// Extract enum variant names from a ConcIR `BaseType`, if it is an Enum.

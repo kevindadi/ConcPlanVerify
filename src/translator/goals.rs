@@ -34,7 +34,7 @@ use crate::goals::{GoalPredicate, GoalSpec};
 ///
 /// Returns `(specs, warnings)` where `warnings` lists goals that could not be
 /// fully translated (e.g., unknown resource names).
-pub fn translate_goals(program: &Program, net: &unipn::Net) -> (Vec<GoalSpec>, Vec<String>) {
+pub fn translate_goals(program: &Program, net: &unipn::CvnNet) -> (Vec<GoalSpec>, Vec<String>) {
     let mut specs = Vec::new();
     let mut warnings = Vec::new();
 
@@ -49,7 +49,7 @@ pub fn translate_goals(program: &Program, net: &unipn::Net) -> (Vec<GoalSpec>, V
         .collect();
 
     let place_by_name: HashMap<&str, PlaceId> = net
-        .places()
+        .places
         .iter()
         .map(|p| (p.name.as_str(), p.id))
         .collect();
@@ -106,7 +106,7 @@ pub fn translate_goals(program: &Program, net: &unipn::Net) -> (Vec<GoalSpec>, V
 
 fn marking_predicate(
     key: &str,
-    count: u32,
+    count: usize,
     resources: &HashMap<&str, &Resource>,
     place_by_name: &HashMap<&str, PlaceId>,
 ) -> Result<GoalPredicate, String> {
@@ -177,7 +177,7 @@ fn resource_starts_empty(res: &Resource) -> bool {
     )
 }
 
-fn reachability_predicate(place: PlaceId, count: u32, starts_empty: bool) -> GoalPredicate {
+fn reachability_predicate(place: PlaceId, count: usize, starts_empty: bool) -> GoalPredicate {
     if count == 0 && starts_empty {
         GoalPredicate::Empty { place }
     } else {

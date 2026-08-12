@@ -10,7 +10,7 @@ use concir::diagnostic::ValidationReport;
 use serde::Serialize;
 use unipn::analysis::{AnalysisConfig, SearchStrategy};
 use unipn::model::{ControlSub, PlaceKind};
-use unipn::NetLike;
+use unipn::net::ArcDir;
 
 use crate::goals::check_goals;
 use crate::repair::{analyze, BugReport};
@@ -75,17 +75,25 @@ pub struct PlacesByKind {
     pub wait: usize,
 }
 
-fn net_size_metrics(net: &unipn::Net) -> (PlacesByKind, usize, usize) {
+fn net_size_metrics(net: &unipn::CvnNet) -> (PlacesByKind, usize, usize) {
     let mut by_kind = PlacesByKind::default();
-    for place in net.places() {
+    for place in &net.places {
         match &place.kind {
             PlaceKind::Control(ControlSub::WaitPoint) => by_kind.wait += 1,
             PlaceKind::Control(_) => by_kind.control += 1,
             PlaceKind::Resource(_) => by_kind.resource += 1,
         }
     }
-    let input_arcs = net.pre().iter().count();
-    let output_arcs = net.post().iter().count();
+    let input_arcs = net
+        .arcs
+        .iter()
+        .filter(|a| a.direction == ArcDir::Input)
+        .count();
+    let output_arcs = net
+        .arcs
+        .iter()
+        .filter(|a| a.direction == ArcDir::Output)
+        .count();
     (by_kind, input_arcs, output_arcs)
 }
 
@@ -159,8 +167,8 @@ pub fn verify_program(
     }
 
     let translation_start = Instant::now();
-    let net = match crate::translate(program) {
-        Ok(net) => net,
+    let (net, initial) = match crate::translate(program) {
+        Ok(translated) => translated,
         Err(errors) => {
             let mut result =
                 VerificationResult::empty(validation, VerificationStatus::TranslationFailed);
@@ -175,20 +183,20 @@ pub fn verify_program(
     let translation_ms = elapsed_ms(translation_start);
 
     let analysis_start = Instant::now();
-    let analysis = unipn::analysis::explore(&net, &config.analysis_config());
+    let analysis = unipn::analysis::explore(&net, initial.clone(), &config.analysis_config());
     let analysis_ms = elapsed_ms(analysis_start);
     let (places_by_kind, input_arcs, output_arcs) = net_size_metrics(&net);
     let mut result = VerificationResult {
         status: VerificationStatus::AnalysisIncomplete,
         validation,
         translation_errors: Vec::new(),
-        translation_warnings: crate::validate::check_translation(&net),
+        translation_warnings: crate::validate::check_translation(&net, &initial),
         places: net.num_places(),
         transitions: net.num_transitions(),
         places_by_kind,
         input_arcs,
         output_arcs,
-        cvn_dot: Some(unipn::export::to_dot(&net)),
+        cvn_dot: Some(unipn::cvn::to_dot(&net)),
         state_count: 0,
         analysis_complete: false,
         max_states: config.max_states,
@@ -229,7 +237,6 @@ pub fn verify_program(
         // A goal that already holds in the initial state constrains nothing
         // about the concurrent behavior: it would pass even if every thread
         // were deleted. Flag it as too weak instead of silently accepting.
-        let initial = net.initial_state();
         for spec in &specs {
             if spec.satisfied_by(&initial) {
                 warnings.push(format!(

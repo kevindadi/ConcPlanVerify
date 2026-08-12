@@ -6,13 +6,13 @@
 
 use serde::Serialize;
 use unipn::analysis::ReachabilityGraph;
-use unipn::{ConcreteVal, PlaceId, State, Val};
+use unipn::{ConcreteVal, CvnState, PlaceId, Val};
 
 /// A single predicate over a state.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum GoalPredicate {
     /// The place holds at least `min_tokens` tokens.
-    Reachable { place: PlaceId, min_tokens: u32 },
+    Reachable { place: PlaceId, min_tokens: usize },
     /// The place holds no tokens (empty).
     Empty { place: PlaceId },
     /// A global variable equals the given value.
@@ -20,14 +20,14 @@ pub enum GoalPredicate {
 }
 
 impl GoalPredicate {
-    pub fn satisfied_by(&self, state: &State) -> bool {
+    pub fn satisfied_by(&self, state: &CvnState) -> bool {
         match self {
             GoalPredicate::Reachable { place, min_tokens } => {
                 state.marking.tokens(*place) >= *min_tokens
             }
             GoalPredicate::Empty { place } => state.marking.tokens(*place) == 0,
             GoalPredicate::GlobalEq { var, value } => {
-                state.vars().get(var) == Some(&Val::Concrete(value.clone()))
+                state.extra.vars.get(var) == Some(&Val::Concrete(value.clone()))
             }
         }
     }
@@ -42,7 +42,7 @@ pub struct GoalSpec {
 }
 
 impl GoalSpec {
-    pub fn satisfied_by(&self, state: &State) -> bool {
+    pub fn satisfied_by(&self, state: &CvnState) -> bool {
         self.predicates.iter().all(|p| p.satisfied_by(state))
     }
 }
@@ -55,7 +55,7 @@ pub struct UnmetGoal {
 }
 
 /// Check which goals are unreachable in the given reachability graph.
-pub fn check_goals(rg: &ReachabilityGraph, specs: &[GoalSpec]) -> Vec<UnmetGoal> {
+pub fn check_goals(rg: &ReachabilityGraph<CvnState>, specs: &[GoalSpec]) -> Vec<UnmetGoal> {
     specs
         .iter()
         .filter_map(|spec| {

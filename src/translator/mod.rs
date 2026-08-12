@@ -12,7 +12,7 @@ pub use goals::translate_goals;
 
 use crate::error::TranslateError;
 use context::{TranslateContext, cp_id};
-use unipn::Net;
+use unipn::{CvnNet, CvnState};
 
 /// Translate a ConcIR program into a CVN.
 ///
@@ -21,7 +21,9 @@ use unipn::Net;
 ///   1. Resource scanning  — generate resource places, initial marking, and variable store
 ///   2. Function body translation — generate control places, transitions, and arcs
 ///   3. FnSummary translation — generate atomic transitions for un-modeled functions
-pub fn translate(program: &concir::ast::Program) -> Result<Net, Vec<TranslateError>> {
+pub fn translate(
+    program: &concir::ast::Program,
+) -> Result<(CvnNet, CvnState), Vec<TranslateError>> {
     let mut ctx = TranslateContext::new();
 
     // ── Input validation (T0xx) ─────────────────────────────────────────
