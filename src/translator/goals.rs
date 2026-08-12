@@ -58,7 +58,7 @@ pub fn translate_goals(program: &Program, net: &unipn::CvnNet) -> (Vec<GoalSpec>
         let mut predicates = Vec::new();
 
         for (key, count) in &goal.marking {
-            match marking_predicate(key, *count, &resource_by_name, &place_by_name) {
+            match marking_predicate(key, *count as usize, &resource_by_name, &place_by_name) {
                 Ok(pred) => predicates.push(pred),
                 Err(msg) => warnings.push(format!(
                     "goal '{}': marking key '{}' — {msg}",

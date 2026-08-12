@@ -15,7 +15,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
 use unipn::analysis::{Counterexample, PropertyViolation, ReachabilityGraph};
-use unipn::cvn::{blocked_places, find_dead_transitions};
+use unipn::cvn::{blocked_places, find_dead_transitions, find_deadlocks};
 use unipn::model::{ControlSub, PlaceKind, ResourceType, TransitionKind};
 use unipn::net::Place;
 use unipn::{CvnNet, CvnState, PlaceId, TransitionId};
@@ -180,7 +180,7 @@ fn modules_for_functions(
 // `"{cv}@{fn}.{sid}"`, reacquire `"{fn}.{sid}#ra"`, resource = res_name.
 
 /// `(fn_name, sid)` from a control / wait / reacquire place name.
-fn place_fn_sid(place: &Place) -> (String, String) {
+fn place_fn_sid(place: &Place<PlaceKind>) -> (String, String) {
     let name = place.name.as_str();
     let rest = name.split_once('@').map(|(_, r)| r).unwrap_or(name);
     let rest = rest.split_once('#').map(|(r, _)| r).unwrap_or(rest);
@@ -191,13 +191,13 @@ fn place_fn_sid(place: &Place) -> (String, String) {
 }
 
 /// `cv_name` from a wait place name (`"{cv}@..."`).
-fn place_cv_name(place: &Place) -> Option<String> {
+fn place_cv_name(place: &Place<PlaceKind>) -> Option<String> {
     place.name.split_once('@').map(|(c, _)| c.to_string())
 }
 
 fn classify_counterexample(
     net: &CvnNet,
-    cx: &Counterexample,
+    cx: &Counterexample<CvnState>,
     fn_to_module: &HashMap<String, String>,
     initial_marking: &unipn::Marking,
 ) -> BugReport {
@@ -246,7 +246,7 @@ fn classify_counterexample(
 /// Detect if a CondvarNotifyLost or CondvarNotifyAllLost transition
 /// fired in the counterexample trace, indicating that a signal was
 /// sent when no waiter was present.
-fn detect_signal_loss_in_trace(net: &CvnNet, cx: &Counterexample) -> bool {
+fn detect_signal_loss_in_trace(net: &CvnNet, cx: &Counterexample<CvnState>) -> bool {
     cx.trace.iter().any(|step| {
         net.transition(step.transition)
             .map(|t| {
@@ -261,7 +261,7 @@ fn detect_signal_loss_in_trace(net: &CvnNet, cx: &Counterexample) -> bool {
 
 fn classify_signal_loss(
     net: &CvnNet,
-    cx: &Counterexample,
+    cx: &Counterexample<CvnState>,
     blocked: &[PlaceId],
 ) -> (BugKind, String) {
     let mut waiter_tid = String::new();
@@ -349,7 +349,7 @@ fn classify_channel_block(net: &CvnNet, blocked: &[PlaceId]) -> Option<(BugKind,
 
 fn classify_dead_transition(
     net: &CvnNet,
-    cx: &Counterexample,
+    cx: &Counterexample<CvnState>,
     fn_to_module: &HashMap<String, String>,
 ) -> BugReport {
     let (transition_id_str, sids): (String, Vec<String>) = match &cx.kind {
@@ -407,11 +407,13 @@ fn classify_dead_transition(
 
 fn classify_deadlock(
     net: &CvnNet,
-    cx: &Counterexample,
+    cx: &Counterexample<CvnState>,
     blocked: &[PlaceId],
     fn_to_module: &HashMap<String, String>,
+    initial_marking: &unipn::Marking,
 ) -> (BugKind, String) {
-    let participants = analyze_deadlock_participants(net, cx, blocked, fn_to_module);
+    let participants =
+        analyze_deadlock_participants(net, cx, blocked, fn_to_module, initial_marking);
 
     let summary = if participants.is_empty() {
         "Deadlock detected".to_string()
@@ -425,9 +427,10 @@ fn classify_deadlock(
 
 fn analyze_deadlock_participants(
     net: &CvnNet,
-    cx: &Counterexample,
+    cx: &Counterexample<CvnState>,
     blocked: &[PlaceId],
     fn_to_module: &HashMap<String, String>,
+    initial_marking: &unipn::Marking,
 ) -> Vec<DeadlockParticipant> {
     let place_consumers = build_place_to_consumers(net);
     let mut participants = Vec::new();
@@ -450,7 +453,13 @@ fn analyze_deadlock_participants(
         }
 
         let waiting_for = find_waiting_resource(net, *pid, &place_consumers);
-        let holding = find_held_resources(net, &cx.final_state.marking, &fn_name, &place_consumers);
+        let holding = find_held_resources(
+            net,
+            &cx.final_state.marking,
+            &fn_name,
+            &place_consumers,
+            initial_marking,
+        );
 
         participants.push(DeadlockParticipant {
             function: fn_name.clone(),
@@ -468,8 +477,8 @@ fn analyze_deadlock_participants(
 fn build_place_to_consumers(net: &CvnNet) -> HashMap<PlaceId, Vec<TransitionId>> {
     let mut map: HashMap<PlaceId, Vec<TransitionId>> = HashMap::new();
     for tid in net.transition_ids() {
-        for (p, _) in net.pre_arcs(tid) {
-            map.entry(p).or_default().push(tid);
+        for arc in net.pre_arcs(tid) {
+            map.entry(arc.place).or_default().push(tid);
         }
     }
     map
@@ -488,8 +497,8 @@ fn find_waiting_resource(
     };
 
     for tid in consumers {
-        for (p, _) in net.pre_arcs(*tid) {
-            if let Some(place) = net.place(p) {
+        for arc in net.pre_arcs(*tid) {
+            if let Some(place) = net.place(arc.place) {
                 if matches!(place.kind, PlaceKind::Resource(_)) {
                     return place.name.clone();
                 }
@@ -507,9 +516,9 @@ fn find_held_resources(
     marking: &unipn::Marking,
     fn_name: &str,
     place_consumers: &HashMap<PlaceId, Vec<TransitionId>>,
+    initial_marking: &unipn::Marking,
 ) -> Vec<String> {
     let mut held = Vec::new();
-    let initial = net.initial_state().marking;
 
     for pid in net.place_ids() {
         let Some(place) = net.place(pid) else {
@@ -519,7 +528,7 @@ fn find_held_resources(
             continue;
         }
 
-        let init_tokens = initial.tokens(pid);
+        let init_tokens = initial_marking.tokens(pid);
         let curr_tokens = marking.tokens(pid);
 
         if curr_tokens < init_tokens {
@@ -549,7 +558,7 @@ fn resource_consumed_by_function(
 
 fn enrich_trace(
     net: &CvnNet,
-    cx: &Counterexample,
+    cx: &Counterexample<CvnState>,
     fn_to_module: &HashMap<String, String>,
 ) -> Vec<EnrichedFiringStep> {
     cx.trace
@@ -557,7 +566,7 @@ fn enrich_trace(
         .map(|step| {
             let transition = net.transition(step.transition);
             let kind = transition
-                .map(|t| t.kind.clone())
+                .map(|t| t.kind.kind.clone())
                 .unwrap_or(TransitionKind::Sequential);
             let source_function = transition.and_then(|t| t.kind.scope.clone());
             let module = source_function
@@ -654,8 +663,8 @@ fn extract_involved_resources(net: &CvnNet, blocked: &[PlaceId]) -> Vec<String> 
             continue;
         };
         for tid in consumers {
-            for (p, _) in net.pre_arcs(*tid) {
-                if let Some(place) = net.place(p) {
+            for arc in net.pre_arcs(*tid) {
+                if let Some(place) = net.place(arc.place) {
                     if matches!(place.kind, PlaceKind::Resource(_)) {
                         resources.insert(place.name.clone());
                     }
@@ -674,7 +683,7 @@ fn extract_involved_functions(net: &CvnNet, blocked: &[PlaceId]) -> Vec<String> 
 
     for pid in blocked {
         if let Some(place) = net.place(*pid) {
-            if place.is_control_flow() {
+            if net.is_control_flow(*pid) {
                 let (fn_name, _) = place_fn_sid(place);
                 if !fn_name.is_empty() {
                     functions.insert(fn_name);
