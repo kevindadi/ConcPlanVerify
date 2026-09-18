@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "ef7957bb-6c2f-4557-b20b-d5938a6e4293",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust tool-feedback prompt (v1, arm A2)\n\nYou are fixing a Rust program using the raw diagnostics produced by the build\nand analysis tools. The diagnostics are the ground truth.\n\n- `cargo build` errors mean the program does not compile: fix them.\n- Miri reports (deadlock or data race) identify a real interleaving problem:\n  change the synchronization so the reported problem cannot occur.\n- Do not silence a diagnostic by deleting synchronization, making the program\n  sequential, or catching/ignoring errors.\n- Keep standard-library-only, `fn main`, no external crates, no sleep-based\n  workarounds.\n- Output only the full corrected Rust source inside a single ```rust code fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nDesign two workers A and B that each take two mutexes with an intermediate semaphore handshake, plus an independent bystander task that keeps making progress forever. Main spawns all three. Although the bystander keeps the system globally live, every reachable state must still be able to finish A and B, and both workers must complete.\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "2e81d25fbbaa34bc5d8e2fac104bd400c8628cd9b2bd2e9fdf4149de06eb4b0b",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 474,
+    "prompt_tokens": 234,
+    "total_tokens": 708,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 0
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 234
+  },
+  "content_sha256": "5e76dfa144bbc40d280ddd96b3724c311b1db90803af24dd0051ee7985a137a4",
+  "content": "```rust\nuse std::sync::{Arc, Mutex, Condvar};\nuse std::thread;\n\nstruct Handshake {\n    // Number of workers that have arrived at the handshake point.\n    arrived: Mutex<usize>,\n    // Signaled when both workers have arrived.\n    ready: Condvar,\n}\n\nimpl Handshake {\n    fn new() -> Self {\n        Handshake {\n            arrived: Mutex::new(0),\n            ready: Condvar::new(),\n        }\n    }\n\n    fn wait(&self) {\n        let mut arrived = self.arrived.lock().unwrap();\n        *arrived += 1;\n        if *arrived == 2 {\n            self.ready.notify_all();\n        } else {\n            while *arrived < 2 {\n                arrived = self.ready.wait(arrived).unwrap();\n            }\n        }\n    }\n}\n\nfn main() {\n    let m1 = Arc::new(Mutex::new(()));\n    let m2 = Arc::new(Mutex::new(()));\n    let handshake = Arc::new(Handshake::new());\n\n    let a_m1 = Arc::clone(&m1);\n    let a_m2 = Arc::clone(&m2);\n    let a_hs = Arc::clone(&handshake);\n\n    let b_m1 = Arc::clone(&m1);\n    let b_m2 = Arc::clone(&m2);\n    let b_hs = Arc::clone(&handshake);\n\n    let worker_a = thread::spawn(move || {\n        let _g1 = a_m1.lock().unwrap();\n        a_hs.wait();\n        let _g2 = a_m2.lock().unwrap();\n    });\n\n    let worker_b = thread::spawn(move || {\n        let _g2 = b_m2.lock().unwrap();\n        b_hs.wait();\n        let _g1 = b_m1.lock().unwrap();\n    });\n\n    let bystander = thread::spawn(|| loop {\n        // Independent task that keeps making progress forever.\n        std::hint::spin_loop();\n    });\n\n    worker_a.join().unwrap();\n    worker_b.join().unwrap();\n\n    // The bystander runs forever; detach it by not joining.\n    drop(bystander);\n}\n```",
+  "wall_ms": 2276
+}
