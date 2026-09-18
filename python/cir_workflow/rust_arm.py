@@ -150,7 +150,7 @@ def parse_test_result(text: str) -> tuple[int | None, int | None]:
 
 def _env_record(env: dict[str, str]) -> dict[str, str]:
     keys = ("MIRIFLAGS", "RUST_BACKTRACE", "RUSTUP_TOOLCHAIN", "CARGO_NET_OFFLINE",
-            "CARGO_TERM_COLOR")
+            "CARGO_TERM_COLOR", "RUSTC_WRAPPER", "LOCKBUD_FLAGS", "LOCKBUD_LOG")
     out = {k: env[k] for k in keys if k in env}
     out.update({k: v for k, v in env.items() if k.startswith("CARGO_") and k not in out})
     return out
@@ -321,8 +321,32 @@ class RustArmProject:
                                env_extra={"MIRIFLAGS": flags})
 
     def lockbud(self, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> ToolRun:
-        return self.runner.run("lockbud", ["cargo", "lockbud"], cwd=self.dir,
-                               timeout_s=timeout_s, env_extra={})
+        """Run Lockbud as a ``RUSTC_WRAPPER`` on a fresh copy of the program.
+
+        Lockbud is pinned to its own nightly, so the candidate is compiled in a
+        separate project directory with that toolchain to avoid target-dir
+        conflicts with the default-toolchain build.
+        """
+
+        binary = lockbud_path()
+        if binary is None:
+            return ToolRun(
+                tool="lockbud", argv=["lockbud"], exit_code=None, wall_ms=0,
+                timed_out=False, stdout="", stderr="",
+                stdout_sha256=sha256_text(""), stderr_sha256=sha256_text(""),
+                error=LOCKBUD_UNAVAILABLE)
+        probe = self.dir.parent / "lockbud-probe"
+        (probe / "src").mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(self.dir / "Cargo.toml", probe / "Cargo.toml")
+        shutil.copyfile(self.source_path, probe / "src" / "main.rs")
+        env_extra = {
+            "RUSTC_WRAPPER": str(binary),
+            "LOCKBUD_FLAGS": "-k deadlock -l cir_arm_probe",
+            "LOCKBUD_LOG": "info",
+            "RUSTUP_TOOLCHAIN": LOCKBUD_TOOLCHAIN,
+        }
+        return self.runner.run("lockbud", ["cargo", f"+{LOCKBUD_TOOLCHAIN}", "build"],
+                               cwd=probe, timeout_s=timeout_s, env_extra=env_extra)
 
     def analyze(self, *, timeout_s: float = DEFAULT_TIMEOUT_S,
                 run_miri: bool = True, run_lockbud: bool = True,
@@ -366,7 +390,7 @@ class RustArmProject:
         if run_lockbud:
             if lockbud_available():
                 lr = self.lockbud(timeout_s=timeout_s)
-                lr.extra.update(classify_tool_run(lr))
+                lr.extra.update(classify_lockbud(lr.stdout + "\n" + lr.stderr))
                 record["lockbud"] = lr.as_dict()
             else:
                 record["lockbud"] = {"tool": "lockbud", "status": LOCKBUD_UNAVAILABLE}

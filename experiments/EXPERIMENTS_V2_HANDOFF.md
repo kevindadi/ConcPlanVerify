@@ -144,7 +144,9 @@ the Rust terminal oracle is incomplete until the behavior tests are authored.
   last unstaged `thiserror`/comment cleanup; semantics unchanged).
 - `rustc 1.100.0-nightly (a69a63265 2026-09-03)`, edition 2024.
 - `miri 0.1.0 (a69a63265c 2026-09-03)`; `-Zmiri-many-seeds` supported.
-- lockbud: not installed -> `unavailable`; no substitute used.
+- lockbud: built from `tools/lockbud` (commit `cc78cb72cb85cb80e596717339cca95ef50c8fe0`,
+  `nightly-2026-02-07`), wrapper sha256 `a6cc62c0ea6...`; run as `RUSTC_WRAPPER`
+  with `-k deadlock -l cir_arm_probe`, output archived under `calls/*-lockbud`.
 
 ## Capability-family benchmark
 
@@ -167,7 +169,24 @@ program: 5 frozen seeds + one 64-seed pass). Across the 21 ready cases: 11
 buggy/reference CIR cases FAIL, 7 fixed/reference cases PASS, 1 correct seed
 PASS, 3 UNSUPPORTED (RwLock, async/await, dashmap), 1 UNKNOWN (unbounded Int),
 and 9 legacy patterns are skipped. Miri did not flag either lock-order bug across
-65 seeds (dynamic, schedule-dependent; not safety). lockbud unavailable.
+65 seeds (dynamic, schedule-dependent; not safety). Lockbud (now built, see
+below) flagged `ConflictLock` on `lock-order/abba_2lock` (buggy) and its fixed
+twin clean, but on `lock-order/cycle_3lock` it reported a `DoubleLock` on the
+**fixed** program (false positive) and nothing on the buggy one (false negative)
+— recorded as-is. Lockbud is a static, "possibly" over-approximation; the two
+lock-order fixtures show it is neither sound nor complete here.
+
+## Lockbud integration (added after the smoke run)
+
+`tools/lockbud` (separate checkout, commit `cc78cb7`) is built in place with its
+own `rust-toolchain.toml` (`nightly-2026-02-07`); the harness locates
+`tools/lockbud/target/release/lockbud` (override with `LOCKBUD_BIN`), compiles
+each candidate in a dedicated `lockbud-probe/` with `RUSTC_WRAPPER` set and
+`LOCKBUD_FLAGS="-k deadlock -l cir_arm_probe"`, and classifies by parsed
+`bug_kind` records only (Lockbud always prints a zero-count `conflictlock`
+summary, so a text scan would false-positive every run). The Flash smoke batch
+below ran **before** Lockbud was installed, so its A2 arm did not use Lockbud;
+future A2 runs do.
 
 ## Flash smoke batch
 

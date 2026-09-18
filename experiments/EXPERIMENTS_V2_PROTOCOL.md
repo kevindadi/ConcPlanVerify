@@ -232,6 +232,10 @@ Registered deviations (must be repeated in the handoff):
 - **D-2 (task set).** P1-P9 are retired to `legacy`; experiments use the
   capability families. Boundary cases (`UNSUPPORTED`, `UNKNOWN`) are negative
   controls and have no Rust reference or behavior test.
+- **D-4 (Lockbud available).** Lockbud is built under `tools/lockbud` (commit
+  `cc78cb7`, `nightly-2026-02-07`) and run as a `RUSTC_WRAPPER` with
+  `-k deadlock -l cir_arm_probe`; results are parsed from `bug_kind` JSON
+  records, not from text. Its reports are "possibly" over-approximations.
 - **D-3 (behavior tests).** Rust behavior tests are real (`rust/tests/`) where
   authored; a zero-test project is `behavior_test_ok = null` with reason
   `no_tests`, never `true`. Cases without an authored behavior test report

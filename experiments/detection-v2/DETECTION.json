@@ -1,5 +1,5 @@
 {
-  "schema_version": "detection-v1",
+  "schema_version": "detection-v2",
   "binary_sha256": "fe3d22c5a52f84b5a46d7a4665328056cec9b132f33eec9ea52c3c1158b7d12d",
   "binary": "/Users/kevin/local-repos/ConcIR/target/release/concir-backend",
   "miri_combos": [
@@ -24,7 +24,14 @@
       "preemption_rate": 0.5
     }
   ],
-  "lockbud_available": false,
+  "lockbud": {
+    "available": true,
+    "path": "/Users/kevin/local-repos/ConcPlanVerify/tools/lockbud/target/release/lockbud",
+    "commit": "cc78cb72cb85cb80e596717339cca95ef50c8fe0",
+    "binary_sha256": "a6cc62c0eb02f8df9905642dd6a3717f31baf7d3731b9e56680a309409f20c56",
+    "toolchain": "nightly-2026-02-07"
+  },
+  "lockbud_available": true,
   "run_miri": true,
   "records": [
     {
@@ -54,7 +61,7 @@
             "complete": true,
             "states_explored": 49,
             "transitions_explored": 72,
-            "wall_ms": 3,
+            "wall_ms": 5,
             "status": "fail",
             "kind": "semantic",
             "input_sha256": "795ab21c6e889e34e15a11ce8056a243974f1d7261fbe3d6920a2940d8d1d063"
@@ -64,7 +71,7 @@
             "complete": true,
             "states_explored": 49,
             "transitions_explored": 72,
-            "wall_ms": 3,
+            "wall_ms": 2,
             "status": "fail",
             "kind": "semantic",
             "input_sha256": "795ab21c6e889e34e15a11ce8056a243974f1d7261fbe3d6920a2940d8d1d063"
@@ -86,7 +93,7 @@
             "complete": true,
             "states_explored": 39,
             "transitions_explored": 56,
-            "wall_ms": 2,
+            "wall_ms": 3,
             "status": "pass",
             "kind": "semantic",
             "input_sha256": "50f0bcebf6ac3c586a759c8c20669b70bf49476fcf968b5c46383e832b548d94"
@@ -109,7 +116,7 @@
               "--quiet"
             ],
             "exit_code": 0,
-            "wall_ms": 123,
+            "wall_ms": 232,
             "timed_out": false,
             "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             "stderr_sha256": "c086330641b3edc9bd9724228a1ad4b3ad09d9898d214d7062bc369db100c544",
@@ -138,7 +145,7 @@
               "--quiet"
             ],
             "exit_code": 0,
-            "wall_ms": 516,
+            "wall_ms": 506,
             "timed_out": false,
             "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd",
             "stderr_sha256": "c086330641b3edc9bd9724228a1ad4b3ad09d9898d214d7062bc369db100c544",
@@ -162,7 +169,37 @@
           "behavior_test_reason": "no_tests",
           "lockbud": {
             "tool": "lockbud",
-            "status": "lockbud_unavailable"
+            "argv": [
+              "cargo",
+              "+nightly-2026-02-07",
+              "build"
+            ],
+            "exit_code": 0,
+            "wall_ms": 615,
+            "timed_out": false,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "d979e5ac0a3412b446818b409701dcfd6b0acb5008242e39d7d3bc6eb230da56",
+            "error": null,
+            "extra": {
+              "argv_sha256": "33d28622d4e7372e00dc6618db38dd34c4c09e2eda9a1ae46974d89fc0d5fefe",
+              "env_sha256": "96f506e1bc2b4e865ac0973228311cf62f98ea45905e9bf7247aac3b029fad65",
+              "status": "detected",
+              "detected": [
+                "ConflictLock"
+              ],
+              "bug_kinds": [
+                "ConflictLock"
+              ]
+            },
+            "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/003-lockbud",
+            "files": {
+              "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/003-lockbud/argv.json",
+              "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/003-lockbud/env.json",
+              "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/003-lockbud/stdout.txt",
+              "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/003-lockbud/stderr.txt",
+              "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/003-lockbud/exit.txt",
+              "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/003-lockbud/wall_ms.txt"
+            }
           },
           "miri": [
             {
@@ -175,7 +212,7 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 356,
+              "wall_ms": 339,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "b990e301d49d48d751924d28cb1fb7be08d8c147fc1e975aea769195bd9ff079",
@@ -185,39 +222,6 @@
                 "env_sha256": "4c2d69d27f9202bd94169f2d92f72265704f9ee886d3cda124327f9e19d013ac",
                 "seed": 0,
                 "preemption_rate": 0.01,
-                "status": "clean",
-                "detected": []
-              },
-              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/003-miri",
-              "files": {
-                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/003-miri/argv.json",
-                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/003-miri/env.json",
-                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/003-miri/stdout.txt",
-                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/003-miri/stderr.txt",
-                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/003-miri/exit.txt",
-                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/003-miri/wall_ms.txt"
-              }
-            },
-            {
-              "tool": "miri",
-              "argv": [
-                "cargo",
-                "miri",
-                "run",
-                "--offline",
-                "--quiet"
-              ],
-              "exit_code": 0,
-              "wall_ms": 183,
-              "timed_out": false,
-              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-              "stderr_sha256": "b990e301d49d48d751924d28cb1fb7be08d8c147fc1e975aea769195bd9ff079",
-              "error": null,
-              "extra": {
-                "argv_sha256": "d23e13cad5303f8e62dabf960877ecc1d3beb95bb934346347f725fc9b2fa86f",
-                "env_sha256": "285d2668e802f17eff167948eb945d7adc60a2b473b742a33be8e8dafa8cfc20",
-                "seed": 1,
-                "preemption_rate": 0.05,
                 "status": "clean",
                 "detected": []
               },
@@ -241,16 +245,16 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 191,
+              "wall_ms": 180,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "b990e301d49d48d751924d28cb1fb7be08d8c147fc1e975aea769195bd9ff079",
               "error": null,
               "extra": {
                 "argv_sha256": "d23e13cad5303f8e62dabf960877ecc1d3beb95bb934346347f725fc9b2fa86f",
-                "env_sha256": "c98849fde5f0af0e7be75b0bb871147c0fca81ec04f494774b1f6dc2fbeee11d",
-                "seed": 2,
-                "preemption_rate": 0.1,
+                "env_sha256": "285d2668e802f17eff167948eb945d7adc60a2b473b742a33be8e8dafa8cfc20",
+                "seed": 1,
+                "preemption_rate": 0.05,
                 "status": "clean",
                 "detected": []
               },
@@ -274,16 +278,16 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 213,
+              "wall_ms": 194,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "b990e301d49d48d751924d28cb1fb7be08d8c147fc1e975aea769195bd9ff079",
               "error": null,
               "extra": {
                 "argv_sha256": "d23e13cad5303f8e62dabf960877ecc1d3beb95bb934346347f725fc9b2fa86f",
-                "env_sha256": "1fd802f98c287e57f9d732b9b94df9018b887c5fe193e557eafaa1a8fbfd99c7",
-                "seed": 3,
-                "preemption_rate": 0.2,
+                "env_sha256": "c98849fde5f0af0e7be75b0bb871147c0fca81ec04f494774b1f6dc2fbeee11d",
+                "seed": 2,
+                "preemption_rate": 0.1,
                 "status": "clean",
                 "detected": []
               },
@@ -307,7 +311,40 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 268,
+              "wall_ms": 215,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "b990e301d49d48d751924d28cb1fb7be08d8c147fc1e975aea769195bd9ff079",
+              "error": null,
+              "extra": {
+                "argv_sha256": "d23e13cad5303f8e62dabf960877ecc1d3beb95bb934346347f725fc9b2fa86f",
+                "env_sha256": "1fd802f98c287e57f9d732b9b94df9018b887c5fe193e557eafaa1a8fbfd99c7",
+                "seed": 3,
+                "preemption_rate": 0.2,
+                "status": "clean",
+                "detected": []
+              },
+              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/007-miri",
+              "files": {
+                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/007-miri/argv.json",
+                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/007-miri/env.json",
+                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/007-miri/stdout.txt",
+                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/007-miri/stderr.txt",
+                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/007-miri/exit.txt",
+                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/007-miri/wall_ms.txt"
+              }
+            },
+            {
+              "tool": "miri",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 269,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "b990e301d49d48d751924d28cb1fb7be08d8c147fc1e975aea769195bd9ff079",
@@ -320,14 +357,14 @@
                 "status": "clean",
                 "detected": []
               },
-              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/007-miri",
+              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/008-miri",
               "files": {
-                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/007-miri/argv.json",
-                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/007-miri/env.json",
-                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/007-miri/stdout.txt",
-                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/007-miri/stderr.txt",
-                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/007-miri/exit.txt",
-                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/007-miri/wall_ms.txt"
+                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/008-miri/argv.json",
+                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/008-miri/env.json",
+                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/008-miri/stdout.txt",
+                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/008-miri/stderr.txt",
+                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/008-miri/exit.txt",
+                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/008-miri/wall_ms.txt"
               }
             }
           ],
@@ -341,10 +378,10 @@
               "--quiet"
             ],
             "exit_code": 0,
-            "wall_ms": 1271,
+            "wall_ms": 1261,
             "timed_out": false,
             "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-            "stderr_sha256": "f48c637073f3b806675368590fd5300bb55efd4d9259b877933ecd6abe100406",
+            "stderr_sha256": "0e5c61b5283a932b3336f5bb1c2f1c592529b95d4bf47f688d90368526e99c0e",
             "error": null,
             "extra": {
               "argv_sha256": "d23e13cad5303f8e62dabf960877ecc1d3beb95bb934346347f725fc9b2fa86f",
@@ -356,14 +393,14 @@
               "status": "clean",
               "detected": []
             },
-            "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/008-miri-many-seeds",
+            "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/009-miri-many-seeds",
             "files": {
-              "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/008-miri-many-seeds/argv.json",
-              "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/008-miri-many-seeds/env.json",
-              "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/008-miri-many-seeds/stdout.txt",
-              "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/008-miri-many-seeds/stderr.txt",
-              "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/008-miri-many-seeds/exit.txt",
-              "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/008-miri-many-seeds/wall_ms.txt"
+              "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/009-miri-many-seeds/argv.json",
+              "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/009-miri-many-seeds/env.json",
+              "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/009-miri-many-seeds/stdout.txt",
+              "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/009-miri-many-seeds/stderr.txt",
+              "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/009-miri-many-seeds/exit.txt",
+              "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_buggy/calls/009-miri-many-seeds/wall_ms.txt"
             },
             "mode": "many_seeds"
           },
@@ -382,7 +419,7 @@
               "--quiet"
             ],
             "exit_code": 0,
-            "wall_ms": 111,
+            "wall_ms": 116,
             "timed_out": false,
             "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             "stderr_sha256": "121e58e03f075a086c70e7b83dd2096a6c49be4958bba7c431db3ce739c4ae05",
@@ -411,7 +448,7 @@
               "--quiet"
             ],
             "exit_code": 0,
-            "wall_ms": 501,
+            "wall_ms": 512,
             "timed_out": false,
             "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd",
             "stderr_sha256": "121e58e03f075a086c70e7b83dd2096a6c49be4958bba7c431db3ce739c4ae05",
@@ -435,7 +472,33 @@
           "behavior_test_reason": "no_tests",
           "lockbud": {
             "tool": "lockbud",
-            "status": "lockbud_unavailable"
+            "argv": [
+              "cargo",
+              "+nightly-2026-02-07",
+              "build"
+            ],
+            "exit_code": 0,
+            "wall_ms": 173,
+            "timed_out": false,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "95b202741531b4b0954d4cd56f696583fff4c7783fbc8beba5bf3d67a6ea0d83",
+            "error": null,
+            "extra": {
+              "argv_sha256": "b5b0a2ec0122afbed18a52f3132131dd9293fb01c87960174abdb017c33116a7",
+              "env_sha256": "96f506e1bc2b4e865ac0973228311cf62f98ea45905e9bf7247aac3b029fad65",
+              "status": "clean",
+              "detected": [],
+              "bug_kinds": []
+            },
+            "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/003-lockbud",
+            "files": {
+              "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/003-lockbud/argv.json",
+              "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/003-lockbud/env.json",
+              "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/003-lockbud/stdout.txt",
+              "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/003-lockbud/stderr.txt",
+              "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/003-lockbud/exit.txt",
+              "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/003-lockbud/wall_ms.txt"
+            }
           },
           "miri": [
             {
@@ -448,7 +511,7 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 177,
+              "wall_ms": 180,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "62b992a65e558536fba5c85a9d419212b45593f68bf0e1191d74959440ecc1bc",
@@ -458,39 +521,6 @@
                 "env_sha256": "4c2d69d27f9202bd94169f2d92f72265704f9ee886d3cda124327f9e19d013ac",
                 "seed": 0,
                 "preemption_rate": 0.01,
-                "status": "clean",
-                "detected": []
-              },
-              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/003-miri",
-              "files": {
-                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/003-miri/argv.json",
-                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/003-miri/env.json",
-                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/003-miri/stdout.txt",
-                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/003-miri/stderr.txt",
-                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/003-miri/exit.txt",
-                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/003-miri/wall_ms.txt"
-              }
-            },
-            {
-              "tool": "miri",
-              "argv": [
-                "cargo",
-                "miri",
-                "run",
-                "--offline",
-                "--quiet"
-              ],
-              "exit_code": 0,
-              "wall_ms": 177,
-              "timed_out": false,
-              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-              "stderr_sha256": "62b992a65e558536fba5c85a9d419212b45593f68bf0e1191d74959440ecc1bc",
-              "error": null,
-              "extra": {
-                "argv_sha256": "32eed423367dfd246d0d63bcb5451e3f7fc0a8007b3b07cd29a831867bb89307",
-                "env_sha256": "285d2668e802f17eff167948eb945d7adc60a2b473b742a33be8e8dafa8cfc20",
-                "seed": 1,
-                "preemption_rate": 0.05,
                 "status": "clean",
                 "detected": []
               },
@@ -514,16 +544,16 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 187,
+              "wall_ms": 239,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "62b992a65e558536fba5c85a9d419212b45593f68bf0e1191d74959440ecc1bc",
               "error": null,
               "extra": {
                 "argv_sha256": "32eed423367dfd246d0d63bcb5451e3f7fc0a8007b3b07cd29a831867bb89307",
-                "env_sha256": "c98849fde5f0af0e7be75b0bb871147c0fca81ec04f494774b1f6dc2fbeee11d",
-                "seed": 2,
-                "preemption_rate": 0.1,
+                "env_sha256": "285d2668e802f17eff167948eb945d7adc60a2b473b742a33be8e8dafa8cfc20",
+                "seed": 1,
+                "preemption_rate": 0.05,
                 "status": "clean",
                 "detected": []
               },
@@ -547,16 +577,16 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 206,
+              "wall_ms": 191,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "62b992a65e558536fba5c85a9d419212b45593f68bf0e1191d74959440ecc1bc",
               "error": null,
               "extra": {
                 "argv_sha256": "32eed423367dfd246d0d63bcb5451e3f7fc0a8007b3b07cd29a831867bb89307",
-                "env_sha256": "1fd802f98c287e57f9d732b9b94df9018b887c5fe193e557eafaa1a8fbfd99c7",
-                "seed": 3,
-                "preemption_rate": 0.2,
+                "env_sha256": "c98849fde5f0af0e7be75b0bb871147c0fca81ec04f494774b1f6dc2fbeee11d",
+                "seed": 2,
+                "preemption_rate": 0.1,
                 "status": "clean",
                 "detected": []
               },
@@ -580,7 +610,40 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 274,
+              "wall_ms": 210,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "62b992a65e558536fba5c85a9d419212b45593f68bf0e1191d74959440ecc1bc",
+              "error": null,
+              "extra": {
+                "argv_sha256": "32eed423367dfd246d0d63bcb5451e3f7fc0a8007b3b07cd29a831867bb89307",
+                "env_sha256": "1fd802f98c287e57f9d732b9b94df9018b887c5fe193e557eafaa1a8fbfd99c7",
+                "seed": 3,
+                "preemption_rate": 0.2,
+                "status": "clean",
+                "detected": []
+              },
+              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/007-miri",
+              "files": {
+                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/007-miri/argv.json",
+                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/007-miri/env.json",
+                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/007-miri/stdout.txt",
+                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/007-miri/stderr.txt",
+                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/007-miri/exit.txt",
+                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/007-miri/wall_ms.txt"
+              }
+            },
+            {
+              "tool": "miri",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 264,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "62b992a65e558536fba5c85a9d419212b45593f68bf0e1191d74959440ecc1bc",
@@ -593,14 +656,14 @@
                 "status": "clean",
                 "detected": []
               },
-              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/007-miri",
+              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/008-miri",
               "files": {
-                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/007-miri/argv.json",
-                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/007-miri/env.json",
-                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/007-miri/stdout.txt",
-                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/007-miri/stderr.txt",
-                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/007-miri/exit.txt",
-                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/007-miri/wall_ms.txt"
+                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/008-miri/argv.json",
+                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/008-miri/env.json",
+                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/008-miri/stdout.txt",
+                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/008-miri/stderr.txt",
+                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/008-miri/exit.txt",
+                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/008-miri/wall_ms.txt"
               }
             }
           ],
@@ -614,10 +677,10 @@
               "--quiet"
             ],
             "exit_code": 0,
-            "wall_ms": 1271,
+            "wall_ms": 1259,
             "timed_out": false,
             "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-            "stderr_sha256": "2371f3efe900fe477ef15009a9213678e10f7f8b36b7449cc56b2ba24cc88f07",
+            "stderr_sha256": "2d54119fd37b5e55e57f663b4ed4600e44723602ee279975207c869e09ef561f",
             "error": null,
             "extra": {
               "argv_sha256": "32eed423367dfd246d0d63bcb5451e3f7fc0a8007b3b07cd29a831867bb89307",
@@ -629,14 +692,14 @@
               "status": "clean",
               "detected": []
             },
-            "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/008-miri-many-seeds",
+            "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/009-miri-many-seeds",
             "files": {
-              "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/008-miri-many-seeds/argv.json",
-              "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/008-miri-many-seeds/env.json",
-              "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/008-miri-many-seeds/stdout.txt",
-              "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/008-miri-many-seeds/stderr.txt",
-              "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/008-miri-many-seeds/exit.txt",
-              "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/008-miri-many-seeds/wall_ms.txt"
+              "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/009-miri-many-seeds/argv.json",
+              "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/009-miri-many-seeds/env.json",
+              "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/009-miri-many-seeds/stdout.txt",
+              "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/009-miri-many-seeds/stderr.txt",
+              "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/009-miri-many-seeds/exit.txt",
+              "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/abba_2lock_fixed/calls/009-miri-many-seeds/wall_ms.txt"
             },
             "mode": "many_seeds"
           },
@@ -672,7 +735,7 @@
             "complete": true,
             "states_explored": 331,
             "transitions_explored": 740,
-            "wall_ms": 9,
+            "wall_ms": 8,
             "status": "fail",
             "kind": "semantic",
             "input_sha256": "3568ce39e250c85b07dc5988e83b6d0690dcd494e424810a752129507d7b9e05"
@@ -694,7 +757,7 @@
             "complete": true,
             "states_explored": 286,
             "transitions_explored": 628,
-            "wall_ms": 8,
+            "wall_ms": 7,
             "status": "pass",
             "kind": "semantic",
             "input_sha256": "012722eebc94b405b520916d0adf54e0c9599c0606b4722152d5b5ecbf304acd"
@@ -727,7 +790,7 @@
               "--quiet"
             ],
             "exit_code": 0,
-            "wall_ms": 106,
+            "wall_ms": 114,
             "timed_out": false,
             "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             "stderr_sha256": "776bd047698d2eec81e114d690584f46b73bc2ccbc49eeeaba5bbee037cf4b44",
@@ -756,7 +819,7 @@
               "--quiet"
             ],
             "exit_code": 0,
-            "wall_ms": 501,
+            "wall_ms": 553,
             "timed_out": false,
             "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd",
             "stderr_sha256": "776bd047698d2eec81e114d690584f46b73bc2ccbc49eeeaba5bbee037cf4b44",
@@ -780,7 +843,33 @@
           "behavior_test_reason": "no_tests",
           "lockbud": {
             "tool": "lockbud",
-            "status": "lockbud_unavailable"
+            "argv": [
+              "cargo",
+              "+nightly-2026-02-07",
+              "build"
+            ],
+            "exit_code": 0,
+            "wall_ms": 174,
+            "timed_out": false,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "cce0d8f8fcf9c0839329a6d9b7d5bfd146e4d8401351b4b12d8f5758c0fae264",
+            "error": null,
+            "extra": {
+              "argv_sha256": "eb9acfb41eac0267de51aff8b71d16ff965d1f7906a502558ce9972eb79ad056",
+              "env_sha256": "96f506e1bc2b4e865ac0973228311cf62f98ea45905e9bf7247aac3b029fad65",
+              "status": "clean",
+              "detected": [],
+              "bug_kinds": []
+            },
+            "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/003-lockbud",
+            "files": {
+              "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/003-lockbud/argv.json",
+              "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/003-lockbud/env.json",
+              "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/003-lockbud/stdout.txt",
+              "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/003-lockbud/stderr.txt",
+              "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/003-lockbud/exit.txt",
+              "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/003-lockbud/wall_ms.txt"
+            }
           },
           "miri": [
             {
@@ -793,7 +882,7 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 187,
+              "wall_ms": 189,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "8c3b79605eef6ddd35acdcb5474a43b27c4f800dd15efc0806a6468227ef21e0",
@@ -803,39 +892,6 @@
                 "env_sha256": "4c2d69d27f9202bd94169f2d92f72265704f9ee886d3cda124327f9e19d013ac",
                 "seed": 0,
                 "preemption_rate": 0.01,
-                "status": "clean",
-                "detected": []
-              },
-              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/003-miri",
-              "files": {
-                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/003-miri/argv.json",
-                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/003-miri/env.json",
-                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/003-miri/stdout.txt",
-                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/003-miri/stderr.txt",
-                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/003-miri/exit.txt",
-                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/003-miri/wall_ms.txt"
-              }
-            },
-            {
-              "tool": "miri",
-              "argv": [
-                "cargo",
-                "miri",
-                "run",
-                "--offline",
-                "--quiet"
-              ],
-              "exit_code": 0,
-              "wall_ms": 196,
-              "timed_out": false,
-              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-              "stderr_sha256": "8c3b79605eef6ddd35acdcb5474a43b27c4f800dd15efc0806a6468227ef21e0",
-              "error": null,
-              "extra": {
-                "argv_sha256": "836b73161869f295846239dedb63b2d77aeb40c46a016a08c6eeff14d620f83c",
-                "env_sha256": "285d2668e802f17eff167948eb945d7adc60a2b473b742a33be8e8dafa8cfc20",
-                "seed": 1,
-                "preemption_rate": 0.05,
                 "status": "clean",
                 "detected": []
               },
@@ -859,16 +915,16 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 205,
+              "wall_ms": 192,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "8c3b79605eef6ddd35acdcb5474a43b27c4f800dd15efc0806a6468227ef21e0",
               "error": null,
               "extra": {
                 "argv_sha256": "836b73161869f295846239dedb63b2d77aeb40c46a016a08c6eeff14d620f83c",
-                "env_sha256": "c98849fde5f0af0e7be75b0bb871147c0fca81ec04f494774b1f6dc2fbeee11d",
-                "seed": 2,
-                "preemption_rate": 0.1,
+                "env_sha256": "285d2668e802f17eff167948eb945d7adc60a2b473b742a33be8e8dafa8cfc20",
+                "seed": 1,
+                "preemption_rate": 0.05,
                 "status": "clean",
                 "detected": []
               },
@@ -892,16 +948,16 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 234,
+              "wall_ms": 203,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "8c3b79605eef6ddd35acdcb5474a43b27c4f800dd15efc0806a6468227ef21e0",
               "error": null,
               "extra": {
                 "argv_sha256": "836b73161869f295846239dedb63b2d77aeb40c46a016a08c6eeff14d620f83c",
-                "env_sha256": "1fd802f98c287e57f9d732b9b94df9018b887c5fe193e557eafaa1a8fbfd99c7",
-                "seed": 3,
-                "preemption_rate": 0.2,
+                "env_sha256": "c98849fde5f0af0e7be75b0bb871147c0fca81ec04f494774b1f6dc2fbeee11d",
+                "seed": 2,
+                "preemption_rate": 0.1,
                 "status": "clean",
                 "detected": []
               },
@@ -925,7 +981,40 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 332,
+              "wall_ms": 227,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "8c3b79605eef6ddd35acdcb5474a43b27c4f800dd15efc0806a6468227ef21e0",
+              "error": null,
+              "extra": {
+                "argv_sha256": "836b73161869f295846239dedb63b2d77aeb40c46a016a08c6eeff14d620f83c",
+                "env_sha256": "1fd802f98c287e57f9d732b9b94df9018b887c5fe193e557eafaa1a8fbfd99c7",
+                "seed": 3,
+                "preemption_rate": 0.2,
+                "status": "clean",
+                "detected": []
+              },
+              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/007-miri",
+              "files": {
+                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/007-miri/argv.json",
+                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/007-miri/env.json",
+                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/007-miri/stdout.txt",
+                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/007-miri/stderr.txt",
+                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/007-miri/exit.txt",
+                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/007-miri/wall_ms.txt"
+              }
+            },
+            {
+              "tool": "miri",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 331,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "8c3b79605eef6ddd35acdcb5474a43b27c4f800dd15efc0806a6468227ef21e0",
@@ -938,14 +1027,14 @@
                 "status": "clean",
                 "detected": []
               },
-              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/007-miri",
+              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/008-miri",
               "files": {
-                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/007-miri/argv.json",
-                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/007-miri/env.json",
-                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/007-miri/stdout.txt",
-                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/007-miri/stderr.txt",
-                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/007-miri/exit.txt",
-                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/007-miri/wall_ms.txt"
+                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/008-miri/argv.json",
+                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/008-miri/env.json",
+                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/008-miri/stdout.txt",
+                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/008-miri/stderr.txt",
+                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/008-miri/exit.txt",
+                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/008-miri/wall_ms.txt"
               }
             }
           ],
@@ -959,10 +1048,10 @@
               "--quiet"
             ],
             "exit_code": 0,
-            "wall_ms": 1721,
+            "wall_ms": 1692,
             "timed_out": false,
             "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-            "stderr_sha256": "e7613ecc57cb33ebc8d73f5a4484a5eeff9833331aff0eae715fff91ddb3dcb1",
+            "stderr_sha256": "aced92b59cd785daa55e12ad4eca197f2374b0fca911bbd867dca2d04c1983d1",
             "error": null,
             "extra": {
               "argv_sha256": "836b73161869f295846239dedb63b2d77aeb40c46a016a08c6eeff14d620f83c",
@@ -974,14 +1063,14 @@
               "status": "clean",
               "detected": []
             },
-            "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/008-miri-many-seeds",
+            "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/009-miri-many-seeds",
             "files": {
-              "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/008-miri-many-seeds/argv.json",
-              "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/008-miri-many-seeds/env.json",
-              "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/008-miri-many-seeds/stdout.txt",
-              "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/008-miri-many-seeds/stderr.txt",
-              "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/008-miri-many-seeds/exit.txt",
-              "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/008-miri-many-seeds/wall_ms.txt"
+              "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/009-miri-many-seeds/argv.json",
+              "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/009-miri-many-seeds/env.json",
+              "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/009-miri-many-seeds/stdout.txt",
+              "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/009-miri-many-seeds/stderr.txt",
+              "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/009-miri-many-seeds/exit.txt",
+              "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_buggy/calls/009-miri-many-seeds/wall_ms.txt"
             },
             "mode": "many_seeds"
           },
@@ -1000,7 +1089,7 @@
               "--quiet"
             ],
             "exit_code": 0,
-            "wall_ms": 122,
+            "wall_ms": 115,
             "timed_out": false,
             "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             "stderr_sha256": "018804121d9e1557ac0d1b8f0753330e0826c23e5c593f809af7dde406dd552c",
@@ -1053,7 +1142,37 @@
           "behavior_test_reason": "no_tests",
           "lockbud": {
             "tool": "lockbud",
-            "status": "lockbud_unavailable"
+            "argv": [
+              "cargo",
+              "+nightly-2026-02-07",
+              "build"
+            ],
+            "exit_code": 0,
+            "wall_ms": 177,
+            "timed_out": false,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "17e76ffbfd9125d063f01647f4ae5409b4ca0b39073324a4599f6340c42379d4",
+            "error": null,
+            "extra": {
+              "argv_sha256": "2262248a508f89b349ad29a2cc8847bddfae5a298fbdb9a3cdb77339ed9e3101",
+              "env_sha256": "96f506e1bc2b4e865ac0973228311cf62f98ea45905e9bf7247aac3b029fad65",
+              "status": "detected",
+              "detected": [
+                "DoubleLock"
+              ],
+              "bug_kinds": [
+                "DoubleLock"
+              ]
+            },
+            "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/003-lockbud",
+            "files": {
+              "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/003-lockbud/argv.json",
+              "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/003-lockbud/env.json",
+              "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/003-lockbud/stdout.txt",
+              "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/003-lockbud/stderr.txt",
+              "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/003-lockbud/exit.txt",
+              "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/003-lockbud/wall_ms.txt"
+            }
           },
           "miri": [
             {
@@ -1066,7 +1185,7 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 193,
+              "wall_ms": 189,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "d10dc48d55f3d085f4371be02067dda8b6313e606f4da9f9be1bee1ddead0593",
@@ -1076,39 +1195,6 @@
                 "env_sha256": "4c2d69d27f9202bd94169f2d92f72265704f9ee886d3cda124327f9e19d013ac",
                 "seed": 0,
                 "preemption_rate": 0.01,
-                "status": "clean",
-                "detected": []
-              },
-              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/003-miri",
-              "files": {
-                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/003-miri/argv.json",
-                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/003-miri/env.json",
-                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/003-miri/stdout.txt",
-                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/003-miri/stderr.txt",
-                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/003-miri/exit.txt",
-                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/003-miri/wall_ms.txt"
-              }
-            },
-            {
-              "tool": "miri",
-              "argv": [
-                "cargo",
-                "miri",
-                "run",
-                "--offline",
-                "--quiet"
-              ],
-              "exit_code": 0,
-              "wall_ms": 190,
-              "timed_out": false,
-              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-              "stderr_sha256": "d10dc48d55f3d085f4371be02067dda8b6313e606f4da9f9be1bee1ddead0593",
-              "error": null,
-              "extra": {
-                "argv_sha256": "0ba57a85e246a279eb6d1830a77db9917f641892e2cd6b08c4944de8ab532172",
-                "env_sha256": "285d2668e802f17eff167948eb945d7adc60a2b473b742a33be8e8dafa8cfc20",
-                "seed": 1,
-                "preemption_rate": 0.05,
                 "status": "clean",
                 "detected": []
               },
@@ -1132,16 +1218,16 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 202,
+              "wall_ms": 193,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "d10dc48d55f3d085f4371be02067dda8b6313e606f4da9f9be1bee1ddead0593",
               "error": null,
               "extra": {
                 "argv_sha256": "0ba57a85e246a279eb6d1830a77db9917f641892e2cd6b08c4944de8ab532172",
-                "env_sha256": "c98849fde5f0af0e7be75b0bb871147c0fca81ec04f494774b1f6dc2fbeee11d",
-                "seed": 2,
-                "preemption_rate": 0.1,
+                "env_sha256": "285d2668e802f17eff167948eb945d7adc60a2b473b742a33be8e8dafa8cfc20",
+                "seed": 1,
+                "preemption_rate": 0.05,
                 "status": "clean",
                 "detected": []
               },
@@ -1165,16 +1251,16 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 235,
+              "wall_ms": 205,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "d10dc48d55f3d085f4371be02067dda8b6313e606f4da9f9be1bee1ddead0593",
               "error": null,
               "extra": {
                 "argv_sha256": "0ba57a85e246a279eb6d1830a77db9917f641892e2cd6b08c4944de8ab532172",
-                "env_sha256": "1fd802f98c287e57f9d732b9b94df9018b887c5fe193e557eafaa1a8fbfd99c7",
-                "seed": 3,
-                "preemption_rate": 0.2,
+                "env_sha256": "c98849fde5f0af0e7be75b0bb871147c0fca81ec04f494774b1f6dc2fbeee11d",
+                "seed": 2,
+                "preemption_rate": 0.1,
                 "status": "clean",
                 "detected": []
               },
@@ -1198,7 +1284,40 @@
                 "--quiet"
               ],
               "exit_code": 0,
-              "wall_ms": 369,
+              "wall_ms": 233,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "d10dc48d55f3d085f4371be02067dda8b6313e606f4da9f9be1bee1ddead0593",
+              "error": null,
+              "extra": {
+                "argv_sha256": "0ba57a85e246a279eb6d1830a77db9917f641892e2cd6b08c4944de8ab532172",
+                "env_sha256": "1fd802f98c287e57f9d732b9b94df9018b887c5fe193e557eafaa1a8fbfd99c7",
+                "seed": 3,
+                "preemption_rate": 0.2,
+                "status": "clean",
+                "detected": []
+              },
+              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/007-miri",
+              "files": {
+                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/007-miri/argv.json",
+                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/007-miri/env.json",
+                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/007-miri/stdout.txt",
+                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/007-miri/stderr.txt",
+                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/007-miri/exit.txt",
+                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/007-miri/wall_ms.txt"
+              }
+            },
+            {
+              "tool": "miri",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 349,
               "timed_out": false,
               "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
               "stderr_sha256": "d10dc48d55f3d085f4371be02067dda8b6313e606f4da9f9be1bee1ddead0593",
@@ -1211,14 +1330,14 @@
                 "status": "clean",
                 "detected": []
               },
-              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/007-miri",
+              "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/008-miri",
               "files": {
-                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/007-miri/argv.json",
-                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/007-miri/env.json",
-                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/007-miri/stdout.txt",
-                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/007-miri/stderr.txt",
-                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/007-miri/exit.txt",
-                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/007-miri/wall_ms.txt"
+                "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/008-miri/argv.json",
+                "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/008-miri/env.json",
+                "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/008-miri/stdout.txt",
+                "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/008-miri/stderr.txt",
+                "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/008-miri/exit.txt",
+                "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/008-miri/wall_ms.txt"
               }
             }
           ],
@@ -1232,10 +1351,10 @@
               "--quiet"
             ],
             "exit_code": 0,
-            "wall_ms": 1744,
+            "wall_ms": 1784,
             "timed_out": false,
             "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-            "stderr_sha256": "c45e7f5a01a3e78acd065e8c4aca83b9a92ff022263b7e02b228eff3edd08740",
+            "stderr_sha256": "ca0cf574d4e754d37992168a7e3127de3ae319fbf37a8447afcede233d3aac89",
             "error": null,
             "extra": {
               "argv_sha256": "0ba57a85e246a279eb6d1830a77db9917f641892e2cd6b08c4944de8ab532172",
@@ -1247,14 +1366,14 @@
               "status": "clean",
               "detected": []
             },
-            "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/008-miri-many-seeds",
+            "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/009-miri-many-seeds",
             "files": {
-              "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/008-miri-many-seeds/argv.json",
-              "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/008-miri-many-seeds/env.json",
-              "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/008-miri-many-seeds/stdout.txt",
-              "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/008-miri-many-seeds/stderr.txt",
-              "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/008-miri-many-seeds/exit.txt",
-              "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/008-miri-many-seeds/wall_ms.txt"
+              "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/009-miri-many-seeds/argv.json",
+              "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/009-miri-many-seeds/env.json",
+              "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/009-miri-many-seeds/stdout.txt",
+              "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/009-miri-many-seeds/stderr.txt",
+              "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/009-miri-many-seeds/exit.txt",
+              "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v2/rust_projects/_rust_lock-order/cycle_3lock_fixed/calls/009-miri-many-seeds/wall_ms.txt"
             },
             "mode": "many_seeds"
           },
@@ -1298,7 +1417,7 @@
             "complete": true,
             "states_explored": 49,
             "transitions_explored": 72,
-            "wall_ms": 3,
+            "wall_ms": 2,
             "status": "fail",
             "kind": "semantic",
             "input_sha256": "a513fadc58079ab1e36af412e56adf01c78bcc0776b55dcfecb65007ccc23d5d"
@@ -1359,7 +1478,7 @@
             "complete": true,
             "states_explored": 157,
             "transitions_explored": 381,
-            "wall_ms": 4,
+            "wall_ms": 5,
             "status": "fail",
             "kind": "semantic",
             "input_sha256": "13e6147c8bfdc6feb2ad3fe488df7aaf5a81ad142f432e40a7443a340dd36a45"
@@ -1420,7 +1539,7 @@
             "complete": true,
             "states_explored": 32,
             "transitions_explored": 41,
-            "wall_ms": 2,
+            "wall_ms": 3,
             "status": "fail",
             "kind": "semantic",
             "input_sha256": "bc55bb0ce0543f44d0b225469d8d919e661c73a637d5eeb77593a85250c7df1b"
@@ -1442,7 +1561,7 @@
             "complete": true,
             "states_explored": 43,
             "transitions_explored": 57,
-            "wall_ms": 3,
+            "wall_ms": 2,
             "status": "pass",
             "kind": "semantic",
             "input_sha256": "d20319d3bd381d2bd016771212ea86d6b31a66a61e6ea62fc2a97127e337ae0f"
@@ -1556,7 +1675,7 @@
             "complete": true,
             "states_explored": 17,
             "transitions_explored": 21,
-            "wall_ms": 3,
+            "wall_ms": 2,
             "status": "fail",
             "kind": "semantic",
             "input_sha256": "6ac9f65c82a126b88b35e958434dc279193a8c96bc0f557c4e2f77c065b49752"
@@ -1694,7 +1813,7 @@
             "complete": true,
             "states_explored": 2211,
             "transitions_explored": 6582,
-            "wall_ms": 58,
+            "wall_ms": 73,
             "status": "fail",
             "kind": "semantic",
             "input_sha256": "9d43e80c423b713db3df0261337c698f9ff59312f25f3160bd700a6a698694ed"
@@ -1704,7 +1823,7 @@
             "complete": true,
             "states_explored": 2211,
             "transitions_explored": 6582,
-            "wall_ms": 39,
+            "wall_ms": 38,
             "status": "fail",
             "kind": "semantic",
             "input_sha256": "9d43e80c423b713db3df0261337c698f9ff59312f25f3160bd700a6a698694ed"
@@ -1786,7 +1905,7 @@
             "complete": true,
             "states_explored": 197,
             "transitions_explored": 307,
-            "wall_ms": 4,
+            "wall_ms": 5,
             "status": "fail",
             "kind": "semantic",
             "input_sha256": "e2bc49550cbd8b817817b928c0e3ac1c4e92734d61cf65c548dae7230f5f1855"
@@ -2013,7 +2132,7 @@
             "complete": true,
             "states_explored": 49,
             "transitions_explored": 72,
-            "wall_ms": 3,
+            "wall_ms": 2,
             "status": "fail",
             "kind": "semantic",
             "input_sha256": "77f6e181d701d23ecffac0c6a9c138e213905d16d36335e0d3544c30f5876fcb"
@@ -2023,7 +2142,7 @@
             "complete": true,
             "states_explored": 49,
             "transitions_explored": 72,
-            "wall_ms": 3,
+            "wall_ms": 2,
             "status": "fail",
             "kind": "semantic",
             "input_sha256": "77f6e181d701d23ecffac0c6a9c138e213905d16d36335e0d3544c30f5876fcb"
@@ -2035,7 +2154,7 @@
             "complete": true,
             "states_explored": 39,
             "transitions_explored": 56,
-            "wall_ms": 2,
+            "wall_ms": 3,
             "status": "pass",
             "kind": "semantic",
             "input_sha256": "9588dffe5dd0bab94820ac670619c28dbadabe7460a00d61d15de08d1a9b9a84"
@@ -2045,7 +2164,7 @@
             "complete": true,
             "states_explored": 39,
             "transitions_explored": 56,
-            "wall_ms": 2,
+            "wall_ms": 3,
             "status": "pass",
             "kind": "semantic",
             "input_sha256": "9588dffe5dd0bab94820ac670619c28dbadabe7460a00d61d15de08d1a9b9a84"
@@ -2105,6 +2224,6 @@
     "Miri is dynamic and schedule-dependent: a miss is not proof of absence, and is not evidence of safety.",
     "The deadlock fixtures are lock-order bugs that only manifest on some interleavings; each Miri seed runs one schedule, so a miss here is expected rather than surprising.",
     "The ConcIR arm consumes human-written CIR, not Rust source; the comparison is capability-level, not same-input.",
-    "Lockbud is unavailable on this machine unless installed and pinned."
+    "Lockbud is a static RUSTC_WRAPPER pinned to nightly-2026-02-07; its reports are 'possibly' over-approximations and cover double-lock / conflicting-lock-order / condvar misuse only."
   ]
 }

@@ -129,7 +129,7 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
         (round_dir / "candidate.rs").write_text(source, encoding="utf-8")
         project = RustArmProject(round_dir, source, name="probe")
         wants_tools = arm == ARM_TOOLS_ITER
-        record = project.analyze(run_miri=wants_tools, run_lockbud=False,
+        record = project.analyze(run_miri=wants_tools, run_lockbud=wants_tools,
                                  timeout_s=tool_timeout_s)
         tool_wall = _tool_wall(record)
         run.consumption.tool_wall_ms += tool_wall
@@ -144,6 +144,13 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
         # not green and must not be accepted.
         miri_green = bool(miri_runs) and all(
             r.get("extra", {}).get("status") == "clean" for r in miri_runs)
+        lockbud = record.get("lockbud") or {}
+        lockbud_status = lockbud.get("status")
+        lockbud_detected = bool(lockbud.get("extra", {}).get("detected"))
+        # Unavailable/skipped is neutral; clean is green; a detection, timeout or
+        # tool error is not green.
+        lockbud_green = (lockbud_status in ("clean", "lockbud_unavailable", "skipped")
+                         and not lockbud_detected)
         prompt_tokens, completion_tokens = _tokens(response)
         rr = RoundRecord(
             round=round_no,
@@ -173,7 +180,8 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
             feedback = "Review the program for concurrency defects and output the full fixed program."
             continue
         # A2_tools_iter: accept only when every tool finished cleanly.
-        run.accepted = build_ok and miri_green and not miri_detected
+        run.accepted = (build_ok and miri_green and not miri_detected
+                        and lockbud_green)
         rr.decision = "tools_green" if run.accepted else "tools_dirty"
         if run.accepted:
             break
@@ -181,6 +189,8 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
             "build_ok": build_ok,
             "miri_detected": miri_detected,
             "miri_statuses": [r.get("extra", {}).get("status") for r in miri_runs],
+            "lockbud_status": lockbud_status,
+            "lockbud_detected": lockbud_detected,
             "build": record.get("build"),
             "behavior_test": record.get("behavior_test"),
         }, sort_keys=True))

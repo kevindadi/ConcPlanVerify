@@ -23,7 +23,25 @@ from typing import Any
 
 from .concir_client import ConcirClient
 from .experiments_v2 import MIRI_COMBOS, load_manifest, sha256_file
-from .rust_arm import RustArmProject, lockbud_available
+from .rust_arm import RustArmProject, lockbud_available, lockbud_path
+
+
+def _lockbud_info() -> dict[str, Any]:
+    path = lockbud_path()
+    if path is None:
+        return {"available": False, "path": None, "commit": None,
+                "binary_sha256": None, "toolchain": "nightly-2026-02-07"}
+    commit = None
+    try:
+        import subprocess
+
+        commit = subprocess.check_output(
+            ["git", "-C", str(path.parents[2]), "rev-parse", "HEAD"],
+            stderr=subprocess.DEVNULL).decode().strip()
+    except Exception:  # noqa: BLE001
+        commit = None
+    return {"available": True, "path": str(path), "commit": commit,
+            "binary_sha256": sha256_file(path), "toolchain": "nightly-2026-02-07"}
 
 
 def _default_binary() -> Path | None:
@@ -102,6 +120,15 @@ def _miri_statuses(rust_record: dict[str, Any] | None) -> list[str]:
     return [r.get("extra", {}).get("status", "unknown") for r in _miri_runs(rust_record)]
 
 
+def _lockbud_detected(rust_record: dict[str, Any] | None) -> bool | None:
+    if not rust_record:
+        return None
+    lockbud = rust_record.get("lockbud")
+    if not isinstance(lockbud, dict) or lockbud.get("status") == "lockbud_unavailable":
+        return None
+    return bool(lockbud.get("extra", {}).get("detected"))
+
+
 def run_detection(manifest_path: Path | str, out_dir: Path | str, *,
                   run_miri: bool = True, timeout_s: float = 120.0) -> dict[str, Any]:
     root = Path(manifest_path).resolve().parent
@@ -133,10 +160,11 @@ def run_detection(manifest_path: Path | str, out_dir: Path | str, *,
         records.append(entry)
 
     result = {
-        "schema_version": "detection-v1",
+        "schema_version": "detection-v2",
         "binary_sha256": sha256_file(binary) if binary else None,
         "binary": str(binary) if binary else None,
         "miri_combos": [{"seed": s, "preemption_rate": r} for s, r in MIRI_COMBOS],
+        "lockbud": _lockbud_info(),
         "lockbud_available": lockbud_available(),
         "run_miri": run_miri,
         "records": records,
@@ -148,7 +176,9 @@ def run_detection(manifest_path: Path | str, out_dir: Path | str, *,
             "expected rather than surprising.",
             "The ConcIR arm consumes human-written CIR, not Rust source; the "
             "comparison is capability-level, not same-input.",
-            "Lockbud is unavailable on this machine unless installed and pinned.",
+            "Lockbud is a static RUSTC_WRAPPER pinned to nightly-2026-02-07; its "
+            "reports are 'possibly' over-approximations and cover double-lock / "
+            "conflicting-lock-order / condvar misuse only.",
         ],
     }
     (out / "DETECTION.json").write_text(
@@ -160,9 +190,9 @@ def render_markdown(result: dict[str, Any]) -> str:
     lines = ["# Track D — detection capability (no LLM)", "",
              f"- ConcIR binary sha256: `{result['binary_sha256']}`",
              f"- Miri combos: {result['miri_combos']}",
-             f"- Lockbud available: {result['lockbud_available']}", "",
+             f"- Lockbud: {result.get('lockbud')}", "",
              "## Per task", "",
-             "| task | CIR buggy | CIR fixed | Miri buggy | seeds | Miri fixed | seeds | tool errors | notes |",
+             "| task | CIR buggy | CIR fixed | Miri buggy | seeds | Lockbud buggy | Miri fixed | tool errors | notes |",
              "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for rec in result["records"]:
         if rec.get("status") != "ready":
@@ -182,9 +212,8 @@ def render_markdown(result: dict[str, Any]) -> str:
             notes.append("CIR false positive")
         lines.append(
             f"| {rec['task']} | {buggy.get('outcome')} | {fixed.get('outcome')} | "
-            f"{_miri_detected(rb)} | {len(_miri_runs(rb))} | "
-            f"{_miri_detected(rf)} | {len(_miri_runs(rf))} | {errors} | "
-            f"{', '.join(notes)} |")
+            f"{_miri_detected(rb)} | {len(_miri_runs(rb))} | {_lockbud_detected(rb)} | "
+            f"{_miri_detected(rf)} | {errors} | {', '.join(notes)} |")
     lines += ["", "## Caveats", ""]
     lines += [f"- {c}" for c in result["caveats"]]
     return "\n".join(lines) + "\n"

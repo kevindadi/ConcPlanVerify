@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "885abfd6-7e7c-4786-9a91-a54c7ac2f097",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nDesign a program with two mutexes A and B and two worker threads. Each worker acquires both mutexes, works inside the critical section, releases both, and terminates. Main spawns both workers and joins them. Every interleaving must terminate and both workers must complete.\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "ae5d13bd278b7443281112786fe655ecfa6c96ba8fa745498d26e91323d4cf82",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 261,
+    "prompt_tokens": 302,
+    "total_tokens": 563,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 128
+    },
+    "prompt_cache_hit_tokens": 128,
+    "prompt_cache_miss_tokens": 174
+  },
+  "content_sha256": "e8e51083c3aef372f2e8d6cacb1edf2f38a79e3a057b5cfe6a8c7f56cfefb9d4",
+  "content": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let a = Arc::new(Mutex::new(0));\n    let b = Arc::new(Mutex::new(0));\n\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let worker1 = thread::spawn(move || {\n        let mut ga = a1.lock().unwrap();\n        let mut gb = b1.lock().unwrap();\n        *ga += 1;\n        *gb += 1;\n        drop(gb);\n        drop(ga);\n    });\n\n    let a2 = Arc::clone(&a);\n    let b2 = Arc::clone(&b);\n    let worker2 = thread::spawn(move || {\n        let mut ga = a2.lock().unwrap();\n        let mut gb = b2.lock().unwrap();\n        *ga += 1;\n        *gb += 1;\n        drop(gb);\n        drop(ga);\n    });\n\n    worker1.join().unwrap();\n    worker2.join().unwrap();\n\n    println!(\"A = {}, B = {}\", *a.lock().unwrap(), *b.lock().unwrap());\n}\n```",
+  "wall_ms": 2124
+}
