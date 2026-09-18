@@ -265,6 +265,29 @@ Registered deviations (must be repeated in the handoff):
   error as schema feedback (not a tool error); outputs must contain `fn main`;
   SUMMARY keys match arm ids; `.gitignore` re-includes `experiments/**/*.txt`.
 
+## Revision 2026-09-18e — de-leaking, normalisation, extraction oracle
+
+- **D-7 (de-leaked inputs).** Repair tasks now run on `repair_input/`: Rust with
+  all comments stripped, the CIR `program` renamed to `case_<family><n>`, and a
+  human-written neutral `requirements.txt` free of qualitative words. The
+  originals stay as ground truth. Lint: `python/tests/test_sanitize.py`.
+- **D-8 (Tier-1 normalisation).** Before `check`, the harness applies only
+  unambiguous rewrites (field aliases, EXPR object -> string, missing
+  `base` inference, protection aliases, primitive base case) and records each in
+  `normalizations[]`; sids are never rewritten. A byte-identical candidate
+  triggers a local-patch prompt, then `stalled` after a second repeat.
+- **D-9 (extraction oracle / planned).** `oracle.model` for Rust artifacts is
+  meant to extract CIR from the candidate and validate the extraction by trace
+  conformance. Not implemented this round (see handoff).
+- **Coverage口径.** `conform` reports coverage per `(function, sid)`; traces are
+  one per Miri seed (a `cargo clean` before each seed so `CIR_TRACE_OUT` takes
+  effect); a timeout is reported as `timeout` with `hang_suspect`.
+- **Channel codegen** maps to the emitted `cir_trace::Channel` (a bounded queue
+  with rendezvous support), not `mpsc::sync_channel`, so multiple receivers and
+  cap-0 rendezvous are modelled; documented deviation from the literal request.
+- **Multi-module codegen** is not implemented; only single-module programs
+  codegen (`real-cases/rmw-zenoh-998` is single-module and builds).
+
 ## Threats to validity (must appear in the final handoff)
 
 - Miri is dynamic and non-exhaustive: a miss is not proof of absence.

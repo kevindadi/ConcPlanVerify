@@ -370,3 +370,60 @@ PYTHONPATH=python python/.venv/bin/python -m cir_workflow --binary <concir-backe
   channel and nested-scope buggy cases are Track D only.
 - The model-extraction oracle (LLM extracts Rust back to CIR) is not implemented.
 - `rust-toolchain.toml` is not pinned to an immutable date (deviation).
+
+---
+
+# Round 2026-09-18e — de-leak, normalisation, conformance口径
+
+## REVIEW R-1..R-8 status
+
+| item | status | evidence |
+| --- | --- | --- |
+| R-1 input leakage | fixed | `benchmarks/build_families.py` emits `repair_input/` (comments stripped + rustfmt, `program` anonymised to `case_<family><n>`, neutral `requirements.txt`); `python/tests/test_sanitize.py` lints it. |
+| R-2 A3 loses on schema | fixed | ConcIR `schema` + `prompts/concir_generation_v2.md`; `normalize.py` Tier-1 rewrites with records; schema feedback uses JSON pointers + shapes; stall -> local patch -> `stalled`. Offline regression: smoke-d `bare_wait` v3/v4 raw text now normalises to **check valid + explore PASS** (`tests/test_normalize.py::SmokeDRegressionTests`). |
+| R-3 diagnostic readability | **not done** | `related_functions`/`blocked` still numeric and there is no `doom_state`; target-layer feedback is unchanged. See remaining items. |
+| R-4 coverage/traces | fixed | coverage per `(function, sid)`; one trace per Miri seed (`cargo clean` before each so `CIR_TRACE_OUT` applies), `traces_total = native + seeds`, timeouts named `timeout` with `hang_suspect`. |
+| R-5 Miri `tool_error` | partially | Miri is bounded (8 s, no many-seeds) in the arm oracle; the A2-ml `tool_error x5` root cause was not investigated (Lockbud wrapper env suspicion unconfirmed). |
+| R-6 codegen coverage | partially | channel codegen added (emitted `cir_trace::Channel`); `real-cases/rmw-zenoh-998` codegens and builds; **multi-module codegen not implemented**. |
+| R-7 HOLE fill / A3_free | partially | `worker_with_payload` (nobody helper) now yields a real codegen HOLE and `structure/worker_with_payload/correct.cir.json` is `conformance_only`. The live Flash fill and the `A3_free` ablation were **not run**. |
+| R-8 repo hygiene | fixed | ConcIR sources committed (`f7fa67f`), toolchain pinned (`rust-toolchain.toml = nightly-2026-09-04`, miri+rust-src, 234+ tests); ConcPlanVerify committed in groups. |
+
+## Conformance v2 (new口径)
+
+`experiments/conformance-v2/CONFORMANCE.md` — 50 native + 12 Miri-seed traces per
+case, coverage keyed per `(function, sid)`:
+
+| case | traces | conformant | violation | timeout | coverage |
+| --- | --- | --- | --- | --- | --- |
+| abba_2lock (fixed) | 62 | 62 | 0 | 0 | 9/9 |
+| lost_wakeup (fixed) | 62 | 62 | 0 | 0 | 7/7 |
+| permit_leak (fixed) | 62 | 62 | 0 | 0 | 5/5 |
+| scope_bound (correct) | 62 | 62 | 0 | 0 | 7/7 |
+
+Channel codegen produces buildable programs; channel **conformance** is not yet
+claimed — the reference model attributes a rendezvous to a different step than
+the emitted `ev`, so the two sides do not line up (documented gap).
+
+## Extra finding
+
+`worker_with_payload` exposed a **petri vs interp disagreement** on a `call` to a
+body-less helper (`petri FAIL`, `interp PASS`). The case is therefore
+`conformance_only`, not an explore benchmark; the disagreement is recorded for a
+future ConcIR fix.
+
+## Not done this round
+
+- **R-3** FQN rendering + `doom_state` + templated repair hints (ConcIR).
+- **R-6** multi-module codegen.
+- **R-7** live HOLE fill on `worker_with_payload` and the `A3_free` ablation.
+- **VI.1/2/3** injectable `rust/tests/behavior.rs` for six cases, `bug_present`
+  rules, and the LLM extraction oracle; consequently the repair-smoke Rust arms
+  still have no `oracle.model`/`oracle.behavior` values and no false-accept rate.
+- **VII** repair-smoke-v2 was not rerun.
+- R-5 root cause of `tool_error x5`.
+
+## Versions
+
+- ConcIR release binary sha256 `5aac4ac1851f40b25e58ae4337f82a6e6c11ac41831b2b9362161de88cc60865`.
+- `rustc 1.100.0-nightly (a69a63265 2026-09-03)` under pinned `nightly-2026-09-04`.
+- Rust tests **237 passed**, Python **99 passed**.
