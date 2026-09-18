@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "f48edc14-bcde-44f4-98b4-0a8f6df19b81",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nDesign a waiter that blocks on a condition variable until a predicate protected by the mutex becomes true, and a notifier that makes the predicate true and signals. The waiter must terminate even if the notifier signals before the waiter waits.\n\n\nCurrent program:\n```rust\n//! Reference Rust for tests/e2e/signal_loss/buggy.json.\n//! Expected defect: SignalLoss (lost wakeup). The waiter calls wait()\n//! unconditionally, so if the notifier runs first the notification is lost\n//! and the waiter blocks forever.\n\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    // `ready` is the protected flag; the Mutex is `mtx` in the ConcIR.\n    let pair = Arc::new((Mutex::new(false), Condvar::new()));\n\n    let pair_w = Arc::clone(&pair);\n    let waiter = thread::spawn(move || {\n        let (mtx, cv) = &*pair_w;\n        let guard = mtx.lock().unwrap(); // s1: lock mtx\n        // s2: wait without checking `ready` first — the lost-wakeup bug.\n        let guard = cv.wait(guard).unwrap();\n        drop(guard); // s4: drop mtx\n    });\n\n    let pair_n = Arc::clone(&pair);\n    let notifier = thread::spawn(move || {\n        let (mtx, cv) = &*pair_n;\n        let mut ready = mtx.lock().unwrap(); // s1: lock mtx\n        *ready = true; // s2: write ready = true\n        cv.notify_all(); // s3: notify_all\n        drop(ready); // s4: drop mtx\n    });\n\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n}\n\n```\n\nFix any concurrency defect and output the complete corrected Rust program, or if there is none reply exactly NO_ISSUES."
+    }
+  ],
+  "prompt_sha256": "73dade38cac314ca8bab8b24ec28f6e82c96c037233caed38b451a81b36ed8bf",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 369,
+    "prompt_tokens": 660,
+    "total_tokens": 1029,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 0
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 660
+  },
+  "content_sha256": "088652202b791bc58769394438f1f3658f1e3c8ceeac011cca59a5eca7c12fca",
+  "content": "```rust\n//! Fixed Rust for tests/e2e/signal_loss/buggy.json.\n//! The waiter re-checks the predicate in a loop, so a notification that\n//! arrives before the waiter waits is not lost: the predicate is already\n//! true and the waiter proceeds without blocking.\n\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    // `ready` is the protected flag; the Mutex is `mtx` in the ConcIR.\n    let pair = Arc::new((Mutex::new(false), Condvar::new()));\n\n    let pair_w = Arc::clone(&pair);\n    let waiter = thread::spawn(move || {\n        let (mtx, cv) = &*pair_w;\n        let mut guard = mtx.lock().unwrap(); // s1: lock mtx\n        // s2: wait until the predicate becomes true, re-checking after\n        // every wakeup so a signal that arrives before the wait is not lost.\n        while !*guard {\n            guard = cv.wait(guard).unwrap();\n        }\n        drop(guard); // s4: drop mtx\n    });\n\n    let pair_n = Arc::clone(&pair);\n    let notifier = thread::spawn(move || {\n        let (mtx, cv) = &*pair_n;\n        let mut ready = mtx.lock().unwrap(); // s1: lock mtx\n        *ready = true; // s2: write ready = true\n        cv.notify_all(); // s3: notify_all\n        drop(ready); // s4: drop mtx\n    });\n\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n}\n```",
+  "wall_ms": 1459
+}

@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "3d5ed7d5-f0a9-4f1e-9b22-519c5317d189",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust self-review prompt (v1, arm A1)\n\nYou are reviewing a Rust program for concurrency defects: deadlock, lost wakeup,\ndata race, or a thread that can block forever.\n\n- Inspect the program for concurrency defects and, if you find any, output the\n  full corrected program.\n- Do not rely on external tools. Reason about the interleavings yourself.\n- Keep the same overall design intent; fix the defect minimally.\n- If you are convinced the program has no concurrency defect, reply with exactly\n  the single token `NO_ISSUES` and nothing else.\n- Otherwise output only the full corrected Rust source inside a single ```rust\n  code fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nDesign two workers A and B that each take two mutexes with an intermediate semaphore handshake, plus an independent bystander task that keeps making progress forever. Main spawns all three. Although the bystander keeps the system globally live, every reachable state must still be able to finish A and B, and both workers must complete.\n\n\nCurrent program:\n```rust\n//! Reference Rust for tests/e2e/partial_deadlock/buggy.json.\n//! Expected defect: goals unmet (partial deadlock). Workers A and B pass the\n//! semaphore handshake, then A holds mtx_a and wants mtx_b while B holds\n//! mtx_b and wants mtx_a. The detached bystander keeps looping, so the\n//! system is not globally deadlocked — but neither worker ever returns.\n//! Running this program hangs on the joins; it exists for Lockbud/Miri baselines.\n\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\nuse std::time::Duration;\n\n/// Minimal counting semaphore (std has none).\nstruct Semaphore {\n    permits: Mutex<u32>,\n    cv: Condvar,\n}\n\nimpl Semaphore {\n    fn new(count: u32) -> Self {\n        Self {\n            permits: Mutex::new(count),\n            cv: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            permits = self.cv.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        *self.permits.lock().unwrap() += 1;\n        self.cv.notify_one();\n    }\n}\n\nfn main() {\n    let mtx_a = Arc::new(Mutex::new(()));\n    let mtx_b = Arc::new(Mutex::new(()));\n    let sem_a = Arc::new(Semaphore::new(0));\n    let sem_b = Arc::new(Semaphore::new(0));\n\n    let (ma, mb, sa, sb) = (\n        Arc::clone(&mtx_a),\n        Arc::clone(&mtx_b),\n        Arc::clone(&sem_a),\n        Arc::clone(&sem_b),\n    );\n    let worker_a = thread::spawn(move || {\n        let ga = ma.lock().unwrap(); // s1: lock mtx_a\n        sa.release(); // s2: release sem_a\n        sb.acquire(); // s3: acquire sem_b\n        let gb = mb.lock().unwrap(); // s4: lock mtx_b — deadlocks against worker_b\n        drop(gb); // s5\n        drop(ga); // s6\n    });\n\n    let (ma2, mb2, sa2, sb2) = (\n        Arc::clone(&mtx_a),\n        Arc::clone(&mtx_b),\n        Arc::clone(&sem_a),\n        Arc::clone(&sem_b),\n    );\n    let worker_b = thread::spawn(move || {\n        let gb = mb2.lock().unwrap(); // s1: lock mtx_b\n        sb2.release(); // s2: release sem_b\n        sa2.acquire(); // s3: acquire sem_a\n        let ga = ma2.lock().unwrap(); // s4: lock mtx_a — deadlocks against worker_a\n        drop(ga); // s5\n        drop(gb); // s6\n    });\n\n    // Detached bystander: loops forever, so the process as a whole keeps\n    // making progress even while both workers are stuck.\n    thread::spawn(move || loop {\n        thread::sleep(Duration::from_millis(10)); // s1/s2: nop loop\n    });\n\n    worker_a.join().unwrap();\n    worker_b.join().unwrap();\n}\n\n```\n\nFix any concurrency defect and output the complete corrected Rust program, or if there is none reply exactly NO_ISSUES."
+    }
+  ],
+  "prompt_sha256": "d0fd6facd019fcf978b377ca7d3856db4a4c5123cc46ea4e3143486f1dccce40",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 871,
+    "prompt_tokens": 1017,
+    "total_tokens": 1888,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 0
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 1017
+  },
+  "content_sha256": "e12dd1ab26419692db9e672b1e93e93d127576302f0bf331fd734e0a4d5b5923",
+  "content": "```rust\n//! Fixed Rust for tests/e2e/partial_deadlock/buggy.json.\n//! Defect: workers A and B pass the semaphore handshake, then A holds mtx_a\n//! and wants mtx_b while B holds mtx_b and wants mtx_a — a classic lock-order\n//! inversion (partial deadlock). The detached bystander keeps looping, so the\n//! system is not globally deadlocked, but neither worker ever returns.\n//!\n//! Fix: make both workers acquire the two mutexes in the same global order\n//! (mtx_a before mtx_b). The semaphore handshake is preserved: each worker\n//! still releases its own semaphore after taking its first lock and waits on\n//! the other's semaphore before taking its second lock. With a consistent\n//! lock order, the second acquisition can never deadlock against the other\n//! worker, so both workers always complete.\n\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\nuse std::time::Duration;\n\n/// Minimal counting semaphore (std has none).\nstruct Semaphore {\n    permits: Mutex<u32>,\n    cv: Condvar,\n}\n\nimpl Semaphore {\n    fn new(count: u32) -> Self {\n        Self {\n            permits: Mutex::new(count),\n            cv: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            permits = self.cv.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        *self.permits.lock().unwrap() += 1;\n        self.cv.notify_one();\n    }\n}\n\nfn main() {\n    let mtx_a = Arc::new(Mutex::new(()));\n    let mtx_b = Arc::new(Mutex::new(()));\n    let sem_a = Arc::new(Semaphore::new(0));\n    let sem_b = Arc::new(Semaphore::new(0));\n\n    let (ma, mb, sa, sb) = (\n        Arc::clone(&mtx_a),\n        Arc::clone(&mtx_b),\n        Arc::clone(&sem_a),\n        Arc::clone(&sem_b),\n    );\n    let worker_a = thread::spawn(move || {\n        let ga = ma.lock().unwrap(); // s1: lock mtx_a\n        sa.release(); // s2: release sem_a\n        sb.acquire(); // s3: acquire sem_b\n        let gb = mb.lock().unwrap(); // s4: lock mtx_b (consistent order: a then b)\n        drop(gb); // s5\n        drop(ga); // s6\n    });\n\n    let (ma2, mb2, sa2, sb2) = (\n        Arc::clone(&mtx_a),\n        Arc::clone(&mtx_b),\n        Arc::clone(&sem_a),\n        Arc::clone(&sem_b),\n    );\n    let worker_b = thread::spawn(move || {\n        // Acquire in the same global order as worker A: mtx_a before mtx_b.\n        let ga = ma2.lock().unwrap(); // s1: lock mtx_a\n        sb2.release(); // s2: release sem_b\n        sa2.acquire(); // s3: acquire sem_a\n        let gb = mb2.lock().unwrap(); // s4: lock mtx_b (consistent order: a then b)\n        drop(gb); // s5\n        drop(ga); // s6\n    });\n\n    // Detached bystander: loops forever, so the process as a whole keeps\n    // making progress even while both workers are stuck.\n    thread::spawn(move || loop {\n        thread::sleep(Duration::from_millis(10)); // s1/s2: nop loop\n    });\n\n    worker_a.join().unwrap();\n    worker_b.join().unwrap();\n}\n```",
+  "wall_ms": 2908
+}

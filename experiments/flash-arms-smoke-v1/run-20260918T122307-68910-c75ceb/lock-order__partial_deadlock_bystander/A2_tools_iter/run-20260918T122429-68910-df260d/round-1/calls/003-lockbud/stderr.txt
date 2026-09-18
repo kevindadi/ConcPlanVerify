@@ -1,0 +1,55 @@
+   Compiling cir_arm_probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-arms-smoke-v1/run-20260918T122307-68910-c75ceb/lock-order__partial_deadlock_bystander/A2_tools_iter/run-20260918T122429-68910-df260d/round-1/lockbud-probe)
+[2026-09-18T12:24:33Z WARN  lockbud::callbacks] [
+      {
+        "ConflictLock": {
+          "bug_kind": "ConflictLock",
+          "possibility": "Possibly",
+          "diagnosis": [
+            {
+              "first_lock_type": "StdMutex(())",
+              "first_lock_span": "src/main.rs:46:13: 46:16 (#0)",
+              "second_lock_type": "StdMutex(())",
+              "second_lock_span": "src/main.rs:48:13: 48:16 (#0)",
+              "callchains": []
+            },
+            {
+              "first_lock_type": "StdMutex(())",
+              "first_lock_span": "src/main.rs:52:13: 52:16 (#0)",
+              "second_lock_type": "StdMutex(())",
+              "second_lock_span": "src/main.rs:54:13: 54:16 (#0)",
+              "callchains": []
+            }
+          ],
+          "explanation": "Locks mutually wait for each other to form a cycle"
+        }
+      },
+      {
+        "CondvarDeadlock": {
+          "bug_kind": "Deadlock before Condvar::wait and notify",
+          "possibility": "Possibly",
+          "diagnosis": {
+            "condvar_wait_type": "std::sync::Condvar::wait",
+            "condvar_wait_callsite_span": "src/main.rs:26:27: 26:51 (#0)",
+            "condvar_notify_type": "std::sync::Condvar::notify",
+            "condvar_notify_callsite_span": "src/main.rs:23:13: 23:36 (#0)",
+            "deadlocks": [
+              {
+                "wait_lock_type": "StdMutex(())",
+                "wait_lock_span": "src/main.rs:52:13: 52:16 (#0)",
+                "notify_lock_type": "StdMutex(())",
+                "notify_lock_span": "src/main.rs:46:13: 46:16 (#0)"
+              },
+              {
+                "wait_lock_type": "StdMutex(())",
+                "wait_lock_span": "src/main.rs:46:13: 46:16 (#0)",
+                "notify_lock_type": "StdMutex(())",
+                "notify_lock_span": "src/main.rs:52:13: 52:16 (#0)"
+              }
+            ]
+          },
+          "explanation": "The same lock before Condvar::wait and notify"
+        }
+      }
+    ]
+[2026-09-18T12:24:33Z WARN  lockbud::callbacks] crate cir_arm_probe contains bugs: { probably: 0, possibly: 0 }, conflictlock: { probably: 0, possibly: 1 }, condvar_deadlock: { probably: 0, possibly: 1 }, atomicity_violation: { possibly: 0 }, invalid_free: { possibly: 0 }, use_after_free: { possibly: 0 }
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.40s

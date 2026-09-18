@@ -1,6 +1,6 @@
 # Track D — detection capability (no LLM)
 
-- ConcIR binary sha256: `fe3d22c5a52f84b5a46d7a4665328056cec9b132f33eec9ea52c3c1158b7d12d`
+- ConcIR binary sha256: `eedf7bfe0d5e6faf1293c66e08a595cdea4ace457f6390fcd38066f6265fad94`
 - Miri combos: [{'seed': 0, 'preemption_rate': 0.01}, {'seed': 1, 'preemption_rate': 0.05}, {'seed': 2, 'preemption_rate': 0.1}, {'seed': 3, 'preemption_rate': 0.2}, {'seed': 4, 'preemption_rate': 0.5}]
 - Lockbud: {'available': True, 'path': '/Users/kevin/local-repos/ConcPlanVerify/tools/lockbud/target/release/lockbud', 'commit': 'cc78cb72cb85cb80e596717339cca95ef50c8fe0', 'binary_sha256': 'a6cc62c0eb02f8df9905642dd6a3717f31baf7d3731b9e56680a309409f20c56', 'toolchain': 'nightly-2026-02-07'}
 
@@ -15,12 +15,19 @@
 | condvar/lost_wakeup_notify_before_wait | FAIL | PASS | None | 0 | None | None | 0 | CIR detects |
 | channel/rendezvous_both_send | FAIL | PASS | None | 0 | None | None | 0 | CIR detects |
 | semaphore/permit_leak | FAIL | PASS | None | 0 | None | None | 0 | CIR detects |
+| semaphore/acquire_twice_no_release | FAIL | PASS | None | 0 | None | None | 0 | CIR detects |
 | semaphore/throttle_n_permits | None | None | None | 0 | None | None | 0 |  |
+| condvar/bare_wait_no_predicate | FAIL | PASS | None | 0 | None | None | 0 | CIR detects |
+| channel/bounded_backpressure_lock_held | FAIL | PASS | None | 0 | None | None | 0 | CIR detects |
 | atomic-data/bounded_counter_invariant | None | None | None | 0 | None | None | 0 |  |
+| atomic-data/counter_overflow_safety | FAIL | PASS | None | 0 | None | None | 0 | CIR detects |
+| atomic-data/atomic_lost_update | FAIL | PASS | None | 0 | None | None | 0 | CIR detects |
 | structure/scope_bound_k_workers | None | None | None | 0 | None | None | 0 |  |
+| structure/nested_scope_lock_order | FAIL | PASS | None | 0 | None | None | 0 | CIR detects |
+| structure/scope_worker_abba | FAIL | PASS | None | 0 | None | None | 0 | CIR detects |
 | boundary/unbounded_int_unknown | None | None | None | 0 | None | None | 0 |  |
 | lock-order/two_independent_cycles | FAIL | None | None | 0 | None | None | 0 | CIR detects |
-| condvar/same_cv_different_locks | PASS | None | None | 0 | None | None | 0 |  |
+| condvar/same_cv_different_locks | None | None | None | 0 | None | None | 0 |  |
 | condvar/notify_one_multi_waiter_wrong_pick | FAIL | None | None | 0 | None | None | 0 | CIR detects |
 | channel/send_while_holding_mutex | FAIL | None | None | 0 | None | None | 0 | CIR detects |
 | structure/finite_call_loop | None | None | None | 0 | None | None | 0 |  |

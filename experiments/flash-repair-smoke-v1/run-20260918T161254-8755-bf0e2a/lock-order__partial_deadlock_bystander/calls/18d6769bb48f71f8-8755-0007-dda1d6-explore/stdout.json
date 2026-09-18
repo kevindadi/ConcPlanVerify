@@ -1,0 +1,443 @@
+{
+  "outcome": "FAIL",
+  "complete": true,
+  "states_explored": 575,
+  "transitions_explored": 1335,
+  "properties": [
+    {
+      "id": "no-deadlock",
+      "outcome": "FAIL",
+      "detail": "a reachable state has no enabled step and unfinished threads"
+    },
+    {
+      "id": "a-completes",
+      "outcome": "FAIL",
+      "detail": "AG EF violated: a reachable state cannot reach the goal"
+    },
+    {
+      "id": "b-completes",
+      "outcome": "FAIL",
+      "detail": "AG EF violated: a reachable state cannot reach the goal"
+    },
+    {
+      "id": "preserved: main::a completes",
+      "outcome": "PASS",
+      "detail": "preserved reachability: completed(f1)"
+    },
+    {
+      "id": "preserved: main::b completes",
+      "outcome": "PASS",
+      "detail": "preserved reachability: completed(f2)"
+    }
+  ],
+  "diagnostics": [
+    {
+      "property": "no-deadlock",
+      "outcome": "FAIL",
+      "message": "reachable global deadlock",
+      "complete": true,
+      "counterexample": [
+        {
+          "origin": {
+            "module": 0,
+            "function": 0,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 0,
+          "frame": 0
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 1,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 1,
+          "frame": 1
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 1,
+            "sid": 1,
+            "phase": "statement"
+          },
+          "thread": 1,
+          "frame": 1
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 2,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 2,
+          "frame": 2
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 1,
+            "sid": 2,
+            "phase": "statement"
+          },
+          "thread": 1,
+          "frame": 1
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 2,
+            "sid": 1,
+            "phase": "statement"
+          },
+          "thread": 2,
+          "frame": 2
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 3,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 3,
+          "frame": 3
+        }
+      ],
+      "final_instances": [
+        {
+          "thread": 0,
+          "frame": 0,
+          "function": 0,
+          "sid": 0,
+          "status": "running"
+        },
+        {
+          "thread": 1,
+          "frame": 1,
+          "function": 1,
+          "sid": 2,
+          "status": "running"
+        },
+        {
+          "thread": 2,
+          "frame": 2,
+          "function": 2,
+          "sid": 1,
+          "status": "running"
+        },
+        {
+          "thread": 3,
+          "frame": 3,
+          "function": 3,
+          "sid": 0,
+          "status": "running"
+        }
+      ],
+      "blocked": [
+        {
+          "thread": 0,
+          "kind": "scope",
+          "resource": null,
+          "resource_name": null,
+          "holder": null,
+          "waiting": 0,
+          "detail": "waiting for scope members"
+        },
+        {
+          "thread": 1,
+          "kind": "lock",
+          "resource": 1,
+          "resource_name": "main::m2",
+          "holder": 2,
+          "waiting": 1,
+          "detail": "waiting for a lock"
+        },
+        {
+          "thread": 2,
+          "kind": "semaphore",
+          "resource": 2,
+          "resource_name": "main::hs",
+          "holder": null,
+          "waiting": 1,
+          "detail": "waiting for semaphore permits"
+        },
+        {
+          "thread": 3,
+          "kind": "lock",
+          "resource": 0,
+          "resource_name": "main::m1",
+          "holder": 1,
+          "waiting": 1,
+          "detail": "waiting for a lock"
+        }
+      ],
+      "cir_statements": [
+        {
+          "module": "main",
+          "function": "main",
+          "sid": "s1"
+        },
+        {
+          "module": "main",
+          "function": "a",
+          "sid": "s3"
+        },
+        {
+          "module": "main",
+          "function": "b",
+          "sid": "s2"
+        },
+        {
+          "module": "main",
+          "function": "bystander",
+          "sid": "s1"
+        }
+      ],
+      "proven_facts": [
+        "reached a counterexample state after 7 step(s)",
+        "explored 575 reachable states"
+      ],
+      "repair_hints": [
+        "check lock acquisition order, channel capacity, and missing notify/join"
+      ]
+    },
+    {
+      "property": "a-completes",
+      "outcome": "FAIL",
+      "message": "reachable state that can no longer reach the goal",
+      "complete": true,
+      "counterexample": [
+        {
+          "origin": {
+            "module": 0,
+            "function": 0,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 0,
+          "frame": 0
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 1,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 1,
+          "frame": 1
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 2,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 2,
+          "frame": 2
+        }
+      ],
+      "final_instances": [
+        {
+          "thread": 0,
+          "frame": 0,
+          "function": 0,
+          "sid": 0,
+          "status": "running"
+        },
+        {
+          "thread": 1,
+          "frame": 1,
+          "function": 1,
+          "sid": 1,
+          "status": "running"
+        },
+        {
+          "thread": 2,
+          "frame": 2,
+          "function": 2,
+          "sid": 1,
+          "status": "running"
+        },
+        {
+          "thread": 3,
+          "frame": 3,
+          "function": 3,
+          "sid": 0,
+          "status": "running"
+        }
+      ],
+      "blocked": [
+        {
+          "thread": 0,
+          "kind": "scope",
+          "resource": null,
+          "resource_name": null,
+          "holder": null,
+          "waiting": 0,
+          "detail": "waiting for scope members"
+        }
+      ],
+      "cir_statements": [
+        {
+          "module": "main",
+          "function": "main",
+          "sid": "s1"
+        },
+        {
+          "module": "main",
+          "function": "a",
+          "sid": "s2"
+        },
+        {
+          "module": "main",
+          "function": "b",
+          "sid": "s2"
+        },
+        {
+          "module": "main",
+          "function": "bystander",
+          "sid": "s1"
+        }
+      ],
+      "proven_facts": [
+        "reached a counterexample state after 3 step(s)",
+        "explored 575 reachable states"
+      ],
+      "repair_hints": [
+        "ensure every branch can still reach the goal (avoid a terminal state that blocks it)"
+      ]
+    },
+    {
+      "property": "b-completes",
+      "outcome": "FAIL",
+      "message": "reachable state that can no longer reach the goal",
+      "complete": true,
+      "counterexample": [
+        {
+          "origin": {
+            "module": 0,
+            "function": 0,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 0,
+          "frame": 0
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 1,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 1,
+          "frame": 1
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 2,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 2,
+          "frame": 2
+        }
+      ],
+      "final_instances": [
+        {
+          "thread": 0,
+          "frame": 0,
+          "function": 0,
+          "sid": 0,
+          "status": "running"
+        },
+        {
+          "thread": 1,
+          "frame": 1,
+          "function": 1,
+          "sid": 1,
+          "status": "running"
+        },
+        {
+          "thread": 2,
+          "frame": 2,
+          "function": 2,
+          "sid": 1,
+          "status": "running"
+        },
+        {
+          "thread": 3,
+          "frame": 3,
+          "function": 3,
+          "sid": 0,
+          "status": "running"
+        }
+      ],
+      "blocked": [
+        {
+          "thread": 0,
+          "kind": "scope",
+          "resource": null,
+          "resource_name": null,
+          "holder": null,
+          "waiting": 0,
+          "detail": "waiting for scope members"
+        }
+      ],
+      "cir_statements": [
+        {
+          "module": "main",
+          "function": "main",
+          "sid": "s1"
+        },
+        {
+          "module": "main",
+          "function": "a",
+          "sid": "s2"
+        },
+        {
+          "module": "main",
+          "function": "b",
+          "sid": "s2"
+        },
+        {
+          "module": "main",
+          "function": "bystander",
+          "sid": "s1"
+        }
+      ],
+      "proven_facts": [
+        "reached a counterexample state after 3 step(s)",
+        "explored 575 reachable states"
+      ],
+      "repair_hints": [
+        "ensure every branch can still reach the goal (avoid a terminal state that blocks it)"
+      ]
+    }
+  ],
+  "boundary_events": [],
+  "unsupported": [],
+  "invalid": [],
+  "model_fingerprint": "dfd261dec333dc42",
+  "contract_fingerprint": "580ec944901d61e0",
+  "assumptions": {
+    "sequential_consistency": true,
+    "no_spurious_wakeups": true
+  },
+  "bounds": {
+    "max_threads": 8,
+    "max_frames_per_thread": 8,
+    "max_states": 20000,
+    "max_depth": 64,
+    "max_boundary_events": 256
+  },
+  "analysis_started": true
+}

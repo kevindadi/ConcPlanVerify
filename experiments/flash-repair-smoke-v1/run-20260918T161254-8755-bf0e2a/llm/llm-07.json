@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "70fa1fa3-c238-426f-8a3d-250487ada923",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nDesign two workers A and B that each take two mutexes with an intermediate semaphore handshake, plus an independent bystander task that keeps making progress forever. Main spawns all three. Although the bystander keeps the system globally live, every reachable state must still be able to finish A and B, and both workers must complete.\n\n\nCurrent program:\n```rust\n//! Reference Rust for tests/e2e/partial_deadlock/buggy.json.\n//! Expected defect: goals unmet (partial deadlock). Workers A and B pass the\n//! semaphore handshake, then A holds mtx_a and wants mtx_b while B holds\n//! mtx_b and wants mtx_a. The detached bystander keeps looping, so the\n//! system is not globally deadlocked — but neither worker ever returns.\n//! Running this program hangs on the joins; it exists for Lockbud/Miri baselines.\n\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\nuse std::time::Duration;\n\n/// Minimal counting semaphore (std has none).\nstruct Semaphore {\n    permits: Mutex<u32>,\n    cv: Condvar,\n}\n\nimpl Semaphore {\n    fn new(count: u32) -> Self {\n        Self {\n            permits: Mutex::new(count),\n            cv: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            permits = self.cv.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        *self.permits.lock().unwrap() += 1;\n        self.cv.notify_one();\n    }\n}\n\nfn main() {\n    let mtx_a = Arc::new(Mutex::new(()));\n    let mtx_b = Arc::new(Mutex::new(()));\n    let sem_a = Arc::new(Semaphore::new(0));\n    let sem_b = Arc::new(Semaphore::new(0));\n\n    let (ma, mb, sa, sb) = (\n        Arc::clone(&mtx_a),\n        Arc::clone(&mtx_b),\n        Arc::clone(&sem_a),\n        Arc::clone(&sem_b),\n    );\n    let worker_a = thread::spawn(move || {\n        let ga = ma.lock().unwrap(); // s1: lock mtx_a\n        sa.release(); // s2: release sem_a\n        sb.acquire(); // s3: acquire sem_b\n        let gb = mb.lock().unwrap(); // s4: lock mtx_b — deadlocks against worker_b\n        drop(gb); // s5\n        drop(ga); // s6\n    });\n\n    let (ma2, mb2, sa2, sb2) = (\n        Arc::clone(&mtx_a),\n        Arc::clone(&mtx_b),\n        Arc::clone(&sem_a),\n        Arc::clone(&sem_b),\n    );\n    let worker_b = thread::spawn(move || {\n        let gb = mb2.lock().unwrap(); // s1: lock mtx_b\n        sb2.release(); // s2: release sem_b\n        sa2.acquire(); // s3: acquire sem_a\n        let ga = ma2.lock().unwrap(); // s4: lock mtx_a — deadlocks against worker_a\n        drop(ga); // s5\n        drop(gb); // s6\n    });\n\n    // Detached bystander: loops forever, so the process as a whole keeps\n    // making progress even while both workers are stuck.\n    thread::spawn(move || loop {\n        thread::sleep(Duration::from_millis(10)); // s1/s2: nop loop\n    });\n\n    worker_a.join().unwrap();\n    worker_b.join().unwrap();\n}\n\n```\n\nFix any concurrency defect and output the complete corrected Rust program, or if there is none reply exactly NO_ISSUES."
+    }
+  ],
+  "prompt_sha256": "04ad7aeae901869cb69c85d8e2b6d38072a89098397dc5c36f985bcf9480d3ef",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 855,
+    "prompt_tokens": 1101,
+    "total_tokens": 1956,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 896
+    },
+    "prompt_cache_hit_tokens": 896,
+    "prompt_cache_miss_tokens": 205
+  },
+  "content_sha256": "51f78e7a2245d8666bd4f77e64553f1ef11f6b27042f81f19cc11dd571a0914e",
+  "content": "```rust\n//! Corrected Rust for tests/e2e/partial_deadlock/buggy.json.\n//! The original program had a classic lock-order inversion: worker A held\n//! mtx_a and waited for mtx_b, while worker B held mtx_b and waited for\n//! mtx_a. The semaphore handshake did not prevent this because both workers\n//! could pass the handshake before either attempted its second lock.\n//!\n//! Fix: enforce a global lock ordering. Both workers acquire mtx_a before\n//! mtx_b. The semaphore handshake is preserved so that each worker still\n//! signals its progress and waits for the other, but the second lock is\n//! always taken in the same order, so no cycle can form. The bystander\n//! remains an independent, forever-progressing task.\n\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\n/// Minimal counting semaphore (std has none).\nstruct Semaphore {\n    permits: Mutex<u32>,\n    cv: Condvar,\n}\n\nimpl Semaphore {\n    fn new(count: u32) -> Self {\n        Self {\n            permits: Mutex::new(count),\n            cv: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            permits = self.cv.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        *self.permits.lock().unwrap() += 1;\n        self.cv.notify_one();\n    }\n}\n\nfn main() {\n    let mtx_a = Arc::new(Mutex::new(()));\n    let mtx_b = Arc::new(Mutex::new(()));\n    let sem_a = Arc::new(Semaphore::new(0));\n    let sem_b = Arc::new(Semaphore::new(0));\n\n    let (ma, mb, sa, sb) = (\n        Arc::clone(&mtx_a),\n        Arc::clone(&mtx_b),\n        Arc::clone(&sem_a),\n        Arc::clone(&sem_b),\n    );\n    let worker_a = thread::spawn(move || {\n        let ga = ma.lock().unwrap(); // s1: lock mtx_a\n        sa.release(); // s2: release sem_a\n        sb.acquire(); // s3: acquire sem_b\n        let gb = mb.lock().unwrap(); // s4: lock mtx_b (same order as B)\n        drop(gb); // s5\n        drop(ga); // s6\n    });\n\n    let (ma2, mb2, sa2, sb2) = (\n        Arc::clone(&mtx_a),\n        Arc::clone(&mtx_b),\n        Arc::clone(&sem_a),\n        Arc::clone(&sem_b),\n    );\n    let worker_b = thread::spawn(move || {\n        // Worker B also takes mtx_a first, then mtx_b, matching worker A's\n        // lock order. The handshake still forces B to wait for A's signal\n        // before proceeding to the second lock.\n        let ga = ma2.lock().unwrap(); // s1: lock mtx_a (same order as A)\n        sb2.release(); // s2: release sem_b\n        sa2.acquire(); // s3: acquire sem_a\n        let gb = mb2.lock().unwrap(); // s4: lock mtx_b (same order as A)\n        drop(gb); // s5\n        drop(ga); // s6\n    });\n\n    // Detached bystander: loops forever, so the process as a whole keeps\n    // making progress even while the workers synchronize.\n    thread::spawn(move || loop {\n        std::hint::spin_loop();\n    });\n\n    worker_a.join().unwrap();\n    worker_b.join().unwrap();\n}\n```",
+  "wall_ms": 3191
+}

@@ -1,0 +1,32 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260918T123312-73821-2c23ec/round-4/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+error: expected item, found keyword `let`
+ --> src/main.rs:1:1
+  |
+1 | let _g1 = m1a.lock().unwrap();
+  | ^^^
+  | |
+  | `let` cannot be used for global variables
+  | help: consider using `static` or `const` instead of `let`
+  |
+  = note: for a full list of items that can appear in modules, see <https://doc.rust-lang.org/reference/items.html>
+
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 1 previous error
