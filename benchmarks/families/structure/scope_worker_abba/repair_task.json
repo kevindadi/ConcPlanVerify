@@ -1,0 +1,21 @@
+{
+  "requirements": "Design a scope of two workers that both acquire mutexes A and B. Every interleaving must terminate and both workers must complete.",
+  "input_cir": "structure/scope_worker_abba/buggy.cir.json",
+  "contract": "structure/scope_worker_abba/contract.json",
+  "input_rust": null,
+  "ground_truth": {
+    "defect_family": "structure",
+    "resources": [
+      "main::a",
+      "main::b"
+    ],
+    "statements": [
+      "main::w2.s1",
+      "main::w2.s2"
+    ],
+    "expected_outcome_buggy": "FAIL",
+    "expected_outcome_fixed": "PASS",
+    "expected_repair": "unify worker lock order",
+    "provenance": "authored; scope structure"
+  }
+}

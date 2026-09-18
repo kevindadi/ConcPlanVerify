@@ -68,6 +68,10 @@ def res_var(name: str, base: Any, init: Any) -> dict:
     return {"name": name, "kind": "var", "type": "Var", "base": base, "init": init}
 
 
+def res_atomic(name: str, base: Any, init: Any) -> dict:
+    return {"name": name, "kind": "var", "type": "Atomic", "base": base, "init": init}
+
+
 def module(resources: list[dict], functions: list[dict], *, name: str = "main",
            protection: list[dict] | None = None, requires: dict | None = None) -> dict:
     return {
@@ -264,7 +268,9 @@ def case_partial_bystander() -> dict:
                                                          "always_reachable": "FAIL"},
                                                "fixed": {"deadlock_free": "PASS",
                                                          "always_reachable": "PASS"}},
-                             "provenance": "authored"}}
+                             "provenance": "authored"},
+            "rust": {"buggy": LEGACY.parent / "legacy-cir2cvn/benchmarks/rust/partial_deadlock/buggy.rs",
+                     "fixed": LEGACY.parent / "legacy-cir2cvn/benchmarks/rust/partial_deadlock/fixed.rs"}}
 
 
 def case_lost_wakeup() -> dict:
@@ -450,6 +456,284 @@ def case_scope_bound() -> dict:
                              "provenance": "authored; exercises scope + function bound"}}
 
 
+def case_acquire_twice_no_release() -> dict:
+    def w1(buggy: bool) -> dict:
+        if buggy:
+            body = [{"sid": "s1", "kind": "semaphore_acquire", "resource": "main::s"},
+                    {"sid": "s2", "kind": "semaphore_acquire", "resource": "main::s"},
+                    {"sid": "s3", "kind": "semaphore_release", "resource": "main::s"},
+                    {"sid": "s4", "kind": "return"}]
+        else:
+            body = [{"sid": "s1", "kind": "semaphore_acquire", "resource": "main::s"},
+                    {"sid": "s2", "kind": "semaphore_release", "resource": "main::s"},
+                    {"sid": "s3", "kind": "semaphore_acquire", "resource": "main::s"},
+                    {"sid": "s4", "kind": "semaphore_release", "resource": "main::s"},
+                    {"sid": "s5", "kind": "return"}]
+        return {"name": "w1", "kind": "normal", "form": "closure", "body": body}
+
+    w2 = {"name": "w2", "kind": "normal", "form": "closure", "body": [
+        {"sid": "s1", "kind": "semaphore_acquire", "resource": "main::s"},
+        {"sid": "s2", "kind": "semaphore_release", "resource": "main::s"},
+        {"sid": "s3", "kind": "return"}]}
+    resources = [res_sem("s", 1)]
+    buggy = program([module(resources, [main_scope(["w1", "w2"]), w1(True), w2])],
+                    name="acquire_twice")
+    fixed = program([module(resources, [main_scope(["w1", "w2"]), w1(False), w2])],
+                    name="acquire_twice")
+    c = contract("acquire-twice", properties=[deadlock()],
+                 preserved=preserved_all(["w1", "w2"]))
+    return {"buggy": buggy, "fixed": fixed, "contract": c,
+            "spec": "Design two workers sharing a counting semaphore with one permit. "
+                    "Each worker may acquire the permit more than once, but must "
+                    "release it the same number of times before returning. Every "
+                    "interleaving must terminate and both workers must complete.",
+            "ground_truth": {"defect_family": "semaphore", "resources": ["main::s"],
+                             "statements": ["main::w1.s2"],
+                             "expected_outcome_buggy": "FAIL",
+                             "expected_outcome_fixed": "PASS",
+                             "expected_repair": "release every acquired permit",
+                             "provenance": "authored"}}
+
+
+def case_bare_wait_no_predicate() -> dict:
+    waiter_buggy = {"name": "waiter", "kind": "normal", "form": "closure", "body": [
+        {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+        {"sid": "s2", "kind": "condvar_wait", "condvar": "main::cv", "lock": "main::m"},
+        {"sid": "s3", "kind": "mutex_unlock", "resource": "main::m"},
+        {"sid": "s4", "kind": "return"}]}
+    waiter_fixed = {"name": "waiter", "kind": "normal", "form": "closure", "body": [
+        {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+        {"sid": "s2", "kind": "branch", "cond": "ready == true", "then": "s5", "else": "s3"},
+        {"sid": "s3", "kind": "condvar_wait", "condvar": "main::cv", "lock": "main::m"},
+        {"sid": "s4", "kind": "goto", "target": "s2"},
+        {"sid": "s5", "kind": "mutex_unlock", "resource": "main::m"},
+        {"sid": "s6", "kind": "return"}]}
+    notifier_buggy = {"name": "notifier", "kind": "normal", "form": "closure", "body": [
+        {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+        {"sid": "s2", "kind": "condvar_notify", "condvar": "main::cv"},
+        {"sid": "s3", "kind": "mutex_unlock", "resource": "main::m"},
+        {"sid": "s4", "kind": "return"}]}
+    notifier_fixed = {"name": "notifier", "kind": "normal", "form": "closure", "body": [
+        {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+        {"sid": "s2", "kind": "write_shared", "resource": "main::ready", "expr": "true"},
+        {"sid": "s3", "kind": "condvar_notify", "condvar": "main::cv"},
+        {"sid": "s4", "kind": "mutex_unlock", "resource": "main::m"},
+        {"sid": "s5", "kind": "return"}]}
+    protection = [{"var": "ready", "lock": "m"}]
+    resources = [res_mutex("m"), res_condvar("cv"), res_var("ready", "Bool", False)]
+    buggy = program([module(resources, [main_scope(["waiter", "notifier"]),
+                                        waiter_buggy, notifier_buggy],
+                             protection=protection)], name="bare_wait")
+    fixed = program([module(resources, [main_scope(["waiter", "notifier"]),
+                                        waiter_fixed, notifier_fixed],
+                            protection=protection)], name="bare_wait")
+    c = contract("bare-wait", properties=[deadlock(),
+                 {"kind": "reachability", "id": "ready-set",
+                  "goal": {"kind": "var_eq", "resource": "main::ready", "value": True}}],
+                 preserved=preserved_all(["waiter", "notifier"]))
+    return {"buggy": buggy, "fixed": fixed, "contract": c,
+            "spec": "Design a waiter that blocks on a condition variable until a "
+                    "predicate protected by the mutex becomes true, and a notifier "
+                    "that makes the predicate true and signals. The waiter must "
+                    "terminate even if the notifier signals before the waiter waits.",
+            "ground_truth": {"defect_family": "condvar",
+                             "resources": ["main::m", "main::cv"],
+                             "statements": ["main::waiter.s2"],
+                             "expected_outcome_buggy": "FAIL",
+                             "expected_outcome_fixed": "PASS",
+                             "expected_repair": "re-check a predicate in a loop and "
+                                                "set it before notify",
+                             "provenance": "authored"},
+            "rust": {"buggy": LEGACY.parent / "legacy-cir2cvn/benchmarks/rust/signal_loss/buggy.rs",
+                     "fixed": LEGACY.parent / "legacy-cir2cvn/benchmarks/rust/signal_loss/fixed.rs"}}
+
+
+def case_bounded_backpressure_lock_held() -> dict:
+    sender_buggy = {"name": "sender", "kind": "normal", "form": "closure", "body": [
+        {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+        {"sid": "s2", "kind": "channel_send", "channel": "main::ch", "value": "1"},
+        {"sid": "s3", "kind": "channel_send", "channel": "main::ch", "value": "2"},
+        {"sid": "s4", "kind": "mutex_unlock", "resource": "main::m"},
+        {"sid": "s5", "kind": "return"}]}
+    receiver_buggy = {"name": "receiver", "kind": "normal", "form": "closure", "body": [
+        {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+        {"sid": "s2", "kind": "channel_recv", "channel": "main::ch", "dst": "_"},
+        {"sid": "s3", "kind": "channel_recv", "channel": "main::ch", "dst": "_"},
+        {"sid": "s4", "kind": "mutex_unlock", "resource": "main::m"},
+        {"sid": "s5", "kind": "return"}]}
+    sender_fixed = {"name": "sender", "kind": "normal", "form": "closure", "body": [
+        {"sid": "s1", "kind": "channel_send", "channel": "main::ch", "value": "1"},
+        {"sid": "s2", "kind": "channel_send", "channel": "main::ch", "value": "2"},
+        {"sid": "s3", "kind": "return"}]}
+    receiver_fixed = {"name": "receiver", "kind": "normal", "form": "closure", "body": [
+        {"sid": "s1", "kind": "channel_recv", "channel": "main::ch", "dst": "_"},
+        {"sid": "s2", "kind": "channel_recv", "channel": "main::ch", "dst": "_"},
+        {"sid": "s3", "kind": "return"}]}
+    resources = [res_mutex("m"), res_channel("ch", 1)]
+    buggy = program([module(resources, [main_scope(["sender", "receiver"]),
+                                        sender_buggy, receiver_buggy])], name="backpressure")
+    fixed = program([module(resources, [main_scope(["sender", "receiver"]),
+                                        sender_fixed, receiver_fixed])], name="backpressure")
+    c = contract("backpressure", properties=[deadlock()],
+                 preserved=preserved_all(["sender", "receiver"]))
+    return {"buggy": buggy, "fixed": fixed, "contract": c,
+            "spec": "Design a sender and a receiver over a channel of capacity one, "
+                    "plus one mutex both occasionally need. The sender sends two "
+                    "values. Every interleaving must terminate: no side may block on "
+                    "the channel while holding the lock the other needs.",
+            "ground_truth": {"defect_family": "channel", "resources": ["main::m", "main::ch"],
+                             "statements": ["main::sender.s3"],
+                             "expected_outcome_buggy": "FAIL",
+                             "expected_outcome_fixed": "PASS",
+                             "expected_repair": "release the lock before the channel op",
+                             "provenance": "authored"}}
+
+
+def case_counter_overflow_safety() -> dict:
+    def worker(name: str, guarded: bool) -> dict:
+        if guarded:
+            body = [
+                {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+                {"sid": "s2", "kind": "branch", "cond": "c < 1", "then": "s3", "else": "s4"},
+                {"sid": "s3", "kind": "write_shared", "resource": "main::c", "expr": "c + 1"},
+                {"sid": "s4", "kind": "mutex_unlock", "resource": "main::m"},
+                {"sid": "s5", "kind": "return"},
+            ]
+        else:
+            body = [
+                {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+                {"sid": "s2", "kind": "write_shared", "resource": "main::c", "expr": "c + 1"},
+                {"sid": "s3", "kind": "mutex_unlock", "resource": "main::m"},
+                {"sid": "s4", "kind": "return"},
+            ]
+        return {"name": name, "kind": "normal", "form": "closure", "body": body}
+
+    resources = [res_mutex("m"), res_var("c", {"Int": [0, 2]}, 0)]
+    protection = [{"var": "c", "lock": "m"}]
+    buggy = program([module(resources, [main_scope(["w1", "w2"]), worker("w1", False),
+                                        worker("w2", False)], protection=protection)],
+                    name="counter_overflow")
+    fixed = program([module(resources, [main_scope(["w1", "w2"]), worker("w1", True),
+                                        worker("w2", True)], protection=protection)],
+                    name="counter_overflow")
+    c = contract("counter-overflow", properties=[
+        deadlock(),
+        {"kind": "safety", "id": "counter-bound",
+         "invariant": {"kind": "var_cmp", "resource": "main::c", "op": "<=", "value": 1}}],
+        preserved=preserved_all(["w1", "w2"]))
+    return {"buggy": buggy, "fixed": fixed, "contract": c,
+            "spec": "Design two workers that each increment a bounded integer counter "
+                    "(declared range 0..2) under a mutex, while a safety invariant "
+                    "requires the counter never to exceed 1. Every reachable state "
+                    "must keep the invariant and every interleaving must terminate.",
+            "ground_truth": {"defect_family": "atomic_data", "resources": ["main::c"],
+                             "statements": ["main::w1.s2"],
+                             "expected_outcome_buggy": "FAIL",
+                             "expected_outcome_fixed": "PASS",
+                             "expected_repair": "guard the increment with the "
+                                                "invariant bound",
+                             "provenance": "authored; bounded Int + safety invariant"}}
+
+def case_atomic_lost_update() -> dict:
+    def worker(name: str, use_cas: bool) -> dict:
+        if use_cas:
+            body = [
+                {"sid": "s1", "kind": "atomic_load", "resource": "main::c", "dst": "l"},
+                {"sid": "s2", "kind": "atomic_cas", "resource": "main::c",
+                 "expected": "l", "desired": "l + 1", "dst": "l2"},
+                {"sid": "s3", "kind": "branch", "cond": "l2 == l",
+                 "then": "s5", "else": "s1"},
+                {"sid": "s5", "kind": "return"},
+            ]
+        else:
+            body = [
+                {"sid": "s1", "kind": "atomic_load", "resource": "main::c", "dst": "l"},
+                {"sid": "s2", "kind": "atomic_store", "resource": "main::c", "value": "l + 1"},
+                {"sid": "s3", "kind": "return"},
+            ]
+        return {"name": name, "kind": "normal", "form": "closure",
+                "locals": [{"name": "l", "type": "Int", "modeled": True},
+                           {"name": "l2", "type": "Int", "modeled": True}],
+                "body": body}
+
+    resources = [res_atomic("c", {"Int": [0, 2]}, 0)]
+    buggy = program([module(resources, [main_scope(["w1", "w2"]),
+                                        worker("w1", False), worker("w2", False)])],
+                    name="lost_update")
+    fixed = program([module(resources, [main_scope(["w1", "w2"]),
+                                        worker("w1", True), worker("w2", True)])],
+                    name="lost_update")
+    c = contract("lost-update", properties=[
+        deadlock(),
+        {"kind": "always_reachable", "id": "both-increments",
+         "goal": {"kind": "var_eq", "resource": "main::c", "value": 2}}],
+        preserved=preserved_all(["w1", "w2"]))
+    return {"buggy": buggy, "fixed": fixed, "contract": c,
+            "spec": "Design two workers that each increment a shared atomic counter by "
+                    "exactly one, starting from zero, using a compare-and-swap retry "
+                    "loop so no update is lost. From every reachable state it must "
+                    "still be possible for the counter to reach two, and every "
+                    "interleaving must terminate.",
+            "ground_truth": {"defect_family": "atomic_data", "resources": ["main::c"],
+                             "statements": ["main::w1.s2", "main::w2.s2"],
+                             "expected_outcome_buggy": "FAIL",
+                             "expected_outcome_fixed": "PASS",
+                             "expected_repair": "use compare-and-swap with retry "
+                                                "instead of load-then-store",
+                             "provenance": "authored; atomics + always_reachable"}}
+
+def case_nested_scope_lock_order() -> dict:
+    def x2(order: tuple[str, str]) -> dict:
+        return lock_fn("x2", [order])
+
+    def outer() -> dict:
+        return {"name": "outer", "kind": "normal", "form": "closure", "body": [
+            {"sid": "s1", "kind": "scope", "funcs": ["main::x1", "main::x2"]},
+            {"sid": "s2", "kind": "return"}]}
+
+    resources = [res_mutex("a"), res_mutex("b")]
+    buggy = program([module(resources, [main_scope(["outer"]), outer(),
+                                        lock_fn("x1", [("a", "b")]), x2(("b", "a"))])],
+                    name="nested_scope")
+    fixed = program([module(resources, [main_scope(["outer"]), outer(),
+                                        lock_fn("x1", [("a", "b")]), x2(("a", "b"))])],
+                    name="nested_scope")
+    c = contract("nested-scope", properties=[deadlock()],
+                 preserved=preserved_all(["outer"]))
+    return {"buggy": buggy, "fixed": fixed, "contract": c,
+            "spec": "Design a worker that starts a nested scope of two tasks; the two "
+                    "inner tasks both need mutexes A and B and must not form a circular "
+                    "wait. Every interleaving must terminate and the outer worker must "
+                    "complete.",
+            "ground_truth": {"defect_family": "structure",
+                             "resources": ["main::a", "main::b"],
+                             "statements": ["main::x2.s1", "main::x2.s2"],
+                             "expected_outcome_buggy": "FAIL",
+                             "expected_outcome_fixed": "PASS",
+                             "expected_repair": "unify the inner lock order",
+                             "provenance": "authored; nested scope"}}
+
+
+def case_scope_worker_abba() -> dict:
+    resources = [res_mutex("a"), res_mutex("b")]
+    buggy = program([module(resources, [main_scope(["w1", "w2"]),
+                                        lock_fn("w1", [("a", "b")]),
+                                        lock_fn("w2", [("b", "a")])])], name="scope_abba")
+    fixed = program([module(resources, [main_scope(["w1", "w2"]),
+                                        lock_fn("w1", [("a", "b")]),
+                                        lock_fn("w2", [("a", "b")])])], name="scope_abba")
+    c = contract("scope-abba", properties=[deadlock()], preserved=preserved_all(["w1", "w2"]))
+    return {"buggy": buggy, "fixed": fixed, "contract": c,
+            "spec": "Design a scope of two workers that both acquire mutexes A and B. "
+                    "Every interleaving must terminate and both workers must complete.",
+            "ground_truth": {"defect_family": "structure", "resources": ["main::a", "main::b"],
+                             "statements": ["main::w2.s1", "main::w2.s2"],
+                             "expected_outcome_buggy": "FAIL",
+                             "expected_outcome_fixed": "PASS",
+                             "expected_repair": "unify worker lock order",
+                             "provenance": "authored; scope structure"}}
+
+
 def case_unbounded_unknown() -> dict:
     w = {"name": "w", "kind": "normal", "form": "closure", "body": [
         {"sid": "s1", "kind": "write_shared", "resource": "main::x", "expr": "x + 1"},
@@ -544,6 +828,9 @@ def run_explore(program_path: Path, contract_path: Path, engine: str) -> dict:
 def write_case(family: str, case: str, data: dict) -> dict:
     task = OUT / family / case
     task.mkdir(parents=True, exist_ok=True)
+    # remove stale variants so an old buggy/fixed/correct file can never linger
+    for stale in ("buggy.cir.json", "fixed.cir.json", "correct.cir.json"):
+        (task / stale).unlink(missing_ok=True)
     (task / "spec.md").write_text(data["spec"].strip() + "\n", encoding="utf-8")
     write_json(task / "contract.json", data["contract"])
     if data.get("buggy") is not None:
@@ -562,10 +849,20 @@ def write_case(family: str, case: str, data: dict) -> dict:
             shutil.copyfile(rust_src["buggy"], rdir / "buggy.rs")
         if rust_src.get("fixed") and Path(rust_src["fixed"]).is_file():
             shutil.copyfile(rust_src["fixed"], rdir / "fixed.rs")
+    # repair task (for every case that has a buggy variant)
+    if data.get("buggy") is not None:
+        rust_rel = f"{family}/{case}/rust/buggy.rs"
+        write_json(task / "repair_task.json", {
+            "requirements": data["spec"].strip(),
+            "input_cir": f"{family}/{case}/buggy.cir.json",
+            "contract": f"{family}/{case}/contract.json",
+            "input_rust": rust_rel if (task / "rust/buggy.rs").is_file() else None,
+            "ground_truth": data["ground_truth"],
+        })
 
     files = {}
     for name in ("spec.md", "contract.json", "buggy.cir.json", "fixed.cir.json",
-                 "correct.cir.json", "ground_truth.json",
+                 "correct.cir.json", "ground_truth.json", "repair_task.json",
                  "rust/buggy.rs", "rust/fixed.rs"):
         path = task / name
         if path.is_file():
@@ -617,9 +914,16 @@ def main() -> int:
         ("condvar", "lost_wakeup_notify_before_wait", case_lost_wakeup),
         ("channel", "rendezvous_both_send", case_rendezvous_both_send),
         ("semaphore", "permit_leak", case_permit_leak),
+        ("semaphore", "acquire_twice_no_release", case_acquire_twice_no_release),
         ("semaphore", "throttle_n_permits", case_throttle),
+        ("condvar", "bare_wait_no_predicate", case_bare_wait_no_predicate),
+        ("channel", "bounded_backpressure_lock_held", case_bounded_backpressure_lock_held),
         ("atomic-data", "bounded_counter_invariant", case_counter_invariant),
+        ("atomic-data", "counter_overflow_safety", case_counter_overflow_safety),
+        ("atomic-data", "atomic_lost_update", case_atomic_lost_update),
         ("structure", "scope_bound_k_workers", case_scope_bound),
+        ("structure", "nested_scope_lock_order", case_nested_scope_lock_order),
+        ("structure", "scope_worker_abba", case_scope_worker_abba),
         ("boundary", "unbounded_int_unknown", case_unbounded_unknown),
     ]
     for family, case, builder in authored:

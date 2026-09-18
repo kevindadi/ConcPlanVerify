@@ -1,0 +1,22 @@
+{
+  "requirements": "Design a waiter/notifier pair sharing a mutex, a condition variable and a boolean flag ready protected by the mutex. The notifier sets ready and signals the condition variable; the waiter must block until ready is true and then finish. The waiter must terminate even if the notifier signals before the waiter starts waiting.",
+  "input_cir": "condvar/lost_wakeup_notify_before_wait/buggy.cir.json",
+  "contract": "condvar/lost_wakeup_notify_before_wait/contract.json",
+  "input_rust": null,
+  "ground_truth": {
+    "defect_family": "condvar",
+    "resources": [
+      "main::m",
+      "main::cv",
+      "main::ready"
+    ],
+    "statements": [
+      "main::waiter.s2",
+      "main::notifier.s2"
+    ],
+    "expected_outcome_buggy": "FAIL",
+    "expected_outcome_fixed": "PASS",
+    "expected_repair": "set the predicate before notify; re-check the predicate in a loop",
+    "provenance": "authored"
+  }
+}

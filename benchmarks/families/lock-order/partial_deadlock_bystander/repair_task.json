@@ -1,0 +1,33 @@
+{
+  "requirements": "Design two workers A and B that each take two mutexes with an intermediate semaphore handshake, plus an independent bystander task that keeps making progress forever. Main spawns all three. Although the bystander keeps the system globally live, every reachable state must still be able to finish A and B, and both workers must complete.",
+  "input_cir": "lock-order/partial_deadlock_bystander/buggy.cir.json",
+  "contract": "lock-order/partial_deadlock_bystander/contract.json",
+  "input_rust": "lock-order/partial_deadlock_bystander/rust/buggy.rs",
+  "ground_truth": {
+    "defect_family": "goal_layer",
+    "resources": [
+      "main::a",
+      "main::b",
+      "main::sa",
+      "main::sb"
+    ],
+    "statements": [
+      "main::a.s3",
+      "main::b.s3"
+    ],
+    "expected_outcome_buggy": "FAIL",
+    "expected_outcome_fixed": "PASS",
+    "expected_repair": "break the semaphore cross-wait",
+    "preregistered": {
+      "buggy": {
+        "deadlock_free": "PASS",
+        "always_reachable": "FAIL"
+      },
+      "fixed": {
+        "deadlock_free": "PASS",
+        "always_reachable": "PASS"
+      }
+    },
+    "provenance": "authored"
+  }
+}

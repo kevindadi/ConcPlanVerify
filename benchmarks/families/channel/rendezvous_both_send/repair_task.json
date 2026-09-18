@@ -1,0 +1,19 @@
+{
+  "requirements": "Design a sender and a receiver that communicate over a zero-capacity channel (rendezvous). Both sides must eventually pair and terminate; no execution may block forever.",
+  "input_cir": "channel/rendezvous_both_send/buggy.cir.json",
+  "contract": "channel/rendezvous_both_send/contract.json",
+  "input_rust": null,
+  "ground_truth": {
+    "defect_family": "channel",
+    "resources": [
+      "main::ch"
+    ],
+    "statements": [
+      "main::s2.s1"
+    ],
+    "expected_outcome_buggy": "FAIL",
+    "expected_outcome_fixed": "PASS",
+    "expected_repair": "pair each send with a receive",
+    "provenance": "authored"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "requirements": "Design a sender and a receiver over a channel of capacity one, plus one mutex both occasionally need. The sender sends two values. Every interleaving must terminate: no side may block on the channel while holding the lock the other needs.",
+  "input_cir": "channel/bounded_backpressure_lock_held/buggy.cir.json",
+  "contract": "channel/bounded_backpressure_lock_held/contract.json",
+  "input_rust": null,
+  "ground_truth": {
+    "defect_family": "channel",
+    "resources": [
+      "main::m",
+      "main::ch"
+    ],
+    "statements": [
+      "main::sender.s3"
+    ],
+    "expected_outcome_buggy": "FAIL",
+    "expected_outcome_fixed": "PASS",
+    "expected_repair": "release the lock before the channel op",
+    "provenance": "authored"
+  }
+}
