@@ -82,7 +82,7 @@ class ConformAllTests(unittest.TestCase):
             traces = [
                 TraceRun("native", 0, str(root / "a.jsonl"), False, 0, 1),
                 TraceRun("native", 1, str(root / "b.jsonl"), False, 0, 1),
-                TraceRun("native", 2, None, True, None, 5000),
+                TraceRun("native", 2, None, True, None, 5000, hang_suspect=True),
             ]
             for name in ("a.jsonl", "b.jsonl"):
                 (root / name).write_text("", encoding="utf-8")
@@ -96,7 +96,8 @@ class ConformAllTests(unittest.TestCase):
             out = conform_all(root / "prog.json", traces, conform_runner=runner)
             self.assertEqual(out["conformant"], 1)
             self.assertEqual(out["violation"], 1)
-            self.assertEqual(out["hang"], 1)
+            self.assertEqual(out["timeout"], 1)
+            self.assertEqual(out["hang_suspect"], 1)
             self.assertEqual(out["coverage"]["sids_seen"], 4)
 
 

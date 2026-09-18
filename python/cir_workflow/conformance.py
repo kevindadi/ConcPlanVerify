@@ -218,6 +218,7 @@ class TraceRun:
     wall_ms: int
     stdout_sha256: str | None = None
     stderr_sha256: str | None = None
+    hang_suspect: bool = False
 
 
 def _sha(text: str) -> str:
@@ -264,26 +265,35 @@ def collect_traces(filled_dir: Path | str, *, native_runs: int = 50,
             hang=hang, exit_code=code, wall_ms=wall,
             stdout_sha256=_sha(out), stderr_sha256=_sha(err)))
     if run_miri:
-        trace = calls / "miri-0.jsonl"
-        started = time.monotonic()
-        try:
-            proc = _run(["cargo", "miri", "run", "--offline", "--quiet"], cwd=root,
-                        timeout=max(timeout_s, 120.0),
-                        env={"CIR_TRACE_OUT": str(trace),
-                             "MIRIFLAGS": f"-Zmiri-many-seeds=0..{miri_seeds} "
-                                          "-Zmiri-disable-isolation"})
-            hang = False
-            code = proc.returncode
-            out, err = proc.stdout, proc.stderr
-        except subprocess.TimeoutExpired:
-            hang = True
-            code = None
-            out, err = "", ""
-        wall = int((time.monotonic() - started) * 1000)
-        runs.append(TraceRun(
-            kind="miri", index=0, trace_path=str(trace) if trace.is_file() else None,
-            hang=hang, exit_code=code, wall_ms=wall,
-            stdout_sha256=_sha(out), stderr_sha256=_sha(err)))
+        # One trace per seed: run each seed in its own process so the trace file
+        # is not overwritten and each seed is an independent observation.
+        for seed in range(miri_seeds):
+            trace = calls / f"miri-{seed:03d}.jsonl"
+            started = time.monotonic()
+            # Miri caches the build/run environment; a clean before each seed is
+            # what makes `CIR_TRACE_OUT` take effect per seed.
+            _run(["cargo", "clean"], cwd=root, timeout=120.0)
+            try:
+                proc = _run(["cargo", "miri", "run", "--offline", "--quiet"], cwd=root,
+                            timeout=max(timeout_s, 120.0),
+                            env={"CIR_TRACE_OUT": str(trace),
+                                 "MIRIFLAGS": f"-Zmiri-seed={seed} "
+                                              "-Zmiri-preemption-rate=0.5 "
+                                              "-Zmiri-disable-isolation"})
+                hang = False
+                code = proc.returncode
+                out, err = proc.stdout, proc.stderr
+            except subprocess.TimeoutExpired:
+                hang = True
+                code = None
+                out, err = "", ""
+            wall = int((time.monotonic() - started) * 1000)
+            runs.append(TraceRun(
+                kind="miri", index=seed,
+                trace_path=str(trace) if trace.is_file() else None,
+                hang=hang, exit_code=code, wall_ms=wall,
+                stdout_sha256=_sha(out), stderr_sha256=_sha(err),
+                hang_suspect=hang))
     return runs
 
 
@@ -321,7 +331,7 @@ def run_conformance_smoke(cases: list[tuple[str, Path | str]], out_dir: Path | s
             aggregate = conform_all(program, traces, binary=binary)
             record["traces"] = aggregate
             record["traces_raw"] = [t.__dict__ for t in traces]
-            expected = native_runs + 1
+            expected = native_runs + miri_seeds
             record["status"] = (
                 "ready" if aggregate["conformant"] == expected
                 and aggregate["violation"] == 0 and lint["ok"] else "review")
@@ -338,16 +348,16 @@ def run_conformance_smoke(cases: list[tuple[str, Path | str]], out_dir: Path | s
 
 def render_conformance_md(payload: dict[str, Any]) -> str:
     lines = ["# Conformance smoke", "",
-             "| case | status | holes | lint | traces | conformant | violation | hang | coverage |",
-             "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+             "| case | status | holes | lint | traces | conformant | violation | timeout | hang_suspect | coverage |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for r in payload["cases"]:
         t = r.get("traces") or {}
         cov = t.get("coverage") or {}
         lines.append(
             f"| {r['case']} | {r.get('status')} | {len(r.get('holes', []))} | "
             f"{(r.get('lint') or {}).get('ok')} | {t.get('traces_total')} | "
-            f"{t.get('conformant')} | {t.get('violation')} | {t.get('hang')} | "
-            f"{cov.get('sids_seen')}/{cov.get('sids_total')} |")
+            f"{t.get('conformant')} | {t.get('violation')} | {t.get('timeout')} | "
+            f"{t.get('hang_suspect')} | {cov.get('sids_seen')}/{cov.get('sids_total')} |")
     lines += ["", "A conformant trace means every observed concurrency step was a step",
               "the verified model could take. It is not a claim that the code is correct."]
     return "\n".join(lines) + "\n"
@@ -368,13 +378,16 @@ def conform_all(program: Path | str, traces: list[TraceRun], *,
 
     runner = conform_runner or default_runner
     program = Path(program).resolve()
-    conformant = violation = hang = missing = 0
+    conformant = violation = hang = missing = hang_suspect = 0
     seen = total = 0
     details = []
     for run in traces:
         if run.hang:
             hang += 1
-            details.append({"kind": run.kind, "index": run.index, "status": "hang"})
+            if run.hang_suspect:
+                hang_suspect += 1
+            details.append({"kind": run.kind, "index": run.index, "status": "timeout",
+                            "hang_suspect": run.hang_suspect})
             continue
         if not run.trace_path:
             missing += 1
@@ -396,7 +409,8 @@ def conform_all(program: Path | str, traces: list[TraceRun], *,
         "traces_total": len(traces),
         "conformant": conformant,
         "violation": violation,
-        "hang": hang,
+        "timeout": hang,
+        "hang_suspect": hang_suspect,
         "missing": missing,
         "coverage": {"sids_seen": seen, "sids_total": total},
         "details": details,
