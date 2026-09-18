@@ -1,0 +1,65 @@
+{
+  "name": "scale-5",
+  "properties": [
+    {
+      "kind": "deadlock_free",
+      "id": "no-deadlock"
+    }
+  ],
+  "preserved": [
+    {
+      "kind": "reachable",
+      "description": "main::t1 completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::t1"
+      }
+    },
+    {
+      "kind": "reachable",
+      "description": "main::t2 completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::t2"
+      }
+    },
+    {
+      "kind": "reachable",
+      "description": "main::t3 completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::t3"
+      }
+    },
+    {
+      "kind": "reachable",
+      "description": "main::t4 completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::t4"
+      }
+    },
+    {
+      "kind": "reachable",
+      "description": "main::t5 completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::t5"
+      }
+    }
+  ],
+  "assumptions": {
+    "sequential_consistency": true,
+    "no_spurious_wakeups": true
+  },
+  "bounds": {
+    "max_threads": 64,
+    "max_frames_per_thread": 8,
+    "max_states": 20000,
+    "max_depth": 128,
+    "max_boundary_events": 256
+  },
+  "allowed_scope": {
+    "allow_lock_reorder": true
+  }
+}

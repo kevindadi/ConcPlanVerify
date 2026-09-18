@@ -1,0 +1,96 @@
+"""Offline whole-artifact CIR revision loop (scripted provider + real backend)."""
+
+from __future__ import annotations
+
+import copy
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from cir_workflow.concir_client import ConcirClient
+from cir_workflow.providers import ScriptedProvider
+from cir_workflow.revision_workflow import WholeArtifactRevisionWorkflow
+from tests._helpers import REPO, broken_program, real_binary
+
+FROZEN = REPO / "experiments/deepseek-flash-repair-v1/frozen-inputs"
+T2_MODEL = FROZEN / "t2_abba_frozen.cir.json"
+T2_CONTRACT = FROZEN / "t2_abba_contract.json"
+
+
+def _fixed_t2_text() -> str:
+    program = json.loads(T2_MODEL.read_text(encoding="utf-8"))
+    program = copy.deepcopy(program)
+    for fn in program["modules"][0]["functions"]:
+        if fn["name"] == "t2":
+            body = fn["body"]
+            body[0]["resource"], body[1]["resource"] = "main::a", "main::b"
+            body[2]["resource"], body[3]["resource"] = "main::b", "main::a"
+    return json.dumps(program, ensure_ascii=False, indent=2)
+
+
+class RevisionWorkflowOfflineTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.binary = real_binary()
+        if cls.binary is None:
+            raise unittest.SkipTest("concir-backend binary not found (set CONCIR_BACKEND)")
+        cls._tmp = tempfile.TemporaryDirectory()
+        cls.root = Path(cls._tmp.name)
+        cls.contract = json.loads(T2_CONTRACT.read_text(encoding="utf-8"))
+
+    @classmethod
+    def tearDownClass(cls):
+        if hasattr(cls, "_tmp"):
+            cls._tmp.cleanup()
+
+    def _run(self, responses, *, max_rounds=3, diagnostics=True, initial=T2_MODEL):
+        provider = ScriptedProvider(responses)
+        client = ConcirClient(self.binary, workdir=self.root / "calls", timeout=30.0)
+        workflow = WholeArtifactRevisionWorkflow(
+            client, provider, out_dir=self.root / "out", max_rounds=max_rounds,
+            diagnostics=diagnostics,
+        )
+        return provider, workflow.run(
+            "two tasks take two locks in opposite order", self.contract,
+            task_id="P1", initial_program=initial)
+
+    def test_fail_then_revision_pass(self):
+        provider, result = self._run([{"text": _fixed_t2_text()}])
+        self.assertEqual(result.status, "accepted", result.error)
+        self.assertEqual(result.repair_mode, "llm_revision")
+        self.assertEqual(result.accepted_version, 2)
+        self.assertEqual(result.consumption.first_correct_round, 2)
+        self.assertEqual(result.versions[0].explore_outcome, "FAIL")
+        self.assertEqual(result.versions[1].explore_outcome, "PASS")
+        self.assertTrue(result.versions[1].accepted)
+        self.assertEqual(len(provider.calls), 1)
+
+    def test_static_error_feedback_then_fix(self):
+        broken = json.dumps(broken_program())
+        provider, result = self._run([{"text": broken}, {"text": _fixed_t2_text()}])
+        self.assertEqual(result.status, "accepted", result.error)
+        self.assertEqual(result.accepted_version, 3)
+        self.assertEqual(result.versions[1].decision, "check_invalid")
+        # the second provider call carried the real check feedback
+        self.assertEqual(len(provider.calls), 2)
+        self.assertIn("validation_diagnostics", provider.calls[1].feedback or "")
+
+    def test_k_rounds_exhausted(self):
+        broken = json.dumps(broken_program())
+        provider, result = self._run([{"text": broken}, {"text": broken}], max_rounds=3)
+        self.assertEqual(result.status, "exhausted")
+        self.assertIsNone(result.accepted_version)
+        self.assertEqual(len(result.versions), 3)
+
+    def test_nodiag_feedback_has_no_structured_diagnostics(self):
+        provider, result = self._run([{"text": _fixed_t2_text()}], diagnostics=False)
+        self.assertEqual(result.status, "accepted")
+        # round 2 request feedback came from the round-1 FAIL
+        feedback = provider.calls[0].feedback or ""
+        self.assertIn("FAIL", feedback)
+        self.assertNotIn("diagnostics", feedback)
+
+
+if __name__ == "__main__":
+    unittest.main()

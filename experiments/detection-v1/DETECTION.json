@@ -1,0 +1,906 @@
+{
+  "schema_version": "detection-v1",
+  "binary_sha256": "73b5dd64012e5c53c4fb0736a553c8b6d37d6bb99b55766c573136ec9c364794",
+  "binary": "/Users/kevin/local-repos/ConcIR/target/release/concir-backend",
+  "miri_combos": [
+    {
+      "seed": 0,
+      "preemption_rate": 0.01
+    },
+    {
+      "seed": 1,
+      "preemption_rate": 0.05
+    },
+    {
+      "seed": 2,
+      "preemption_rate": 0.1
+    },
+    {
+      "seed": 3,
+      "preemption_rate": 0.2
+    },
+    {
+      "seed": 4,
+      "preemption_rate": 0.5
+    }
+  ],
+  "lockbud_available": false,
+  "run_miri": true,
+  "records": [
+    {
+      "task": "P1",
+      "status": "ready",
+      "ground_truth": {
+        "id": "P1",
+        "legacy_id": "mutex_deadlock",
+        "defect_type": "mutex_deadlock",
+        "expected": {
+          "outcome": "bug",
+          "bug_kind": "Deadlock",
+          "expected_bug_path": "tests/e2e/mutex_deadlock/expected_bug.json"
+        }
+      },
+      "concir": {
+        "arm": "concir",
+        "input_form": "human-written modular CIR",
+        "buggy": {
+          "petri": {
+            "outcome": "FAIL",
+            "complete": true,
+            "states_explored": 49,
+            "transitions_explored": 72,
+            "wall_ms": 4,
+            "status": "fail",
+            "kind": "semantic",
+            "input_sha256": "d2d4958ba7a5a7ac43f6589503c8ed626232ce93469f608ce03f23dd2b33d8a5"
+          },
+          "interp": {
+            "outcome": "FAIL",
+            "complete": true,
+            "states_explored": 49,
+            "transitions_explored": 72,
+            "wall_ms": 3,
+            "status": "fail",
+            "kind": "semantic",
+            "input_sha256": "d2d4958ba7a5a7ac43f6589503c8ed626232ce93469f608ce03f23dd2b33d8a5"
+          }
+        },
+        "fixed": {
+          "petri": {
+            "outcome": "PASS",
+            "complete": true,
+            "states_explored": 39,
+            "transitions_explored": 56,
+            "wall_ms": 3,
+            "status": "pass",
+            "kind": "semantic",
+            "input_sha256": "47612c9a9a7744f8a9224846ff27e2b91c03cf55384c48daaab550b9b8213bb3"
+          },
+          "interp": {
+            "outcome": "PASS",
+            "complete": true,
+            "states_explored": 39,
+            "transitions_explored": 56,
+            "wall_ms": 2,
+            "status": "pass",
+            "kind": "semantic",
+            "input_sha256": "47612c9a9a7744f8a9224846ff27e2b91c03cf55384c48daaab550b9b8213bb3"
+          }
+        }
+      },
+      "rust": {
+        "arm": "rust",
+        "input_form": "Rust source",
+        "buggy": {
+          "source_sha256": "ce946300ec53e50326d3dc56d51c3496408cf6d95bea4802043980a5e771d13a",
+          "project_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v1/rust_projects/_rust_P1_buggy/probe",
+          "build": {
+            "tool": "cargo",
+            "argv": [
+              "cargo",
+              "build",
+              "--offline",
+              "--quiet"
+            ],
+            "exit_code": 0,
+            "wall_ms": 398,
+            "timed_out": false,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "b83eca33c4a6248d59790addd506b45d43e1475a127d1f9c642d6c69565bcf69",
+            "error": null,
+            "extra": {}
+          },
+          "build_ok": true,
+          "behavior_test": {
+            "tool": "cargo",
+            "argv": [
+              "cargo",
+              "test",
+              "--offline",
+              "--quiet"
+            ],
+            "exit_code": 0,
+            "wall_ms": 675,
+            "timed_out": false,
+            "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd",
+            "stderr_sha256": "b83eca33c4a6248d59790addd506b45d43e1475a127d1f9c642d6c69565bcf69",
+            "error": null,
+            "extra": {}
+          },
+          "behavior_test_ok": true,
+          "lockbud": {
+            "tool": "lockbud",
+            "status": "lockbud_unavailable"
+          },
+          "miri": [
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 449,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "0efdd52e130b0789070060b37ed662f3dcfe050998db5fa407a36a9b0cf62a2d",
+              "error": null,
+              "extra": {
+                "seed": 0,
+                "preemption_rate": 0.01,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 194,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "0efdd52e130b0789070060b37ed662f3dcfe050998db5fa407a36a9b0cf62a2d",
+              "error": null,
+              "extra": {
+                "seed": 1,
+                "preemption_rate": 0.05,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 188,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "0efdd52e130b0789070060b37ed662f3dcfe050998db5fa407a36a9b0cf62a2d",
+              "error": null,
+              "extra": {
+                "seed": 2,
+                "preemption_rate": 0.1,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 208,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "0efdd52e130b0789070060b37ed662f3dcfe050998db5fa407a36a9b0cf62a2d",
+              "error": null,
+              "extra": {
+                "seed": 3,
+                "preemption_rate": 0.2,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 262,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "0efdd52e130b0789070060b37ed662f3dcfe050998db5fa407a36a9b0cf62a2d",
+              "error": null,
+              "extra": {
+                "seed": 4,
+                "preemption_rate": 0.5,
+                "detected": []
+              }
+            }
+          ],
+          "input_sha256": "ce946300ec53e50326d3dc56d51c3496408cf6d95bea4802043980a5e771d13a"
+        },
+        "fixed": {
+          "source_sha256": "f9095bb5bfefab40ef467ca86325a853828cc2ba43c42866f012f4a09b05b5e1",
+          "project_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v1/rust_projects/_rust_P1_fixed/probe",
+          "build": {
+            "tool": "cargo",
+            "argv": [
+              "cargo",
+              "build",
+              "--offline",
+              "--quiet"
+            ],
+            "exit_code": 0,
+            "wall_ms": 164,
+            "timed_out": false,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "9f67c59ac2c5161b856f521ceb8597bb7249d468f9ba79c9631b694c718ec14a",
+            "error": null,
+            "extra": {}
+          },
+          "build_ok": true,
+          "behavior_test": {
+            "tool": "cargo",
+            "argv": [
+              "cargo",
+              "test",
+              "--offline",
+              "--quiet"
+            ],
+            "exit_code": 0,
+            "wall_ms": 497,
+            "timed_out": false,
+            "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd",
+            "stderr_sha256": "9f67c59ac2c5161b856f521ceb8597bb7249d468f9ba79c9631b694c718ec14a",
+            "error": null,
+            "extra": {}
+          },
+          "behavior_test_ok": true,
+          "lockbud": {
+            "tool": "lockbud",
+            "status": "lockbud_unavailable"
+          },
+          "miri": [
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 258,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "0e585aa239c7152fb4b4999f70f10563983818a57a0705b724d5fc652c4d4166",
+              "error": null,
+              "extra": {
+                "seed": 0,
+                "preemption_rate": 0.01,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 179,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "0e585aa239c7152fb4b4999f70f10563983818a57a0705b724d5fc652c4d4166",
+              "error": null,
+              "extra": {
+                "seed": 1,
+                "preemption_rate": 0.05,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 189,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "0e585aa239c7152fb4b4999f70f10563983818a57a0705b724d5fc652c4d4166",
+              "error": null,
+              "extra": {
+                "seed": 2,
+                "preemption_rate": 0.1,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 208,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "0e585aa239c7152fb4b4999f70f10563983818a57a0705b724d5fc652c4d4166",
+              "error": null,
+              "extra": {
+                "seed": 3,
+                "preemption_rate": 0.2,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 264,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "0e585aa239c7152fb4b4999f70f10563983818a57a0705b724d5fc652c4d4166",
+              "error": null,
+              "extra": {
+                "seed": 4,
+                "preemption_rate": 0.5,
+                "detected": []
+              }
+            }
+          ],
+          "input_sha256": "f9095bb5bfefab40ef467ca86325a853828cc2ba43c42866f012f4a09b05b5e1"
+        }
+      }
+    },
+    {
+      "task": "P2",
+      "status": "skipped_to_author"
+    },
+    {
+      "task": "P3",
+      "status": "skipped_to_author"
+    },
+    {
+      "task": "P4",
+      "status": "ready",
+      "ground_truth": {
+        "id": "P4",
+        "legacy_id": "three_way_deadlock",
+        "defect_type": "three_way_deadlock",
+        "expected": {
+          "outcome": "bug",
+          "bug_kind": "Deadlock",
+          "expected_bug_path": "tests/e2e/three_way_deadlock/expected_bug.json"
+        }
+      },
+      "concir": {
+        "arm": "concir",
+        "input_form": "human-written modular CIR",
+        "buggy": {
+          "petri": {
+            "outcome": "FAIL",
+            "complete": true,
+            "states_explored": 331,
+            "transitions_explored": 740,
+            "wall_ms": 8,
+            "status": "fail",
+            "kind": "semantic",
+            "input_sha256": "a1612a57be333263b16c9f7c6b56ed0c7feb96c805d1800d5e3cfce27f237724"
+          },
+          "interp": {
+            "outcome": "FAIL",
+            "complete": true,
+            "states_explored": 331,
+            "transitions_explored": 740,
+            "wall_ms": 6,
+            "status": "fail",
+            "kind": "semantic",
+            "input_sha256": "a1612a57be333263b16c9f7c6b56ed0c7feb96c805d1800d5e3cfce27f237724"
+          }
+        },
+        "fixed": {
+          "petri": {
+            "outcome": "PASS",
+            "complete": true,
+            "states_explored": 286,
+            "transitions_explored": 628,
+            "wall_ms": 7,
+            "status": "pass",
+            "kind": "semantic",
+            "input_sha256": "ba0c453d06b702f39cad8f5e5627ee5aa916a3c466b2282e4465024319e49c09"
+          },
+          "interp": {
+            "outcome": "PASS",
+            "complete": true,
+            "states_explored": 286,
+            "transitions_explored": 628,
+            "wall_ms": 5,
+            "status": "pass",
+            "kind": "semantic",
+            "input_sha256": "ba0c453d06b702f39cad8f5e5627ee5aa916a3c466b2282e4465024319e49c09"
+          }
+        }
+      },
+      "rust": {
+        "arm": "rust",
+        "input_form": "Rust source",
+        "buggy": {
+          "source_sha256": "8e25677b26d2014c731a13da23d163cb96a558a896f8e36d7fb32da633cdcd88",
+          "project_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v1/rust_projects/_rust_P4_buggy/probe",
+          "build": {
+            "tool": "cargo",
+            "argv": [
+              "cargo",
+              "build",
+              "--offline",
+              "--quiet"
+            ],
+            "exit_code": 0,
+            "wall_ms": 166,
+            "timed_out": false,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "441bf1d2efa95cf2f4185f860d3b609672159aac4df3df3e1529b77488176471",
+            "error": null,
+            "extra": {}
+          },
+          "build_ok": true,
+          "behavior_test": {
+            "tool": "cargo",
+            "argv": [
+              "cargo",
+              "test",
+              "--offline",
+              "--quiet"
+            ],
+            "exit_code": 0,
+            "wall_ms": 501,
+            "timed_out": false,
+            "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd",
+            "stderr_sha256": "441bf1d2efa95cf2f4185f860d3b609672159aac4df3df3e1529b77488176471",
+            "error": null,
+            "extra": {}
+          },
+          "behavior_test_ok": true,
+          "lockbud": {
+            "tool": "lockbud",
+            "status": "lockbud_unavailable"
+          },
+          "miri": [
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 292,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "8a1b83b931e7119bd84d08b0624da96c1372666d49133913760c093672f295c8",
+              "error": null,
+              "extra": {
+                "seed": 0,
+                "preemption_rate": 0.01,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 196,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "8a1b83b931e7119bd84d08b0624da96c1372666d49133913760c093672f295c8",
+              "error": null,
+              "extra": {
+                "seed": 1,
+                "preemption_rate": 0.05,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 208,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "8a1b83b931e7119bd84d08b0624da96c1372666d49133913760c093672f295c8",
+              "error": null,
+              "extra": {
+                "seed": 2,
+                "preemption_rate": 0.1,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 235,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "8a1b83b931e7119bd84d08b0624da96c1372666d49133913760c093672f295c8",
+              "error": null,
+              "extra": {
+                "seed": 3,
+                "preemption_rate": 0.2,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 341,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "8a1b83b931e7119bd84d08b0624da96c1372666d49133913760c093672f295c8",
+              "error": null,
+              "extra": {
+                "seed": 4,
+                "preemption_rate": 0.5,
+                "detected": []
+              }
+            }
+          ],
+          "input_sha256": "8e25677b26d2014c731a13da23d163cb96a558a896f8e36d7fb32da633cdcd88"
+        },
+        "fixed": {
+          "source_sha256": "0916d7ee878bf7e9be3086fbba74265dbd49d3d166b390d6b49fe45560738e3d",
+          "project_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/detection-v1/rust_projects/_rust_P4_fixed/probe",
+          "build": {
+            "tool": "cargo",
+            "argv": [
+              "cargo",
+              "build",
+              "--offline",
+              "--quiet"
+            ],
+            "exit_code": 0,
+            "wall_ms": 168,
+            "timed_out": false,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "38beee8d4239a8de488563ff1f070ec2cfd9774f4ef5aa2fc12da94632ee061e",
+            "error": null,
+            "extra": {}
+          },
+          "build_ok": true,
+          "behavior_test": {
+            "tool": "cargo",
+            "argv": [
+              "cargo",
+              "test",
+              "--offline",
+              "--quiet"
+            ],
+            "exit_code": 0,
+            "wall_ms": 502,
+            "timed_out": false,
+            "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd",
+            "stderr_sha256": "38beee8d4239a8de488563ff1f070ec2cfd9774f4ef5aa2fc12da94632ee061e",
+            "error": null,
+            "extra": {}
+          },
+          "behavior_test_ok": true,
+          "lockbud": {
+            "tool": "lockbud",
+            "status": "lockbud_unavailable"
+          },
+          "miri": [
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 273,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "a02cc4087924d58eac75abe36cca5c4e711034f7f14c03c3c2698a79987832dd",
+              "error": null,
+              "extra": {
+                "seed": 0,
+                "preemption_rate": 0.01,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 198,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "a02cc4087924d58eac75abe36cca5c4e711034f7f14c03c3c2698a79987832dd",
+              "error": null,
+              "extra": {
+                "seed": 1,
+                "preemption_rate": 0.05,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 213,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "a02cc4087924d58eac75abe36cca5c4e711034f7f14c03c3c2698a79987832dd",
+              "error": null,
+              "extra": {
+                "seed": 2,
+                "preemption_rate": 0.1,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 243,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "a02cc4087924d58eac75abe36cca5c4e711034f7f14c03c3c2698a79987832dd",
+              "error": null,
+              "extra": {
+                "seed": 3,
+                "preemption_rate": 0.2,
+                "detected": []
+              }
+            },
+            {
+              "tool": "cargo",
+              "argv": [
+                "cargo",
+                "miri",
+                "run",
+                "--offline",
+                "--quiet"
+              ],
+              "exit_code": 0,
+              "wall_ms": 348,
+              "timed_out": false,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stderr_sha256": "a02cc4087924d58eac75abe36cca5c4e711034f7f14c03c3c2698a79987832dd",
+              "error": null,
+              "extra": {
+                "seed": 4,
+                "preemption_rate": 0.5,
+                "detected": []
+              }
+            }
+          ],
+          "input_sha256": "0916d7ee878bf7e9be3086fbba74265dbd49d3d166b390d6b49fe45560738e3d"
+        }
+      }
+    },
+    {
+      "task": "P5",
+      "status": "skipped_to_author"
+    },
+    {
+      "task": "P6",
+      "status": "skipped_to_author"
+    },
+    {
+      "task": "P7",
+      "status": "skipped_to_author"
+    },
+    {
+      "task": "P8",
+      "status": "skipped_to_author"
+    },
+    {
+      "task": "P9",
+      "status": "skipped_to_author"
+    },
+    {
+      "task": "rmw-zenoh-998",
+      "status": "ready",
+      "ground_truth": {
+        "defect_representable": true,
+        "root_verification_expected": "FAIL (upstream gdb ABBA proof)",
+        "verification_completable": true,
+        "current_patch_space_fixable_expected": true,
+        "upstream_fix": "release subscription mutex_ before acquiring the wait set condition_mutex (not an adjacent lock swap)",
+        "ground_truth_source": "https://github.com/ros2/rmw_zenoh/issues/998",
+        "model_sha256": "77f6e181d701d23ecffac0c6a9c138e213905d16d36335e0d3544c30f5876fcb",
+        "contract_sha256": "71e5dfb20bab944928c7a9ab28fd9e9fa3f0b7379293b0a2ba3a0fde2b4ee614"
+      },
+      "concir": {
+        "arm": "concir",
+        "input_form": "human-written modular CIR",
+        "buggy": {
+          "petri": {
+            "outcome": "FAIL",
+            "complete": true,
+            "states_explored": 49,
+            "transitions_explored": 72,
+            "wall_ms": 3,
+            "status": "fail",
+            "kind": "semantic",
+            "input_sha256": "77f6e181d701d23ecffac0c6a9c138e213905d16d36335e0d3544c30f5876fcb"
+          },
+          "interp": {
+            "outcome": "FAIL",
+            "complete": true,
+            "states_explored": 49,
+            "transitions_explored": 72,
+            "wall_ms": 3,
+            "status": "fail",
+            "kind": "semantic",
+            "input_sha256": "77f6e181d701d23ecffac0c6a9c138e213905d16d36335e0d3544c30f5876fcb"
+          }
+        },
+        "fixed": {
+          "petri": {
+            "outcome": "PASS",
+            "complete": true,
+            "states_explored": 39,
+            "transitions_explored": 56,
+            "wall_ms": 2,
+            "status": "pass",
+            "kind": "semantic",
+            "input_sha256": "9588dffe5dd0bab94820ac670619c28dbadabe7460a00d61d15de08d1a9b9a84"
+          },
+          "interp": {
+            "outcome": "PASS",
+            "complete": true,
+            "states_explored": 39,
+            "transitions_explored": 56,
+            "wall_ms": 2,
+            "status": "pass",
+            "kind": "semantic",
+            "input_sha256": "9588dffe5dd0bab94820ac670619c28dbadabe7460a00d61d15de08d1a9b9a84"
+          }
+        }
+      },
+      "rust": {
+        "skipped": "no rust reference"
+      }
+    },
+    {
+      "task": "dashmap-369",
+      "status": "ready",
+      "ground_truth": {
+        "defect_representable": true,
+        "root_verification_expected": "UNSUPPORTED (RwLock lowering unsupported in v1)",
+        "verification_completable": false,
+        "current_patch_space_fixable_expected": false,
+        "upstream_fix": "drop the Ref guard before mutating another key (not representable in the current patch/verification space)",
+        "ground_truth_source": "https://github.com/xacrimon/dashmap/issues/369",
+        "model_sha256": "84f94127f4cd8e3d480dab7c482cfa05acab3aeb769a29472ff64f3b4cc02395",
+        "contract_sha256": "607bcf87dd35cfa017fb3a87a130820b5a79002ba51b615d7c26bf4403b584a3"
+      },
+      "concir": {
+        "arm": "concir",
+        "input_form": "human-written modular CIR",
+        "buggy": {
+          "petri": {
+            "outcome": "UNSUPPORTED",
+            "complete": false,
+            "states_explored": 0,
+            "transitions_explored": 0,
+            "wall_ms": 3,
+            "status": "unsupported",
+            "kind": "semantic",
+            "input_sha256": "84f94127f4cd8e3d480dab7c482cfa05acab3aeb769a29472ff64f3b4cc02395"
+          },
+          "interp": {
+            "outcome": "UNSUPPORTED",
+            "complete": false,
+            "states_explored": 0,
+            "transitions_explored": 0,
+            "wall_ms": 2,
+            "status": "unsupported",
+            "kind": "semantic",
+            "input_sha256": "84f94127f4cd8e3d480dab7c482cfa05acab3aeb769a29472ff64f3b4cc02395"
+          }
+        },
+        "fixed": null
+      },
+      "rust": {
+        "skipped": "no rust reference"
+      }
+    }
+  ],
+  "caveats": [
+    "Miri is dynamic and schedule-dependent: a miss is not proof of absence, and is not evidence of safety.",
+    "The deadlock fixtures are lock-order bugs that only manifest on some interleavings; each Miri seed runs one schedule, so a miss here is expected rather than surprising.",
+    "The ConcIR arm consumes human-written CIR, not Rust source; the comparison is capability-level, not same-input.",
+    "Lockbud is unavailable on this machine unless installed and pinned."
+  ]
+}

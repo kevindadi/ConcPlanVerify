@@ -118,6 +118,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--max-rounds", type=int, default=3)
     p.add_argument("--report", help="write the patch-repair result JSON here")
 
+    p = sub.add_parser("detection", help="Track D: run local detectors on the frozen benchmark")
+    p.add_argument("--manifest", help="benchmarks/MANIFEST.json (default: repo manifest)")
+    p.add_argument("--no-miri", action="store_true", help="skip Miri (fast)")
+
+    p = sub.add_parser("scale", help="B5: generated lock-chain scale experiment (no LLM)")
+
     p = sub.add_parser("live-repair", help="run frozen patch-repair tasks against DeepSeek Flash")
     p.add_argument("--tasks", required=True, help="frozen repair tasks JSON")
     p.add_argument("--provider", default=ALLOWED_PROVIDER)
@@ -185,6 +191,25 @@ def main(argv: list[str] | None = None) -> int:
                     json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             print(json.dumps(payload, ensure_ascii=False, indent=2))
             return 0 if result.accepted else 1
+
+        if args.command == "scale":
+            from .scale import run_scale
+
+            payload = run_scale(args.out)
+            print(json.dumps({"runs": len(payload["runs"]), "out": str(args.out)}, indent=2))
+            return 0
+
+        if args.command == "detection":
+            from .detection import render_markdown, run_detection
+
+            manifest = args.manifest or str(repo_root / "benchmarks/MANIFEST.json")
+            out = Path(args.out)
+            result = run_detection(manifest, out, run_miri=not args.no_miri)
+            (out / "DETECTION.md").write_text(render_markdown(result), encoding="utf-8")
+            print(json.dumps({"records": len(result["records"]),
+                              "lockbud_available": result["lockbud_available"],
+                              "out": str(out)}, indent=2))
+            return 0
 
         if args.command == "live-repair":
             if args.provider != ALLOWED_PROVIDER or args.model != ALLOWED_MODEL:
