@@ -1,6 +1,6 @@
 """Prompt assets and structured verification feedback.
 
-Assets are versioned files in ``prompt_assets/``; their sha256 is recorded so an
+Assets are versioned files in the repository-level ``prompts/`` directory; their sha256 is recorded so an
 experiment knows exactly which prompt text produced a candidate. Feedback keeps
 the backend's actual property ids, statement ids, counterexamples and preserved
 failures; unknown outcomes and tool errors are never rewritten as "no defect".
@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-PROMPT_ASSET_DIR = Path(__file__).resolve().parent / "prompt_assets"
+PROMPT_ASSET_DIR = Path(__file__).resolve().parents[2] / "prompts"
 GENERATION_ASSET = "concir_generation_v1.md"
 FEEDBACK_ASSET = "concir_feedback_v1.md"
 PATCH_ASSET = "concir_patch_v1.md"

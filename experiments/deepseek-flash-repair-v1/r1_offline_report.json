@@ -1,0 +1,94 @@
+{
+  "status": "accepted",
+  "model_path": "/Users/kevin/paper-review/papers/ConcPlanVerify/experiments/deepseek-flash-repair-v1/frozen-inputs/t2_abba_frozen.cir.json",
+  "contract_path": "/Users/kevin/paper-review/papers/ConcPlanVerify/experiments/deepseek-flash-repair-v1/frozen-inputs/t2_abba_contract.json",
+  "model_sha256": "d2d4958ba7a5a7ac43f6589503c8ed626232ce93469f608ce03f23dd2b33d8a5",
+  "contract_sha256": "961458b8184169722d788feb17e53f4af14a3fa35f0601e584a29d670ab247fe",
+  "context_fingerprint": "00f511c455adae6e",
+  "out_dir": "/Users/kevin/paper-review/papers/ConcPlanVerify/experiments/deepseek-flash-repair-v1/offline-demo/run-20260918T093305-97133-76e683",
+  "candidate_source": "scripted",
+  "validator": "tool",
+  "repair_mode": "external_single_patch",
+  "rounds": [
+    {
+      "round": 1,
+      "candidate_source": "scripted",
+      "raw_text": "{\"schema_version\": \"concir-external-patch-candidate-v1\", \"context_fingerprint\": \"00f511c455adae6e\", \"patch\": {\"module\": \"main\", \"function\": \"t2\", \"original_hash\": \"deadbeefdeadbeef\", \"changes\": [{\"kind\": \"swap_statements\", \"a\": \"s1\", \"b\": \"s2\"}]}}",
+      "parsed_candidate": {
+        "schema_version": "concir-external-patch-candidate-v1",
+        "context_fingerprint": "00f511c455adae6e",
+        "patch": {
+          "module": "main",
+          "function": "t2",
+          "original_hash": "deadbeefdeadbeef",
+          "changes": [
+            {
+              "kind": "swap_statements",
+              "a": "s1",
+              "b": "s2"
+            }
+          ]
+        }
+      },
+      "parse_error": null,
+      "provider_error": null,
+      "duplicate": false,
+      "evaluate_status": "rejected",
+      "reject_reason": {
+        "code": "apply_error",
+        "detail": "hash mismatch: expected deadbeefdeadbeef, found b169040cf55b84ec"
+      },
+      "verification_outcome": null,
+      "accepted": false,
+      "artifact_path": "/Users/kevin/paper-review/papers/ConcPlanVerify/experiments/deepseek-flash-repair-v1/offline-demo/18d6607b8ffc5710-97133-0002-342de9-evaluate-patch/external_artifact.json",
+      "replay_status": null
+    },
+    {
+      "round": 2,
+      "candidate_source": "scripted",
+      "raw_text": "{\"schema_version\": \"concir-external-patch-candidate-v1\", \"context_fingerprint\": \"00f511c455adae6e\", \"patch\": {\"module\": \"main\", \"function\": \"t2\", \"original_hash\": \"b169040cf55b84ec\", \"changes\": [{\"kind\": \"swap_statements\", \"a\": \"s1\", \"b\": \"s2\"}]}}",
+      "parsed_candidate": {
+        "schema_version": "concir-external-patch-candidate-v1",
+        "context_fingerprint": "00f511c455adae6e",
+        "patch": {
+          "module": "main",
+          "function": "t2",
+          "original_hash": "b169040cf55b84ec",
+          "changes": [
+            {
+              "kind": "swap_statements",
+              "a": "s1",
+              "b": "s2"
+            }
+          ]
+        }
+      },
+      "parse_error": null,
+      "provider_error": null,
+      "duplicate": false,
+      "evaluate_status": "accepted",
+      "reject_reason": null,
+      "verification_outcome": "PASS",
+      "accepted": true,
+      "artifact_path": "/Users/kevin/paper-review/papers/ConcPlanVerify/experiments/deepseek-flash-repair-v1/offline-demo/18d6607b90821d28-97133-0003-f7e16d-evaluate-patch/external_artifact.json",
+      "replay_status": "replayed"
+    }
+  ],
+  "accepted_artifact_path": "/Users/kevin/paper-review/papers/ConcPlanVerify/experiments/deepseek-flash-repair-v1/offline-demo/18d6607b90821d28-97133-0003-f7e16d-evaluate-patch/external_artifact.json",
+  "replay": {
+    "kind": "semantic",
+    "status": "replayed",
+    "exit_code": 0,
+    "payload": {
+      "nodes": 1,
+      "input_outcome": "FAIL",
+      "accepted_ok": true,
+      "accepted_node": 0,
+      "chain_len": 1,
+      "outcome": "repaired"
+    },
+    "error": null,
+    "wall_ms": 8
+  },
+  "error": null
+}

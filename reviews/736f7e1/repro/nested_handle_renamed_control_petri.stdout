@@ -1,0 +1,171 @@
+{
+  "outcome": "FAIL",
+  "complete": true,
+  "states_explored": 23,
+  "transitions_explored": 32,
+  "properties": [
+    {
+      "id": "deadlock",
+      "outcome": "FAIL",
+      "detail": "a reachable state has no enabled step and unfinished threads"
+    }
+  ],
+  "diagnostics": [
+    {
+      "property": "deadlock",
+      "outcome": "FAIL",
+      "message": "reachable global deadlock",
+      "complete": true,
+      "counterexample": [
+        {
+          "origin": {
+            "module": 0,
+            "function": 0,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 0,
+          "frame": 0
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 0,
+            "sid": 1,
+            "phase": "statement"
+          },
+          "thread": 0,
+          "frame": 0
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 1,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 0,
+          "frame": 2
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 1,
+            "sid": 1,
+            "phase": "statement"
+          },
+          "thread": 0,
+          "frame": 2
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 2,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 1,
+          "frame": 1
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 3,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 2,
+          "frame": 3
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 1,
+            "sid": 2,
+            "phase": "statement"
+          },
+          "thread": 0,
+          "frame": 2
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 0,
+            "sid": 2,
+            "phase": "statement"
+          },
+          "thread": 0,
+          "frame": 0
+        }
+      ],
+      "final_instances": [
+        {
+          "thread": 0,
+          "frame": 0,
+          "function": 0,
+          "sid": 2,
+          "status": "running"
+        },
+        {
+          "thread": 1,
+          "frame": 1,
+          "function": 2,
+          "sid": 0,
+          "status": "running"
+        },
+        {
+          "thread": 2,
+          "frame": null,
+          "function": 3,
+          "sid": null,
+          "status": "finished"
+        }
+      ],
+      "blocked": [
+        {
+          "thread": 0,
+          "kind": "join",
+          "resource": null,
+          "holder": null,
+          "waiting": 0,
+          "detail": "waiting to join a child thread"
+        },
+        {
+          "thread": 1,
+          "kind": "semaphore",
+          "resource": 0,
+          "holder": null,
+          "waiting": 1,
+          "detail": "waiting for semaphore permits"
+        }
+      ],
+      "cir_statements": [
+        {
+          "module": "main",
+          "function": "main",
+          "sid": "s3"
+        },
+        {
+          "module": "main",
+          "function": "a",
+          "sid": "s1"
+        },
+        {
+          "module": "main",
+          "function": "b",
+          "sid": null
+        }
+      ],
+      "proven_facts": [
+        "reached a counterexample state after 8 step(s)",
+        "explored 23 reachable states"
+      ],
+      "repair_hints": [
+        "check lock acquisition order, channel capacity, and missing notify/join"
+      ]
+    }
+  ],
+  "boundary_events": [],
+  "unsupported": [],
+  "invalid": []
+}

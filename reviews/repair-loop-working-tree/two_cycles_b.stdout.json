@@ -1,0 +1,516 @@
+{
+  "accepted_program": {
+    "entry": "main::main",
+    "modules": [
+      {
+        "functions": [
+          {
+            "body": [
+              {
+                "funcs": [
+                  "t1",
+                  "t2",
+                  "t3",
+                  "t4"
+                ],
+                "kind": "scope",
+                "sid": "s1"
+              },
+              {
+                "kind": "return",
+                "sid": "s2"
+              }
+            ],
+            "kind": "normal",
+            "name": "main"
+          },
+          {
+            "body": [
+              {
+                "kind": "mutex_lock",
+                "resource": "b",
+                "sid": "s2"
+              },
+              {
+                "kind": "mutex_lock",
+                "resource": "a",
+                "sid": "s1"
+              },
+              {
+                "kind": "mutex_unlock",
+                "resource": "b",
+                "sid": "s3"
+              },
+              {
+                "kind": "mutex_unlock",
+                "resource": "a",
+                "sid": "s4"
+              },
+              {
+                "kind": "return",
+                "sid": "s5"
+              }
+            ],
+            "form": "closure",
+            "kind": "normal",
+            "name": "t1"
+          },
+          {
+            "body": [
+              {
+                "kind": "mutex_lock",
+                "resource": "b",
+                "sid": "s1"
+              },
+              {
+                "kind": "mutex_lock",
+                "resource": "a",
+                "sid": "s2"
+              },
+              {
+                "kind": "mutex_unlock",
+                "resource": "a",
+                "sid": "s3"
+              },
+              {
+                "kind": "mutex_unlock",
+                "resource": "b",
+                "sid": "s4"
+              },
+              {
+                "kind": "return",
+                "sid": "s5"
+              }
+            ],
+            "form": "closure",
+            "kind": "normal",
+            "name": "t2"
+          },
+          {
+            "body": [
+              {
+                "kind": "mutex_lock",
+                "resource": "d",
+                "sid": "s2"
+              },
+              {
+                "kind": "mutex_lock",
+                "resource": "c",
+                "sid": "s1"
+              },
+              {
+                "kind": "mutex_unlock",
+                "resource": "d",
+                "sid": "s3"
+              },
+              {
+                "kind": "mutex_unlock",
+                "resource": "c",
+                "sid": "s4"
+              },
+              {
+                "kind": "return",
+                "sid": "s5"
+              }
+            ],
+            "form": "closure",
+            "kind": "normal",
+            "name": "t3"
+          },
+          {
+            "body": [
+              {
+                "kind": "mutex_lock",
+                "resource": "d",
+                "sid": "s1"
+              },
+              {
+                "kind": "mutex_lock",
+                "resource": "c",
+                "sid": "s2"
+              },
+              {
+                "kind": "mutex_unlock",
+                "resource": "c",
+                "sid": "s3"
+              },
+              {
+                "kind": "mutex_unlock",
+                "resource": "d",
+                "sid": "s4"
+              },
+              {
+                "kind": "return",
+                "sid": "s5"
+              }
+            ],
+            "form": "closure",
+            "kind": "normal",
+            "name": "t4"
+          }
+        ],
+        "name": "main",
+        "protection": [],
+        "provides": {
+          "functions": [
+            "main",
+            "t1",
+            "t2",
+            "t3",
+            "t4"
+          ],
+          "resources": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ],
+          "types": []
+        },
+        "requires": {
+          "functions": [],
+          "resources": [],
+          "types": []
+        },
+        "resources": [
+          {
+            "kind": "sync",
+            "mode": "Sync",
+            "name": "a",
+            "type": "Mutex"
+          },
+          {
+            "kind": "sync",
+            "mode": "Sync",
+            "name": "b",
+            "type": "Mutex"
+          },
+          {
+            "kind": "sync",
+            "mode": "Sync",
+            "name": "c",
+            "type": "Mutex"
+          },
+          {
+            "kind": "sync",
+            "mode": "Sync",
+            "name": "d",
+            "type": "Mutex"
+          }
+        ]
+      }
+    ],
+    "program": "two_cycles",
+    "version": "3.5.0"
+  },
+  "candidates_tried": 7,
+  "nodes": [
+    {
+      "complete": true,
+      "depth": 0,
+      "fingerprint": "2bf77496302b10ff",
+      "id": 0,
+      "note": null,
+      "outcome": "FAIL",
+      "parent": null,
+      "properties": [
+        [
+          "no-deadlock",
+          "FAIL"
+        ],
+        [
+          "preserved: t1 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t2 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t3 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t4 completes",
+          "PASS"
+        ]
+      ],
+      "states_explored": 2211,
+      "total_edits": 0
+    },
+    {
+      "complete": true,
+      "depth": 1,
+      "fingerprint": "9785a4cd66c7069b",
+      "id": 1,
+      "note": null,
+      "outcome": "FAIL",
+      "parent": 0,
+      "properties": [
+        [
+          "no-deadlock",
+          "FAIL"
+        ],
+        [
+          "preserved: t1 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t2 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t3 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t4 completes",
+          "PASS"
+        ]
+      ],
+      "states_explored": 1929,
+      "total_edits": 1
+    },
+    {
+      "complete": true,
+      "depth": 1,
+      "fingerprint": "5ae147f55b22a6a7",
+      "id": 2,
+      "note": null,
+      "outcome": "FAIL",
+      "parent": 0,
+      "properties": [
+        [
+          "no-deadlock",
+          "FAIL"
+        ],
+        [
+          "preserved: t1 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t2 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t3 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t4 completes",
+          "PASS"
+        ]
+      ],
+      "states_explored": 1929,
+      "total_edits": 1
+    },
+    {
+      "complete": true,
+      "depth": 1,
+      "fingerprint": "b5a63a66789af2df",
+      "id": 3,
+      "note": null,
+      "outcome": "FAIL",
+      "parent": 0,
+      "properties": [
+        [
+          "no-deadlock",
+          "FAIL"
+        ],
+        [
+          "preserved: t1 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t2 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t3 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t4 completes",
+          "PASS"
+        ]
+      ],
+      "states_explored": 1929,
+      "total_edits": 1
+    },
+    {
+      "complete": true,
+      "depth": 1,
+      "fingerprint": "7558a591582a0ad3",
+      "id": 4,
+      "note": null,
+      "outcome": "FAIL",
+      "parent": 0,
+      "properties": [
+        [
+          "no-deadlock",
+          "FAIL"
+        ],
+        [
+          "preserved: t1 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t2 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t3 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t4 completes",
+          "PASS"
+        ]
+      ],
+      "states_explored": 1929,
+      "total_edits": 1
+    },
+    {
+      "complete": true,
+      "depth": 2,
+      "fingerprint": "2bf77496302b10ff",
+      "id": 5,
+      "note": null,
+      "outcome": "FAIL",
+      "parent": 1,
+      "properties": [
+        [
+          "no-deadlock",
+          "FAIL"
+        ],
+        [
+          "preserved: t1 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t2 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t3 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t4 completes",
+          "PASS"
+        ]
+      ],
+      "states_explored": 2211,
+      "total_edits": 2
+    },
+    {
+      "complete": true,
+      "depth": 2,
+      "fingerprint": "e2449d9147670a33",
+      "id": 6,
+      "note": null,
+      "outcome": "FAIL",
+      "parent": 1,
+      "properties": [
+        [
+          "no-deadlock",
+          "FAIL"
+        ],
+        [
+          "preserved: t1 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t2 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t3 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t4 completes",
+          "PASS"
+        ]
+      ],
+      "states_explored": 1835,
+      "total_edits": 2
+    },
+    {
+      "complete": true,
+      "depth": 2,
+      "fingerprint": "e6652875a8d5b49b",
+      "id": 7,
+      "note": "accepted",
+      "outcome": "PASS",
+      "parent": 1,
+      "properties": [
+        [
+          "no-deadlock",
+          "PASS"
+        ],
+        [
+          "preserved: t1 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t2 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t3 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t4 completes",
+          "PASS"
+        ]
+      ],
+      "states_explored": 1683,
+      "total_edits": 2
+    }
+  ],
+  "outcome": "repaired",
+  "patch_chain": [
+    {
+      "changes": [
+        {
+          "a": "s1",
+          "b": "s2",
+          "kind": "swap_statements"
+        }
+      ],
+      "function": "t1",
+      "module": "main",
+      "parent_fingerprint": "2bf77496302b10ff",
+      "program_fingerprint": "9785a4cd66c7069b",
+      "provenance": [
+        {
+          "description": "heuristic: swap an adjacent pair of mutex acquisitions"
+        }
+      ]
+    },
+    {
+      "changes": [
+        {
+          "a": "s1",
+          "b": "s2",
+          "kind": "swap_statements"
+        }
+      ],
+      "function": "t3",
+      "module": "main",
+      "parent_fingerprint": "9785a4cd66c7069b",
+      "program_fingerprint": "e6652875a8d5b49b",
+      "provenance": [
+        {
+          "description": "heuristic: swap an adjacent pair of mutex acquisitions"
+        }
+      ]
+    }
+  ],
+  "states_explored": 15656,
+  "stop_reason": "solved",
+  "strategy": "composite",
+  "verifications": 8
+}

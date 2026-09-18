@@ -1,0 +1,59 @@
+{
+  "records": 2,
+  "complete": 0,
+  "not_complete": 2,
+  "errors": [
+    "complete record p1_same/b/main/r1 failed evidence check: ['artifact-missing']",
+    "complete record p1_same/b/main/r1 failed evidence check: ['artifact-hash-mismatch']"
+  ],
+  "nondeterministic": [],
+  "planned_pairs": 0,
+  "attempted_pairs": 0,
+  "both_repaired": 0,
+  "success_differs": 0
+}
+{
+  "records": 3,
+  "complete": 3,
+  "not_complete": 0,
+  "errors": [],
+  "nondeterministic": [],
+  "planned_pairs": 1,
+  "attempted_pairs": 1,
+  "both_repaired": 1,
+  "success_differs": 0
+}
+{
+  "records": 4,
+  "complete": 4,
+  "not_complete": 0,
+  "errors": [],
+  "nondeterministic": [],
+  "planned_pairs": 0,
+  "attempted_pairs": 1,
+  "both_repaired": 1,
+  "success_differs": 0
+}
+{
+  "records": 8,
+  "complete": 5,
+  "not_complete": 3,
+  "errors": [],
+  "nondeterministic": [],
+  "planned_pairs": 4,
+  "attempted_pairs": 4,
+  "both_repaired": 1,
+  "success_differs": 3
+}
+PASS  refuse_existing_batch_without_resume: rc=2
+PASS  resume_after_crash_no_overwrite: rc=0 partial=1 final=3 complete=True
+PASS  cohort_change_refused_new_tag_ok: cfg=2 timeout=2 new=0
+PASS  failure_not_bound_to_old_artifact: new=no_artifact kept=complete
+PASS  invalid_old_evidence_demoted_and_rejected: demoted=True idx_status=no_artifact sum=1 complete=0 errors=2
+PASS  replay_pending_recovery_full_and_idempotent: fields=True reused=True sum=0 audit=True
+PASS  recovery_search_cost_comparable: recovered wall=9 search=9 e2e=14 replay=5
+PASS  recovery_refuses_incomplete: missing=identity_mismatch tampered=identity_mismatch timeout=replay_timeout fail=replay_failed
+PASS  stats_distinct_config_and_pairing: rc=0 attempted=1 both=1 errors=[]
+PASS  pairing_keeps_timeout_and_not_executed: planned=4 attempted=4 both=1 differs=3 not_exec=1 cost=1
+PASS  external_out_behavior: rc=0 tail=behavior regression passed
+lifecycle regression passed

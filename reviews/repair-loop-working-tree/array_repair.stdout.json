@@ -1,0 +1,225 @@
+{
+  "accepted_program": {
+    "entry": "main::main",
+    "modules": [
+      {
+        "functions": [
+          {
+            "body": [
+              {
+                "funcs": [
+                  "t1",
+                  "t2"
+                ],
+                "kind": "scope",
+                "sid": "s1"
+              },
+              {
+                "kind": "return",
+                "sid": "s2"
+              }
+            ],
+            "kind": "normal",
+            "name": "main"
+          },
+          {
+            "body": [
+              {
+                "kind": "mutex_lock",
+                "resource": "b",
+                "sid": "s2"
+              },
+              {
+                "kind": "mutex_lock",
+                "resource": "a",
+                "sid": "s1"
+              },
+              {
+                "kind": "mutex_unlock",
+                "resource": "b",
+                "sid": "s3"
+              },
+              {
+                "kind": "mutex_unlock",
+                "resource": "a",
+                "sid": "s4"
+              },
+              {
+                "kind": "return",
+                "sid": "s5"
+              }
+            ],
+            "form": "closure",
+            "kind": "normal",
+            "name": "t1"
+          },
+          {
+            "body": [
+              {
+                "kind": "mutex_lock",
+                "resource": "b",
+                "sid": "s1"
+              },
+              {
+                "kind": "mutex_lock",
+                "resource": "a",
+                "sid": "s2"
+              },
+              {
+                "kind": "mutex_unlock",
+                "resource": "a",
+                "sid": "s3"
+              },
+              {
+                "kind": "mutex_unlock",
+                "resource": "b",
+                "sid": "s4"
+              },
+              {
+                "kind": "return",
+                "sid": "s5"
+              }
+            ],
+            "form": "closure",
+            "kind": "normal",
+            "name": "t2"
+          }
+        ],
+        "name": "main",
+        "protection": [],
+        "provides": {
+          "functions": [
+            "main",
+            "t1",
+            "t2"
+          ],
+          "resources": [
+            "a",
+            "b"
+          ],
+          "types": []
+        },
+        "requires": {
+          "functions": [],
+          "resources": [],
+          "types": []
+        },
+        "resources": [
+          {
+            "kind": "sync",
+            "mode": "Sync",
+            "name": "a",
+            "type": "Mutex"
+          },
+          {
+            "kind": "sync",
+            "mode": "Sync",
+            "name": "b",
+            "type": "Mutex"
+          },
+          {
+            "base": [
+              "Array",
+              {
+                "elem": [
+                  "Int",
+                  [
+                    0,
+                    1
+                  ]
+                ],
+                "len": 1
+              }
+            ],
+            "init": [
+              0
+            ],
+            "kind": "var",
+            "name": "audit_data",
+            "type": "Var"
+          }
+        ]
+      }
+    ],
+    "program": "single_cycle",
+    "version": "3.5.0"
+  },
+  "candidates_tried": 1,
+  "nodes": [
+    {
+      "complete": true,
+      "depth": 0,
+      "fingerprint": "69516b8e7e67f999",
+      "id": 0,
+      "note": null,
+      "outcome": "FAIL",
+      "parent": null,
+      "properties": [
+        [
+          "no-deadlock",
+          "FAIL"
+        ],
+        [
+          "preserved: t1 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t2 completes",
+          "PASS"
+        ]
+      ],
+      "states_explored": 49,
+      "total_edits": 0
+    },
+    {
+      "complete": true,
+      "depth": 1,
+      "fingerprint": "87bde0be83023a7d",
+      "id": 1,
+      "note": "accepted",
+      "outcome": "PASS",
+      "parent": 0,
+      "properties": [
+        [
+          "no-deadlock",
+          "PASS"
+        ],
+        [
+          "preserved: t1 completes",
+          "PASS"
+        ],
+        [
+          "preserved: t2 completes",
+          "PASS"
+        ]
+      ],
+      "states_explored": 43,
+      "total_edits": 1
+    }
+  ],
+  "outcome": "repaired",
+  "patch_chain": [
+    {
+      "changes": [
+        {
+          "a": "s1",
+          "b": "s2",
+          "kind": "swap_statements"
+        }
+      ],
+      "function": "t1",
+      "module": "main",
+      "parent_fingerprint": "69516b8e7e67f999",
+      "program_fingerprint": "87bde0be83023a7d",
+      "provenance": [
+        {
+          "description": "heuristic: swap an adjacent mutex acquisition involving a blocked resource"
+        }
+      ]
+    }
+  ],
+  "states_explored": 92,
+  "stop_reason": "solved",
+  "strategy": "diagnostic",
+  "verifications": 2
+}

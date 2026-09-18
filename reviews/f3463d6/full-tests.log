@@ -1,0 +1,662 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+   Compiling libc v0.2.189
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling serde_json v1.0.151
+   Compiling serde v1.0.229
+   Compiling thiserror v2.0.20
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling rustix v1.1.4
+   Compiling getrandom v0.4.3
+   Compiling bitflags v2.13.1
+   Compiling cfg-if v1.0.4
+   Compiling fastrand v2.5.0
+   Compiling once_cell v1.21.4
+   Compiling similar v2.7.0
+   Compiling syn v3.0.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling errno v0.3.14
+   Compiling console v0.16.4
+   Compiling tempfile v3.27.0
+   Compiling insta v1.48.0
+   Compiling concir v0.1.0 (/Users/kevin/local-repos/ConcIR)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.68s
+     Running unittests src/lib.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/86ac51105b2011cc/out/concir-86ac51105b2011cc)
+
+running 5 tests
+test expr::tests::types_int_arith_and_struct_field ... ok
+test expr::tests::assignable_named_struct_and_bounded_int ... ok
+test expr::tests::parses_named_struct_and_field ... ok
+test expr::tests::rejects_positional_struct_and_unknown_name ... ok
+test expr::tests::parses_arithmetic_and_comparison ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/7ee80363a0d9a65a/out/concir-7ee80363a0d9a65a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/concir-backend.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/68e45a84f6537485/out/concir_backend-68e45a84f6537485)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/differential.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/980a35fcd5178e54/out/differential-980a35fcd5178e54)
+
+running 8 tests
+test differential_is_invariant_under_declaration_reordering ... ok
+test differential_matches_nested_handles ... ok
+test differential_matches_buffered_channel_and_rendezvous ... ok
+test differential_matches_producer_consumer ... ok
+test differential_matches_state_machine ... ok
+test differential_matches_semaphore_and_call ... ok
+test differential_catches_shared_error_with_hand_written_expectation ... ok
+test differential_matches_notify_choice ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/dot_export.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/aaacc2b287257ca5/out/dot_export-aaacc2b287257ca5)
+
+running 19 tests
+test branch_function_dot ... ok
+test linear_function_dot ... ok
+test loop_back_edge_highlighted ... ok
+test linear_node_styles ... ok
+test cross_function_call ... ok
+test no_resource_panel_when_disabled ... ok
+test resource_panel_shapes ... ok
+test no_cross_function_when_disabled ... ok
+test resource_panel_present ... ok
+test direction_left_right ... ok
+test spawn_join_node_shapes ... ok
+test condvar_node_styles ... ok
+test cross_function_spawn_join ... ok
+test verbose_labels ... ok
+test switch_from_state_machine ... ok
+test snapshot_function_only ... FAILED
+test snapshot_with_summary_dot ... FAILED
+test snapshot_producer_consumer_dot ... FAILED
+test snapshot_state_machine_dot ... FAILED
+
+failures:
+
+---- snapshot_function_only stdout ----
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Snapshot Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Snapshot file: tests/snapshots/dot_export__producer_function_only_dot.snap
+Snapshot: producer_function_only_dot
+Source: tests/dot_export.rs:393
+────────────────────────────────────────────────────────────────────────────────
+Expression: dot
+────────────────────────────────────────────────────────────────────────────────
++new results
+────────────┬───────────────────────────────────────────────────────────────────
+          1 │+digraph "producer" {
+          2 │+  rankdir=TB;
+          3 │+  node [fontname="Courier", fontsize=10];
+          4 │+  edge [fontname="Courier", fontsize=9];
+          5 │+
+          6 │+  subgraph cluster_producer {
+          7 │+    label="producer (closure)";
+          8 │+    style=rounded;
+          9 │+    color=black;
+         10 │+
+         11 │+    producer_s1 [label="s1: mutex_lock(mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=red, penwidth=3];
+         12 │+    producer_s2 [label="s2: write_shared(count, count + 1)", shape=rect, style="filled", fillcolor="#f0f0f0", color=orange, penwidth=2];
+         13 │+    producer_s3 [label="s3: condvar_notify_all(cv)", shape=rect, style="filled", fillcolor="#f0f0f0", color=purple, penwidth=2];
+         14 │+    producer_s4 [label="s4: mutex_unlock(mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=green, penwidth=2];
+         15 │+    producer_s5 [label="s5: return", shape=ellipse, style="filled", fillcolor="#a0a0a0", color=black, penwidth=1];
+         16 │+    producer_ret [label="[ret]", shape=ellipse, style=filled, fillcolor="#a0a0a0"];
+         17 │+
+         18 │+    producer_s1 -> producer_s2;
+         19 │+    producer_s2 -> producer_s3;
+         20 │+    producer_s3 -> producer_s4;
+         21 │+    producer_s4 -> producer_s5;
+         22 │+    producer_s5 -> producer_ret;
+         23 │+  }
+         24 │+
+         25 │+}
+────────────┴───────────────────────────────────────────────────────────────────
+Stopped on the first failure. Run `cargo insta test` to run all snapshots.
+
+thread 'snapshot_function_only' (8210817) panicked at /Users/kevin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/insta-1.48.0/src/runtime.rs:719:13:
+snapshot assertion for 'producer_function_only_dot' failed in line 393
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- snapshot_with_summary_dot stdout ----
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Snapshot Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Snapshot file: tests/snapshots/dot_export__with_summary_dot.snap
+Snapshot: with_summary_dot
+Source: tests/dot_export.rs:385
+────────────────────────────────────────────────────────────────────────────────
+Expression: dot
+────────────────────────────────────────────────────────────────────────────────
++new results
+────────────┬───────────────────────────────────────────────────────────────────
+          1 │+digraph "with_summary" {
+          2 │+  rankdir=TB;
+          3 │+  node [fontname="Courier", fontsize=10];
+          4 │+  edge [fontname="Courier", fontsize=9];
+          5 │+
+          6 │+  subgraph cluster_resources {
+          7 │+    label="Resources";
+          8 │+    style=dashed;
+          9 │+    color=gray;
+         10 │+
+         11 │+    res_mtx [label="mtx\n(Mutex)", shape=hexagon, style=filled, fillcolor="#ffe0e0"];
+         12 │+    res_counter [label="counter\n(Var)", shape=rect, style=filled, fillcolor="#f0f0f0"];
+         13 │+    res_threshold [label="threshold\n(Var)", shape=rect, style=filled, fillcolor="#f0f0f0"];
+         14 │+
+         15 │+    res_counter -> res_mtx [style=dotted, dir=both, color=gray50];
+         16 │+    res_threshold -> res_mtx [style=dotted, dir=both, color=gray50];
+         17 │+  }
+         18 │+
+         19 │+  subgraph cluster_main {
+         20 │+    label="main (normal)";
+         21 │+    style=rounded;
+         22 │+    color=black;
+         23 │+
+         24 │+    main_s1 [label="s1: scope(worker)", shape=doubleoctagon, style="filled", fillcolor="#f0f0f0", color=black, penwidth=3];
+         25 │+    main_s2 [label="s2: return", shape=ellipse, style="filled", fillcolor="#a0a0a0", color=black, penwidth=1];
+         26 │+    main_ret [label="[ret]", shape=ellipse, style=filled, fillcolor="#a0a0a0"];
+         27 │+
+         28 │+    main_s1 -> main_s2;
+         29 │+    main_s2 -> main_ret;
+         30 │+  }
+         31 │+
+         32 │+  subgraph cluster_worker {
+         33 │+    label="worker (closure)";
+         34 │+    style=rounded;
+         35 │+    color=black;
+         36 │+
+         37 │+    worker_s1 [label="s1: mutex_lock(mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=red, penwidth=3];
+         38 │+    worker_s2 [label="s2: call(validate)", shape=rect, style="filled,rounded", fillcolor="#f0f0f0", color=black, penwidth=1];
+         39 │+    worker_s3 [label="s3: write_shared(counter, counter + 1)", shape=rect, style="filled", fillcolor="#f0f0f0", color=orange, penwidth=2];
+         40 │+    worker_s4 [label="s4: mutex_unlock(mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=green, penwidth=2];
+         41 │+    worker_s5 [label="s5: return", shape=ellipse, style="filled", fillcolor="#a0a0a0", color=black, penwidth=1];
+         42 │+    worker_ret [label="[ret]", shape=ellipse, style=filled, fillcolor="#a0a0a0"];
+         43 │+
+         44 │+    worker_s1 -> worker_s2;
+         45 │+    worker_s2 -> worker_s3;
+         46 │+    worker_s3 -> worker_s4;
+         47 │+    worker_s4 -> worker_s5;
+         48 │+    worker_s5 -> worker_ret;
+         49 │+  }
+         50 │+
+         51 │+  subgraph cluster_validate {
+         52 │+    label="validate (normal)";
+         53 │+    style=rounded;
+         54 │+    color=black;
+         55 │+
+         56 │+    validate_ret [label="[ret]", shape=ellipse, style=filled, fillcolor="#a0a0a0"];
+         57 │+
+         58 │+  }
+         59 │+
+         60 │+  subgraph cluster_helper_compare {
+         61 │+    label="helper_compare (normal)";
+         62 │+    style=rounded;
+         63 │+    color=black;
+         64 │+
+         65 │+    helper_compare_ret [label="[ret]", shape=ellipse, style=filled, fillcolor="#a0a0a0"];
+         66 │+
+         67 │+  }
+         68 │+
+         69 │+  // Cross-function edges
+         70 │+  main_s1 -> worker_s1 [style=dashed, color=blue, label="scope"];
+         71 │+  worker_ret -> main_s1 [style=dashed, color=purple, label="join"];
+         72 │+
+         73 │+}
+────────────┴───────────────────────────────────────────────────────────────────
+Stopped on the first failure. Run `cargo insta test` to run all snapshots.
+
+thread 'snapshot_with_summary_dot' (8210820) panicked at /Users/kevin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/insta-1.48.0/src/runtime.rs:719:13:
+snapshot assertion for 'with_summary_dot' failed in line 385
+
+---- snapshot_producer_consumer_dot stdout ----
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Snapshot Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Snapshot file: tests/snapshots/dot_export__producer_consumer_dot.snap
+Snapshot: producer_consumer_dot
+Source: tests/dot_export.rs:371
+────────────────────────────────────────────────────────────────────────────────
+Expression: dot
+────────────────────────────────────────────────────────────────────────────────
++new results
+────────────┬───────────────────────────────────────────────────────────────────
+          1 │+digraph "producer_consumer" {
+          2 │+  rankdir=TB;
+          3 │+  node [fontname="Courier", fontsize=10];
+          4 │+  edge [fontname="Courier", fontsize=9];
+          5 │+
+          6 │+  subgraph cluster_resources {
+          7 │+    label="Resources";
+          8 │+    style=dashed;
+          9 │+    color=gray;
+         10 │+
+         11 │+    res_mtx [label="mtx\n(Mutex)", shape=hexagon, style=filled, fillcolor="#ffe0e0"];
+         12 │+    res_cv [label="cv\n(Condvar)", shape=triangle, style=filled, fillcolor="#f0e0ff"];
+         13 │+    res_count [label="count\n(Var)", shape=rect, style=filled, fillcolor="#f0f0f0"];
+         14 │+
+         15 │+    res_count -> res_mtx [style=dotted, dir=both, color=gray50];
+         16 │+  }
+         17 │+
+         18 │+  subgraph cluster_main {
+         19 │+    label="main (normal)";
+         20 │+    style=rounded;
+         21 │+    color=black;
+         22 │+
+         23 │+    main_s1 [label="s1: scope(producer, consumer)", shape=doubleoctagon, style="filled", fillcolor="#f0f0f0", color=black, penwidth=3];
+         24 │+    main_s2 [label="s2: return", shape=ellipse, style="filled", fillcolor="#a0a0a0", color=black, penwidth=1];
+         25 │+    main_ret [label="[ret]", shape=ellipse, style=filled, fillcolor="#a0a0a0"];
+         26 │+
+         27 │+    main_s1 -> main_s2;
+         28 │+    main_s2 -> main_ret;
+         29 │+  }
+         30 │+
+         31 │+  subgraph cluster_producer {
+         32 │+    label="producer (closure)";
+         33 │+    style=rounded;
+         34 │+    color=black;
+         35 │+
+         36 │+    producer_s1 [label="s1: mutex_lock(mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=red, penwidth=3];
+         37 │+    producer_s2 [label="s2: write_shared(count, count + 1)", shape=rect, style="filled", fillcolor="#f0f0f0", color=orange, penwidth=2];
+         38 │+    producer_s3 [label="s3: condvar_notify_all(cv)", shape=rect, style="filled", fillcolor="#f0f0f0", color=purple, penwidth=2];
+         39 │+    producer_s4 [label="s4: mutex_unlock(mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=green, penwidth=2];
+         40 │+    producer_s5 [label="s5: return", shape=ellipse, style="filled", fillcolor="#a0a0a0", color=black, penwidth=1];
+         41 │+    producer_ret [label="[ret]", shape=ellipse, style=filled, fillcolor="#a0a0a0"];
+         42 │+
+         43 │+    producer_s1 -> producer_s2;
+         44 │+    producer_s2 -> producer_s3;
+         45 │+    producer_s3 -> producer_s4;
+         46 │+    producer_s4 -> producer_s5;
+         47 │+    producer_s5 -> producer_ret;
+         48 │+  }
+         49 │+
+         50 │+  subgraph cluster_consumer {
+         51 │+    label="consumer (closure)";
+         52 │+    style=rounded;
+         53 │+    color=black;
+         54 │+
+         55 │+    consumer_s1 [label="s1: mutex_lock(mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=red, penwidth=3];
+         56 │+    consumer_s2 [label="s2: read_shared(count)", shape=rect, style="filled", fillcolor="#f0f0f0", color=black, penwidth=1];
+         57 │+    consumer_s3 [label="s3: branch", shape=diamond, style="filled", fillcolor="#ffffcc", color=black, penwidth=1];
+         58 │+    consumer_s4 [label="s4: condvar_wait(cv, mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=purple, penwidth=2];
+         59 │+    consumer_s5 [label="s5: nop", shape=rect, style="filled", fillcolor="#f0f0f0", color=black, penwidth=1];
+         60 │+    consumer_s6 [label="s6: goto", shape=rect, style="filled", fillcolor="#f0f0f0", color=black, penwidth=1];
+         61 │+    consumer_s7 [label="s7: write_shared(count, count - 1)", shape=rect, style="filled", fillcolor="#f0f0f0", color=orange, penwidth=2];
+         62 │+    consumer_s8 [label="s8: mutex_unlock(mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=green, penwidth=2];
+         63 │+    consumer_s9 [label="s9: return", shape=ellipse, style="filled", fillcolor="#a0a0a0", color=black, penwidth=1];
+         64 │+    consumer_ret [label="[ret]", shape=ellipse, style=filled, fillcolor="#a0a0a0"];
+         65 │+
+         66 │+    consumer_s1 -> consumer_s2;
+         67 │+    consumer_s2 -> consumer_s3;
+         68 │+    consumer_s3 -> consumer_s7 [label="T", color=green];
+         69 │+    consumer_s3 -> consumer_s4 [label="F", style=dashed, color=red];
+         70 │+    consumer_s4 -> consumer_s5;
+         71 │+    consumer_s5 -> consumer_s6;
+         72 │+    consumer_s6 -> consumer_s2 [color=blue, penwidth=2];
+         73 │+    consumer_s7 -> consumer_s8;
+         74 │+    consumer_s8 -> consumer_s9;
+         75 │+    consumer_s9 -> consumer_ret;
+         76 │+  }
+         77 │+
+         78 │+  // Cross-function edges
+         79 │+  main_s1 -> producer_s1 [style=dashed, color=blue, label="scope"];
+         80 │+  producer_ret -> main_s1 [style=dashed, color=purple, label="join"];
+         81 │+  main_s1 -> consumer_s1 [style=dashed, color=blue, label="scope"];
+         82 │+  consumer_ret -> main_s1 [style=dashed, color=purple, label="join"];
+         83 │+
+         84 │+}
+────────────┴───────────────────────────────────────────────────────────────────
+Stopped on the first failure. Run `cargo insta test` to run all snapshots.
+
+thread 'snapshot_producer_consumer_dot' (8210818) panicked at /Users/kevin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/insta-1.48.0/src/runtime.rs:719:13:
+snapshot assertion for 'producer_consumer_dot' failed in line 371
+
+---- snapshot_state_machine_dot stdout ----
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Snapshot Summary ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Snapshot file: tests/snapshots/dot_export__state_machine_dot.snap
+Snapshot: state_machine_dot
+Source: tests/dot_export.rs:378
+────────────────────────────────────────────────────────────────────────────────
+Expression: dot
+────────────────────────────────────────────────────────────────────────────────
++new results
+────────────┬───────────────────────────────────────────────────────────────────
+          1 │+digraph "state_machine" {
+          2 │+  rankdir=TB;
+          3 │+  node [fontname="Courier", fontsize=10];
+          4 │+  edge [fontname="Courier", fontsize=9];
+          5 │+
+          6 │+  subgraph cluster_resources {
+          7 │+    label="Resources";
+          8 │+    style=dashed;
+          9 │+    color=gray;
+         10 │+
+         11 │+    res_mtx [label="mtx\n(Mutex)", shape=hexagon, style=filled, fillcolor="#ffe0e0"];
+         12 │+    res_cv [label="cv\n(Condvar)", shape=triangle, style=filled, fillcolor="#f0e0ff"];
+         13 │+    res_state [label="state\n(Var)", shape=rect, style=filled, fillcolor="#f0f0f0"];
+         14 │+
+         15 │+    res_state -> res_mtx [style=dotted, dir=both, color=gray50];
+         16 │+  }
+         17 │+
+         18 │+  subgraph cluster_main {
+         19 │+    label="main (normal)";
+         20 │+    style=rounded;
+         21 │+    color=black;
+         22 │+
+         23 │+    main_s1 [label="s1: scope(controller, worker)", shape=doubleoctagon, style="filled", fillcolor="#f0f0f0", color=black, penwidth=3];
+         24 │+    main_s2 [label="s2: return", shape=ellipse, style="filled", fillcolor="#a0a0a0", color=black, penwidth=1];
+         25 │+    main_ret [label="[ret]", shape=ellipse, style=filled, fillcolor="#a0a0a0"];
+         26 │+
+         27 │+    main_s1 -> main_s2;
+         28 │+    main_s2 -> main_ret;
+         29 │+  }
+         30 │+
+         31 │+  subgraph cluster_controller {
+         32 │+    label="controller (closure)";
+         33 │+    style=rounded;
+         34 │+    color=black;
+         35 │+
+         36 │+    controller_s1 [label="s1: mutex_lock(mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=red, penwidth=3];
+         37 │+    controller_s2 [label="s2: write_shared(state, Running)", shape=rect, style="filled", fillcolor="#f0f0f0", color=orange, penwidth=2];
+         38 │+    controller_s3 [label="s3: condvar_notify_all(cv)", shape=rect, style="filled", fillcolor="#f0f0f0", color=purple, penwidth=2];
+         39 │+    controller_s4 [label="s4: mutex_unlock(mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=green, penwidth=2];
+         40 │+    controller_s5 [label="s5: return", shape=ellipse, style="filled", fillcolor="#a0a0a0", color=black, penwidth=1];
+         41 │+    controller_ret [label="[ret]", shape=ellipse, style=filled, fillcolor="#a0a0a0"];
+         42 │+
+         43 │+    controller_s1 -> controller_s2;
+         44 │+    controller_s2 -> controller_s3;
+         45 │+    controller_s3 -> controller_s4;
+         46 │+    controller_s4 -> controller_s5;
+         47 │+    controller_s5 -> controller_ret;
+         48 │+  }
+         49 │+
+         50 │+  subgraph cluster_worker {
+         51 │+    label="worker (closure)";
+         52 │+    style=rounded;
+         53 │+    color=black;
+         54 │+
+         55 │+    worker_s1 [label="s1: mutex_lock(mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=red, penwidth=3];
+         56 │+    worker_s2 [label="s2: read_shared(state)", shape=rect, style="filled", fillcolor="#f0f0f0", color=black, penwidth=1];
+         57 │+    worker_s3 [label="s3: switch", shape=diamond, style="filled", fillcolor="#ffe8cc", color=black, penwidth=1];
+         58 │+    worker_s4 [label="s4: condvar_wait(cv, mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=purple, penwidth=2];
+         59 │+    worker_s5 [label="s5: goto", shape=rect, style="filled", fillcolor="#f0f0f0", color=black, penwidth=1];
+         60 │+    worker_s6 [label="s6: mutex_unlock(mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=green, penwidth=2];
+         61 │+    worker_s7 [label="s7: goto", shape=rect, style="filled", fillcolor="#f0f0f0", color=black, penwidth=1];
+         62 │+    worker_s8 [label="s8: condvar_wait(cv, mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=purple, penwidth=2];
+         63 │+    worker_s9 [label="s9: goto", shape=rect, style="filled", fillcolor="#f0f0f0", color=black, penwidth=1];
+         64 │+    worker_s10 [label="s10: mutex_unlock(mtx)", shape=rect, style="filled", fillcolor="#f0f0f0", color=green, penwidth=2];
+         65 │+    worker_s11 [label="s11: return", shape=ellipse, style="filled", fillcolor="#a0a0a0", color=black, penwidth=1];
+         66 │+    worker_ret [label="[ret]", shape=ellipse, style=filled, fillcolor="#a0a0a0"];
+         67 │+
+         68 │+    worker_s1 -> worker_s2;
+         69 │+    worker_s2 -> worker_s3;
+         70 │+    worker_s3 -> worker_s4 [label="Init"];
+         71 │+    worker_s3 -> worker_s8 [label="Paused"];
+         72 │+    worker_s3 -> worker_s6 [label="Running"];
+         73 │+    worker_s3 -> worker_s10 [label="Stopped"];
+         74 │+    worker_s3 -> worker_s4 [label="default", style=dashed];
+         75 │+    worker_s4 -> worker_s5;
+         76 │+    worker_s5 -> worker_s2 [color=blue, penwidth=2];
+         77 │+    worker_s6 -> worker_s7;
+         78 │+    worker_s7 -> worker_s11;
+         79 │+    worker_s8 -> worker_s9;
+         80 │+    worker_s9 -> worker_s2 [color=blue, penwidth=2];
+         81 │+    worker_s10 -> worker_s11;
+         82 │+    worker_s11 -> worker_ret;
+         83 │+  }
+         84 │+
+         85 │+  // Cross-function edges
+         86 │+  main_s1 -> controller_s1 [style=dashed, color=blue, label="scope"];
+         87 │+  controller_ret -> main_s1 [style=dashed, color=purple, label="join"];
+         88 │+  main_s1 -> worker_s1 [style=dashed, color=blue, label="scope"];
+         89 │+  worker_ret -> main_s1 [style=dashed, color=purple, label="join"];
+         90 │+
+         91 │+}
+────────────┴───────────────────────────────────────────────────────────────────
+Stopped on the first failure. Run `cargo insta test` to run all snapshots.
+
+thread 'snapshot_state_machine_dot' (8210819) panicked at /Users/kevin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/insta-1.48.0/src/runtime.rs:719:13:
+snapshot assertion for 'state_machine_dot' failed in line 378
+
+
+failures:
+    snapshot_function_only
+    snapshot_producer_consumer_dot
+    snapshot_state_machine_dot
+    snapshot_with_summary_dot
+
+test result: FAILED. 15 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+error: test failed, to rerun pass `--test dot_export`
+     Running tests/interp_petri_diff.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/4237dc494526ed21/out/interp_petri_diff-4237dc494526ed21)
+
+running 4 tests
+test ef_and_agef_on_small_program ... ok
+test both_engines_terminate_state_machine ... ok
+test both_engines_terminate_producer_consumer ... ok
+test deadlock_property_agrees ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/interp_smoke.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/9014f53ee6617e57/out/interp_smoke-9014f53ee6617e57)
+
+running 2 tests
+test producer_consumer_terminates ... ok
+test state_machine_runs ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/module_syntax.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/41bbd2fdaccf5fac/out/module_syntax-41bbd2fdaccf5fac)
+
+running 7 tests
+test fqn_helpers ... ok
+test stmt_requires_kind ... ok
+test stmt_rejects_legacy_block_shape ... ok
+test return_is_a_statement ... ok
+test stmt_rejects_legacy_call_field ... ok
+test module_deserializes ... ok
+test program_uses_modules_and_fqn_entry ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/repair_e2e.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/ef2d482482a01a57/out/repair_e2e-ef2d482482a01a57)
+
+running 4 tests
+test rejects_patch_that_removes_required_behavior ... ok
+test budget_exhaustion_when_no_candidate_satisfies ... ok
+test buggy_program_is_statically_valid_but_deadlocks ... ok
+test end_to_end_lock_order_repair_succeeds ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/round2_regressions.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/acdb33ade1f241e4/out/round2_regressions-acdb33ade1f241e4)
+
+running 18 tests
+test r3_forbidden_delete_is_not_accepted ... ok
+test r3_forbidden_reorder_is_not_accepted ... ok
+test r6_contract_spec_errors_are_structured ... ok
+test r6_unsupported_assumptions_are_rejected ... ok
+test r6_statically_invalid_program_is_invalid_not_pass ... ok
+test r2_deleting_a_required_statement_is_not_accepted ... ok
+test r2_fresh_resolve_of_deleted_target_is_invalid ... ok
+test r5_notify_all_without_wait_advances ... ok
+test r9_bodyless_entry_is_transparent_in_both_engines ... ok
+test r7_finite_call_loop_is_complete_with_small_state_space ... ok
+test r9_runtime_invalid_is_invalid_in_both_engines ... ok
+test r9_unused_unsupported_resource_does_not_block ... ok
+test r1_alpha_renaming_callee_handle_does_not_change_result ... ok
+test r1_control_without_gate_is_deadlock_free ... ok
+test r1_nested_handle_is_not_clobbered_by_a_call ... ok
+test r2_lock_order_repair_still_succeeds_when_allowed ... ok
+test r4_notify_one_must_consider_every_waiter ... ok
+test r8_cli_exit_codes_are_documented ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+
+     Running tests/semantics_regression.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/4f2d53c8a507b820/out/semantics_regression-4f2d53c8a507b820)
+
+running 13 tests
+test condvar_wait_without_lock_is_rejected ... ok
+test non_owner_unlock_is_rejected ... ok
+test truncated_search_is_unknown_not_pass ... ok
+test local_deadlock_is_detected_even_with_a_running_bystander ... ok
+test same_named_resources_in_different_modules_do_not_collide ... ok
+test zero_capacity_channel_rendezvous ... ok
+test overlapping_calls_do_not_cross_returns ... ok
+test two_threads_same_function_have_independent_locals ... ok
+test notify_all_does_not_wake_a_later_waiter ... ok
+test notify_before_wait_leaves_no_future_notification ... ok
+test buffered_channel_has_fifo_order ... ok
+test normal_termination_is_not_reported_as_deadlock ... ok
+test ef_holds_but_agef_fails ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/validate_bound.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/cfdc04a78a48a4bc/out/validate_bound-cfdc04a78a48a4bc)
+
+running 3 tests
+test bound_zero_is_e960 ... ok
+test bound_on_sequential_only_is_e961 ... ok
+test bound_on_scope_target_is_valid ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/validate_call.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/b8fe870498cb3666/out/validate_call-b8fe870498cb3666)
+
+running 3 tests
+test call_to_undefined_function_is_an_error ... ok
+test call_to_bodyless_function_is_valid ... ok
+test call_to_sync_bodied_function_is_valid ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/validate_dataflow.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/6c3a20924dc4064d/out/validate_dataflow-6c3a20924dc4064d)
+
+running 43 tests
+test bounded_int_lo_gt_hi_is_a_parse_error ... ok
+test bounded_int_init_out_of_range_is_e208 ... ok
+test assign_local_to_resource_is_e936 ... ok
+test branch_on_protected_var_without_lock_is_e309 ... ok
+test call_capture_into_local_is_valid ... ok
+test call_argument_arity_mismatch_is_e920 ... ok
+test atomic_cas_dst_old_value_same_base_is_valid ... ok
+test bounded_int_resource_is_valid ... ok
+test call_arg_protected_var_without_lock_is_e309 ... ok
+test bare_identifier_branch_is_e201 ... ok
+test bounded_int_write_literal_out_of_range_is_e203 ... ok
+test atomic_cas_dst_bool_on_int_atomic_is_e205 ... ok
+test channel_missing_capacity_is_e001 ... ok
+test branch_on_protected_var_with_lock_is_valid ... ok
+test channel_negative_capacity_is_e001 ... ok
+test call_capture_without_modeled_return_is_e923 ... ok
+test call_capture_into_non_var_resource_is_e921 ... ok
+test channel_recv_discard_underscore_is_valid ... ok
+test duplicate_local_is_e915 ... ok
+test channel_recv_dst_type_mismatch_is_e206 ... ok
+test local_colliding_with_resource_is_e914 ... ok
+test modeled_local_on_spawn_target_is_e937_warning ... ok
+test mutex_in_expression_is_e934 ... ok
+test fqn_in_guard_without_lock_is_e309 ... ok
+test param_colliding_with_resource_is_e910 ... ok
+test modeled_return_with_bare_return_is_e913_warning ... ok
+test modeled_param_referenced_in_guard_is_valid ... ok
+test scope_of_modeled_param_function_is_e922 ... ok
+test select_channel_recv_dst_matching_base_is_valid ... ok
+test named_struct_literal_is_valid ... ok
+test positional_struct_literal_is_e931 ... ok
+test spawn_arg_undefined_name_is_e931 ... ok
+test select_channel_recv_dst_type_mismatch_is_e206 ... ok
+test spawn_args_arity_mismatch_is_e924 ... ok
+test switch_on_undefined_name_is_e935 ... ok
+test struct_field_in_guard_is_valid ... ok
+test switch_on_local_enum_is_valid ... ok
+test undefined_name_in_expr_is_e931 ... ok
+test switch_on_protected_var_without_lock_is_e309 ... ok
+test unmodeled_param_referenced_in_body_is_e912 ... ok
+test unknown_struct_field_is_e933 ... ok
+test write_expr_reading_other_protected_var_is_e309 ... ok
+test examples_still_validate ... ok
+
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/validate_interface.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/eaa6aae349f98e91/out/validate_interface-eaa6aae349f98e91)
+
+running 6 tests
+test may_block_false_with_blocking_body_is_e802 ... ok
+test lock_effect_on_non_lock_is_e801 ... ok
+test imported_sig_kind_mismatch_is_e804 ... ok
+test call_without_required_lock_is_e803 ... ok
+test name_only_requires_still_parses ... ok
+test imported_sig_matching_definition_is_valid ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/validate_location.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/72e5250ff22aeb47/out/validate_location-72e5250ff22aeb47)
+
+running 2 tests
+test function_level_diagnostic_uses_fn_location ... ok
+test statement_error_carries_control_location ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/validate_scope.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/d510f683c573b9bf/out/validate_scope-d510f683c573b9bf)
+
+running 7 tests
+test spawn_batch_is_unknown_kind ... ok
+test join_all_is_unknown_kind ... ok
+test function_kind_scope_is_e010 ... ok
+test kind_closure_is_e010 ... ok
+test scope_empty_funcs_is_e410 ... ok
+test spawn_without_join_is_e401_warning ... ok
+test scope_statement_joins_implicitly ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/validate_seq_hole.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/abb66dfb33805a34/out/validate_seq_hole-abb66dfb33805a34)
+
+running 6 tests
+test seq_hole_deserializes_and_is_valid ... ok
+test seq_hole_naming_mutex_is_e310 ... ok
+test duplicate_seq_hole_id_is_e109 ... ok
+test seq_hole_id_not_ident_is_e006 ... ok
+test seq_hole_protected_var_without_lock_is_e309 ... ok
+test seq_hole_on_var_with_lock_is_valid ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/validate_typedef.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/f4632c6d5c1ee454/out/validate_typedef-f4632c6d5c1ee454)
+
+running 7 tests
+test builtin_type_name_is_e112 ... ok
+test duplicate_type_is_e110 ... ok
+test undefined_type_as_base_is_e111 ... ok
+test cyclic_alias_is_e113 ... ok
+test type_not_exported_is_e108 ... ok
+test cross_module_type_import_is_valid ... ok
+test named_struct_type_on_var_is_valid ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/validator_risks.rs (/private/tmp/concir-audit-round2-target/debug/build/concir/7b8230af2c28dd58/out/validator_risks-7b8230af2c28dd58)
+
+running 8 tests
+test r3_channel_send_counts_as_blocking ... ok
+test r2_condvar_wait_requires_lock_ownership ... ok
+test r1_atomic_load_dst_into_protected_var_needs_lock ... ok
+test r1_channel_recv_dst_into_protected_var_needs_lock ... ok
+test r4_requires_held_suppresses_false_e309 ... ok
+test r1_call_dst_into_protected_var_needs_lock ... ok
+test r3_may_block_propagates_through_calls ... ok
+test r5_protection_is_module_aware ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: 1 target failed:
+    `--test dot_export`

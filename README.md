@@ -9,10 +9,14 @@ enumeration, patch legality or repair acceptance.
 
 > The old `cir2cvn` translator, its `--validate/--analyze/--goals` protocol and
 > the flat `resources`/`functions`/`op`/`transfer` schema are retired. See the
-> migration report in the paper repository:
-> `experiments/offline-integration-v1/REPO_MIGRATION.md`.
+> migration report: `experiments/offline-integration-v1/REPO_MIGRATION.md`.
 
 ## Layout
+
+This is the **experiment repository**: it owns the Python orchestration, prompt
+assets, benchmarks, raw experiment data, review records and protocol docs. The
+Rust tool code lives in the `ConcIR` repository; the paper sources live in
+`paper-review`.
 
 ```
 python/cir_workflow/
@@ -20,11 +24,16 @@ python/cir_workflow/
 ├── providers.py         # CandidateProvider protocol + ScriptedProvider (+ LLM adapter)
 ├── offline_workflow.py  # generation -> check -> feedback -> verify -> tool repair
 ├── prompts.py           # versioned prompt assets + structured feedback
-├── prompt_assets/       # modular-CIR generation / feedback prompt text (v1)
 ├── llm.py               # DeepSeek/Qwen SDK adapters (library only; not auto-run)
 ├── models.py            # ModelConfig + token-usage helpers
 ├── env.py, json_utils.py
 └── __main__.py          # CLI entry point
+prompts/                 # versioned modular-CIR generation / feedback / patch prompts
+benchmarks/              # patterns (P1..P9), real-cases, legacy cir2cvn reference programs
+experiments/             # raw experiment batches (paper history + pilot batches)
+reviews/                 # backend review records
+scripts/                 # frozen experiment scripts (pilot runners/analyzers)
+docs/                    # REPOSITORY_BOUNDARIES.md, migration records, prompts/
 ```
 
 ## Prerequisites

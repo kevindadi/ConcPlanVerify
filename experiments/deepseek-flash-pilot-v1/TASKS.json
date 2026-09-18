@@ -1,0 +1,39 @@
+{
+  "batch": "deepseek-flash-pilot-v1",
+  "provider": "deepseek",
+  "model": "deepseek-flash",
+  "base_url": "https://api.deepseek.com",
+  "max_requests": 12,
+  "max_seconds": 1200,
+  "max_generation_rounds": 3,
+  "max_tokens": 4096,
+  "timeout_s": 90,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "tasks": [
+    {
+      "id": "t1_same_order",
+      "structural_check": "same_order_pair",
+      "contract": "contracts/t1_same_order.json",
+      "expected_modeling": "two tasks acquire the same two mutexes in one consistent order",
+      "requirements": "Model two concurrent tasks named `t1` and `t2` in one module `main` (entry `main::main`). Both tasks acquire the same two mutexes named `a` and `b`, always in the order `a` then `b`: acquire both first, then release them in reverse order. `main` spawns `t1` and `t2` in a `scope`. Use mutex_lock/mutex_unlock and return; do not use rwlock or abstract_step. Program version 3.5.0."
+    },
+    {
+      "id": "t2_abba",
+      "structural_check": "abba_inversion",
+      "contract": "contracts/t2_abba.json",
+      "expected_modeling": "two tasks acquire the same two mutexes in opposite order (the existing ABBA deadlock), reproduced faithfully",
+      "requirements": "Model two concurrent tasks named `t1` and `t2` in one module `main` (entry `main::main`). `t1` acquires mutex `a` then mutex `b`; `t2` acquires mutex `b` then mutex `a`. This opposite acquisition order is the existing ABBA deadlock and must be reproduced faithfully, not corrected. In each task acquire both mutexes first in the stated order, then release them in reverse order. `main` spawns `t1` and `t2` in a `scope`. Use mutex_lock/mutex_unlock and return only. Program version 3.5.0."
+    },
+    {
+      "id": "t3_cross_module_abba",
+      "structural_check": "cross_module_abba",
+      "contract": "contracts/t3_cross_module_abba.json",
+      "expected_modeling": "two modules share mutexes across module boundaries and acquire them in opposite order (cross-module ABBA), reproduced faithfully",
+      "requirements": "Model two modules named `main` and `other` (entry `main::main`). Module `main` owns mutex `a`; module `other` owns mutex `b`. Function `main::t1` acquires `main::a` then `other::b`. Function `other::t2` acquires `other::b` then `main::a`. This opposite cross-module acquisition order is the existing ABBA deadlock and must be reproduced faithfully, not corrected. In each function acquire both mutexes first in the stated order, then release them in reverse order. Declare the cross-module resources in `requires.resources` on the module that uses them. `main::main` spawns `main::t1` and `other::t2` in a `scope`. Use mutex_lock/mutex_unlock and return only. Program version 3.5.0."
+    }
+  ]
+}

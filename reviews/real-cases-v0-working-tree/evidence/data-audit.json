@@ -1,0 +1,189 @@
+{
+  "rows": [
+    {
+      "case": "dashmap-369-buggy",
+      "strategy": "",
+      "stage": "explore",
+      "final_classification": "UNSUPPORTED",
+      "evidence_status": "complete",
+      "search_wall_ms": 2,
+      "states_explored": 0
+    },
+    {
+      "case": "rmw-zenoh-998-fixed",
+      "strategy": "",
+      "stage": "explore",
+      "final_classification": "PASS",
+      "evidence_status": "complete",
+      "search_wall_ms": 3,
+      "states_explored": 39
+    },
+    {
+      "case": "rmw-zenoh-998-buggy",
+      "strategy": "",
+      "stage": "explore",
+      "final_classification": "FAIL",
+      "evidence_status": "complete",
+      "search_wall_ms": 4,
+      "states_explored": 49
+    },
+    {
+      "case": "rmw-zenoh-998",
+      "strategy": "a",
+      "stage": "repair",
+      "final_classification": "repaired",
+      "evidence_status": "complete",
+      "search_wall_ms": 8,
+      "states_explored": 92,
+      "fresh_replay": 0
+    },
+    {
+      "case": "dashmap-369",
+      "strategy": "b",
+      "stage": "repair",
+      "final_classification": "unsupported",
+      "evidence_status": "complete",
+      "search_wall_ms": 7,
+      "states_explored": 0,
+      "fresh_replay": 0
+    },
+    {
+      "case": "rmw-zenoh-998",
+      "strategy": "b",
+      "stage": "repair",
+      "final_classification": "repaired",
+      "evidence_status": "complete",
+      "search_wall_ms": 8,
+      "states_explored": 92,
+      "fresh_replay": 0
+    },
+    {
+      "case": "dashmap-369",
+      "strategy": "c",
+      "stage": "repair",
+      "final_classification": "unsupported",
+      "evidence_status": "complete",
+      "search_wall_ms": 7,
+      "states_explored": 0,
+      "fresh_replay": 0
+    },
+    {
+      "case": "dashmap-369",
+      "strategy": "a",
+      "stage": "repair",
+      "final_classification": "unsupported",
+      "evidence_status": "complete",
+      "search_wall_ms": 7,
+      "states_explored": 0,
+      "fresh_replay": 0
+    },
+    {
+      "case": "rmw-zenoh-998",
+      "strategy": "c",
+      "stage": "repair",
+      "final_classification": "repaired",
+      "evidence_status": "complete",
+      "search_wall_ms": 9,
+      "states_explored": 92,
+      "fresh_replay": 0
+    }
+  ],
+  "root_crosscheck": [
+    {
+      "case": "rmw-zenoh-998",
+      "model": "buggy.cir.json",
+      "engine": "petri",
+      "exit": 1,
+      "outcome": "FAIL",
+      "complete": true,
+      "states": 49
+    },
+    {
+      "case": "rmw-zenoh-998",
+      "model": "buggy.cir.json",
+      "engine": "interp",
+      "exit": 1,
+      "outcome": "FAIL",
+      "complete": true,
+      "states": 49
+    },
+    {
+      "case": "rmw-zenoh-998",
+      "model": "fixed.cir.json",
+      "engine": "petri",
+      "exit": 0,
+      "outcome": "PASS",
+      "complete": true,
+      "states": 39
+    },
+    {
+      "case": "rmw-zenoh-998",
+      "model": "fixed.cir.json",
+      "engine": "interp",
+      "exit": 0,
+      "outcome": "PASS",
+      "complete": true,
+      "states": 39
+    },
+    {
+      "case": "dashmap-369",
+      "model": "buggy.cir.json",
+      "engine": "petri",
+      "exit": 5,
+      "outcome": "UNSUPPORTED",
+      "complete": false,
+      "states": 0
+    },
+    {
+      "case": "dashmap-369",
+      "model": "buggy.cir.json",
+      "engine": "interp",
+      "exit": 5,
+      "outcome": "UNSUPPORTED",
+      "complete": false,
+      "states": 0
+    }
+  ],
+  "audit": {
+    "batches": [
+      {
+        "batch_id": "rc-abc",
+        "records": 6,
+        "unique_run_keys": 6,
+        "complete": 6,
+        "not_complete": 0,
+        "artifacts_hashed": 6,
+        "artifact_hash_mismatch": 0,
+        "count_mismatch": 0,
+        "exit_mismatch": 0,
+        "replay_missing": 0,
+        "incomplete_fields": 0,
+        "classification": {
+          "repaired": 3,
+          "unsupported": 3
+        }
+      },
+      {
+        "batch_id": "rc-root",
+        "records": 3,
+        "unique_run_keys": 3,
+        "complete": 3,
+        "not_complete": 0,
+        "artifacts_hashed": 0,
+        "artifact_hash_mismatch": 0,
+        "count_mismatch": 0,
+        "exit_mismatch": 0,
+        "replay_missing": 0,
+        "incomplete_fields": 0,
+        "classification": {
+          "UNSUPPORTED": 1,
+          "PASS": 1,
+          "FAIL": 1
+        }
+      }
+    ],
+    "issues": []
+  },
+  "core_passed": 229,
+  "warnings": 0
+}

@@ -1,0 +1,254 @@
+{
+  "rows": 228,
+  "duplicate_keys": 0,
+  "raw_consistency_issues": [],
+  "totals": {
+    "smoke": {
+      "already_satisfied": 3,
+      "repaired": 7,
+      "no_acceptable_candidate": 11,
+      "budget_exhausted": 3
+    },
+    "pilot": {
+      "repaired": 66,
+      "no_acceptable_candidate": 49,
+      "budget_exhausted": 17,
+      "analysis_unknown": 48,
+      "already_satisfied": 24
+    }
+  },
+  "main_r1_common_success_cost": {
+    "b": {
+      "verification_calls": 42,
+      "states_explored": 150992,
+      "wall_ms": 4482
+    },
+    "c": {
+      "verification_calls": 36,
+      "states_explored": 119396,
+      "wall_ms": 3523
+    }
+  },
+  "p1_same_equals_p1_cross_except_program_name": true,
+  "case_checks": [
+    {
+      "case": "p1_same",
+      "modules": [
+        "main"
+      ],
+      "bounds": 200000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": [
+        {
+          "fn": "u1ba",
+          "sid": "s1",
+          "kind": "mutex_lock",
+          "old": "b",
+          "new": "a"
+        },
+        {
+          "fn": "u1ba",
+          "sid": "s2",
+          "kind": "mutex_lock",
+          "old": "a",
+          "new": "b"
+        },
+        {
+          "fn": "u1ba",
+          "sid": "s3",
+          "kind": "mutex_unlock",
+          "old": "a",
+          "new": "b"
+        },
+        {
+          "fn": "u1ba",
+          "sid": "s4",
+          "kind": "mutex_unlock",
+          "old": "b",
+          "new": "a"
+        }
+      ],
+      "minimal_patch_note": null
+    },
+    {
+      "case": "p1_cross",
+      "modules": [
+        "main"
+      ],
+      "bounds": 200000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": 4,
+      "minimal_patch_note": null
+    },
+    {
+      "case": "p2_same",
+      "modules": [
+        "main"
+      ],
+      "bounds": 200000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": 8,
+      "minimal_patch_note": null
+    },
+    {
+      "case": "p2_cross",
+      "modules": [
+        "main",
+        "other"
+      ],
+      "bounds": 200000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": 8,
+      "minimal_patch_note": null
+    },
+    {
+      "case": "p3_same",
+      "modules": [
+        "main"
+      ],
+      "bounds": 20000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": 12,
+      "minimal_patch_note": null
+    },
+    {
+      "case": "p3_cross",
+      "modules": [
+        "main",
+        "other"
+      ],
+      "bounds": 20000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": 12,
+      "minimal_patch_note": null
+    },
+    {
+      "case": "p1_interf",
+      "modules": [
+        "main"
+      ],
+      "bounds": 200000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": 4,
+      "minimal_patch_note": null
+    },
+    {
+      "case": "p2_interf",
+      "modules": [
+        "main"
+      ],
+      "bounds": 200000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": 8,
+      "minimal_patch_note": null
+    },
+    {
+      "case": "p3_interf",
+      "modules": [
+        "main"
+      ],
+      "bounds": 20000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": 12,
+      "minimal_patch_note": null
+    },
+    {
+      "case": "p2_names_swapped",
+      "modules": [
+        "main"
+      ],
+      "bounds": 200000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": 8,
+      "minimal_patch_note": null
+    },
+    {
+      "case": "p2_modules_swapped",
+      "modules": [
+        "other",
+        "main"
+      ],
+      "bounds": 200000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": 8,
+      "minimal_patch_note": null
+    },
+    {
+      "case": "c_already_correct",
+      "modules": [
+        "main"
+      ],
+      "bounds": 200000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": false,
+      "changed_statements": 0,
+      "minimal_patch_note": "0"
+    },
+    {
+      "case": "c_already_correct_interf",
+      "modules": [
+        "main"
+      ],
+      "bounds": 200000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": false,
+      "changed_statements": 0,
+      "minimal_patch_note": "0"
+    },
+    {
+      "case": "c_scope_restricted",
+      "modules": [
+        "main"
+      ],
+      "bounds": 200000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": 4,
+      "minimal_patch_note": "1 independent disjoint lock-order pairs; each needs at least one adjacent swap, so the construction's minimum patch length is 1 (argument, not a search result)"
+    },
+    {
+      "case": "c_lock_reorder_forbidden",
+      "modules": [
+        "main"
+      ],
+      "bounds": 200000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": 4,
+      "minimal_patch_note": "1 independent disjoint lock-order pairs; each needs at least one adjacent swap, so the construction's minimum patch length is 1 (argument, not a search result)"
+    },
+    {
+      "case": "c_bounds_unknown",
+      "modules": [
+        "main"
+      ],
+      "bounds": 50,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": 8,
+      "minimal_patch_note": "2 independent disjoint lock-order pairs; each needs at least one adjacent swap, so the construction's minimum patch length is 2 (argument, not a search result)"
+    },
+    {
+      "case": "c_preserved_unsatisfiable",
+      "modules": [
+        "main"
+      ],
+      "bounds": 200000,
+      "witness_bounds": 1000000,
+      "witness_unlocked_changed": true,
+      "changed_statements": 4,
+      "minimal_patch_note": "1 independent disjoint lock-order pairs; each needs at least one adjacent swap, so the construction's minimum patch length is 1 (argument, not a search result)"
+    }
+  ]
+}

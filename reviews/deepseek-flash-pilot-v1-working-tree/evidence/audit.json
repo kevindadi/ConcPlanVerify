@@ -1,0 +1,656 @@
+{
+  "hash_checks": 105,
+  "hash_mismatches": [],
+  "budget": {
+    "max_requests": 12,
+    "max_seconds": 1200.0,
+    "deadline_epoch": 1789723499.389941,
+    "requests_used": 3
+  },
+  "requests": [
+    {
+      "status": "ok",
+      "requested_model": "deepseek-flash",
+      "response_model": "deepseek-flash",
+      "finish_reason": "stop",
+      "transport_attempt": 1,
+      "thinking": {
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "usage": {
+        "completion_tokens": 559,
+        "completion_tokens_details": null,
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 1590,
+        "prompt_tokens": 1590,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 0
+        },
+        "total_tokens": 2149
+      }
+    },
+    {
+      "status": "ok",
+      "requested_model": "deepseek-flash",
+      "response_model": "deepseek-flash",
+      "finish_reason": "stop",
+      "transport_attempt": 1,
+      "thinking": {
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "usage": {
+        "completion_tokens": 559,
+        "completion_tokens_details": null,
+        "prompt_cache_hit_tokens": 1024,
+        "prompt_cache_miss_tokens": 591,
+        "prompt_tokens": 1615,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 1024
+        },
+        "total_tokens": 2174
+      }
+    },
+    {
+      "status": "ok",
+      "requested_model": "deepseek-flash",
+      "response_model": "deepseek-flash",
+      "finish_reason": "stop",
+      "transport_attempt": 1,
+      "thinking": {
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "usage": {
+        "completion_tokens": 679,
+        "completion_tokens_details": null,
+        "prompt_cache_hit_tokens": 1024,
+        "prompt_cache_miss_tokens": 640,
+        "prompt_tokens": 1664,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 1024
+        },
+        "total_tokens": 2343
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1_same_order",
+      "check": {
+        "exit": 0,
+        "payload": {
+          "valid": true,
+          "diagnostics": []
+        },
+        "stderr": ""
+      },
+      "explore": {
+        "exit": 0,
+        "payload": {
+          "outcome": "PASS",
+          "complete": true,
+          "states_explored": 39,
+          "transitions_explored": 56,
+          "properties": [
+            {
+              "id": "no-deadlock",
+              "outcome": "PASS",
+              "detail": "no deadlock state reachable"
+            },
+            {
+              "id": "preserved: main::t1 completes",
+              "outcome": "PASS",
+              "detail": "preserved reachability: completed(f1)"
+            },
+            {
+              "id": "preserved: main::t2 completes",
+              "outcome": "PASS",
+              "detail": "preserved reachability: completed(f2)"
+            }
+          ],
+          "diagnostics": [],
+          "boundary_events": [],
+          "unsupported": [],
+          "invalid": [],
+          "model_fingerprint": "914c492bb7ac5751",
+          "contract_fingerprint": "9cd7d71f0745d7bb",
+          "assumptions": {
+            "sequential_consistency": true,
+            "no_spurious_wakeups": true
+          },
+          "bounds": {
+            "max_threads": 8,
+            "max_frames_per_thread": 8,
+            "max_states": 20000,
+            "max_depth": 64,
+            "max_boundary_events": 256
+          },
+          "analysis_started": true
+        },
+        "stderr": ""
+      },
+      "replay": null
+    },
+    {
+      "id": "t2_abba",
+      "check": {
+        "exit": 0,
+        "payload": {
+          "valid": true,
+          "diagnostics": []
+        },
+        "stderr": ""
+      },
+      "explore": {
+        "exit": 1,
+        "payload": {
+          "outcome": "FAIL",
+          "complete": true,
+          "states_explored": 49,
+          "transitions_explored": 72,
+          "properties": [
+            {
+              "id": "no-deadlock",
+              "outcome": "FAIL",
+              "detail": "a reachable state has no enabled step and unfinished threads"
+            },
+            {
+              "id": "preserved: main::t1 completes",
+              "outcome": "PASS",
+              "detail": "preserved reachability: completed(f1)"
+            },
+            {
+              "id": "preserved: main::t2 completes",
+              "outcome": "PASS",
+              "detail": "preserved reachability: completed(f2)"
+            }
+          ],
+          "diagnostics": [
+            {
+              "property": "no-deadlock",
+              "outcome": "FAIL",
+              "message": "reachable global deadlock",
+              "complete": true,
+              "counterexample": [
+                {
+                  "origin": {
+                    "module": 0,
+                    "function": 0,
+                    "sid": 0,
+                    "phase": "statement"
+                  },
+                  "thread": 0,
+                  "frame": 0
+                },
+                {
+                  "origin": {
+                    "module": 0,
+                    "function": 1,
+                    "sid": 0,
+                    "phase": "statement"
+                  },
+                  "thread": 1,
+                  "frame": 1
+                },
+                {
+                  "origin": {
+                    "module": 0,
+                    "function": 2,
+                    "sid": 0,
+                    "phase": "statement"
+                  },
+                  "thread": 2,
+                  "frame": 2
+                },
+                {
+                  "origin": {
+                    "module": 0,
+                    "function": 1,
+                    "sid": 1,
+                    "phase": "statement"
+                  },
+                  "thread": 1,
+                  "frame": 1
+                },
+                {
+                  "origin": {
+                    "module": 0,
+                    "function": 2,
+                    "sid": 1,
+                    "phase": "statement"
+                  },
+                  "thread": 2,
+                  "frame": 2
+                }
+              ],
+              "final_instances": [
+                {
+                  "thread": 0,
+                  "frame": 0,
+                  "function": 0,
+                  "sid": 0,
+                  "status": "running"
+                },
+                {
+                  "thread": 1,
+                  "frame": 1,
+                  "function": 1,
+                  "sid": 1,
+                  "status": "running"
+                },
+                {
+                  "thread": 2,
+                  "frame": 2,
+                  "function": 2,
+                  "sid": 1,
+                  "status": "running"
+                }
+              ],
+              "blocked": [
+                {
+                  "thread": 0,
+                  "kind": "scope",
+                  "resource": null,
+                  "resource_name": null,
+                  "holder": null,
+                  "waiting": 0,
+                  "detail": "waiting for scope members"
+                },
+                {
+                  "thread": 1,
+                  "kind": "lock",
+                  "resource": 1,
+                  "resource_name": "main::b",
+                  "holder": 2,
+                  "waiting": 1,
+                  "detail": "waiting for a lock"
+                },
+                {
+                  "thread": 2,
+                  "kind": "lock",
+                  "resource": 0,
+                  "resource_name": "main::a",
+                  "holder": 1,
+                  "waiting": 1,
+                  "detail": "waiting for a lock"
+                }
+              ],
+              "cir_statements": [
+                {
+                  "module": "main",
+                  "function": "main",
+                  "sid": "s1"
+                },
+                {
+                  "module": "main",
+                  "function": "t1",
+                  "sid": "s2"
+                },
+                {
+                  "module": "main",
+                  "function": "t2",
+                  "sid": "s2"
+                }
+              ],
+              "proven_facts": [
+                "reached a counterexample state after 5 step(s)",
+                "explored 49 reachable states"
+              ],
+              "repair_hints": [
+                "check lock acquisition order, channel capacity, and missing notify/join"
+              ]
+            }
+          ],
+          "boundary_events": [],
+          "unsupported": [],
+          "invalid": [],
+          "model_fingerprint": "6ecf2fd2a9e72d76",
+          "contract_fingerprint": "65d5225f574eb6d9",
+          "assumptions": {
+            "sequential_consistency": true,
+            "no_spurious_wakeups": true
+          },
+          "bounds": {
+            "max_threads": 8,
+            "max_frames_per_thread": 8,
+            "max_states": 20000,
+            "max_depth": 64,
+            "max_boundary_events": 256
+          },
+          "analysis_started": true
+        },
+        "stderr": ""
+      },
+      "replay": {
+        "exit": 0,
+        "payload": {
+          "nodes": 2,
+          "input_outcome": "FAIL",
+          "accepted_ok": true,
+          "accepted_node": 1,
+          "chain_len": 1,
+          "outcome": "repaired"
+        },
+        "stderr": ""
+      }
+    },
+    {
+      "id": "t3_cross_module_abba",
+      "check": {
+        "exit": 0,
+        "payload": {
+          "valid": true,
+          "diagnostics": []
+        },
+        "stderr": ""
+      },
+      "explore": {
+        "exit": 1,
+        "payload": {
+          "outcome": "FAIL",
+          "complete": true,
+          "states_explored": 49,
+          "transitions_explored": 72,
+          "properties": [
+            {
+              "id": "no-deadlock",
+              "outcome": "FAIL",
+              "detail": "a reachable state has no enabled step and unfinished threads"
+            },
+            {
+              "id": "preserved: main::t1 completes",
+              "outcome": "PASS",
+              "detail": "preserved reachability: completed(f1)"
+            },
+            {
+              "id": "preserved: other::t2 completes",
+              "outcome": "PASS",
+              "detail": "preserved reachability: completed(f2)"
+            }
+          ],
+          "diagnostics": [
+            {
+              "property": "no-deadlock",
+              "outcome": "FAIL",
+              "message": "reachable global deadlock",
+              "complete": true,
+              "counterexample": [
+                {
+                  "origin": {
+                    "module": 0,
+                    "function": 0,
+                    "sid": 0,
+                    "phase": "statement"
+                  },
+                  "thread": 0,
+                  "frame": 0
+                },
+                {
+                  "origin": {
+                    "module": 0,
+                    "function": 1,
+                    "sid": 0,
+                    "phase": "statement"
+                  },
+                  "thread": 1,
+                  "frame": 1
+                },
+                {
+                  "origin": {
+                    "module": 1,
+                    "function": 2,
+                    "sid": 0,
+                    "phase": "statement"
+                  },
+                  "thread": 2,
+                  "frame": 2
+                },
+                {
+                  "origin": {
+                    "module": 0,
+                    "function": 1,
+                    "sid": 1,
+                    "phase": "statement"
+                  },
+                  "thread": 1,
+                  "frame": 1
+                },
+                {
+                  "origin": {
+                    "module": 1,
+                    "function": 2,
+                    "sid": 1,
+                    "phase": "statement"
+                  },
+                  "thread": 2,
+                  "frame": 2
+                }
+              ],
+              "final_instances": [
+                {
+                  "thread": 0,
+                  "frame": 0,
+                  "function": 0,
+                  "sid": 0,
+                  "status": "running"
+                },
+                {
+                  "thread": 1,
+                  "frame": 1,
+                  "function": 1,
+                  "sid": 1,
+                  "status": "running"
+                },
+                {
+                  "thread": 2,
+                  "frame": 2,
+                  "function": 2,
+                  "sid": 1,
+                  "status": "running"
+                }
+              ],
+              "blocked": [
+                {
+                  "thread": 0,
+                  "kind": "scope",
+                  "resource": null,
+                  "resource_name": null,
+                  "holder": null,
+                  "waiting": 0,
+                  "detail": "waiting for scope members"
+                },
+                {
+                  "thread": 1,
+                  "kind": "lock",
+                  "resource": 1,
+                  "resource_name": "other::b",
+                  "holder": 2,
+                  "waiting": 1,
+                  "detail": "waiting for a lock"
+                },
+                {
+                  "thread": 2,
+                  "kind": "lock",
+                  "resource": 0,
+                  "resource_name": "main::a",
+                  "holder": 1,
+                  "waiting": 1,
+                  "detail": "waiting for a lock"
+                }
+              ],
+              "cir_statements": [
+                {
+                  "module": "main",
+                  "function": "main",
+                  "sid": "s1"
+                },
+                {
+                  "module": "main",
+                  "function": "t1",
+                  "sid": "s2"
+                },
+                {
+                  "module": "other",
+                  "function": "t2",
+                  "sid": "s2"
+                }
+              ],
+              "proven_facts": [
+                "reached a counterexample state after 5 step(s)",
+                "explored 49 reachable states"
+              ],
+              "repair_hints": [
+                "check lock acquisition order, channel capacity, and missing notify/join"
+              ]
+            }
+          ],
+          "boundary_events": [],
+          "unsupported": [],
+          "invalid": [],
+          "model_fingerprint": "f31f8e0c980bf45d",
+          "contract_fingerprint": "86e2ee3072954c34",
+          "assumptions": {
+            "sequential_consistency": true,
+            "no_spurious_wakeups": true
+          },
+          "bounds": {
+            "max_threads": 8,
+            "max_frames_per_thread": 8,
+            "max_states": 20000,
+            "max_depth": 64,
+            "max_boundary_events": 256
+          },
+          "analysis_started": true
+        },
+        "stderr": ""
+      },
+      "replay": {
+        "exit": 0,
+        "payload": {
+          "nodes": 2,
+          "input_outcome": "FAIL",
+          "accepted_ok": true,
+          "accepted_node": 1,
+          "chain_len": 1,
+          "outcome": "repaired"
+        },
+        "stderr": ""
+      }
+    }
+  ],
+  "structural_false_positive": {
+    "mutation": "scope runs only t1; t2 remains unreachable",
+    "structural": {
+      "ok": true,
+      "reason": null,
+      "inversions": [
+        {
+          "pair": [
+            "main::a",
+            "main::b"
+          ],
+          "first": "main::t1",
+          "second": "main::t2"
+        },
+        {
+          "pair": [
+            "main::b",
+            "main::a"
+          ],
+          "first": "main::t2",
+          "second": "main::t1"
+        }
+      ],
+      "locks_balanced": true
+    },
+    "check": {
+      "exit": 0,
+      "payload": {
+        "valid": true,
+        "diagnostics": []
+      },
+      "stderr": ""
+    },
+    "explore": {
+      "exit": 1,
+      "payload": {
+        "outcome": "FAIL",
+        "complete": true,
+        "states_explored": 8,
+        "transitions_explored": 7,
+        "properties": [
+          {
+            "id": "no-deadlock",
+            "outcome": "PASS",
+            "detail": "no deadlock state reachable"
+          },
+          {
+            "id": "preserved: main::t1 completes",
+            "outcome": "PASS",
+            "detail": "preserved reachability: completed(f1)"
+          },
+          {
+            "id": "preserved: main::t2 completes",
+            "outcome": "FAIL",
+            "detail": "preserved reachability: completed(f2)"
+          }
+        ],
+        "diagnostics": [
+          {
+            "property": "preserved: main::t2 completes",
+            "outcome": "FAIL",
+            "message": "required behaviour 'main::t2 completes' is no longer reachable",
+            "complete": true,
+            "counterexample": [],
+            "final_instances": [],
+            "blocked": [],
+            "cir_statements": [],
+            "proven_facts": [
+              "explored 8 reachable states"
+            ],
+            "repair_hints": [
+              "restore the statement/thread that established this behaviour"
+            ]
+          }
+        ],
+        "boundary_events": [],
+        "unsupported": [],
+        "invalid": [],
+        "model_fingerprint": "2eeca114f7b37759",
+        "contract_fingerprint": "65d5225f574eb6d9",
+        "assumptions": {
+          "sequential_consistency": true,
+          "no_spurious_wakeups": true
+        },
+        "bounds": {
+          "max_threads": 8,
+          "max_frames_per_thread": 8,
+          "max_states": 20000,
+          "max_depth": 64,
+          "max_boundary_events": 256
+        },
+        "analysis_started": true
+      },
+      "stderr": ""
+    }
+  },
+  "replay_inconsistent_payload": {
+    "payload": {
+      "nodes": 999,
+      "input_outcome": "FAIL",
+      "accepted_ok": false,
+      "accepted_node": 1,
+      "chain_len": 1,
+      "outcome": "no_acceptable_candidate"
+    },
+    "validation_error": null
+  }
+}

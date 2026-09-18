@@ -1,0 +1,203 @@
+{
+  "batch_dir": "/Users/kevin/paper-review/papers/ConcPlanVerify/experiments/deepseek-flash-repair-v1/runs/run-20260918T093903-97467-f2db10",
+  "provider": "deepseek",
+  "requested_model": "deepseek-flash",
+  "base_url": "https://api.deepseek.com",
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "max_tokens": 4096,
+  "timeout_s": 90.0,
+  "max_rounds": 3,
+  "max_requests": 6,
+  "max_seconds": 1200.0,
+  "deadline_epoch": 1789725543.841611,
+  "tasks_path": "/Users/kevin/paper-review/papers/ConcPlanVerify/experiments/deepseek-flash-repair-v1/REPAIR_TASKS.json",
+  "tasks": [
+    {
+      "id": "r1_t2_abba",
+      "identity_ok": true,
+      "root": {
+        "status": "fail",
+        "outcome": "FAIL",
+        "complete": true
+      },
+      "calls": [
+        {
+          "attempt": 1,
+          "request_id": "c087e71c-f72b-4c31-8a2c-4541d400533d",
+          "response_model": "deepseek-flash",
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 91,
+            "prompt_tokens": 2394,
+            "total_tokens": 2485,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cached_tokens": 0
+            },
+            "prompt_cache_hit_tokens": 0,
+            "prompt_cache_miss_tokens": 2394
+          },
+          "transport_attempt": 1,
+          "prompt_sha256": "54f65972e52ba35cc438fbe0be3e4ca0a2baa8d02aed781a381bbdd80626e639",
+          "wall_ms": 1695,
+          "had_feedback": false
+        }
+      ],
+      "requests_used_total": 1,
+      "status": "accepted",
+      "candidate_source": "llm",
+      "validator": "tool",
+      "repair_mode": "external_single_patch",
+      "context_fingerprint": "00f511c455adae6e",
+      "rounds": [
+        {
+          "round": 1,
+          "candidate_source": "llm",
+          "raw_text": "{\"schema_version\": \"concir-external-patch-candidate-v1\", \"context_fingerprint\": \"00f511c455adae6e\", \"patch\": {\"module\": \"main\", \"function\": \"t2\", \"original_hash\": \"b169040cf55b84ec\", \"changes\": [{\"kind\": \"swap_statements\", \"a\": \"s1\", \"b\": \"s2\"}]}}",
+          "parsed_candidate": {
+            "schema_version": "concir-external-patch-candidate-v1",
+            "context_fingerprint": "00f511c455adae6e",
+            "patch": {
+              "module": "main",
+              "function": "t2",
+              "original_hash": "b169040cf55b84ec",
+              "changes": [
+                {
+                  "kind": "swap_statements",
+                  "a": "s1",
+                  "b": "s2"
+                }
+              ]
+            }
+          },
+          "parse_error": null,
+          "provider_error": null,
+          "duplicate": false,
+          "evaluate_status": "accepted",
+          "reject_reason": null,
+          "verification_outcome": "PASS",
+          "accepted": true,
+          "artifact_path": "/Users/kevin/paper-review/papers/ConcPlanVerify/experiments/deepseek-flash-repair-v1/runs/run-20260918T093903-97467-f2db10/r1_t2_abba/calls/18d660cf56c2b6e8-97467-0003-611ce4-evaluate-patch/external_artifact.json",
+          "replay_status": "replayed"
+        }
+      ],
+      "accepted_artifact_path": "/Users/kevin/paper-review/papers/ConcPlanVerify/experiments/deepseek-flash-repair-v1/runs/run-20260918T093903-97467-f2db10/r1_t2_abba/calls/18d660cf56c2b6e8-97467-0003-611ce4-evaluate-patch/external_artifact.json",
+      "replay": {
+        "kind": "semantic",
+        "status": "replayed",
+        "exit_code": 0,
+        "payload": {
+          "nodes": 1,
+          "input_outcome": "FAIL",
+          "accepted_ok": true,
+          "accepted_node": 0,
+          "chain_len": 1,
+          "outcome": "repaired"
+        },
+        "error": null,
+        "wall_ms": 13
+      },
+      "error": null,
+      "run_dir": "/Users/kevin/paper-review/papers/ConcPlanVerify/experiments/deepseek-flash-repair-v1/runs/run-20260918T093903-97467-f2db10/r1_t2_abba/run-20260918T093903-97467-ddad67",
+      "stop_reason": null
+    },
+    {
+      "id": "r2_t3_cross_module_abba",
+      "identity_ok": true,
+      "root": {
+        "status": "fail",
+        "outcome": "FAIL",
+        "complete": true
+      },
+      "calls": [
+        {
+          "attempt": 1,
+          "request_id": "27663315-eef3-46f2-8413-5f257f7af14c",
+          "response_model": "deepseek-flash",
+          "finish_reason": "stop",
+          "usage": {
+            "completion_tokens": 96,
+            "prompt_tokens": 2452,
+            "total_tokens": 2548,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cached_tokens": 384
+            },
+            "prompt_cache_hit_tokens": 384,
+            "prompt_cache_miss_tokens": 2068
+          },
+          "transport_attempt": 1,
+          "prompt_sha256": "cfd7dff90825a806224a8e526dcb6a177c24e88db850c88e8c720a8f47f39e1f",
+          "wall_ms": 1168,
+          "had_feedback": false
+        }
+      ],
+      "requests_used_total": 2,
+      "status": "accepted",
+      "candidate_source": "llm",
+      "validator": "tool",
+      "repair_mode": "external_single_patch",
+      "context_fingerprint": "140d9c3c96b6f35b",
+      "rounds": [
+        {
+          "round": 1,
+          "candidate_source": "llm",
+          "raw_text": "{\"schema_version\": \"concir-external-patch-candidate-v1\", \"context_fingerprint\": \"140d9c3c96b6f35b\", \"patch\": {\"module\": \"main\", \"function\": \"t1\", \"original_hash\": \"dc73dcf7f3d59160\", \"changes\": [{\"kind\": \"swap_statements\", \"a\": \"s1\", \"b\": \"s2\"}]}}",
+          "parsed_candidate": {
+            "schema_version": "concir-external-patch-candidate-v1",
+            "context_fingerprint": "140d9c3c96b6f35b",
+            "patch": {
+              "module": "main",
+              "function": "t1",
+              "original_hash": "dc73dcf7f3d59160",
+              "changes": [
+                {
+                  "kind": "swap_statements",
+                  "a": "s1",
+                  "b": "s2"
+                }
+              ]
+            }
+          },
+          "parse_error": null,
+          "provider_error": null,
+          "duplicate": false,
+          "evaluate_status": "accepted",
+          "reject_reason": null,
+          "verification_outcome": "PASS",
+          "accepted": true,
+          "artifact_path": "/Users/kevin/paper-review/papers/ConcPlanVerify/experiments/deepseek-flash-repair-v1/runs/run-20260918T093903-97467-f2db10/r2_t3_cross_module_abba/calls/18d660cf9f9333c0-97467-0003-9fc103-evaluate-patch/external_artifact.json",
+          "replay_status": "replayed"
+        }
+      ],
+      "accepted_artifact_path": "/Users/kevin/paper-review/papers/ConcPlanVerify/experiments/deepseek-flash-repair-v1/runs/run-20260918T093903-97467-f2db10/r2_t3_cross_module_abba/calls/18d660cf9f9333c0-97467-0003-9fc103-evaluate-patch/external_artifact.json",
+      "replay": {
+        "kind": "semantic",
+        "status": "replayed",
+        "exit_code": 0,
+        "payload": {
+          "nodes": 1,
+          "input_outcome": "FAIL",
+          "accepted_ok": true,
+          "accepted_node": 0,
+          "chain_len": 1,
+          "outcome": "repaired"
+        },
+        "error": null,
+        "wall_ms": 14
+      },
+      "error": null,
+      "run_dir": "/Users/kevin/paper-review/papers/ConcPlanVerify/experiments/deepseek-flash-repair-v1/runs/run-20260918T093903-97467-f2db10/r2_t3_cross_module_abba/run-20260918T093905-97467-e33d49",
+      "stop_reason": null
+    }
+  ],
+  "stop_reason": null,
+  "requests_used": 2,
+  "requests_remaining": 4
+}

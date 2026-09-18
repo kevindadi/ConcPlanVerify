@@ -1,0 +1,30 @@
+Traceback (most recent call last):
+  File "/Users/kevin/local-repos/ConcIR/scripts/run_pilot.py", line 1419, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/Users/kevin/local-repos/ConcIR/scripts/run_pilot.py", line 1415, in main
+    return args.func(args)
+           ~~~~~~~~~^^^^^^
+  File "/Users/kevin/local-repos/ConcIR/scripts/run_pilot.py", line 1364, in do_behavior
+    do_run(argparse.Namespace(out=str(out), manifest=str(tiny_path), bin=str(binary),
+    ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                              tool=str(tool), suite=["pilot"], search_timeout=2,
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                              replay_timeout=2, total_budget=0.05, resume=False,
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                              batch_tag="behavior-deadline", allow_overrun=False))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/kevin/local-repos/ConcIR/scripts/run_pilot.py", line 884, in do_run
+    env = environment(ctx)
+  File "/Users/kevin/local-repos/ConcIR/scripts/run_pilot.py", line 854, in environment
+    "code": ctx.code(),
+            ~~~~~~~~^^
+  File "/Users/kevin/local-repos/ConcIR/scripts/run_pilot.py", line 252, in code
+    self._code = code_identity(files)
+                 ~~~~~~~~~~~~~^^^^^^^
+  File "/Users/kevin/local-repos/ConcIR/scripts/run_pilot.py", line 148, in code_identity
+    entries[str(f.relative_to(REPO))] = {"sha256": None, "bytes": None}
+                ~~~~~~~~~~~~~^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.0/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py", line 495, in relative_to
+    raise ValueError(f"{str(self)!r} is not in the subpath of {str(other)!r}")
+ValueError: '/private/tmp/concir-pilot-v2-audit/behavior/generate_cases.py' is not in the subpath of '/Users/kevin/local-repos/ConcIR'
