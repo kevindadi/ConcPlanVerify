@@ -85,9 +85,35 @@ Unit tests exercise the protocol mapping with a controllable stub; integration
 tests (`test_concir_integration.py`, `test_offline_workflow.py`) call the real
 `concir-backend` binary and skip with a clear message when it is absent.
 
-## Roadmap
+## Single-patch repair loop (LLM-proposed patches)
 
-Real LLM providers (DeepSeek/Qwen) are implemented in `llm.py` and exposed
-through `LlmCandidateProvider`, but are not wired to a network command in this
-round. The external-provider *patch* protocol (LLM-proposed edits entering the
-composite search) is a known gap; this round closes the strategy-mode loop only.
+`patch_repair.py` closes the loop "LLM proposes one constrained patch → Rust
+verifies the full frozen contract → real rejection feedback → accept → replay":
+
+- `repair-context` exports the frozen model/contract fingerprints, allowed scope,
+  root verification/diagnostics, and each function's lock `sid`s and Rust
+  `original_hash`. It never contains a solved patch.
+- `evaluate-patch` applies and fully verifies exactly **one** submitted adjacent
+  `mutex_lock` swap (different resources, non-control target), rejecting deletion,
+  whole-program replacement, contract changes, extra edits, out-of-scope targets
+  and stale hashes. Acceptance requires a complete `PASS` of all properties and
+  preserved behaviour.
+- The result is a versioned `concir-external-patch-artifact-v1`; `replay`
+  re-applies and re-verifies it offline and rejects tampering.
+
+CLI:
+
+```bash
+# offline, scripted patch provider (no key, no network)
+PYTHONPATH=python python3 -m cir_workflow patch-repair \
+  --model model.json --contract contract.json --script patch_responses.json
+
+# live, DeepSeek Flash only (real HTTP, shared budget)
+PYTHONPATH=python python3 -m cir_workflow live-repair --tasks repair_tasks.json
+```
+
+Real providers (DeepSeek/Qwen) are implemented in `llm.py`; the live commands are
+pinned to `deepseek` / `deepseek-flash` with explicit `thinking` disabled, a
+persisted request budget, and no Pro/alias/fallback. The offline and generation
+commands remain keyless and network-free.
+

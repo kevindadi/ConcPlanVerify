@@ -1,15 +1,18 @@
 """Command-line entry point for the ConcIR Python workflow.
 
-Two groups of commands:
+Three groups of commands:
 
 - thin wrappers over the current ``concir-backend`` CLI: ``check``, ``support``,
-  ``explore``, ``repair``, ``replay``;
-- the offline orchestration demo: ``offline`` (scripted provider only).
+  ``explore``, ``repair``, ``replay``, plus ``repair-context`` /
+  ``evaluate-patch`` for single external patches;
+- offline orchestration (no key, no network): ``offline`` and ``patch-repair``
+  with a scripted provider;
+- live DeepSeek Flash runs (real HTTP, pinned to ``deepseek-flash``, explicit
+  thinking disabled, shared budget): ``live`` (generation) and ``live-repair``
+  (single external patch).
 
 The retired ``cir2cvn --validate/--analyze/--goals`` protocol and the
-``generate``/``repair``/``plan``/``merge`` LLM commands are gone. Real LLM
-providers remain available as a library interface but are not wired to a
-network command in this round.
+``generate``/``repair``/``plan``/``merge`` LLM commands are gone.
 """
 
 from __future__ import annotations
