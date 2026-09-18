@@ -40,6 +40,209 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+# ─────────────────── R-1: de-leaked repair inputs ───────────────────
+
+FAMILY_LETTER = {"lock-order": "a", "condvar": "b", "channel": "c", "semaphore": "d",
+                 "atomic-data": "e", "structure": "f", "boundary": "g",
+                 "real-cases": "h"}
+FORBIDDEN_WORDS = ("deadlock", "lost", "leak", "bug", "fix", "wrong", "order")
+
+# Human-written, neutral requirements: expected behaviour and termination only.
+SANITIZED_REQUIREMENTS = {
+    "lock-order/abba_2lock":
+        "Two worker threads each need exclusive access to two shared mutexes, A and "
+        "B. Each worker acquires both mutexes, performs its work, releases both, and "
+        "returns. The main thread starts both workers and waits for both to finish. "
+        "Every interleaving must terminate and both workers must complete.",
+    "lock-order/cycle_3lock":
+        "Three workers need three shared mutexes. Worker 1 uses A and B, worker 2 "
+        "uses B and C, worker 3 uses C and A. Each worker holds its two mutexes at the "
+        "same time, releases them, and returns. Main starts all three and waits. Every "
+        "interleaving must terminate and all three workers must complete.",
+    "lock-order/cross_module_cycle":
+        "Two modules share resources: module main owns resource a and module other "
+        "owns resource b. Two tasks each need both resources and must declare the "
+        "cross-module dependency. Every interleaving must terminate and both tasks "
+        "must complete.",
+    "lock-order/partial_deadlock_bystander":
+        "Two workers A and B use two mutexes with an intermediate semaphore "
+        "handshake, and an independent third task keeps making progress. Main starts "
+        "all three. Every reachable state must still allow A and B to complete, and "
+        "both workers must complete.",
+    "lock-order/two_independent_cycles":
+        "Several workers share mutexes and two separate acquisition patterns are "
+        "present. Every interleaving must terminate and all workers must complete.",
+    "condvar/lost_wakeup_notify_before_wait":
+        "A waiter and a notifier share a mutex, a condition variable, and a boolean "
+        "flag guarded by the mutex. The notifier makes the flag true and signals; the "
+        "waiter waits until the flag is true and then completes. The waiter must "
+        "complete even if the notifier signals before the waiter begins waiting.",
+    "condvar/bare_wait_no_predicate":
+        "A waiter blocks on a condition variable until a predicate guarded by a mutex "
+        "becomes true; a notifier makes it true and signals. The waiter must complete "
+        "even if the signal arrives before it waits.",
+    "condvar/notify_one_multi_waiter_wrong_pick":
+        "Several waiters share a mutex and a condition variable, and a notifier wakes "
+        "one waiter. Every interleaving must terminate and every waiter must complete.",
+    "channel/rendezvous_both_send":
+        "Two tasks communicate over a channel with no buffering. One task sends, the "
+        "other receives. Both must pair and terminate.",
+    "channel/send_while_holding_mutex":
+        "A sender and a receiver communicate over a channel, and both occasionally "
+        "need a shared mutex. Every interleaving must terminate; the receiver must not "
+        "block on the channel while holding the lock the sender needs.",
+    "channel/bounded_backpressure_lock_held":
+        "A sender and a receiver use a channel of capacity one, plus a mutex both "
+        "occasionally need. The sender sends two values. Every interleaving must "
+        "terminate; neither side may block on the channel while holding the lock the "
+        "other needs.",
+    "semaphore/permit_leak":
+        "Two workers share a counting semaphore with one permit. Each acquires the "
+        "permit, does its work, releases the permit, and returns. Every interleaving "
+        "must terminate and both workers must complete.",
+    "semaphore/acquire_twice_no_release":
+        "Two workers share a semaphore with one permit. A worker may acquire the "
+        "permit more than once but must release it as many times before returning. "
+        "Every interleaving must terminate and both workers must complete.",
+    "atomic-data/counter_overflow_safety":
+        "Two workers each add one to a bounded integer counter (declared range 0..2) "
+        "under a mutex, while an invariant requires the counter never to exceed 1. "
+        "Every reachable state must satisfy the invariant and every interleaving must "
+        "terminate.",
+    "atomic-data/atomic_lost_update":
+        "Two workers each add one to a shared atomic counter starting from zero, "
+        "using a compare-and-swap retry so no update is dropped. From every reachable "
+        "state it must still be possible for the counter to reach two, and every "
+        "interleaving must terminate.",
+    "structure/nested_scope_lock_order":
+        "A worker starts a nested group of two tasks; the two inner tasks both need "
+        "mutexes A and B and must not form a circular wait. Every interleaving must "
+        "terminate and the outer worker must complete.",
+    "structure/scope_worker_abba":
+        "A group of two workers both acquire mutexes A and B. Every interleaving must "
+        "terminate and both workers must complete.",
+    "boundary/rwlock_unsupported":
+        "A program using a reader-writer lock and shared state. The model must either "
+        "verify it or report the construct as unsupported.",
+    "boundary/async_select_unsupported":
+        "A program using async tasks and channel selection. The model must either "
+        "verify it or report the construct as unsupported.",
+    "real-cases/rmw-zenoh-998":
+        "A reduced real-world program with shared state and synchronization. Every "
+        "interleaving must terminate and the modelled goals must be reachable.",
+    "real-cases/dashmap-369":
+        "A reduced real-world program using a reader-writer lock. The model must "
+        "either verify it or report the construct as unsupported.",
+}
+
+
+def strip_comments(source: str) -> str:
+    out: list[str] = []
+    i, n = 0, len(source)
+    in_line = in_block = in_str = esc = False
+    while i < n:
+        c = source[i]
+        if in_line:
+            if c == "\n":
+                in_line = False
+                out.append(c)
+            i += 1
+            continue
+        if in_block:
+            if source[i:i + 2] == "*/":
+                in_block = False
+                i += 2
+            else:
+                i += 1
+            continue
+        if in_str:
+            out.append(c)
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+            i += 1
+            continue
+        if source[i:i + 2] == "//":
+            in_line = True
+            i += 2
+            continue
+        if source[i:i + 2] == "/*":
+            in_block = True
+            i += 2
+            continue
+        if c == '"':
+            in_str = True
+        out.append(c)
+        i += 1
+    # compress blank lines
+    lines = [ln.rstrip() for ln in "".join(out).splitlines()]
+    compressed: list[str] = []
+    for ln in lines:
+        if ln == "" and compressed and compressed[-1] == "":
+            continue
+        compressed.append(ln)
+    return "\n".join(compressed).strip() + "\n"
+
+
+def strip_fields(obj):
+    if isinstance(obj, dict):
+        return {k: strip_fields(v) for k, v in obj.items()
+                if k not in ("description", "note")}
+    if isinstance(obj, list):
+        return [strip_fields(x) for x in obj]
+    return obj
+
+
+def sanitize_case(family: str, case: str, task_dir: Path, seq: int,
+                  contract_rel: str, ground_truth: dict) -> dict:
+    """Generate ``repair_input/`` with comments/names/qualitative wording removed."""
+
+    rin = task_dir / "repair_input"
+    rin.mkdir(exist_ok=True)
+    program_name = f"case_{FAMILY_LETTER.get(family, 'z')}{seq}"
+
+    buggy_rs = task_dir / "rust/buggy.rs"
+    input_rust = rin / "input.rs"
+    if buggy_rs.is_file():
+        cleaned = strip_comments(buggy_rs.read_text(encoding="utf-8"))
+        input_rust.write_text(cleaned, encoding="utf-8")
+        subprocess.run(["rustfmt", "--edition", "2021", str(input_rust)],
+                       capture_output=True, text=True)
+
+    buggy_cir = task_dir / "buggy.cir.json"
+    input_cir = rin / "input.cir.json"
+    if buggy_cir.is_file():
+        program = strip_fields(json.loads(buggy_cir.read_text(encoding="utf-8")))
+        program["program"] = program_name
+        write_json(input_cir, program)
+
+    requirements = SANITIZED_REQUIREMENTS.get(f"{family}/{case}")
+    if requirements is None:
+        raise KeyError(f"no sanitized requirements for {family}/{case}")
+    (rin / "requirements.txt").write_text(requirements + "\n", encoding="utf-8")
+
+    write_json(task_dir / "repair_task.json", {
+        "requirements_file": f"{family}/{case}/repair_input/requirements.txt",
+        "input_cir": f"{family}/{case}/repair_input/input.cir.json",
+        "input_rust": (f"{family}/{case}/repair_input/input.rs"
+                       if input_rust.is_file() else None),
+        "contract": contract_rel,
+        "ground_truth": ground_truth,
+    })
+
+    files = {}
+    for name in ("requirements.txt", "input.cir.json", "input.rs"):
+        path = rin / name
+        if path.is_file():
+            files[f"families/{family}/{case}/repair_input/{name}"] = sha256(path)
+    files[f"families/{family}/{case}/repair_task.json"] = sha256(task_dir / "repair_task.json")
+    return {"requirements_sha256": files[f"families/{family}/{case}/repair_input/requirements.txt"],
+            "program": program_name, "files": files}
+
+
 def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -734,6 +937,37 @@ def case_scope_worker_abba() -> dict:
                              "provenance": "authored; scope structure"}}
 
 
+def case_worker_with_payload() -> dict:
+    """A correct case whose worker calls a body-less helper, so codegen has a HOLE."""
+
+    def worker(name: str) -> dict:
+        return {"name": name, "kind": "normal", "form": "closure", "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s2", "kind": "call", "func": "main::compute"},
+            {"sid": "s3", "kind": "write_shared", "resource": "main::acc", "expr": "acc + 1"},
+            {"sid": "s4", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s5", "kind": "return"}]}
+
+    compute = {"name": "compute", "kind": "normal", "body": []}
+    resources = [res_mutex("m"), res_var("acc", "Int", 0)]
+    protection = [{"var": "acc", "lock": "m"}]
+    correct = program([module(resources, [main_scope(["w1", "w2"]),
+                                          worker("w1"), worker("w2"), compute],
+                              protection=protection)], name="worker_payload")
+    c = contract("worker-payload", properties=[deadlock()],
+                 preserved=preserved_all(["w1", "w2"]))
+    return {"correct": correct, "contract": c,
+            "spec": "Design a group of two workers. Each worker acquires a mutex, "
+                    "calls a sequential helper that performs local computation, "
+                    "updates a shared counter under the mutex, releases the mutex and "
+                    "returns. All interleavings must terminate and both workers must "
+                    "complete.",
+            "ground_truth": {"defect_family": "structure", "resources": ["main::acc"],
+                             "statements": [],
+                             "expected_outcome_correct": "PASS",
+                             "provenance": "authored; nobody helper gives codegen a HOLE"}}
+
+
 def case_unbounded_unknown() -> dict:
     w = {"name": "w", "kind": "normal", "form": "closure", "body": [
         {"sid": "s1", "kind": "write_shared", "resource": "main::x", "expr": "x + 1"},
@@ -924,6 +1158,7 @@ def main() -> int:
         ("structure", "scope_bound_k_workers", case_scope_bound),
         ("structure", "nested_scope_lock_order", case_nested_scope_lock_order),
         ("structure", "scope_worker_abba", case_scope_worker_abba),
+        ("structure", "worker_with_payload", case_worker_with_payload),
         ("boundary", "unbounded_int_unknown", case_unbounded_unknown),
     ]
     for family, case, builder in authored:
@@ -936,8 +1171,25 @@ def main() -> int:
 
     tasks.extend(add_reuse())
 
+    # `worker_with_payload` exists to exercise codegen HOLEs; the petri engine
+    # disagrees with the interpreter on its nobody `call`, so it is not an
+    # explore benchmark and is validated with `check` only.
+    conformance_only = {("structure", "worker_with_payload")}
+
     # validate every case
     for entry in tasks:
+        if (entry["family"], entry["case"]) in conformance_only:
+            task_dir = ROOT / "benchmarks/families" / entry["family"] / entry["case"]
+            check = run_cmd("check", task_dir / "correct.cir.json")
+            entry["status"] = "conformance_only"
+            entry["note"] = "petri vs interp disagree on the nobody call; codegen only"
+            entry["results"] = {"correct": {"check_valid": check.get("valid")}}
+            entry["id"] = f"{entry['family']}/{entry['case']}"
+            entry["directory"] = f"families/{entry['family']}/{entry['case']}"
+            entry["contract"] = f"{entry['directory']}/contract.json"
+            entry["correct_cir"] = f"{entry['directory']}/correct.cir.json"
+            entry["spec"] = f"{entry['directory']}/spec.md"
+            continue
         task_dir = ROOT / "benchmarks/families" / entry["family"] / entry["case"]
         contract_path = task_dir / "contract.json"
         variants = []
@@ -995,6 +1247,27 @@ def main() -> int:
 
     tasks.extend(_legacy_entries())
     tasks.extend(_real_case_entries())
+
+    # R-1: generate de-leaked repair inputs for every ready buggy case.
+    counters: dict[str, int] = {}
+    for entry in tasks:
+        if entry.get("status") != "ready" or not entry.get("buggy_cir"):
+            continue
+        fam = entry.get("family") or entry["directory"].split("/")[0]
+        case = entry.get("case") or entry["directory"].split("/")[-1]
+        counters[fam] = counters.get(fam, 0) + 1
+        task_dir = ROOT / "benchmarks" / entry["directory"]
+        try:
+            info = sanitize_case(
+                fam, case, task_dir, counters[fam],
+                entry.get("contract") or f"{entry['directory']}/contract.json",
+                entry.get("ground_truth") or {})
+        except KeyError as exc:
+            failures.append(str(exc))
+            continue
+        entry.setdefault("files", {}).update(info["files"])
+        entry["repair_input"] = {k: v for k, v in info.items() if k != "files"}
+        entry["requirements_sha256"] = info["requirements_sha256"]
 
     manifest = {"version": 2, "description":
                 "Capability-family benchmark for the current ConcIR. status=ready "
