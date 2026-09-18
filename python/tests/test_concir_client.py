@@ -74,6 +74,40 @@ class ConcirClientProtocolTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             client.check(self.program)
 
+    def _write_artifact(self, **over):
+        artifact = {
+            "schema_version": "concir-repair-artifact-v1",
+            "patch_chain": [{"module": "main", "function": "t1", "changes": []}],
+            "nodes": [{"report": {"outcome": "FAIL"}}],
+            "accepted_node": None,
+        }
+        artifact.update(over)
+        path = self.root / "artifact.json"
+        path.write_text(json.dumps(artifact))
+        return path
+
+    def test_replay_requires_structured_result(self):
+        artifact = self._write_artifact()
+        good = '{"nodes": 1, "input_outcome": "FAIL", "accepted_ok": null, ' \
+               '"accepted_node": null, "chain_len": 1, "outcome": "no_acceptable_candidate"}'
+        r = self.client(STUB_STDOUT=good, STUB_EXIT="0").replay(artifact)
+        self.assertEqual((r.kind, r.status), ("semantic", "replayed"))
+
+    def test_replay_empty_garbage_and_bad_structure_are_protocol_errors(self):
+        artifact = self._write_artifact()
+        r = self.client(STUB_STDOUT="", STUB_EXIT="0").replay(artifact)
+        self.assertEqual(r.kind, "protocol_error")
+        r = self.client(STUB_STDOUT="garbage", STUB_EXIT="0").replay(artifact)
+        self.assertEqual(r.kind, "protocol_error")
+        # valid JSON but missing required fields
+        r = self.client(STUB_STDOUT='{"nodes": 1}', STUB_EXIT="0").replay(artifact)
+        self.assertEqual((r.kind, r.status), ("protocol_error", "invalid_replay_payload"))
+        # valid fields but inconsistent with the artifact
+        bad = '{"nodes": 1, "input_outcome": "FAIL", "accepted_ok": null, ' \
+              '"accepted_node": null, "chain_len": 9, "outcome": "no_acceptable_candidate"}'
+        r = self.client(STUB_STDOUT=bad, STUB_EXIT="0").replay(artifact)
+        self.assertEqual((r.kind, r.status), ("protocol_error", "invalid_replay_payload"))
+
     def test_raw_output_is_preserved(self):
         r = self.client(STUB_STDOUT='{"valid": true}', STUB_STDERR="note",
                         STUB_EXIT="0").check(self.program)

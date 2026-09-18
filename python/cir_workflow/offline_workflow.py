@@ -15,6 +15,7 @@ path is the backend's strategy search under the frozen contract and its
 from __future__ import annotations
 
 import json
+import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,6 +31,22 @@ from .prompts import (
 from .providers import CandidateProvider, CandidateRequest, CandidateResponse
 
 STRATEGY_ENUM = {"a": "single", "b": "composite", "c": "diagnostic"}
+SUCCESS_STATUSES = {"repaired", "already_satisfied"}
+
+
+def _exclusive_run_dir(base: Path) -> Path:
+    """Create a unique per-run directory so repeated commands cannot overwrite
+    an earlier run's generation/contract/report."""
+    base.mkdir(parents=True, exist_ok=True)
+    for _ in range(1000):
+        token = f"{time.strftime('%Y%m%dT%H%M%S', time.gmtime())}-{os.getpid()}-{os.urandom(3).hex()}"
+        path = base / f"run-{token}"
+        try:
+            path.mkdir(parents=True, exist_ok=False)
+            return path
+        except FileExistsError:
+            continue
+    raise RuntimeError(f"could not allocate a unique run directory under {base}")
 
 
 @dataclass
@@ -60,7 +77,9 @@ class OfflineResult:
 
     @property
     def repaired_by_tool(self) -> bool:
-        return self.status == "repaired"
+        return (self.status == "repaired"
+                and self.replay is not None
+                and self.replay.get("status") == "replayed")
 
 
 def _result_record(result: ConcirResult) -> dict[str, Any]:
@@ -109,14 +128,14 @@ class OfflineWorkflow:
         }
 
     def run(self, requirements: str, contract: dict[str, Any]) -> OfflineResult:
-        self.out_dir.mkdir(parents=True, exist_ok=True)
-        contract_path = self.out_dir / "contract.json"
+        run_dir = _exclusive_run_dir(self.out_dir)
+        contract_path = run_dir / "contract.json"
         contract_path.write_text(json.dumps(contract, ensure_ascii=False, indent=2) + "\n")
         contract_sha = sha256_file(contract_path)
         result = OfflineResult(
             status="generation_failed", requirements=requirements,
             contract_sha256=contract_sha, frozen_cir_sha256=None,
-            out_dir=str(self.out_dir),
+            out_dir=str(run_dir),
         )
 
         # 1. generate + check + bounded feedback retry
@@ -130,7 +149,7 @@ class OfflineWorkflow:
                 attempt=attempt, previous_candidate=previous_text,
             )
             response = self.provider.propose(request)
-            attempt_dir = self.out_dir / "generation" / f"attempt-{attempt}"
+            attempt_dir = run_dir / "generation" / f"attempt-{attempt}"
             attempt_dir.mkdir(parents=True, exist_ok=True)
             round_record = {
                 "attempt": attempt,
@@ -189,7 +208,7 @@ class OfflineWorkflow:
             return result
 
         # 2. freeze the initial CIR
-        frozen = self.out_dir / "frozen_initial.cir.json"
+        frozen = run_dir / "frozen_initial.cir.json"
         frozen.write_bytes(candidate_path.read_bytes())
         result.frozen_cir_sha256 = sha256_file(frozen)
 
@@ -239,10 +258,26 @@ class OfflineWorkflow:
             result.status = "tool_error"
             result.error = repair.error or "repair failed"
             return result
+
+        success_status = repair.status in SUCCESS_STATUSES
         if repair.artifact_path is None:
-            # A legitimate non-repair outcome (no acceptable candidate, budget,
+            if success_status:
+                # A success status without this run's artifact is a tool/evidence
+                # error, not a verified repair.
+                result.status = "tool_error"
+                result.error = (
+                    f"repair reported {repair.status!r} without writing an artifact; "
+                    "success requires this run's artifact, a valid binding and replay"
+                )
+                return result
+            # A legitimate non-success outcome (no acceptable candidate, budget,
             # analysis unknown, invalid config, unsupported).
             result.status = repair.status
+            return result
+
+        if not Path(repair.artifact_path).is_file():
+            result.status = "tool_error"
+            result.error = "repair reported an artifact path that does not exist"
             return result
 
         binding_ok, binding_reason = self._bind_artifact(repair, explore)
@@ -261,7 +296,7 @@ class OfflineWorkflow:
             result.error = replay.error or "artifact replay failed"
             return result
 
-        result.status = "repaired" if repair.status == "repaired" else repair.status
+        result.status = repair.status
 
         # contract must be byte-identical to the frozen contract
         if sha256_file(contract_path) != contract_sha:

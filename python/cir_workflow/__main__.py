@@ -23,6 +23,7 @@ from pathlib import Path
 
 from .concir_client import ConcirClient
 from .env import load_dotenv
+from .live import ALLOWED_MODEL, ALLOWED_PROVIDER, run_live_pilot
 from .offline_workflow import OfflineWorkflow
 from .providers import ScriptedProvider
 
@@ -97,6 +98,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--max-total-edits", type=int, default=4)
     p.add_argument("--report", help="write the offline result JSON here")
 
+    p = sub.add_parser("live", help="run frozen tasks against DeepSeek Flash (real HTTP)")
+    p.add_argument("--tasks", required=True, help="frozen tasks JSON")
+    p.add_argument("--provider", default=ALLOWED_PROVIDER)
+    p.add_argument("--model", default=ALLOWED_MODEL)
+    p.add_argument("--api-key-env", default="DEEPSEEK_API_KEY")
+    p.add_argument("--max-generation-rounds", type=int, default=3)
+    p.add_argument("--max-tokens", type=int, default=4096)
+    p.add_argument("--llm-timeout", type=float, default=90.0)
+
     args = parser.parse_args(argv)
     repo_root = Path(__file__).resolve().parents[2]
     load_dotenv(repo_root / ".env")
@@ -118,6 +128,29 @@ def main(argv: list[str] | None = None) -> int:
             ))
         if args.command == "replay":
             return _emit(client.replay(args.artifact))
+
+        if args.command == "live":
+            if args.provider != ALLOWED_PROVIDER or args.model != ALLOWED_MODEL:
+                print(json.dumps({
+                    "status": "error",
+                    "error": f"only provider {ALLOWED_PROVIDER!r} and model {ALLOWED_MODEL!r} "
+                             "are allowed (Pro/aliases/fallback are forbidden)",
+                }, indent=2))
+                return 2
+            api_key = os.environ.get(args.api_key_env, "")
+            if not api_key:
+                print(json.dumps({
+                    "status": "error",
+                    "error": f"missing API key: set env var {args.api_key_env}",
+                }, indent=2))
+                return 2
+            summary = run_live_pilot(
+                args.tasks, out_dir=args.out, binary=args.binary, api_key=api_key,
+                timeout=args.llm_timeout, max_tokens=args.max_tokens,
+                max_generation_rounds=args.max_generation_rounds,
+            )
+            print(json.dumps(summary, ensure_ascii=False, indent=2))
+            return 0
 
         # ---- offline ----
         requirements = args.requirements

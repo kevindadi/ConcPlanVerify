@@ -106,3 +106,72 @@ class OfflineWorkflowTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class _MissingArtifactClient(ConcirClient):
+    def repair(self, *args, **kwargs):
+        result = super().repair(*args, **kwargs)
+        if result.artifact_path:
+            Path(result.artifact_path).unlink()
+        result.artifact_path = None
+        return result
+
+
+class _BadReplayClient(ConcirClient):
+    def replay(self, artifact):
+        from cir_workflow.concir_client import ConcirIdentity, ConcirResult
+        return ConcirResult(
+            command="replay", argv=[], exit_code=0, status="protocol_error",
+            kind="protocol_error", payload=None,
+            identity=ConcirIdentity(binary=str(self.binary), binary_sha256="0" * 64,
+                                    argv=[], cwd=""),
+            error="invalid_replay_payload",
+        )
+
+
+class OfflineAcceptanceRegressionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.binary = real_binary()
+        if cls.binary is None:
+            raise unittest.SkipTest("concir-backend binary not found (set CONCIR_BACKEND)")
+        cls._tmp = tempfile.TemporaryDirectory()
+        cls.root = Path(cls._tmp.name)
+
+    @classmethod
+    def tearDownClass(cls):
+        if hasattr(cls, "_tmp"):
+            cls._tmp.cleanup()
+
+    def contract(self):
+        return json.loads((FIXTURES / "single_cycle_contract.json").read_text())
+
+    def test_repaired_without_artifact_is_tool_error(self):
+        out = self.root / "missing"
+        client = _MissingArtifactClient(self.binary, workdir=out / "calls", timeout=30.0)
+        provider = ScriptedProvider([{"text": fixture_text("single_cycle.json")}])
+        result = OfflineWorkflow(client, provider, out_dir=out).run("fix", self.contract())
+        self.assertEqual(result.status, "tool_error")
+        self.assertFalse(result.repaired_by_tool)
+        self.assertIsNone(result.replay)
+
+    def test_bad_replay_result_is_tool_error(self):
+        out = self.root / "badreplay"
+        client = _BadReplayClient(self.binary, workdir=out / "calls", timeout=30.0)
+        provider = ScriptedProvider([{"text": fixture_text("single_cycle.json")}])
+        result = OfflineWorkflow(client, provider, out_dir=out).run("fix", self.contract())
+        self.assertEqual(result.status, "tool_error")
+        self.assertFalse(result.repaired_by_tool)
+
+    def test_each_run_has_exclusive_output_dir(self):
+        out = self.root / "exclusive"
+        dirs = []
+        for _ in range(2):
+            client = ConcirClient(self.binary, workdir=out / f"calls-{len(dirs)}", timeout=30.0)
+            provider = ScriptedProvider([{"text": fixture_text("single_cycle.json")}])
+            result = OfflineWorkflow(client, provider, out_dir=out).run("fix", self.contract())
+            dirs.append(Path(result.out_dir))
+        self.assertNotEqual(dirs[0], dirs[1])
+        for d in dirs:
+            self.assertTrue((d / "contract.json").is_file())
+            self.assertTrue((d / "frozen_initial.cir.json").is_file())

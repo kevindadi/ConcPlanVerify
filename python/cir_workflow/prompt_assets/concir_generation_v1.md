@@ -13,7 +13,9 @@ Output only the JSON object. No prose, no markdown fences.
   "program": "short_name",
   "version": "3.5.0",
   "entry": "main::main",
-  "modules": [ /* one or more modules */ ]
+  "modules": [
+    /* one or more modules */
+  ]
 }
 ```
 
@@ -25,11 +27,15 @@ Output only the JSON object. No prose, no markdown fences.
 ```json
 {
   "name": "main",
-  "provides": {"resources": ["a"], "functions": ["main", "worker"]},
-  "requires": {"resources": [], "functions": ["other::helper"]},
-  "resources": [ /* resource declarations owned by this module */ ],
+  "provides": { "resources": ["a"], "functions": ["main", "worker"] },
+  "requires": { "resources": [], "functions": ["other::helper"] },
+  "resources": [
+    /* resource declarations owned by this module */
+  ],
   "protection": [],
-  "functions": [ /* function definitions */ ]
+  "functions": [
+    /* function definitions */
+  ]
 }
 ```
 
@@ -43,7 +49,7 @@ Output only the JSON object. No prose, no markdown fences.
 ## Resource
 
 ```json
-{"name": "mtx", "kind": "sync", "type": "Mutex", "mode": "Sync"}
+{ "name": "mtx", "kind": "sync", "type": "Mutex", "mode": "Sync" }
 ```
 
 Supported `(kind, type)` pairs: `var`/`Var`, `var`/`Atomic`, `sync`/`Mutex`,
@@ -58,7 +64,9 @@ supported by the current verifier; do not emit it.) Semaphore/Channel carry
   "name": "worker",
   "kind": "normal",
   "form": "closure",
-  "body": [ /* statements, each with a unique "sid" inside this function */ ]
+  "body": [
+    /* statements, each with a unique "sid" inside this function */
+  ]
 }
 ```
 
@@ -69,25 +77,30 @@ supported by the current verifier; do not emit it.) Semaphore/Channel carry
 Every statement is an object with `"sid"` (unique within the function) and
 `"kind"`. Use only these kinds:
 
-| kind | fields |
-| --- | --- |
-| `mutex_lock` | `resource` |
-| `mutex_unlock` | `resource` |
-| `semaphore_acquire` / `semaphore_release` | `resource`, optional `count` |
-| `channel_send` | `channel`, `value` |
-| `channel_recv` | `channel`, `dst` |
-| `condvar_wait` | `condvar`, `lock` |
-| `condvar_notify` / `condvar_notify_all` | `condvar` |
+| kind                                          | fields                                                    |
+| --------------------------------------------- | --------------------------------------------------------- |
+| `mutex_lock`                                  | `resource`                                                |
+| `mutex_unlock`                                | `resource`                                                |
+| `semaphore_acquire` / `semaphore_release`     | `resource`, optional `count`                              |
+| `channel_send`                                | `channel`, `value`                                        |
+| `channel_recv`                                | `channel`, `dst`                                          |
+| `condvar_wait`                                | `condvar`, `lock`                                         |
+| `condvar_notify` / `condvar_notify_all`       | `condvar`                                                 |
 | `atomic_load` / `atomic_store` / `atomic_cas` | `resource`, plus `dst`/`value`/`expected`/`desired`/`dst` |
-| `read_shared` / `write_shared` | `resource`, plus optional `dst` / `expr` |
-| `assign_local` | `target`, `expr` |
-| `abstract_step` | optional `reads`, `writes`, `desc` |
-| `call` | `func` (FQN), optional `args`, optional `dst` |
-| `spawn` | `func` (FQN), optional `args`, `handle` |
-| `scope` | `funcs` (list of FQNs) — spawn each and join all |
-| `join` | `handle` |
-| `goto` / `branch` / `switch` | control targets by `sid` |
-| `return` | optional `value` |
+| `read_shared` / `write_shared`                | `resource`, plus optional `dst` / `expr`                  |
+| `assign_local`                                | `target`, `expr`                                          |
+| `call`                                        | `func` (FQN), optional `args`, optional `dst`             |
+| `spawn`                                        | `func` (FQN), optional `args`, `handle`                   |
+| `scope`                                        | `funcs` (list of FQNs) — spawn each and join all          |
+| `join`                                         | `handle`                                                  |
+| `goto` / `branch` / `switch`                  | control targets by `sid`                                  |
+| `return`                                       | optional `value`                                          |
+
+Not supported by the current verifier — do **not** emit them: `rwlock_read`,
+`rwlock_write`, `rwlock_unlock`, `select`, `async_call`, `await`,
+`abstract_step`, `seq_hole`. `abstract_step` is not an escape hatch for
+concurrency you cannot otherwise express; model the real synchronization or
+report the limitation.
 
 Rules:
 

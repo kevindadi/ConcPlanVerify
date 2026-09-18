@@ -302,21 +302,37 @@ class ConcirClient:
             result.error = stderr.strip() or "usage error"
             return result
         if command == "replay":
-            # `replay` prints a result only on success; a non-zero exit is the
-            # documented replay failure (stderr "artifact replay failed: ...").
-            if proc.returncode == 0:
-                result.kind, result.status = "semantic", "replayed"
-                text = stdout.strip()
-                if text:
-                    try:
-                        payload = json.loads(text)
-                        if isinstance(payload, dict):
-                            result.payload = payload
-                    except json.JSONDecodeError:
-                        pass
-            else:
+            # `replay` prints a structured ReplayResult only on success; a
+            # non-zero exit is the documented replay failure (stderr
+            # "artifact replay failed: ..."). Exit 0 alone is not enough: the
+            # payload must be a valid ReplayResult that corresponds to the
+            # artifact we handed the tool.
+            if proc.returncode != 0:
                 result.kind, result.status = "semantic", "replay_failed"
                 result.error = stderr.strip() or "artifact replay failed"
+                return result
+            text = stdout.strip()
+            if not text:
+                result.kind, result.status = "protocol_error", "empty_replay_output"
+                result.error = "replay exited 0 but produced no stdout"
+                return result
+            try:
+                payload = json.loads(text)
+            except json.JSONDecodeError as exc:
+                result.kind, result.status = "protocol_error", "non_json_replay_output"
+                result.error = f"replay stdout is not JSON: {exc}"
+                return result
+            if not isinstance(payload, dict):
+                result.kind, result.status = "protocol_error", "replay_payload_not_object"
+                result.error = "replay stdout JSON is not an object"
+                return result
+            problem = _validate_replay_payload(payload, input_path)
+            if problem is not None:
+                result.kind, result.status = "protocol_error", "invalid_replay_payload"
+                result.error = problem
+                return result
+            result.payload = payload
+            result.kind, result.status = "semantic", "replayed"
             return result
         text = stdout.strip()
         if not text:
@@ -468,3 +484,50 @@ def _classify(result: ConcirResult) -> ConcirResult:
 def _protocol(result: ConcirResult, message: str) -> ConcirResult:
     result.kind, result.status, result.error = "protocol_error", "protocol_error", message
     return result
+
+
+# Required ReplayResult fields and their Python types (None allowed where the
+# Rust type is Option<...>).
+_REPLAY_FIELDS = {
+    "nodes": (int,),
+    "input_outcome": (str,),
+    "accepted_ok": (bool, type(None)),
+    "accepted_node": (int, type(None)),
+    "chain_len": (int,),
+    "outcome": (str,),
+}
+
+
+def _validate_replay_payload(payload: dict, artifact_path: Path | None) -> str | None:
+    """Check a replay payload is a real ReplayResult for the given artifact."""
+    for name, types in _REPLAY_FIELDS.items():
+        if name not in payload:
+            return f"replay payload missing field {name!r}"
+        if not isinstance(payload[name], types):
+            return (f"replay payload field {name!r} has type "
+                    f"{type(payload[name]).__name__}, expected {types}")
+    if payload["outcome"] not in REPAIR_EXIT:
+        return f"replay payload has unknown outcome {payload['outcome']!r}"
+    if payload["nodes"] < 0 or payload["chain_len"] < 0:
+        return "replay payload has negative counts"
+    if artifact_path is None or not Path(artifact_path).exists():
+        return "cannot read the replayed artifact for correspondence checking"
+    try:
+        artifact = json.loads(Path(artifact_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return f"replayed artifact is not readable JSON: {exc}"
+    if not isinstance(artifact, dict):
+        return "replayed artifact is not a JSON object"
+    chain = artifact.get("patch_chain")
+    if isinstance(chain, list) and payload["chain_len"] != len(chain):
+        return (f"replay chain_len {payload['chain_len']} != artifact patch_chain "
+                f"length {len(chain)}")
+    nodes = artifact.get("nodes")
+    if isinstance(nodes, list) and nodes:
+        root_outcome = ((nodes[0] or {}).get("report") or {}).get("outcome")
+        if root_outcome is not None and payload["input_outcome"] != root_outcome:
+            return (f"replay input_outcome {payload['input_outcome']!r} != artifact "
+                    f"root outcome {root_outcome!r}")
+    if payload["accepted_node"] != artifact.get("accepted_node"):
+        return "replay accepted_node does not match the artifact"
+    return None
