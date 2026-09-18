@@ -176,7 +176,7 @@ twin clean, but on `lock-order/cycle_3lock` it reported a `DoubleLock` on the
 — recorded as-is. Lockbud is a static, "possibly" over-approximation; the two
 lock-order fixtures show it is neither sound nor complete here.
 
-## Lockbud integration (added after the smoke run)
+## Lockbud integration
 
 `tools/lockbud` (separate checkout, commit `cc78cb7`) is built in place with its
 own `rust-toolchain.toml` (`nightly-2026-02-07`); the harness locates
@@ -184,27 +184,42 @@ own `rust-toolchain.toml` (`nightly-2026-02-07`); the harness locates
 each candidate in a dedicated `lockbud-probe/` with `RUSTC_WRAPPER` set and
 `LOCKBUD_FLAGS="-k deadlock -l cir_arm_probe"`, and classifies by parsed
 `bug_kind` records only (Lockbud always prints a zero-count `conflictlock`
-summary, so a text scan would false-positive every run). The Flash smoke batch
-below ran **before** Lockbud was installed, so its A2 arm did not use Lockbud;
-future A2 runs do.
+summary, so a text scan would false-positive every run). `tools/` is ignored by
+`.gitignore` (vendored third-party; pin by commit). The repository `.gitignore`
+also ignores `*.txt`, so the archived `stdout.txt`/`stderr.txt`/`exit.txt`
+evidence is intentionally **not git-tracked** (repository policy); the files
+stay on disk and their sha256 is recorded in the JSON records
+(`stdout_sha256`/`stderr_sha256` plus `files` paths), so they remain
+integrity-checkable without being committed. Note: Lockbud's
+`DoubleLock` detector fires on any thread that holds one lock while taking
+another, so it false-positives on the correct 3-lock and partial-deadlock
+programs; A2 treats a Lockbud detection as "not green" and keeps iterating.
 
 ## Flash smoke batch
 
-`experiments/flash-arms-smoke-v1/run-20260918T120547-59407-fed5a7/` is the
+`experiments/flash-arms-smoke-v1/run-20260918T123238-73821-fdfe0d/` is the
 delivered batch (protocol sha `2429...c8ff`, **36 / 48 requests**, stop reason
-none). Arms: A0/A1/A2/A3/A3p/A3_tool_repair on 3 tasks.
+none). Arms: A0/A1/A2/A3/A3p/A3_tool_repair on 3 tasks; A2 now includes Lockbud.
 
-- `lock-order/abba_2lock`: A0 accepted r1, A2 accepted r1, A3 accepted r1
-  (revision), A3p accepted + replayed, A3_tool_repair `repaired`.
-- `condvar/lost_wakeup_notify_before_wait`: A0/A2 accepted r1 (Miri does not see
-  a lost wakeup); A3 rejected (whole-CIR revision did not complete);
-  A3p `rejected`; tool_repair `no_acceptable_candidate` (not swap-fixable).
-- `lock-order/partial_deadlock_bystander`: A0 accepted r1; A1, A2, A3 not
-  accepted; A3p `rejected`; tool_repair `no_acceptable_candidate`.
+- `lock-order/abba_2lock`: A0 accepted r1; A2 accepted r1 (build + Miri 5 seeds +
+  64-seed pass + Lockbud all clean); A3 accepted r1 (whole-CIR revision); A3p
+  accepted + replayed; A3_tool_repair `repaired`.
+- `condvar/lost_wakeup_notify_before_wait`: A0 accepted r1 and A2 accepted r1 —
+  Miri and Lockbud both miss the lost wakeup, which is exactly the dynamic/static
+  tool limitation the benchmark is meant to expose; A3 rejected (revision did not
+  reach a complete PASS); A3p `rejected`; tool_repair
+  `no_acceptable_candidate` (not swap-fixable).
+- `lock-order/partial_deadlock_bystander`: A0 accepted r1; A1 and A2 not
+  accepted (Lockbud reports `DoubleLock` on the generated program every round —
+  an over-approximation, so A2 correctly refuses to call the tools "green");
+  **A3 accepted at round 4** (the whole-CIR revision reached a complete PASS on
+  the fourth proposal); A3p `rejected`; tool_repair
+  `no_acceptable_candidate`.
 
-Two earlier smoke batches in the same directory were superseded by harness fixes
-(A3 wall-clock aggregation; A2 "green" no longer treats a timeout/tool-error as
-green). Each superseded batch is retained and used at most 33 requests.
+Superseded batches retained in the same directory: `run-20260918T115401…` (A3
+wall-clock not aggregated), `run-20260918T120310…` and `run-20260918T122307…`
+(A2 green logic / Lockbud status read at the wrong level). The final batch uses
+36 requests; each superseded batch used ≤42.
 
 ## ConcIR status and commit suggestions
 

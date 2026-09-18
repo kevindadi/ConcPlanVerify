@@ -1,0 +1,52 @@
+{
+  "status": "tool_error",
+  "task": "condvar/lost_wakeup_notify_before_wait",
+  "requirements": "Design a waiter/notifier pair sharing a mutex, a condition variable and a boolean flag ready protected by the mutex. The notifier sets ready and signals the condition variable; the waiter must block until ready is true and then finish. The waiter must terminate even if the notifier signals before the waiter starts waiting.\n",
+  "contract_sha256": "1370b58166473243539e7dd511d47133368dc731ca707fde51ebe63c3ab8b49b",
+  "out_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-arms-smoke-v1/run-20260918T123238-73821-fdfe0d/condvar__lost_wakeup_notify_before_wait/A3/run-20260918T123304-73821-d7c90b",
+  "max_rounds": 4,
+  "engine": "petri",
+  "diagnostics": true,
+  "check_fidelity": true,
+  "fidelity_name": null,
+  "versions": [
+    {
+      "version": 1,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"lost_wakeup\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"mtx\", \"cv\", \"ready\"],\n        \"functions\": [\"main\", \"waiter\", \"notifier\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"mtx\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"cv\", \"kind\": \"sync\", \"type\": \"Condvar\", \"mode\": \"Sync\" },\n        { \"name\": \"ready\", \"kind\": \"var\", \"type\": \"Var\", \"mode\": \"Sync\" }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"scope\", \"funcs\": [\"main::waiter\", \"main::notifier\"] },\n            { \"sid\": \"s2\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"waiter\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"w1\", \"kind\": \"mutex_lock\", \"resource\": \"main::mtx\" },\n            { \"sid\": \"w2\", \"kind\": \"branch\", \"cond\": { \"kind\": \"var_eq\", \"resource\": \"main::ready\", \"value\": true }, \"then\": \"w5\", \"else\": \"w3\" },\n            { \"sid\": \"w3\", \"kind\": \"condvar_wait\", \"condvar\": \"main::cv\", \"lock\": \"main::mtx\" },\n            { \"sid\": \"w4\", \"kind\": \"goto\", \"target\": \"w2\" },\n            { \"sid\": \"w5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::mtx\" },\n            { \"sid\": \"w6\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"notifier\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"n1\", \"kind\": \"mutex_lock\", \"resource\": \"main::mtx\" },\n            { \"sid\": \"n2\", \"kind\": \"write_shared\", \"resource\": \"main::ready\", \"expr\": { \"kind\": \"bool\", \"value\": true } },\n            { \"sid\": \"n3\", \"kind\": \"condvar_notify\", \"condvar\": \"main::cv\" },\n            { \"sid\": \"n4\", \"kind\": \"mutex_unlock\", \"resource\": \"main::mtx\" },\n            { \"sid\": \"n5\", \"kind\": \"return\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "a67ec2dc6dd66d66d06de633f6a127951ca131c355ee94326d14d8917f12853f",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-arms-smoke-v1/run-20260918T123238-73821-fdfe0d/condvar__lost_wakeup_notify_before_wait/A3/run-20260918T123304-73821-d7c90b/revision-1.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "usage_error",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": null,
+      "request_sha256": "ab259fcb2e8df20cafba7e29c5a157d38b42b07e1d68856e34ca1d6ffd109ba3",
+      "feedback_sha256": null,
+      "prompt_tokens": 1588,
+      "completion_tokens": 671,
+      "llm_wall_ms": 2390,
+      "tool_wall_ms": 5,
+      "tool_output_sha256": "d3a2d8304169baf2bf4c24cdb773dacffaf9de6c669274f741555ec72b1486d5"
+    }
+  ],
+  "accepted_version": null,
+  "repair_mode": "llm_revision",
+  "candidate_source": "llm",
+  "consumption": {
+    "http_requests": 1,
+    "prompt_tokens": 1588,
+    "completion_tokens": 671,
+    "total_tokens": 2259,
+    "llm_wall_ms": 2390,
+    "tool_wall_ms": 5,
+    "rounds": 1,
+    "first_correct_round": null
+  },
+  "error": "JSON parse error in '/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-arms-smoke-v1/run-20260918T123238-73821-fdfe0d/condvar__lost_wakeup_notify_before_wait/calls/18d66a4e4cd33008-73821-0001-8dd571-check/program.json': invalid type: map, expected a string at line 84 column 13",
+  "accepted": false
+}

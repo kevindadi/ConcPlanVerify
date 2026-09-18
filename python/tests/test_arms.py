@@ -65,6 +65,15 @@ class ArmTests(unittest.TestCase):
             self.assertIsNotNone(record.request_sha256)
             self.assertIsNotNone(record.tool_output_sha256)
 
+    def test_a2_accepts_when_tools_are_clean(self):
+        fixed_rs = (PATTERNS / "P1/fixed.rs").read_text(encoding="utf-8")
+        provider = ScriptedProvider([{"text": fixed_rs}])
+        run = run_rust_arm(provider, arm="A2_tools_iter", task="P1", spec=self.spec,
+                           contract=self.contract, out_dir=self.root / "a2")
+        self.assertTrue(run.accepted, run.error)
+        self.assertEqual(run.accepted_round, 1)
+        self.assertEqual(run.rounds[0].decision, "tools_green")
+
     def test_a0_direct_accepts_building_rust(self):
         provider = ScriptedProvider([{"text": GOOD_RUST}])
         run = run_rust_arm(provider, arm=ARM_DIRECT, task="P1", spec=self.spec,

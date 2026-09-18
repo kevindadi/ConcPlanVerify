@@ -145,7 +145,7 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
         miri_green = bool(miri_runs) and all(
             r.get("extra", {}).get("status") == "clean" for r in miri_runs)
         lockbud = record.get("lockbud") or {}
-        lockbud_status = lockbud.get("status")
+        lockbud_status = lockbud.get("status") or lockbud.get("extra", {}).get("status")
         lockbud_detected = bool(lockbud.get("extra", {}).get("detected"))
         # Unavailable/skipped is neutral; clean is green; a detection, timeout or
         # tool error is not green.
@@ -213,6 +213,9 @@ def _tool_wall(record: dict[str, Any]) -> int:
     total += int(test.get("wall_ms") or 0)
     for run in record.get("miri", []) or []:
         total += int(run.get("wall_ms") or 0)
+    lockbud = record.get("lockbud")
+    if isinstance(lockbud, dict):
+        total += int(lockbud.get("wall_ms") or 0)
     return total
 
 
