@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "750886cb-6fa1-4056-baea-d86d18329696",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust tool-feedback prompt (v1, arm A2)\n\nYou are fixing a Rust program using the raw diagnostics produced by the build\nand analysis tools. The diagnostics are the ground truth.\n\n- `cargo build` errors mean the program does not compile: fix them.\n- Miri reports (deadlock or data race) identify a real interleaving problem:\n  change the synchronization so the reported problem cannot occur.\n- Do not silence a diagnostic by deleting synchronization, making the program\n  sequential, or catching/ignoring errors.\n- Keep standard-library-only, `fn main`, no external crates, no sleep-based\n  workarounds.\n- Output only the full corrected Rust source inside a single ```rust code fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nDesign a waiter/notifier pair sharing a mutex, a condition variable and a boolean flag ready protected by the mutex. The notifier sets ready and signals the condition variable; the waiter must block until ready is true and then finish. The waiter must terminate even if the notifier signals before the waiter starts waiting.\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "c3626968c3d203ce7b8c617a5987d1fb60dccde3ec5e9bf0e51ae1a0ed2d6b03",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 214,
+    "prompt_tokens": 230,
+    "total_tokens": 444,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 0
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 230
+  },
+  "content_sha256": "dd88b6675681982b8de2560b719a7b68f3d7e3e964d02a2865afbb3eb412f0eb",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Shared {\n    ready: Mutex<bool>,\n    condvar: Condvar,\n}\n\nfn main() {\n    let shared = Arc::new(Shared {\n        ready: Mutex::new(false),\n        condvar: Condvar::new(),\n    });\n\n    let waiter_shared = Arc::clone(&shared);\n    let waiter = thread::spawn(move || {\n        let mut ready = waiter_shared.ready.lock().unwrap();\n        while !*ready {\n            ready = waiter_shared.condvar.wait(ready).unwrap();\n        }\n    });\n\n    let notifier_shared = Arc::clone(&shared);\n    let notifier = thread::spawn(move || {\n        let mut ready = notifier_shared.ready.lock().unwrap();\n        *ready = true;\n        notifier_shared.condvar.notify_one();\n    });\n\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n}\n```",
+  "wall_ms": 1137
+}

@@ -1,0 +1,28 @@
+{
+  "status": "error",
+  "requested_model": "deepseek-flash",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nDesign a program with two mutexes A and B and two worker threads. Each worker acquires both mutexes, works inside the critical section, releases both, and terminates. Main spawns both workers and joins them. Every interleaving must terminate and both workers must complete.\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "ae5d13bd278b7443281112786fe655ecfa6c96ba8fa745498d26e91323d4cf82",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "retryable": false,
+  "status_code": null,
+  "error_type": "ModuleNotFoundError",
+  "error": "No module named 'openai'",
+  "wall_ms": 0
+}

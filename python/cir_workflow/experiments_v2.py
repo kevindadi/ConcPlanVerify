@@ -102,6 +102,7 @@ class Consumption:
 class RoundRecord:
     round: int
     request_sha256: str | None = None
+    feedback_sha256: str | None = None
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     llm_wall_ms: int = 0
@@ -222,6 +223,7 @@ class TaskSpec:
     contract: str | None
     buggy_cir: str | None
     fixed_cir: str | None
+    correct_cir: str | None
     buggy_rs: str | None
     fixed_rs: str | None
     ground_truth: dict[str, Any]
@@ -262,6 +264,7 @@ def load_manifest(path: Path | str, *, verify_hashes: bool = True) -> list[TaskS
             contract=entry.get("contract"),
             buggy_cir=entry.get("buggy_cir"),
             fixed_cir=entry.get("fixed_cir"),
+            correct_cir=entry.get("correct_cir"),
             buggy_rs=entry.get("buggy_rs"),
             fixed_rs=entry.get("fixed_rs"),
             ground_truth=entry.get("ground_truth", {}),

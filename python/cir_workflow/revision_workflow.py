@@ -31,6 +31,7 @@ from typing import Any
 from .concir_client import ConcirClient, sha256_file
 from .experiments_v2 import Consumption, sha256_text
 from .json_utils import extract_json
+from .models import normalize_token_usage
 from .prompts import build_check_feedback, build_explore_feedback, render_feedback
 from .providers import CandidateProvider, CandidateRequest
 from .structural import run_structural_check
@@ -54,6 +55,14 @@ class RevisionVersion:
     fidelity: dict[str, Any] | None = None
     accepted: bool = False
     decision: str | None = None
+    # measured per-round consumption / evidence
+    request_sha256: str | None = None
+    feedback_sha256: str | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    llm_wall_ms: int = 0
+    tool_wall_ms: int = 0
+    tool_output_sha256: str | None = None
 
 
 @dataclass
@@ -163,6 +172,16 @@ class WholeArtifactRevisionWorkflow:
                 response = self.provider.propose(request)
                 result.candidate_source = response.source
                 self._count_usage(result, response)
+                record.request_sha256 = sha256_text(json.dumps({
+                    "requirements": requirements,
+                    "contract_sha256": result.contract_sha256,
+                    "attempt": version,
+                    "feedback": feedback_dict,
+                    "previous_sha256": (sha256_text(previous_text)
+                                        if previous_text else None),
+                }, sort_keys=True, default=str))
+                record.llm_wall_ms = response.wall_ms
+                record.prompt_tokens, record.completion_tokens = _tokens(response)
                 if response.error:
                     record.provider_error = response.error
                     record.decision = "provider_error"
@@ -179,11 +198,13 @@ class WholeArtifactRevisionWorkflow:
                     record.parse_error = f"invalid JSON: {exc}"
                     record.decision = "parse_error"
                     feedback_dict = {"stage": "parse", "error": f"invalid JSON: {exc}"}
+                    record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
                     continue
                 if not isinstance(parsed, dict):
                     record.parse_error = "candidate is not a JSON object"
                     record.decision = "parse_error"
                     feedback_dict = {"stage": "parse", "error": "candidate is not a JSON object"}
+                    record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
                     continue
                 program_path = run_dir / f"revision-{version}.cir.json"
                 program_path.write_text(json.dumps(parsed, ensure_ascii=False, indent=2) + "\n",
@@ -194,6 +215,9 @@ class WholeArtifactRevisionWorkflow:
 
             check = self.client.check(program_path)
             record.check_status = check.status
+            record.tool_wall_ms += check.wall_ms
+            result.consumption.tool_wall_ms += check.wall_ms
+            record.tool_output_sha256 = _payload_hash("check", check.status, check.payload)
             if check.kind != "semantic":
                 result.status = "tool_error"
                 result.error = check.error or "check failed"
@@ -203,10 +227,13 @@ class WholeArtifactRevisionWorkflow:
                 record.decision = "check_invalid"
                 feedback_dict = (build_check_feedback(check) if self.diagnostics
                                  else {"stage": "check", "outcome": "INVALID"})
+                record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
                 continue
 
             support = self.client.support(program_path)
             record.support_status = support.status
+            record.tool_wall_ms += support.wall_ms
+            result.consumption.tool_wall_ms += support.wall_ms
             if support.kind != "semantic":
                 result.status = "tool_error"
                 result.error = support.error or "support failed"
@@ -223,6 +250,10 @@ class WholeArtifactRevisionWorkflow:
             explore = self.client.explore(program_path, contract_path, self.engine)
             record.explore_outcome = explore.outcome
             record.explore_complete = explore.complete
+            record.tool_wall_ms += explore.wall_ms
+            result.consumption.tool_wall_ms += explore.wall_ms
+            record.tool_output_sha256 = _payload_hash("explore", explore.status,
+                                                      explore.payload)
             if explore.kind != "semantic":
                 result.status = "tool_error"
                 result.error = explore.error or "explore failed"
@@ -257,6 +288,7 @@ class WholeArtifactRevisionWorkflow:
                              else {"stage": "explore",
                                    "outcome": explore.outcome,
                                    "complete": explore.complete})
+            record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
 
         result.status = "exhausted"
         result.error = f"no complete PASS within {self.max_rounds} rounds"
@@ -276,6 +308,7 @@ class WholeArtifactRevisionWorkflow:
     def _count_usage(result: RevisionResult, response) -> None:
         result.consumption.rounds += 1
         result.consumption.http_requests += 1 if response.source == "llm" else 0
+        result.consumption.llm_wall_ms += int(getattr(response, "wall_ms", 0) or 0)
         usage = response.usage
         if usage is None and response.input_tokens is not None:
             usage = {"prompt_tokens": response.input_tokens,
@@ -283,6 +316,21 @@ class WholeArtifactRevisionWorkflow:
         result.consumption.add_usage(usage)
         # llm wall is recorded by the live provider's own evidence log; the
         # workflow only counts model-level calls here.
+
+
+def _tokens(response) -> tuple[int | None, int | None]:
+    if response.usage:
+        prompt, completion = normalize_token_usage(response.usage)
+        return prompt, completion
+    if response.input_tokens is not None or response.output_tokens is not None:
+        return response.input_tokens, response.output_tokens
+    return None, None
+
+
+def _payload_hash(stage: str, status: str | None, payload: Any) -> str:
+    return sha256_text(json.dumps(
+        {"stage": stage, "status": status, "payload": payload},
+        sort_keys=True, default=str))
 
 
 def _write_result(run_dir: Path, result: RevisionResult) -> None:

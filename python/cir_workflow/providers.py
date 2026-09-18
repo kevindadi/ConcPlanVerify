@@ -34,6 +34,7 @@ class CandidateResponse:
     error: str | None = None
     input_tokens: int | None = None
     output_tokens: int | None = None
+    wall_ms: int = 0
 
     @classmethod
     def from_usage(cls, text: str, source: str, provider: str, *, model_id: str | None,
@@ -126,6 +127,7 @@ class PatchResponse:
     model_id: str | None = None
     usage: dict[str, Any] | None = None
     error: str | None = None
+    wall_ms: int = 0
 
 
 class PatchCandidateProvider(Protocol):

@@ -1,0 +1,145 @@
+{
+  "program": "lost_wakeup",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "mtx",
+          "cv",
+          "ready"
+        ],
+        "functions": [
+          "main",
+          "waiter",
+          "notifier"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "mtx",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "cv",
+          "kind": "sync",
+          "type": "Condvar",
+          "mode": "Sync"
+        },
+        {
+          "name": "ready",
+          "kind": "var",
+          "type": "Var",
+          "mode": "Sync"
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::waiter",
+                "main::notifier"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "waiter",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "w1",
+              "kind": "mutex_lock",
+              "resource": "main::mtx"
+            },
+            {
+              "sid": "w2",
+              "kind": "branch",
+              "cond": {
+                "kind": "var_eq",
+                "resource": "main::ready",
+                "value": true
+              },
+              "then": "w5",
+              "else": "w3"
+            },
+            {
+              "sid": "w3",
+              "kind": "condvar_wait",
+              "condvar": "main::cv",
+              "lock": "main::mtx"
+            },
+            {
+              "sid": "w4",
+              "kind": "goto",
+              "target": "w2"
+            },
+            {
+              "sid": "w5",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx"
+            },
+            {
+              "sid": "w6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "notifier",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "n1",
+              "kind": "mutex_lock",
+              "resource": "main::mtx"
+            },
+            {
+              "sid": "n2",
+              "kind": "write_shared",
+              "resource": "main::ready",
+              "expr": {
+                "kind": "bool",
+                "value": true
+              }
+            },
+            {
+              "sid": "n3",
+              "kind": "condvar_notify",
+              "condvar": "main::cv"
+            },
+            {
+              "sid": "n4",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx"
+            },
+            {
+              "sid": "n5",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

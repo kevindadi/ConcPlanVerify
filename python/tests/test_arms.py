@@ -11,9 +11,9 @@ from cir_workflow.arms import run_cir_arm, run_rust_arm, rust_oracle
 from cir_workflow.concir_client import ConcirClient
 from cir_workflow.experiments_v2 import ARM_DIRECT, ARM_OURS_REVISION
 from cir_workflow.providers import ScriptedProvider
-from tests._helpers import REPO, real_binary
+from tests._helpers import REPO, broken_program, real_binary
 
-PATTERNS = REPO / "benchmarks/patterns"
+PATTERNS = REPO / "benchmarks/legacy-paper-patterns"
 
 GOOD_RUST = """
 fn main() { println!("ok"); }
@@ -46,6 +46,24 @@ class ArmTests(unittest.TestCase):
         self.assertTrue(run.accepted, run.error)
         self.assertEqual(run.accepted_round, 1)
         self.assertEqual(run.notes["revision_status"], "accepted")
+
+    def test_a3_round_records_are_populated(self):
+        buggy = (PATTERNS / "P1/buggy.cir.json").read_text(encoding="utf-8")
+        broken = json.dumps(broken_program())
+        fixed = (PATTERNS / "P1/fixed.cir.json").read_text(encoding="utf-8")
+        provider = ScriptedProvider([{"text": buggy}, {"text": broken}, {"text": fixed}])
+        client = ConcirClient(self.binary, workdir=self.root / "calls2", timeout=30.0)
+        run = run_cir_arm(client, provider, arm=ARM_OURS_REVISION, task="P1",
+                          spec=self.spec, contract=self.contract,
+                          out_dir=self.root / "a3rounds")
+        self.assertTrue(run.accepted, run.error)
+        self.assertEqual(run.accepted_round, 3)
+        self.assertEqual(len(run.rounds), 3)
+        self.assertEqual([r.decision for r in run.rounds],
+                         ["explore_fail", "check_invalid", "accepted"])
+        for record in run.rounds:
+            self.assertIsNotNone(record.request_sha256)
+            self.assertIsNotNone(record.tool_output_sha256)
 
     def test_a0_direct_accepts_building_rust(self):
         provider = ScriptedProvider([{"text": GOOD_RUST}])

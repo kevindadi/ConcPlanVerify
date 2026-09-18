@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "559fa62d-c7b7-452d-989d-1fcc1b5c9d16",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nDesign two workers A and B that each take two mutexes with an intermediate semaphore handshake, plus an independent bystander task that keeps making progress forever. Main spawns all three. Although the bystander keeps the system globally live, every reachable state must still be able to finish A and B, and both workers must complete.\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "676d0f8384e1ba795a163278a0d1ce41b1f2c58410a6131e1e6312fc928cf09b",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 734,
+    "prompt_tokens": 314,
+    "total_tokens": 1048,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 128
+    },
+    "prompt_cache_hit_tokens": 128,
+    "prompt_cache_miss_tokens": 186
+  },
+  "content_sha256": "790718ad23d2571f543d1b46da4c4a3c22ba01f91b4dd618b0296cdc78c1400b",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\n// A counting semaphore built from a mutex + condvar.\nstruct Semaphore {\n    count: Mutex<usize>,\n    cv: Condvar,\n}\n\nimpl Semaphore {\n    fn new(initial: usize) -> Self {\n        Semaphore {\n            count: Mutex::new(initial),\n            cv: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut c = self.count.lock().unwrap();\n        while *c == 0 {\n            c = self.cv.wait(c).unwrap();\n        }\n        *c -= 1;\n    }\n\n    fn release(&self) {\n        let mut c = self.count.lock().unwrap();\n        *c += 1;\n        self.cv.notify_one();\n    }\n}\n\nfn main() {\n    // Two mutexes that workers A and B contend on.\n    let m1 = Arc::new(Mutex::new(()));\n    let m2 = Arc::new(Mutex::new(()));\n\n    // Intermediate semaphore handshake between A and B.\n    // A releases it after taking its first lock; B waits on it before\n    // taking its second lock, ensuring a well-defined interleaving.\n    let handshake = Arc::new(Semaphore::new(0));\n\n    // Bystander progress flag: it keeps making progress forever.\n    let progress = Arc::new(Mutex::new(0u64));\n\n    let m1_a = Arc::clone(&m1);\n    let m2_a = Arc::clone(&m2);\n    let hs_a = Arc::clone(&handshake);\n\n    let worker_a = thread::spawn(move || {\n        // Take first mutex.\n        let _g1 = m1_a.lock().unwrap();\n        // Signal B that A holds its first lock.\n        hs_a.release();\n        // Take second mutex.\n        let _g2 = m2_a.lock().unwrap();\n        // Critical section complete; both locks released on drop.\n    });\n\n    let m1_b = Arc::clone(&m1);\n    let m2_b = Arc::clone(&m2);\n    let hs_b = Arc::clone(&handshake);\n\n    let worker_b = thread::spawn(move || {\n        // Wait for A's handshake before taking the second mutex.\n        hs_b.acquire();\n        // Take first mutex.\n        let _g1 = m1_b.lock().unwrap();\n        // Take second mutex.\n        let _g2 = m2_b.lock().unwrap();\n        // Critical section complete; both locks released on drop.\n    });\n\n    let progress_bystander = Arc::clone(&progress);\n    let bystander = thread::spawn(move || {\n        // Independent task that keeps making progress forever.\n        loop {\n            let mut p = progress_bystander.lock().unwrap();\n            *p = p.wrapping_add(1);\n            // Release the lock promptly so workers are never starved.\n            drop(p);\n        }\n    });\n\n    // Join the two workers; both must complete.\n    worker_a.join().unwrap();\n    worker_b.join().unwrap();\n\n    // The bystander runs forever; we detach it by not joining.\n    // To keep the program well-formed and terminating, we simply\n    // let main exit, which ends the process and the bystander thread.\n    drop(bystander);\n}\n```",
+  "wall_ms": 3379
+}

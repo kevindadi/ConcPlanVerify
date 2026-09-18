@@ -1,0 +1,77 @@
+use std::sync::{Arc, Mutex, Condvar};
+use std::thread;
+use std::time::Duration;
+
+struct Handshake {
+    // semaphore-like state: 0 = not signaled, 1 = signaled
+    state: Mutex<bool>,
+    cv: Condvar,
+}
+
+impl Handshake {
+    fn new() -> Self {
+        Handshake {
+            state: Mutex::new(false),
+            cv: Condvar::new(),
+        }
+    }
+
+    fn signal(&self) {
+        let mut s = self.state.lock().unwrap();
+        *s = true;
+        self.cv.notify_one();
+    }
+
+    fn wait(&self) {
+        let mut s = self.state.lock().unwrap();
+        while !*s {
+            s = self.cv.wait(s).unwrap();
+        }
+    }
+}
+
+fn main() {
+    let m1 = Arc::new(Mutex::new(()));
+    let m2 = Arc::new(Mutex::new(()));
+
+    // Two independent handshakes to enforce a consistent lock ordering.
+    // hs_a: A signals after taking m1; B waits on it before taking m1.
+    // hs_b: B signals after taking m2; A waits on it before taking m2.
+    let hs_a = Arc::new(Handshake::new());
+    let hs_b = Arc::new(Handshake::new());
+
+    let m1a = Arc::clone(&m1);
+    let m2a = Arc::clone(&m2);
+    let hsa_sig = Arc::clone(&hs_a);
+    let hsb_wait = Arc::clone(&hs_b);
+
+    let a = thread::spawn(move || {
+        let _g1 = m1a.lock().unwrap();
+        hsa_sig.signal();      // tell B: m1 is held by A
+        hsb_wait.wait();       // wait until B holds m2
+        let _g2 = m2a.lock().unwrap();
+        // critical section
+    });
+
+    let m1b = Arc::clone(&m1);
+    let m2b = Arc::clone(&m2);
+    let hsb_sig = Arc::clone(&hs_b);
+    let hsa_wait = Arc::clone(&hs_a);
+
+    let b = thread::spawn(move || {
+        let _g2 = m2b.lock().unwrap();
+        hsb_sig.signal();      // tell A: m2 is held by B
+        hsa_wait.wait();       // wait until A holds m1
+        let _g1 = m1b.lock().unwrap();
+        // critical section
+    });
+
+    let bystander = thread::spawn(|| loop {
+        thread::sleep(Duration::from_millis(10));
+    });
+
+    a.join().unwrap();
+    b.join().unwrap();
+    // bystander runs forever; don't join it
+    let _ = bystander;
+}

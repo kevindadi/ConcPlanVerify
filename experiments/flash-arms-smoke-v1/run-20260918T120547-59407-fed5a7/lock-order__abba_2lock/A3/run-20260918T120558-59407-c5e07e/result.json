@@ -1,0 +1,52 @@
+{
+  "status": "accepted",
+  "task": "lock-order/abba_2lock",
+  "requirements": "Design a program with two mutexes A and B and two worker threads. Each worker acquires both mutexes, works inside the critical section, releases both, and terminates. Main spawns both workers and joins them. Every interleaving must terminate and both workers must complete.\n",
+  "contract_sha256": "99bdb3e7b49fc3a9cfff91b338f331a1757e9393a34d5a9fb2c9bf9f59f2a3bd",
+  "out_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-arms-smoke-v1/run-20260918T120547-59407-fed5a7/lock-order__abba_2lock/A3/run-20260918T120558-59407-c5e07e",
+  "max_rounds": 4,
+  "engine": "petri",
+  "diagnostics": true,
+  "check_fidelity": true,
+  "fidelity_name": null,
+  "versions": [
+    {
+      "version": 1,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"abba_2lock\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"A\", \"B\"],\n        \"functions\": [\"main\", \"t1\", \"t2\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"A\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"B\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"scope\", \"funcs\": [\"main::t1\", \"main::t2\"] },\n            { \"sid\": \"s2\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"t1\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"mutex_lock\", \"resource\": \"main::A\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::B\" },\n            { \"sid\": \"s3\", \"kind\": \"mutex_unlock\", \"resource\": \"main::B\" },\n            { \"sid\": \"s4\", \"kind\": \"mutex_unlock\", \"resource\": \"main::A\" },\n            { \"sid\": \"s5\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"t2\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"mutex_lock\", \"resource\": \"main::A\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::B\" },\n            { \"sid\": \"s3\", \"kind\": \"mutex_unlock\", \"resource\": \"main::B\" },\n            { \"sid\": \"s4\", \"kind\": \"mutex_unlock\", \"resource\": \"main::A\" },\n            { \"sid\": \"s5\", \"kind\": \"return\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "de02aa5cedd2510df8dcbe74d18107457810aabb7a05a65ebde65fa8e89a482f",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-arms-smoke-v1/run-20260918T120547-59407-fed5a7/lock-order__abba_2lock/A3/run-20260918T120558-59407-c5e07e/revision-1.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "valid",
+      "support_status": "supported",
+      "explore_outcome": "PASS",
+      "explore_complete": true,
+      "fidelity": null,
+      "accepted": true,
+      "decision": "accepted",
+      "request_sha256": "83dd5e5d22777e9256fc897a54ede24a8361020abb509fc7ab292e14cdd4b2b4",
+      "feedback_sha256": null,
+      "prompt_tokens": 1531,
+      "completion_tokens": 559,
+      "llm_wall_ms": 1984,
+      "tool_wall_ms": 16,
+      "tool_output_sha256": "8adc9a5d4704b6facf97f1d2926e1bcf90113862a10976e3d74538648525a73e"
+    }
+  ],
+  "accepted_version": 1,
+  "repair_mode": "llm_revision",
+  "candidate_source": "llm",
+  "consumption": {
+    "http_requests": 1,
+    "prompt_tokens": 1531,
+    "completion_tokens": 559,
+    "total_tokens": 2090,
+    "llm_wall_ms": 1984,
+    "tool_wall_ms": 16,
+    "rounds": 1,
+    "first_correct_round": 1
+  },
+  "error": null,
+  "accepted": true
+}

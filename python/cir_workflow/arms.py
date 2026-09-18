@@ -27,6 +27,7 @@ from .experiments_v2 import (
     ARM_TOOL_REPAIR, K, DIAGNOSTIC_TRUNCATION_BYTES, Consumption, RoundRecord,
     derived_flags, sha256_text,
 )
+from .models import normalize_token_usage
 from .offline_workflow import _exclusive_run_dir
 from .providers import CandidateProvider, CandidateRequest, ScriptedProvider
 from .structural import run_structural_check
@@ -82,10 +83,19 @@ def extract_rust(text: str) -> str:
     return text.strip() + "\n"
 
 
+def _tokens(response) -> tuple[int | None, int | None]:
+    if response.usage:
+        return normalize_token_usage(response.usage)
+    if response.input_tokens is not None or response.output_tokens is not None:
+        return response.input_tokens, response.output_tokens
+    return None, None
+
+
 def _consume_response(run: ArmRun, response) -> None:
     run.consumption.rounds += 1
     if response.source == "llm":
         run.consumption.http_requests += 1
+    run.consumption.llm_wall_ms += int(getattr(response, "wall_ms", 0) or 0)
     usage = response.usage
     if usage is None and response.input_tokens is not None:
         usage = {"prompt_tokens": response.input_tokens,
@@ -125,13 +135,26 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
         run.consumption.tool_wall_ms += tool_wall
         run.notes.setdefault("tool_rounds", []).append(record)
         build_ok = record.get("build_ok") is True
-        miri_detected = any(r.get("extra", {}).get("detected")
-                            for r in record.get("miri", []))
+        miri_runs = list(record.get("miri", []))
+        extended = record.get("miri_extended")
+        if isinstance(extended, dict):
+            miri_runs.extend(extended.get("runs", []) if "runs" in extended else [extended])
+        miri_detected = any(r.get("extra", {}).get("detected") for r in miri_runs)
+        # "green" means every run finished cleanly: a timeout or tool error is
+        # not green and must not be accepted.
+        miri_green = bool(miri_runs) and all(
+            r.get("extra", {}).get("status") == "clean" for r in miri_runs)
+        prompt_tokens, completion_tokens = _tokens(response)
         rr = RoundRecord(
             round=round_no,
-            request_sha256=sha256_text(json.dumps({"spec": spec, "feedback": feedback,
-                                                   "attempt": round_no})),
-            llm_wall_ms=0,
+            request_sha256=sha256_text(json.dumps({"spec_sha256": sha256_text(spec),
+                                                   "feedback": feedback,
+                                                   "attempt": round_no},
+                                                  sort_keys=True)),
+            feedback_sha256=sha256_text(feedback) if feedback else None,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            llm_wall_ms=int(getattr(response, "wall_ms", 0) or 0),
             tool_wall_ms=tool_wall,
             tool_output_sha256=sha256_text(json.dumps(record, sort_keys=True)),
         )
@@ -149,14 +172,15 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
                 break
             feedback = "Review the program for concurrency defects and output the full fixed program."
             continue
-        # A2_tools_iter
-        run.accepted = build_ok and not miri_detected
+        # A2_tools_iter: accept only when every tool finished cleanly.
+        run.accepted = build_ok and miri_green and not miri_detected
         rr.decision = "tools_green" if run.accepted else "tools_dirty"
         if run.accepted:
             break
         feedback = _truncate(json.dumps({
             "build_ok": build_ok,
             "miri_detected": miri_detected,
+            "miri_statuses": [r.get("extra", {}).get("status") for r in miri_runs],
             "build": record.get("build"),
             "behavior_test": record.get("behavior_test"),
         }, sort_keys=True))
@@ -202,6 +226,18 @@ def run_cir_arm(client: ConcirClient, provider: CandidateProvider, *, arm: str,
     run.error = result.error
     run.notes["revision_status"] = result.status
     run.notes["fidelity"] = [v.fidelity for v in result.versions if v.fidelity]
+    for version in result.versions:
+        run.rounds.append(RoundRecord(
+            round=version.version,
+            request_sha256=version.request_sha256,
+            feedback_sha256=version.feedback_sha256,
+            prompt_tokens=version.prompt_tokens,
+            completion_tokens=version.completion_tokens,
+            llm_wall_ms=version.llm_wall_ms,
+            tool_wall_ms=version.tool_wall_ms,
+            tool_output_sha256=version.tool_output_sha256,
+            decision=version.decision,
+        ))
     if result.versions:
         last = result.versions[-1]
         run.final_artifact_path = last.artifact_path

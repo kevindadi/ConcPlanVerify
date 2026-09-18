@@ -207,6 +207,36 @@ the handoff. Default this round: **not shipped** unless B2 shows it is needed.
 | live wall cap | 14400 s |
 | batch budget file | `experiments/flash-arms-v1/budget.json` |
 
+## Revision 2026-09-18b — capability families and deviations
+
+The task set is rebuilt from the **current ConcIR capability matrix**, not the
+paper's Table 1. Old `cir2cvn` capabilities (FnSummary, three-valued guards,
+RwLock) no longer exist; the current backend adds modules, `scope`/`bound`,
+bounded channels, a precise condvar wait-set, counting semaphores, bounded data
+domains and `safety`/`reachability`/`always_reachable`/`unreachable` properties
+that the paper did not cover. Tasks live in `benchmarks/families/<family>/<case>/`
+and the retired patterns are kept under `benchmarks/legacy-paper-patterns/`
+with `status: legacy`.
+
+Design change: **the target properties are written and frozen by a human**, not
+derived by the LLM. This differs from the paper's "LLM can derive business
+goals" wording and is intentional.
+
+Registered deviations (must be repeated in the handoff):
+
+- **D-1 (Miri sample size).** Each Miri run is ~0.2-0.6 s, so the frozen 5
+  single-seed combinations are insufficient to support a miss conclusion. The
+  harness now also runs one `-Zmiri-many-seeds=0..64` pass (falling back to a
+  64-seed loop when the flag is unsupported). The 5 frozen combinations are
+  still reported separately. Miri remains dynamic: a miss is never safety.
+- **D-2 (task set).** P1-P9 are retired to `legacy`; experiments use the
+  capability families. Boundary cases (`UNSUPPORTED`, `UNKNOWN`) are negative
+  controls and have no Rust reference or behavior test.
+- **D-3 (behavior tests).** Rust behavior tests are real (`rust/tests/`) where
+  authored; a zero-test project is `behavior_test_ok = null` with reason
+  `no_tests`, never `true`. Cases without an authored behavior test report
+  `null` for that oracle field.
+
 ## Threats to validity (must appear in the final handoff)
 
 - Miri is dynamic and non-exhaustive: a miss is not proof of absence.

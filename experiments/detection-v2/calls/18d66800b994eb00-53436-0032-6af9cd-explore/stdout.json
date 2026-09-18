@@ -1,0 +1,279 @@
+{
+  "outcome": "FAIL",
+  "complete": true,
+  "states_explored": 197,
+  "transitions_explored": 307,
+  "properties": [
+    {
+      "id": "deadlock",
+      "outcome": "FAIL",
+      "detail": "a reachable state has no enabled step and unfinished threads"
+    }
+  ],
+  "diagnostics": [
+    {
+      "property": "deadlock",
+      "outcome": "FAIL",
+      "message": "reachable global deadlock",
+      "complete": true,
+      "counterexample": [
+        {
+          "origin": {
+            "module": 0,
+            "function": 0,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 0,
+          "frame": 0
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 1,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 1,
+          "frame": 1
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 1,
+            "sid": 1,
+            "phase": "statement"
+          },
+          "thread": 1,
+          "frame": 1
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 1,
+            "sid": 2,
+            "phase": "statement"
+          },
+          "thread": 1,
+          "frame": 1
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 2,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 2,
+          "frame": 2
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 2,
+            "sid": 1,
+            "phase": "statement"
+          },
+          "thread": 2,
+          "frame": 2
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 2,
+            "sid": 2,
+            "phase": "statement"
+          },
+          "thread": 2,
+          "frame": 2
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 2,
+            "sid": 3,
+            "phase": "statement"
+          },
+          "thread": 2,
+          "frame": 2
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 3,
+            "sid": 0,
+            "phase": "statement"
+          },
+          "thread": 3,
+          "frame": 3
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 3,
+            "sid": 1,
+            "phase": "statement"
+          },
+          "thread": 3,
+          "frame": 3
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 3,
+            "sid": 2,
+            "phase": "statement"
+          },
+          "thread": 3,
+          "frame": 3
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 3,
+            "sid": 3,
+            "phase": "statement"
+          },
+          "thread": 3,
+          "frame": 3
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 2,
+            "sid": 3,
+            "phase": "statement"
+          },
+          "thread": 2,
+          "frame": 2
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 2,
+            "sid": 4,
+            "phase": "statement"
+          },
+          "thread": 2,
+          "frame": 2
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 2,
+            "sid": 5,
+            "phase": "statement"
+          },
+          "thread": 2,
+          "frame": 2
+        },
+        {
+          "origin": {
+            "module": 0,
+            "function": 3,
+            "sid": 4,
+            "phase": "statement"
+          },
+          "thread": 3,
+          "frame": 3
+        }
+      ],
+      "final_instances": [
+        {
+          "thread": 0,
+          "frame": 0,
+          "function": 0,
+          "sid": 0,
+          "status": "running"
+        },
+        {
+          "thread": 1,
+          "frame": 1,
+          "function": 1,
+          "sid": 2,
+          "status": "running"
+        },
+        {
+          "thread": 2,
+          "frame": null,
+          "function": 2,
+          "sid": null,
+          "status": "finished"
+        },
+        {
+          "thread": 3,
+          "frame": null,
+          "function": 3,
+          "sid": null,
+          "status": "finished"
+        }
+      ],
+      "blocked": [
+        {
+          "thread": 0,
+          "kind": "scope",
+          "resource": null,
+          "resource_name": null,
+          "holder": null,
+          "waiting": 0,
+          "detail": "waiting for scope members"
+        },
+        {
+          "thread": 1,
+          "kind": "condvar",
+          "resource": 1,
+          "resource_name": "main::cv",
+          "holder": null,
+          "waiting": 1,
+          "detail": "waiting on condvar to be notified"
+        }
+      ],
+      "cir_statements": [
+        {
+          "module": "main",
+          "function": "main",
+          "sid": "s1"
+        },
+        {
+          "module": "main",
+          "function": "w1",
+          "sid": "s3"
+        },
+        {
+          "module": "main",
+          "function": "w2",
+          "sid": null
+        },
+        {
+          "module": "main",
+          "function": "notifier",
+          "sid": null
+        }
+      ],
+      "proven_facts": [
+        "reached a counterexample state after 16 step(s)",
+        "explored 197 reachable states"
+      ],
+      "repair_hints": [
+        "check lock acquisition order, channel capacity, and missing notify/join"
+      ]
+    }
+  ],
+  "boundary_events": [],
+  "unsupported": [],
+  "invalid": [],
+  "model_fingerprint": "26bd64b09eafae6e",
+  "contract_fingerprint": "394131a0342abdb3",
+  "assumptions": {
+    "sequential_consistency": true,
+    "no_spurious_wakeups": true
+  },
+  "bounds": {
+    "max_threads": 16,
+    "max_frames_per_thread": 32,
+    "max_states": 10000,
+    "max_depth": 40,
+    "max_boundary_events": 4096
+  },
+  "analysis_started": true
+}

@@ -78,13 +78,28 @@ def _rust_arm(root: Path, task, *, run_miri: bool, timeout_s: float,
     return record
 
 
+def _miri_runs(rust_record: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not rust_record:
+        return []
+    runs = list(rust_record.get("miri") or [])
+    extended = rust_record.get("miri_extended")
+    if isinstance(extended, dict):
+        if "runs" in extended:
+            runs.extend(extended["runs"])
+        else:
+            runs.append(extended)
+    return runs
+
+
 def _miri_detected(rust_record: dict[str, Any] | None) -> bool | None:
-    if not rust_record or not rust_record.get("miri"):
+    runs = _miri_runs(rust_record)
+    if not runs:
         return None
-    for run in rust_record["miri"]:
-        if run.get("extra", {}).get("detected"):
-            return True
-    return False
+    return any(r.get("extra", {}).get("detected") for r in runs)
+
+
+def _miri_statuses(rust_record: dict[str, Any] | None) -> list[str]:
+    return [r.get("extra", {}).get("status", "unknown") for r in _miri_runs(rust_record)]
 
 
 def run_detection(manifest_path: Path | str, out_dir: Path | str, *,
@@ -101,7 +116,7 @@ def run_detection(manifest_path: Path | str, out_dir: Path | str, *,
     records = []
     for task in tasks:
         if task.status != "ready":
-            records.append({"task": task.id, "status": "skipped_to_author"})
+            records.append({"task": task.id, "status": f"skipped_{task.status}"})
             continue
         entry: dict[str, Any] = {"task": task.id, "status": "ready",
                                  "ground_truth": task.ground_truth}
@@ -147,16 +162,19 @@ def render_markdown(result: dict[str, Any]) -> str:
              f"- Miri combos: {result['miri_combos']}",
              f"- Lockbud available: {result['lockbud_available']}", "",
              "## Per task", "",
-             "| task | CIR buggy | CIR fixed | Miri buggy | Miri fixed | notes |",
-             "| --- | --- | --- | --- | --- | --- |"]
+             "| task | CIR buggy | CIR fixed | Miri buggy | seeds | Miri fixed | seeds | tool errors | notes |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for rec in result["records"]:
         if rec.get("status") != "ready":
-            lines.append(f"| {rec['task']} | — | — | — | — | {rec['status']} |")
+            lines.append(f"| {rec['task']} | — | — | — | — | — | — | — | {rec['status']} |")
             continue
         cir = rec.get("concir") or {}
         buggy = (cir.get("buggy") or {}).get("petri", {}) if isinstance(cir.get("buggy"), dict) else {}
         fixed = (cir.get("fixed") or {}).get("petri", {}) if isinstance(cir.get("fixed"), dict) else {}
         rust = rec.get("rust") or {}
+        rb, rf = rust.get("buggy"), rust.get("fixed")
+        errors = sum(1 for s in (_miri_statuses(rb) + _miri_statuses(rf))
+                     if s == "tool_error")
         notes = []
         if buggy.get("status") not in (None, "pass", "unsupported"):
             notes.append("CIR detects")
@@ -164,7 +182,8 @@ def render_markdown(result: dict[str, Any]) -> str:
             notes.append("CIR false positive")
         lines.append(
             f"| {rec['task']} | {buggy.get('outcome')} | {fixed.get('outcome')} | "
-            f"{_miri_detected(rust.get('buggy'))} | {_miri_detected(rust.get('fixed'))} | "
+            f"{_miri_detected(rb)} | {len(_miri_runs(rb))} | "
+            f"{_miri_detected(rf)} | {len(_miri_runs(rf))} | {errors} | "
             f"{', '.join(notes)} |")
     lines += ["", "## Caveats", ""]
     lines += [f"- {c}" for c in result["caveats"]]

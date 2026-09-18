@@ -1,0 +1,452 @@
+{
+  "schema_version": "concir-external-patch-artifact-v1",
+  "source": {
+    "crate_version": "0.1.0",
+    "binary_fingerprint": "b6b762f21c017cc1"
+  },
+  "context_fingerprint": "3689e58c81228480",
+  "model_fingerprint": "a4e60fe86d9068a5",
+  "contract_fingerprint": "a755c30d18aa7c26",
+  "allowed_scope": {
+    "functions": [],
+    "modules": [],
+    "allow_lock_reorder": true,
+    "allow_statement_delete": false
+  },
+  "input_program": {
+    "program": "lost_wakeup",
+    "version": "3.5.0",
+    "modules": [
+      {
+        "name": "main",
+        "provides": {
+          "resources": [
+            "m",
+            "cv",
+            "ready"
+          ],
+          "functions": [
+            "main",
+            "waiter",
+            "notifier"
+          ],
+          "types": []
+        },
+        "requires": {
+          "resources": [],
+          "functions": [],
+          "types": []
+        },
+        "resources": [
+          {
+            "name": "m",
+            "kind": "sync",
+            "type": "Mutex",
+            "mode": "Sync"
+          },
+          {
+            "name": "cv",
+            "kind": "sync",
+            "type": "Condvar",
+            "mode": "Sync"
+          },
+          {
+            "name": "ready",
+            "kind": "var",
+            "type": "Var",
+            "base": "Bool",
+            "init": false
+          }
+        ],
+        "protection": [
+          {
+            "var": "ready",
+            "lock": "m"
+          }
+        ],
+        "functions": [
+          {
+            "name": "main",
+            "kind": "normal",
+            "body": [
+              {
+                "sid": "s1",
+                "kind": "scope",
+                "funcs": [
+                  "main::waiter",
+                  "main::notifier"
+                ]
+              },
+              {
+                "sid": "s2",
+                "kind": "return"
+              }
+            ]
+          },
+          {
+            "name": "waiter",
+            "kind": "normal",
+            "form": "closure",
+            "body": [
+              {
+                "sid": "s1",
+                "kind": "mutex_lock",
+                "resource": "main::m"
+              },
+              {
+                "sid": "s2",
+                "kind": "condvar_wait",
+                "condvar": "main::cv",
+                "lock": "main::m"
+              },
+              {
+                "sid": "s3",
+                "kind": "mutex_unlock",
+                "resource": "main::m"
+              },
+              {
+                "sid": "s4",
+                "kind": "return"
+              }
+            ]
+          },
+          {
+            "name": "notifier",
+            "kind": "normal",
+            "form": "closure",
+            "body": [
+              {
+                "sid": "s1",
+                "kind": "mutex_lock",
+                "resource": "main::m"
+              },
+              {
+                "sid": "s2",
+                "kind": "condvar_notify",
+                "condvar": "main::cv"
+              },
+              {
+                "sid": "s3",
+                "kind": "write_shared",
+                "resource": "main::ready",
+                "expr": "true"
+              },
+              {
+                "sid": "s4",
+                "kind": "mutex_unlock",
+                "resource": "main::m"
+              },
+              {
+                "sid": "s5",
+                "kind": "return"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "entry": "main::main"
+  },
+  "frozen_contract": {
+    "name": "lost-wakeup",
+    "properties": [
+      {
+        "kind": "deadlock_free",
+        "id": "no-deadlock"
+      },
+      {
+        "kind": "reachability",
+        "id": "ready-set",
+        "goal": {
+          "kind": "var_eq",
+          "resource": "main::ready",
+          "value": true
+        }
+      }
+    ],
+    "preserved": [
+      {
+        "kind": "reachable",
+        "description": "main::waiter completes",
+        "goal": {
+          "kind": "function_completed",
+          "function": "main::waiter"
+        }
+      },
+      {
+        "kind": "reachable",
+        "description": "main::notifier completes",
+        "goal": {
+          "kind": "function_completed",
+          "function": "main::notifier"
+        }
+      }
+    ],
+    "assumptions": {
+      "sequential_consistency": true,
+      "no_spurious_wakeups": true
+    },
+    "bounds": {
+      "max_threads": 8,
+      "max_frames_per_thread": 8,
+      "max_states": 20000,
+      "max_depth": 64,
+      "max_boundary_events": 256
+    },
+    "allowed_scope": {
+      "functions": [],
+      "modules": [],
+      "allow_lock_reorder": true,
+      "allow_statement_delete": false
+    }
+  },
+  "root_report": {
+    "outcome": "FAIL",
+    "complete": true,
+    "states_explored": 32,
+    "transitions_explored": 41,
+    "properties": [
+      {
+        "id": "no-deadlock",
+        "outcome": "FAIL",
+        "detail": "a reachable state has no enabled step and unfinished threads"
+      },
+      {
+        "id": "ready-set",
+        "outcome": "PASS",
+        "detail": "goal reachable via 4 step(s) (r2 == true)"
+      },
+      {
+        "id": "preserved: main::waiter completes",
+        "outcome": "PASS",
+        "detail": "preserved reachability: completed(f1)"
+      },
+      {
+        "id": "preserved: main::notifier completes",
+        "outcome": "PASS",
+        "detail": "preserved reachability: completed(f2)"
+      }
+    ],
+    "diagnostics": [
+      {
+        "property": "no-deadlock",
+        "outcome": "FAIL",
+        "message": "reachable global deadlock",
+        "complete": true,
+        "counterexample": [
+          {
+            "origin": {
+              "module": 0,
+              "function": 0,
+              "sid": 0,
+              "phase": "statement"
+            },
+            "thread": 0,
+            "frame": 0
+          },
+          {
+            "origin": {
+              "module": 0,
+              "function": 2,
+              "sid": 0,
+              "phase": "statement"
+            },
+            "thread": 2,
+            "frame": 2
+          },
+          {
+            "origin": {
+              "module": 0,
+              "function": 2,
+              "sid": 1,
+              "phase": "statement"
+            },
+            "thread": 2,
+            "frame": 2
+          },
+          {
+            "origin": {
+              "module": 0,
+              "function": 2,
+              "sid": 2,
+              "phase": "statement"
+            },
+            "thread": 2,
+            "frame": 2
+          },
+          {
+            "origin": {
+              "module": 0,
+              "function": 2,
+              "sid": 3,
+              "phase": "statement"
+            },
+            "thread": 2,
+            "frame": 2
+          },
+          {
+            "origin": {
+              "module": 0,
+              "function": 1,
+              "sid": 0,
+              "phase": "statement"
+            },
+            "thread": 1,
+            "frame": 1
+          },
+          {
+            "origin": {
+              "module": 0,
+              "function": 1,
+              "sid": 1,
+              "phase": "statement"
+            },
+            "thread": 1,
+            "frame": 1
+          },
+          {
+            "origin": {
+              "module": 0,
+              "function": 2,
+              "sid": 4,
+              "phase": "statement"
+            },
+            "thread": 2,
+            "frame": 2
+          }
+        ],
+        "final_instances": [
+          {
+            "thread": 0,
+            "frame": 0,
+            "function": 0,
+            "sid": 0,
+            "status": "running"
+          },
+          {
+            "thread": 1,
+            "frame": 1,
+            "function": 1,
+            "sid": 1,
+            "status": "running"
+          },
+          {
+            "thread": 2,
+            "frame": null,
+            "function": 2,
+            "sid": null,
+            "status": "finished"
+          }
+        ],
+        "blocked": [
+          {
+            "thread": 0,
+            "kind": "scope",
+            "resource": null,
+            "resource_name": null,
+            "holder": null,
+            "waiting": 0,
+            "detail": "waiting for scope members"
+          },
+          {
+            "thread": 1,
+            "kind": "condvar",
+            "resource": 1,
+            "resource_name": "main::cv",
+            "holder": null,
+            "waiting": 1,
+            "detail": "waiting for a lock"
+          }
+        ],
+        "cir_statements": [
+          {
+            "module": "main",
+            "function": "main",
+            "sid": "s1"
+          },
+          {
+            "module": "main",
+            "function": "waiter",
+            "sid": "s2"
+          },
+          {
+            "module": "main",
+            "function": "notifier",
+            "sid": null
+          }
+        ],
+        "proven_facts": [
+          "reached a counterexample state after 8 step(s)",
+          "explored 32 reachable states"
+        ],
+        "repair_hints": [
+          "check lock acquisition order, channel capacity, and missing notify/join"
+        ]
+      }
+    ],
+    "boundary_events": [],
+    "unsupported": [],
+    "invalid": [],
+    "model_fingerprint": "a4e60fe86d9068a5",
+    "contract_fingerprint": "a755c30d18aa7c26",
+    "assumptions": {
+      "sequential_consistency": true,
+      "no_spurious_wakeups": true
+    },
+    "bounds": {
+      "max_threads": 8,
+      "max_frames_per_thread": 8,
+      "max_states": 20000,
+      "max_depth": 64,
+      "max_boundary_events": 256
+    },
+    "analysis_started": true
+  },
+  "submitted": {
+    "schema_version": "concir-external-patch-candidate-v1",
+    "context_fingerprint": "3689e58c81228480",
+    "patch": {
+      "module": "main",
+      "function": "waiter",
+      "original_hash": "fa4b856dc896510a",
+      "changes": [
+        {
+          "kind": "swap_statements",
+          "a": "s1",
+          "b": "s2"
+        }
+      ]
+    }
+  },
+  "patch": {
+    "id": "external",
+    "module": "main",
+    "function": "waiter",
+    "original_hash": "fa4b856dc896510a",
+    "changes": [
+      {
+        "kind": "swap_statements",
+        "a": "s1",
+        "b": "s2"
+      }
+    ],
+    "provenance": [
+      {
+        "description": "external single patch"
+      }
+    ]
+  },
+  "patch_chain": [],
+  "patched_program": null,
+  "patched_program_fingerprint": null,
+  "static_valid": false,
+  "supported": false,
+  "verification": null,
+  "accepted": false,
+  "status": "rejected",
+  "reject_reason": {
+    "code": "unknown_sid",
+    "detail": "swap sids 's1'/'s2' are not both mutex_lock statements in main::waiter"
+  },
+  "reproduce": "concir-backend evaluate-patch <context.json> <candidate.json>"
+}

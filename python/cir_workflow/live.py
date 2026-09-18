@@ -343,10 +343,12 @@ class RecordingProvider:
             "wall_ms": outcome.wall_ms,
             "had_feedback": request.feedback is not None,
         })
-        return CandidateResponse.from_usage(
+        response = CandidateResponse.from_usage(
             outcome.text, "llm", ALLOWED_PROVIDER,
             model_id=outcome.response_model or ALLOWED_MODEL, usage=outcome.usage,
         )
+        response.wall_ms = outcome.wall_ms
+        return response
 
 
 def _usage_dict(usage: Any) -> dict[str, Any] | None:
@@ -533,7 +535,7 @@ class RecordingPatchProvider:
         })
         return PatchResponse(text=outcome.text, source="llm", provider=ALLOWED_PROVIDER,
                              model_id=outcome.response_model or ALLOWED_MODEL,
-                             usage=outcome.usage)
+                             usage=outcome.usage, wall_ms=outcome.wall_ms)
 
 
 def run_live_repair_pilot(

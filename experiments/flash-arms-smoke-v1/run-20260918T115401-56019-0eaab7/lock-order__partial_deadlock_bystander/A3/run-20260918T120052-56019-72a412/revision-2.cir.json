@@ -1,0 +1,183 @@
+{
+  "program": "partial_bystander",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m1",
+          "m2",
+          "hs",
+          "tick"
+        ],
+        "functions": [
+          "main",
+          "a",
+          "b",
+          "bystander"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "m1",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "m2",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "hs",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 1
+        },
+        {
+          "name": "tick",
+          "kind": "var",
+          "type": "Var",
+          "mode": "Sync"
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::a",
+                "main::b",
+                "main::bystander"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "a",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "m1"
+            },
+            {
+              "sid": "s2",
+              "kind": "semaphore_acquire",
+              "resource": "hs"
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_lock",
+              "resource": "m2"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "m2"
+            },
+            {
+              "sid": "s5",
+              "kind": "semaphore_release",
+              "resource": "hs"
+            },
+            {
+              "sid": "s6",
+              "kind": "mutex_unlock",
+              "resource": "m1"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "m2"
+            },
+            {
+              "sid": "s2",
+              "kind": "semaphore_acquire",
+              "resource": "hs"
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_lock",
+              "resource": "m1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "m1"
+            },
+            {
+              "sid": "s5",
+              "kind": "semaphore_release",
+              "resource": "hs"
+            },
+            {
+              "sid": "s6",
+              "kind": "mutex_unlock",
+              "resource": "m2"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "bystander",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "read_shared",
+              "resource": "tick",
+              "dst": "v"
+            },
+            {
+              "sid": "s2",
+              "kind": "write_shared",
+              "resource": "tick",
+              "expr": "v + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "goto",
+              "target": "s1"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

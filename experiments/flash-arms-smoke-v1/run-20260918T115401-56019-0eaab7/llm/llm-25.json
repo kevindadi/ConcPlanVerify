@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "de76e3b8-f7a7-4653-95de-721dc3204b58",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust tool-feedback prompt (v1, arm A2)\n\nYou are fixing a Rust program using the raw diagnostics produced by the build\nand analysis tools. The diagnostics are the ground truth.\n\n- `cargo build` errors mean the program does not compile: fix them.\n- Miri reports (deadlock or data race) identify a real interleaving problem:\n  change the synchronization so the reported problem cannot occur.\n- Do not silence a diagnostic by deleting synchronization, making the program\n  sequential, or catching/ignoring errors.\n- Keep standard-library-only, `fn main`, no external crates, no sleep-based\n  workarounds.\n- Output only the full corrected Rust source inside a single ```rust code fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nDesign two workers A and B that each take two mutexes with an intermediate semaphore handshake, plus an independent bystander task that keeps making progress forever. Main spawns all three. Although the bystander keeps the system globally live, every reachable state must still be able to finish A and B, and both workers must complete.\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "2e81d25fbbaa34bc5d8e2fac104bd400c8628cd9b2bd2e9fdf4149de06eb4b0b",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 720,
+    "prompt_tokens": 234,
+    "total_tokens": 954,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 0
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 234
+  },
+  "content_sha256": "5d5877a936c11fe1baeb9c171b4208b427428de04f5f1072ecb8b8f98f0a6630",
+  "content": "```rust\nuse std::sync::{Arc, Mutex, Condvar};\nuse std::thread;\n\n// A simple counting semaphore built from a mutex + condvar.\nstruct Semaphore {\n    count: Mutex<usize>,\n    cv: Condvar,\n}\n\nimpl Semaphore {\n    fn new(count: usize) -> Self {\n        Semaphore {\n            count: Mutex::new(count),\n            cv: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut c = self.count.lock().unwrap();\n        while *c == 0 {\n            c = self.cv.wait(c).unwrap();\n        }\n        *c -= 1;\n    }\n\n    fn release(&self) {\n        let mut c = self.count.lock().unwrap();\n        *c += 1;\n        self.cv.notify_one();\n    }\n}\n\nfn main() {\n    // Two mutexes that A and B both need.\n    let m1 = Arc::new(Mutex::new(()));\n    let m2 = Arc::new(Mutex::new(()));\n\n    // Semaphore handshake: A signals B after acquiring its first lock,\n    // B signals A after acquiring its first lock. This orders the\n    // acquisition so that no deadlock cycle can form.\n    let a_ready = Arc::new(Semaphore::new(0));\n    let b_ready = Arc::new(Semaphore::new(0));\n\n    // Bystander keeps making progress forever.\n    let bystander = thread::spawn(|| {\n        let mut x: u64 = 0;\n        loop {\n            x = x.wrapping_add(1);\n            if x == u64::MAX {\n                x = 0;\n            }\n        }\n    });\n\n    let m1_a = Arc::clone(&m1);\n    let m2_a = Arc::clone(&m2);\n    let a_ready_a = Arc::clone(&a_ready);\n    let b_ready_a = Arc::clone(&b_ready);\n\n    let worker_a = thread::spawn(move || {\n        // A takes m1 first, then hands off to B, then takes m2.\n        let _g1 = m1_a.lock().unwrap();\n        a_ready_a.release(); // tell B that A holds m1\n        b_ready_a.acquire(); // wait until B holds m2\n        let _g2 = m2_a.lock().unwrap();\n        // critical section\n    });\n\n    let m1_b = Arc::clone(&m1);\n    let m2_b = Arc::clone(&m2);\n    let a_ready_b = Arc::clone(&a_ready);\n    let b_ready_b = Arc::clone(&b_ready);\n\n    let worker_b = thread::spawn(move || {\n        // B takes m2 first, then hands off to A, then takes m1.\n        let _g2 = m2_b.lock().unwrap();\n        b_ready_b.release(); // tell A that B holds m2\n        a_ready_b.acquire(); // wait until A holds m1\n        let _g1 = m1_b.lock().unwrap();\n        // critical section\n    });\n\n    worker_a.join().unwrap();\n    worker_b.join().unwrap();\n\n    // Bystander runs forever; detach it so main can exit.\n    drop(bystander);\n}\n```",
+  "wall_ms": 2570
+}

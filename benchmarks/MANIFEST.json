@@ -1,18 +1,922 @@
 {
-  "version": 1,
-  "description": "Frozen v2 benchmark tasks. Per-task status is ready or to_author; to_author tasks are excluded from live runs.",
+  "version": 2,
+  "description": "Capability-family benchmark for the current ConcIR. status=ready means check/support/explore passed; per-case results and pre-registration mismatches are recorded.",
+  "bounds": {
+    "max_threads": 8,
+    "max_frames_per_thread": 8,
+    "max_states": 20000,
+    "max_depth": 64,
+    "max_boundary_events": 256
+  },
   "tasks": [
     {
-      "id": "P1",
+      "family": "lock-order",
+      "case": "abba_2lock",
+      "directory": "families/lock-order/abba_2lock",
+      "files": {
+        "families/lock-order/abba_2lock/spec.md": "66473fd8e8b3bd4b9b00fb60c5cbb8a0a053c74f92ee8738ef17b6e9b40ece47",
+        "families/lock-order/abba_2lock/contract.json": "99bdb3e7b49fc3a9cfff91b338f331a1757e9393a34d5a9fb2c9bf9f59f2a3bd",
+        "families/lock-order/abba_2lock/buggy.cir.json": "795ab21c6e889e34e15a11ce8056a243974f1d7261fbe3d6920a2940d8d1d063",
+        "families/lock-order/abba_2lock/fixed.cir.json": "50f0bcebf6ac3c586a759c8c20669b70bf49476fcf968b5c46383e832b548d94",
+        "families/lock-order/abba_2lock/ground_truth.json": "c9e8478ca0e7fadba695c82832653bf0d416d57d2545df1adb1aec7da946fe64",
+        "families/lock-order/abba_2lock/rust/buggy.rs": "ce946300ec53e50326d3dc56d51c3496408cf6d95bea4802043980a5e771d13a",
+        "families/lock-order/abba_2lock/rust/fixed.rs": "f9095bb5bfefab40ef467ca86325a853828cc2ba43c42866f012f4a09b05b5e1"
+      },
+      "spec": "families/lock-order/abba_2lock/spec.md",
+      "contract": "families/lock-order/abba_2lock/contract.json",
+      "results": {
+        "buggy": {
+          "check_valid": true,
+          "support": true,
+          "petri": "FAIL",
+          "interp": "FAIL",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 49,
+          "wall_ms": null
+        },
+        "fixed": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 39,
+          "wall_ms": null
+        }
+      },
       "status": "ready",
-      "directory": "patterns/P1",
-      "spec": "patterns/P1/spec.md",
-      "contract": "patterns/P1/contract.json",
-      "buggy_cir": "patterns/P1/buggy.cir.json",
-      "fixed_cir": "patterns/P1/fixed.cir.json",
-      "buggy_rs": "patterns/P1/buggy.rs",
-      "fixed_rs": "patterns/P1/fixed.rs",
-      "visualized": "ready",
+      "ground_truth": {
+        "defect_family": "lock_order",
+        "resources": [
+          "main::a",
+          "main::b"
+        ],
+        "statements": [
+          "main::t2.l1",
+          "main::t2.l1b"
+        ],
+        "expected_outcome_buggy": "FAIL",
+        "expected_outcome_fixed": "PASS",
+        "expected_repair": "unify lock order",
+        "provenance": "authored; buggy CIR equals the LLM-generated pilot-v1 t2_abba model (sha d2d4958b...)"
+      },
+      "id": "lock-order/abba_2lock",
+      "buggy_cir": "families/lock-order/abba_2lock/buggy.cir.json",
+      "fixed_cir": "families/lock-order/abba_2lock/fixed.cir.json",
+      "correct_cir": null,
+      "buggy_rs": "families/lock-order/abba_2lock/rust/buggy.rs",
+      "fixed_rs": "families/lock-order/abba_2lock/rust/fixed.rs"
+    },
+    {
+      "family": "lock-order",
+      "case": "cycle_3lock",
+      "directory": "families/lock-order/cycle_3lock",
+      "files": {
+        "families/lock-order/cycle_3lock/spec.md": "cbbeb495e6dde823e6a1696673a4cb8a752ff97600c2a348f8b0553259900de5",
+        "families/lock-order/cycle_3lock/contract.json": "7024f037bfde5bf1a675a6c076bfbc81ff815e42957f9e8cd04c13fd2c7984b5",
+        "families/lock-order/cycle_3lock/buggy.cir.json": "3568ce39e250c85b07dc5988e83b6d0690dcd494e424810a752129507d7b9e05",
+        "families/lock-order/cycle_3lock/fixed.cir.json": "012722eebc94b405b520916d0adf54e0c9599c0606b4722152d5b5ecbf304acd",
+        "families/lock-order/cycle_3lock/ground_truth.json": "07a129e59faa5d53e92cc1f258e0a3d95507719d97e9f3334dbc86e593ee267f",
+        "families/lock-order/cycle_3lock/rust/buggy.rs": "8e25677b26d2014c731a13da23d163cb96a558a896f8e36d7fb32da633cdcd88",
+        "families/lock-order/cycle_3lock/rust/fixed.rs": "0916d7ee878bf7e9be3086fbba74265dbd49d3d166b390d6b49fe45560738e3d"
+      },
+      "spec": "families/lock-order/cycle_3lock/spec.md",
+      "contract": "families/lock-order/cycle_3lock/contract.json",
+      "results": {
+        "buggy": {
+          "check_valid": true,
+          "support": true,
+          "petri": "FAIL",
+          "interp": "FAIL",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 331,
+          "wall_ms": null
+        },
+        "fixed": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 286,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "lock_order",
+        "resources": [
+          "main::a",
+          "main::b",
+          "main::c"
+        ],
+        "statements": [
+          "main::t3.l1",
+          "main::t3.l1b"
+        ],
+        "expected_outcome_buggy": "FAIL",
+        "expected_outcome_fixed": "PASS",
+        "expected_repair": "global lock order",
+        "provenance": "authored"
+      },
+      "id": "lock-order/cycle_3lock",
+      "buggy_cir": "families/lock-order/cycle_3lock/buggy.cir.json",
+      "fixed_cir": "families/lock-order/cycle_3lock/fixed.cir.json",
+      "correct_cir": null,
+      "buggy_rs": "families/lock-order/cycle_3lock/rust/buggy.rs",
+      "fixed_rs": "families/lock-order/cycle_3lock/rust/fixed.rs"
+    },
+    {
+      "family": "lock-order",
+      "case": "cross_module_cycle",
+      "directory": "families/lock-order/cross_module_cycle",
+      "files": {
+        "families/lock-order/cross_module_cycle/spec.md": "5eba047a2c5d5c018c3647dff6a7d7c4490126d06c570836ff848d26d9dc4d35",
+        "families/lock-order/cross_module_cycle/contract.json": "a53d94331df2a2502865dde5cbcd869942ea5614836ed4c18a8ea79ada073ef4",
+        "families/lock-order/cross_module_cycle/buggy.cir.json": "a513fadc58079ab1e36af412e56adf01c78bcc0776b55dcfecb65007ccc23d5d",
+        "families/lock-order/cross_module_cycle/ground_truth.json": "127a69d47a68c1d6389fa6060a71c1a3c34c135e085bf9cc6d646a75214badd0"
+      },
+      "spec": "families/lock-order/cross_module_cycle/spec.md",
+      "contract": "families/lock-order/cross_module_cycle/contract.json",
+      "results": {
+        "buggy": {
+          "check_valid": true,
+          "support": true,
+          "petri": "FAIL",
+          "interp": "FAIL",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 49,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "lock_order",
+        "resources": [
+          "main::a",
+          "other::b"
+        ],
+        "statements": [
+          "main::t1.l1",
+          "other::t2.l1"
+        ],
+        "expected_outcome_buggy": "FAIL",
+        "expected_repair": "unify cross-module lock order",
+        "provenance": "LLM-generated pilot-v1 t3_cross_module_abba (frozen), declared llm_generated"
+      },
+      "id": "lock-order/cross_module_cycle",
+      "buggy_cir": "families/lock-order/cross_module_cycle/buggy.cir.json",
+      "fixed_cir": null,
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "lock-order",
+      "case": "partial_deadlock_bystander",
+      "directory": "families/lock-order/partial_deadlock_bystander",
+      "files": {
+        "families/lock-order/partial_deadlock_bystander/spec.md": "ba04e323822335292037e4b1be10b14e9f696802cfa178a5ca2097ee8e592c0d",
+        "families/lock-order/partial_deadlock_bystander/contract.json": "12d7a97285d934440f7d8d8ea0b7552244218b67ec711e6b9ce7c890ab5003a4",
+        "families/lock-order/partial_deadlock_bystander/buggy.cir.json": "13e6147c8bfdc6feb2ad3fe488df7aaf5a81ad142f432e40a7443a340dd36a45",
+        "families/lock-order/partial_deadlock_bystander/fixed.cir.json": "59e4c43180c3d64711b714339cdaec26778d5d2bf3affa60b5cd960ae2775fb6",
+        "families/lock-order/partial_deadlock_bystander/ground_truth.json": "e746214045a0879fd8f8c7e5e6ccd726d2995ec7fc26ac2bbc2c1b683720d64f"
+      },
+      "spec": "families/lock-order/partial_deadlock_bystander/spec.md",
+      "contract": "families/lock-order/partial_deadlock_bystander/contract.json",
+      "results": {
+        "buggy": {
+          "check_valid": true,
+          "support": true,
+          "petri": "FAIL",
+          "interp": "FAIL",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 109,
+          "wall_ms": null
+        },
+        "fixed": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 149,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "goal_layer",
+        "resources": [
+          "main::a",
+          "main::b",
+          "main::sa",
+          "main::sb"
+        ],
+        "statements": [
+          "main::a.s3",
+          "main::b.s3"
+        ],
+        "expected_outcome_buggy": "FAIL",
+        "expected_outcome_fixed": "PASS",
+        "expected_repair": "break the semaphore cross-wait",
+        "preregistered": {
+          "buggy": {
+            "deadlock_free": "PASS",
+            "always_reachable": "FAIL"
+          },
+          "fixed": {
+            "deadlock_free": "PASS",
+            "always_reachable": "PASS"
+          }
+        },
+        "provenance": "authored"
+      },
+      "id": "lock-order/partial_deadlock_bystander",
+      "buggy_cir": "families/lock-order/partial_deadlock_bystander/buggy.cir.json",
+      "fixed_cir": "families/lock-order/partial_deadlock_bystander/fixed.cir.json",
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "condvar",
+      "case": "lost_wakeup_notify_before_wait",
+      "directory": "families/condvar/lost_wakeup_notify_before_wait",
+      "files": {
+        "families/condvar/lost_wakeup_notify_before_wait/spec.md": "32bef8cfd26dc3b45b13e2f49b9262fa4e82509717e8bdf084a4430a86cb6d58",
+        "families/condvar/lost_wakeup_notify_before_wait/contract.json": "1370b58166473243539e7dd511d47133368dc731ca707fde51ebe63c3ab8b49b",
+        "families/condvar/lost_wakeup_notify_before_wait/buggy.cir.json": "bc55bb0ce0543f44d0b225469d8d919e661c73a637d5eeb77593a85250c7df1b",
+        "families/condvar/lost_wakeup_notify_before_wait/fixed.cir.json": "d20319d3bd381d2bd016771212ea86d6b31a66a61e6ea62fc2a97127e337ae0f",
+        "families/condvar/lost_wakeup_notify_before_wait/ground_truth.json": "04da4b7a83e7e586a34dbe6f5b43e8dbeaa7bab65af74edfbec2bd5dfb87e8fe"
+      },
+      "spec": "families/condvar/lost_wakeup_notify_before_wait/spec.md",
+      "contract": "families/condvar/lost_wakeup_notify_before_wait/contract.json",
+      "results": {
+        "buggy": {
+          "check_valid": true,
+          "support": true,
+          "petri": "FAIL",
+          "interp": "FAIL",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 32,
+          "wall_ms": null
+        },
+        "fixed": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 43,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "condvar",
+        "resources": [
+          "main::m",
+          "main::cv",
+          "main::ready"
+        ],
+        "statements": [
+          "main::waiter.s2",
+          "main::notifier.s2"
+        ],
+        "expected_outcome_buggy": "FAIL",
+        "expected_outcome_fixed": "PASS",
+        "expected_repair": "set the predicate before notify; re-check the predicate in a loop",
+        "provenance": "authored"
+      },
+      "id": "condvar/lost_wakeup_notify_before_wait",
+      "buggy_cir": "families/condvar/lost_wakeup_notify_before_wait/buggy.cir.json",
+      "fixed_cir": "families/condvar/lost_wakeup_notify_before_wait/fixed.cir.json",
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "channel",
+      "case": "rendezvous_both_send",
+      "directory": "families/channel/rendezvous_both_send",
+      "files": {
+        "families/channel/rendezvous_both_send/spec.md": "cc8f6b939531c83949152e031d49b5a117926acfe22b0aca255079d10e4410bf",
+        "families/channel/rendezvous_both_send/contract.json": "c7e4addf7b2c529496179ecc7960c6021355b44a49466b9f2a149f0ba72e0772",
+        "families/channel/rendezvous_both_send/buggy.cir.json": "4201c273c2777a183c526a521b09858270b87adebb614dfa3f82dccef62adaa6",
+        "families/channel/rendezvous_both_send/fixed.cir.json": "72b5131f3dabf3a0ecf942925462f38bf30b615320b103228293661d4f2b3394",
+        "families/channel/rendezvous_both_send/ground_truth.json": "eedbd29f28b59ee353502a7c57e51f80a7682972a44c0f41b8e9645d82c9347c"
+      },
+      "spec": "families/channel/rendezvous_both_send/spec.md",
+      "contract": "families/channel/rendezvous_both_send/contract.json",
+      "results": {
+        "buggy": {
+          "check_valid": true,
+          "support": true,
+          "petri": "FAIL",
+          "interp": "FAIL",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 6,
+          "wall_ms": null
+        },
+        "fixed": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 9,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "channel",
+        "resources": [
+          "main::ch"
+        ],
+        "statements": [
+          "main::s2.s1"
+        ],
+        "expected_outcome_buggy": "FAIL",
+        "expected_outcome_fixed": "PASS",
+        "expected_repair": "pair each send with a receive",
+        "provenance": "authored"
+      },
+      "id": "channel/rendezvous_both_send",
+      "buggy_cir": "families/channel/rendezvous_both_send/buggy.cir.json",
+      "fixed_cir": "families/channel/rendezvous_both_send/fixed.cir.json",
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "semaphore",
+      "case": "permit_leak",
+      "directory": "families/semaphore/permit_leak",
+      "files": {
+        "families/semaphore/permit_leak/spec.md": "5fd997765ce416418efe59b71b01dd1db18b12069b3cb3fa6e19346a5b0d8f18",
+        "families/semaphore/permit_leak/contract.json": "29f48c541b8ab3c793418bb5e50d12620a180719c96cce24569e6bcf8fb855c4",
+        "families/semaphore/permit_leak/buggy.cir.json": "6ac9f65c82a126b88b35e958434dc279193a8c96bc0f557c4e2f77c065b49752",
+        "families/semaphore/permit_leak/fixed.cir.json": "21149d244d791f20d4cdd2f0ca94d407bc4e614e09dd47953db74ea103219589",
+        "families/semaphore/permit_leak/ground_truth.json": "dd90d49b02f67bd58583efa816121c4fdd1e76df895fefe270d6b8c3fd518f1a"
+      },
+      "spec": "families/semaphore/permit_leak/spec.md",
+      "contract": "families/semaphore/permit_leak/contract.json",
+      "results": {
+        "buggy": {
+          "check_valid": true,
+          "support": true,
+          "petri": "FAIL",
+          "interp": "FAIL",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 17,
+          "wall_ms": null
+        },
+        "fixed": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 23,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "semaphore",
+        "resources": [
+          "main::s"
+        ],
+        "statements": [
+          "main::w1.s2"
+        ],
+        "expected_outcome_buggy": "FAIL",
+        "expected_outcome_fixed": "PASS",
+        "expected_repair": "release the permit on every path",
+        "provenance": "authored"
+      },
+      "id": "semaphore/permit_leak",
+      "buggy_cir": "families/semaphore/permit_leak/buggy.cir.json",
+      "fixed_cir": "families/semaphore/permit_leak/fixed.cir.json",
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "semaphore",
+      "case": "throttle_n_permits",
+      "directory": "families/semaphore/throttle_n_permits",
+      "files": {
+        "families/semaphore/throttle_n_permits/spec.md": "c4e83ea219c13f624af8f2e4823f345e076445389e512f18bd8b2833ae167fcc",
+        "families/semaphore/throttle_n_permits/contract.json": "bd04ac4615cf19e9b1860022fd8133157df81cb523b0df999d3f84eee4d18151",
+        "families/semaphore/throttle_n_permits/correct.cir.json": "57a8846dc02781cf782046993f6c6c37a1b2762c357e5484f2faee1d914faf4c",
+        "families/semaphore/throttle_n_permits/ground_truth.json": "39cfc7f87b1dbf2976528f3de2c44a33b29776abfb25aa77aa44edeb96b458ec"
+      },
+      "spec": "families/semaphore/throttle_n_permits/spec.md",
+      "contract": "families/semaphore/throttle_n_permits/contract.json",
+      "results": {
+        "correct": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 92,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "semaphore",
+        "resources": [
+          "main::s"
+        ],
+        "statements": [],
+        "expected_outcome_correct": "PASS",
+        "provenance": "authored"
+      },
+      "id": "semaphore/throttle_n_permits",
+      "buggy_cir": null,
+      "fixed_cir": null,
+      "correct_cir": "families/semaphore/throttle_n_permits/correct.cir.json",
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "atomic-data",
+      "case": "bounded_counter_invariant",
+      "directory": "families/atomic-data/bounded_counter_invariant",
+      "files": {
+        "families/atomic-data/bounded_counter_invariant/spec.md": "b28e6ba9f032dbcf0511aa980249b3c644790e2ad0f42b9306a72fd862cea031",
+        "families/atomic-data/bounded_counter_invariant/contract.json": "f79d14587ea6a2f846b25947ef7d4def63dc1f83ccae1c0c4da28dcb57f135e1",
+        "families/atomic-data/bounded_counter_invariant/correct.cir.json": "be74e14b58839a54f2e9de65a22820c9230b27b31129cb0f8abea9f1d43e37f6",
+        "families/atomic-data/bounded_counter_invariant/ground_truth.json": "5af9d6ad7d33e8cfa526f0fce4e914f9b40523fabc1de94387770664915140e3"
+      },
+      "spec": "families/atomic-data/bounded_counter_invariant/spec.md",
+      "contract": "families/atomic-data/bounded_counter_invariant/contract.json",
+      "results": {
+        "correct": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 31,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "atomic_data",
+        "resources": [
+          "main::c"
+        ],
+        "statements": [],
+        "expected_outcome_correct": "PASS",
+        "provenance": "authored; exercises bounded Int + safety invariant (a capability with no paper Table 1 coverage)"
+      },
+      "id": "atomic-data/bounded_counter_invariant",
+      "buggy_cir": null,
+      "fixed_cir": null,
+      "correct_cir": "families/atomic-data/bounded_counter_invariant/correct.cir.json",
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "structure",
+      "case": "scope_bound_k_workers",
+      "directory": "families/structure/scope_bound_k_workers",
+      "files": {
+        "families/structure/scope_bound_k_workers/spec.md": "25e589302ff9669e32cd41ff59ecfdbdfebeaa4467d6d53970b3fb020ac4ce9a",
+        "families/structure/scope_bound_k_workers/contract.json": "2e7cd16a10a6cf57a9f5180b2c7911fbe981bff674429c51f5b30a42a51289fb",
+        "families/structure/scope_bound_k_workers/correct.cir.json": "e410b98f27884453270ac60a903d37c7f2ec5dd2905fd7622f220635a107baf1",
+        "families/structure/scope_bound_k_workers/ground_truth.json": "634c62b1254141fbce172087803bc760c32ed44951f719a8d6da05e25059d950"
+      },
+      "spec": "families/structure/scope_bound_k_workers/spec.md",
+      "contract": "families/structure/scope_bound_k_workers/contract.json",
+      "results": {
+        "correct": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 116,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "structure",
+        "resources": [
+          "main::s"
+        ],
+        "statements": [],
+        "expected_outcome_correct": "PASS",
+        "provenance": "authored; exercises scope + function bound"
+      },
+      "id": "structure/scope_bound_k_workers",
+      "buggy_cir": null,
+      "fixed_cir": null,
+      "correct_cir": "families/structure/scope_bound_k_workers/correct.cir.json",
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "boundary",
+      "case": "unbounded_int_unknown",
+      "directory": "families/boundary/unbounded_int_unknown",
+      "files": {
+        "families/boundary/unbounded_int_unknown/spec.md": "940cd26fbb0e440f9b79361da9386e48cffc02904019a9903b2971e9732304bf",
+        "families/boundary/unbounded_int_unknown/contract.json": "f0587619135bcb5752e24acb9880d2ace520cee868e06ea0ddbee1c2f243df5a",
+        "families/boundary/unbounded_int_unknown/correct.cir.json": "12fd3ed27fcfa02a2f573ee3206e7f884c48339b4ec6309deeb7362e92c0b887",
+        "families/boundary/unbounded_int_unknown/ground_truth.json": "2fbdd0826503d22e32bdf33e1f1be3b7fdaa70c716b1b7cacbcdac729b4164cd"
+      },
+      "spec": "families/boundary/unbounded_int_unknown/spec.md",
+      "contract": "families/boundary/unbounded_int_unknown/contract.json",
+      "results": {
+        "correct": {
+          "check_valid": true,
+          "support": true,
+          "petri": "UNKNOWN",
+          "interp": "UNKNOWN",
+          "petri_complete": false,
+          "interp_complete": false,
+          "states": 65,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "boundary",
+        "resources": [
+          "main::x"
+        ],
+        "statements": [],
+        "expected_outcome_correct": "UNKNOWN",
+        "provenance": "authored; negative control for the analysis bound"
+      },
+      "id": "boundary/unbounded_int_unknown",
+      "buggy_cir": null,
+      "fixed_cir": null,
+      "correct_cir": "families/boundary/unbounded_int_unknown/correct.cir.json",
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "lock-order",
+      "case": "two_independent_cycles",
+      "directory": "families/lock-order/two_independent_cycles",
+      "files": {
+        "families/lock-order/two_independent_cycles/spec.md": "f51333fc93428ac21065082a278be8aa649be0d67de9c48f2f2cc99b5a5a356f",
+        "families/lock-order/two_independent_cycles/contract.json": "54be59bd1274fbec6add210ea8c748c528b8e07951434cd3d4c7cd549879689b",
+        "families/lock-order/two_independent_cycles/buggy.cir.json": "9d43e80c423b713db3df0261337c698f9ff59312f25f3160bd700a6a698694ed",
+        "families/lock-order/two_independent_cycles/ground_truth.json": "9f798c1b311d751fe70797273978e7d9c18d9eb53d16c5671c66f77b35d9836b"
+      },
+      "spec": "families/lock-order/two_independent_cycles/spec.md",
+      "contract": "families/lock-order/two_independent_cycles/contract.json",
+      "results": {
+        "buggy": {
+          "check_valid": true,
+          "support": true,
+          "petri": "FAIL",
+          "interp": "FAIL",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 2211,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "lock-order",
+        "resources": [],
+        "statements": [],
+        "expected_outcome_buggy": "FAIL",
+        "provenance": "concir regression seed (two independent cycles)"
+      },
+      "id": "lock-order/two_independent_cycles",
+      "buggy_cir": "families/lock-order/two_independent_cycles/buggy.cir.json",
+      "fixed_cir": null,
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "condvar",
+      "case": "same_cv_different_locks",
+      "directory": "families/condvar/same_cv_different_locks",
+      "files": {
+        "families/condvar/same_cv_different_locks/spec.md": "0c88c1b3a5fa936e5c3672f81b74129e26663061058af24f3a260961c8c78fce",
+        "families/condvar/same_cv_different_locks/contract.json": "208a625a826de0bbe0677f256f33c44d23d274a4f57422d1ed95045342067f3a",
+        "families/condvar/same_cv_different_locks/buggy.cir.json": "d1d6e7c95adedec669bd0903bdacabf176b2c0f217e3569d8640ff19c27f6156",
+        "families/condvar/same_cv_different_locks/correct.cir.json": "d1d6e7c95adedec669bd0903bdacabf176b2c0f217e3569d8640ff19c27f6156",
+        "families/condvar/same_cv_different_locks/ground_truth.json": "2579326529818c09a767dfd9f57d4e746ae4539d622a319e7270a7f7e53814f9"
+      },
+      "spec": "families/condvar/same_cv_different_locks/spec.md",
+      "contract": "families/condvar/same_cv_different_locks/contract.json",
+      "results": {
+        "buggy": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 90,
+          "wall_ms": null
+        },
+        "correct": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 90,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "condvar",
+        "resources": [],
+        "statements": [],
+        "expected_outcome_buggy": "PASS",
+        "provenance": "concir round3 regression seed (precise wait-set: same cv, different locks; correct by construction)"
+      },
+      "id": "condvar/same_cv_different_locks",
+      "buggy_cir": "families/condvar/same_cv_different_locks/buggy.cir.json",
+      "fixed_cir": null,
+      "correct_cir": "families/condvar/same_cv_different_locks/correct.cir.json",
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "condvar",
+      "case": "notify_one_multi_waiter_wrong_pick",
+      "directory": "families/condvar/notify_one_multi_waiter_wrong_pick",
+      "files": {
+        "families/condvar/notify_one_multi_waiter_wrong_pick/spec.md": "eda4a72dc81b92f8302f5d12e270fa7a15706ad80f9894401c760cb21cb04f41",
+        "families/condvar/notify_one_multi_waiter_wrong_pick/contract.json": "970865d13cfcbf505cc44fe7b665caeca2c060789f7d5682a70d2cdc62fe8dba",
+        "families/condvar/notify_one_multi_waiter_wrong_pick/buggy.cir.json": "e2bc49550cbd8b817817b928c0e3ac1c4e92734d61cf65c548dae7230f5f1855",
+        "families/condvar/notify_one_multi_waiter_wrong_pick/ground_truth.json": "90b51a096e1cae1ec6ac795b36bbdcae801b2bb5184be9f041ad96c161eed597"
+      },
+      "spec": "families/condvar/notify_one_multi_waiter_wrong_pick/spec.md",
+      "contract": "families/condvar/notify_one_multi_waiter_wrong_pick/contract.json",
+      "results": {
+        "buggy": {
+          "check_valid": true,
+          "support": true,
+          "petri": "FAIL",
+          "interp": "FAIL",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 69,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "condvar",
+        "resources": [],
+        "statements": [],
+        "expected_outcome_buggy": "FAIL",
+        "provenance": "concir round2 regression seed (notify_one choice)"
+      },
+      "id": "condvar/notify_one_multi_waiter_wrong_pick",
+      "buggy_cir": "families/condvar/notify_one_multi_waiter_wrong_pick/buggy.cir.json",
+      "fixed_cir": null,
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "channel",
+      "case": "send_while_holding_mutex",
+      "directory": "families/channel/send_while_holding_mutex",
+      "files": {
+        "families/channel/send_while_holding_mutex/spec.md": "89521f3dc39d79958bdad3ea6674d785d5323b3f809cb54b3c92bef23fafdcce",
+        "families/channel/send_while_holding_mutex/contract.json": "0e2cf45274ebf9175ae37b498cb62227063c8ebc9391185d843ea6eeac90d054",
+        "families/channel/send_while_holding_mutex/buggy.cir.json": "9ccc4d4e0dac86e35637ca75f8cfaf8e08b27f6c67512b8346fc7bd9a72cfdf8",
+        "families/channel/send_while_holding_mutex/ground_truth.json": "3ef66e05d36f031a63af79b4640939cda7686a683dcb02db77a0bbf33d561558"
+      },
+      "spec": "families/channel/send_while_holding_mutex/spec.md",
+      "contract": "families/channel/send_while_holding_mutex/contract.json",
+      "results": {
+        "buggy": {
+          "check_valid": true,
+          "support": true,
+          "petri": "FAIL",
+          "interp": "FAIL",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 5,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "channel",
+        "resources": [],
+        "statements": [],
+        "expected_outcome_buggy": "FAIL",
+        "provenance": "concir regression seed (channel rendezvous mismatch)"
+      },
+      "id": "channel/send_while_holding_mutex",
+      "buggy_cir": "families/channel/send_while_holding_mutex/buggy.cir.json",
+      "fixed_cir": null,
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "structure",
+      "case": "finite_call_loop",
+      "directory": "families/structure/finite_call_loop",
+      "files": {
+        "families/structure/finite_call_loop/spec.md": "66fb01e1188bf2cd3e480d84013c7de7dc46e147c2e0c4f5dc355a8648eccc02",
+        "families/structure/finite_call_loop/contract.json": "decdf7f99a6bd0bcbe76634aaa9c79191df79d4533e604e9a41f5712e1253b58",
+        "families/structure/finite_call_loop/correct.cir.json": "0b077998fb0ec27520e9c4e362cf934275b0c4145f0b041867383b7662d325af",
+        "families/structure/finite_call_loop/ground_truth.json": "6845b07ca650e707b7676f1248777e0cb2d57c70dbd27e4a8c2bba36e479bd32"
+      },
+      "spec": "families/structure/finite_call_loop/spec.md",
+      "contract": "families/structure/finite_call_loop/contract.json",
+      "results": {
+        "correct": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 6,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "structure",
+        "resources": [],
+        "statements": [],
+        "expected_outcome_buggy": "PASS",
+        "provenance": "concir round2 regression seed (finite call loop)"
+      },
+      "id": "structure/finite_call_loop",
+      "buggy_cir": null,
+      "fixed_cir": null,
+      "correct_cir": "families/structure/finite_call_loop/correct.cir.json",
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "structure",
+      "case": "spawn_join_loop_finite",
+      "directory": "families/structure/spawn_join_loop_finite",
+      "files": {
+        "families/structure/spawn_join_loop_finite/spec.md": "9ef9ad0f106ea53aa5eab3f70618c6b4d20eff9720bc031b283e00b812341aac",
+        "families/structure/spawn_join_loop_finite/contract.json": "29c46cf280d4360692992adb519fbe2acb8d301a9482820905a70b55d1920849",
+        "families/structure/spawn_join_loop_finite/correct.cir.json": "04fc4f493b5414f44840805852e32181a8bef57f0c997ae0cecc8efa9595b76e",
+        "families/structure/spawn_join_loop_finite/ground_truth.json": "6573983052eb2473039c7666772df6a5610457e6132ed926c5ad5dd91f64d3a1"
+      },
+      "spec": "families/structure/spawn_join_loop_finite/spec.md",
+      "contract": "families/structure/spawn_join_loop_finite/contract.json",
+      "results": {
+        "correct": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 10,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "structure",
+        "resources": [],
+        "statements": [],
+        "expected_outcome_buggy": "PASS",
+        "provenance": "concir round3 regression seed (finite spawn/join loop)"
+      },
+      "id": "structure/spawn_join_loop_finite",
+      "buggy_cir": null,
+      "fixed_cir": null,
+      "correct_cir": "families/structure/spawn_join_loop_finite/correct.cir.json",
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "boundary",
+      "case": "rwlock_unsupported",
+      "directory": "families/boundary/rwlock_unsupported",
+      "files": {
+        "families/boundary/rwlock_unsupported/spec.md": "afbd7f8e2fd3bb826ec1115ea1085d874c5ac14fd0516fffbc07cc1196900a5d",
+        "families/boundary/rwlock_unsupported/contract.json": "00b165643013257a4c1d9209583d97ab21ce757684fb6d77fc530a7838c736e0",
+        "families/boundary/rwlock_unsupported/buggy.cir.json": "25b049ec8bc929452aea7b4bdb60cc01b6feb11913250f5aab3b21edbf918e04",
+        "families/boundary/rwlock_unsupported/ground_truth.json": "eb40dff87627810227b81e6cd37796fab99bd051582c4a329e0081d4a854856c"
+      },
+      "spec": "families/boundary/rwlock_unsupported/spec.md",
+      "contract": "families/boundary/rwlock_unsupported/contract.json",
+      "results": {
+        "buggy": {
+          "check_valid": true,
+          "support": false,
+          "petri": "UNSUPPORTED",
+          "interp": "UNSUPPORTED",
+          "petri_complete": false,
+          "interp_complete": false,
+          "states": 0,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "boundary",
+        "resources": [],
+        "statements": [],
+        "expected_outcome_buggy": "UNSUPPORTED",
+        "provenance": "ConcIR example; RwLock is unsupported in the backend"
+      },
+      "id": "boundary/rwlock_unsupported",
+      "buggy_cir": "families/boundary/rwlock_unsupported/buggy.cir.json",
+      "fixed_cir": null,
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "family": "boundary",
+      "case": "async_select_unsupported",
+      "directory": "families/boundary/async_select_unsupported",
+      "files": {
+        "families/boundary/async_select_unsupported/spec.md": "80b8ab7ff869e059f8cf0663b987f1dc77eee234e25984a26ec9ccda74158cbb",
+        "families/boundary/async_select_unsupported/contract.json": "00b165643013257a4c1d9209583d97ab21ce757684fb6d77fc530a7838c736e0",
+        "families/boundary/async_select_unsupported/buggy.cir.json": "a8e474abf05a6602244a9762961fea68c0999dc6136650c052c902b5a03f6e6e",
+        "families/boundary/async_select_unsupported/ground_truth.json": "60f2bcf4a4642e1a0197c9b1f4071df7e0c540b0393bfb8f4d1105bb5136943c"
+      },
+      "spec": "families/boundary/async_select_unsupported/spec.md",
+      "contract": "families/boundary/async_select_unsupported/contract.json",
+      "results": {
+        "buggy": {
+          "check_valid": true,
+          "support": false,
+          "petri": "UNSUPPORTED",
+          "interp": "UNSUPPORTED",
+          "petri_complete": false,
+          "interp_complete": false,
+          "states": 0,
+          "wall_ms": null
+        }
+      },
+      "status": "ready",
+      "ground_truth": {
+        "defect_family": "boundary",
+        "resources": [],
+        "statements": [],
+        "expected_outcome_buggy": "UNSUPPORTED",
+        "provenance": "ConcIR example; async/await is unsupported in the backend"
+      },
+      "id": "boundary/async_select_unsupported",
+      "buggy_cir": "families/boundary/async_select_unsupported/buggy.cir.json",
+      "fixed_cir": null,
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null
+    },
+    {
+      "id": "P1",
+      "status": "legacy",
+      "directory": "legacy-paper-patterns/P1",
+      "family": "legacy",
+      "case": "P1",
+      "spec": "legacy-paper-patterns/P1/spec.md",
+      "contract": "legacy-paper-patterns/P1/contract.json",
+      "buggy_cir": null,
+      "fixed_cir": null,
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null,
       "ground_truth": {
         "id": "P1",
         "legacy_id": "mutex_deadlock",
@@ -21,29 +925,34 @@
           "outcome": "bug",
           "bug_kind": "Deadlock",
           "expected_bug_path": "tests/e2e/mutex_deadlock/expected_bug.json"
-        }
+        },
+        "provenance": "paper Table 1 pattern; status=legacy, excluded from v2 experiments"
       },
       "files": {
-        "patterns/P1/spec.md": "2b431921c209417c230f9b4d05a0444f95ed8fb1d90ca5c91f732b1f8fb88cc5",
-        "patterns/P1/buggy.rs": "ce946300ec53e50326d3dc56d51c3496408cf6d95bea4802043980a5e771d13a",
-        "patterns/P1/fixed.rs": "f9095bb5bfefab40ef467ca86325a853828cc2ba43c42866f012f4a09b05b5e1",
-        "patterns/P1/buggy.cir.json": "d2d4958ba7a5a7ac43f6589503c8ed626232ce93469f608ce03f23dd2b33d8a5",
-        "patterns/P1/fixed.cir.json": "47612c9a9a7744f8a9224846ff27e2b91c03cf55384c48daaab550b9b8213bb3",
-        "patterns/P1/contract.json": "961458b8184169722d788feb17e53f4af14a3fa35f0601e584a29d670ab247fe",
-        "patterns/P1/ground_truth.json": "6a1c147e5a0d606cc0143730dada70c6e26d2413906714d1288bff09ca251a71"
-      }
+        "legacy-paper-patterns/P1/spec.md": "2b431921c209417c230f9b4d05a0444f95ed8fb1d90ca5c91f732b1f8fb88cc5",
+        "legacy-paper-patterns/P1/contract.json": "961458b8184169722d788feb17e53f4af14a3fa35f0601e584a29d670ab247fe",
+        "legacy-paper-patterns/P1/buggy.cir.json": "d2d4958ba7a5a7ac43f6589503c8ed626232ce93469f608ce03f23dd2b33d8a5",
+        "legacy-paper-patterns/P1/fixed.cir.json": "47612c9a9a7744f8a9224846ff27e2b91c03cf55384c48daaab550b9b8213bb3",
+        "legacy-paper-patterns/P1/buggy.rs": "ce946300ec53e50326d3dc56d51c3496408cf6d95bea4802043980a5e771d13a",
+        "legacy-paper-patterns/P1/fixed.rs": "f9095bb5bfefab40ef467ca86325a853828cc2ba43c42866f012f4a09b05b5e1",
+        "legacy-paper-patterns/P1/ground_truth.json": "6a1c147e5a0d606cc0143730dada70c6e26d2413906714d1288bff09ca251a71",
+        "legacy-paper-patterns/P1/legacy_brief.md": "b9a0305846baef040e542bace1c9e7145f35df49384a1dcd2d2b89fd1d81a778"
+      },
+      "results": {}
     },
     {
       "id": "P2",
-      "status": "to_author",
-      "directory": "patterns/P2",
+      "status": "legacy",
+      "directory": "legacy-paper-patterns/P2",
+      "family": "legacy",
+      "case": "P2",
       "spec": null,
       "contract": null,
       "buggy_cir": null,
       "fixed_cir": null,
-      "buggy_rs": "patterns/P2/buggy.rs",
-      "fixed_rs": "patterns/P2/fixed.rs",
-      "visualized": "to_author",
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null,
       "ground_truth": {
         "id": "P2",
         "legacy_id": "signal_loss",
@@ -52,25 +961,30 @@
           "outcome": "bug",
           "bug_kind": "SignalLoss",
           "expected_bug_path": "tests/e2e/signal_loss/expected_bug.json"
-        }
+        },
+        "provenance": "paper Table 1 pattern; status=legacy, excluded from v2 experiments"
       },
       "files": {
-        "patterns/P2/buggy.rs": "c3323d8c653b8eb97764ad337b42bf3f0bc7e89b616e8bbdbf80e11dfcf1f60a",
-        "patterns/P2/fixed.rs": "326c6ab628a59c7862342906fdba55569d19677c7df2e360100da1640d9bd49f",
-        "patterns/P2/ground_truth.json": "e94eb2652f61e0281075748b86bdf7a6380114d5e5ec4a7005e44696229dbbde"
-      }
+        "legacy-paper-patterns/P2/buggy.rs": "c3323d8c653b8eb97764ad337b42bf3f0bc7e89b616e8bbdbf80e11dfcf1f60a",
+        "legacy-paper-patterns/P2/fixed.rs": "326c6ab628a59c7862342906fdba55569d19677c7df2e360100da1640d9bd49f",
+        "legacy-paper-patterns/P2/ground_truth.json": "e94eb2652f61e0281075748b86bdf7a6380114d5e5ec4a7005e44696229dbbde",
+        "legacy-paper-patterns/P2/legacy_brief.md": "83794ade730d787eebb64e6edd5d683f529a8fba0b1f3c7f705e1e4cb28cb428"
+      },
+      "results": {}
     },
     {
       "id": "P3",
-      "status": "to_author",
-      "directory": "patterns/P3",
+      "status": "legacy",
+      "directory": "legacy-paper-patterns/P3",
+      "family": "legacy",
+      "case": "P3",
       "spec": null,
       "contract": null,
       "buggy_cir": null,
       "fixed_cir": null,
-      "buggy_rs": "patterns/P3/buggy.rs",
-      "fixed_rs": "patterns/P3/fixed.rs",
-      "visualized": "to_author",
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null,
       "ground_truth": {
         "id": "P3",
         "legacy_id": "channel_deadlock",
@@ -79,25 +993,30 @@
           "outcome": "bug",
           "bug_kind": "ChannelBlock",
           "expected_bug_path": "tests/e2e/channel_deadlock/expected_bug.json"
-        }
+        },
+        "provenance": "paper Table 1 pattern; status=legacy, excluded from v2 experiments"
       },
       "files": {
-        "patterns/P3/buggy.rs": "dae53b082b88887b733a6ec9b4c200722026f32bb34ac4f757a97fb564327f19",
-        "patterns/P3/fixed.rs": "0b8348a0b2fb9918823fdb642030661595ccc043dc9067f696aaa98bb986fbff",
-        "patterns/P3/ground_truth.json": "7eee8eaf5f4a4f2896c8e3e3b59c52fa323d6cecc2dd9b98a0f9183396d435b0"
-      }
+        "legacy-paper-patterns/P3/buggy.rs": "dae53b082b88887b733a6ec9b4c200722026f32bb34ac4f757a97fb564327f19",
+        "legacy-paper-patterns/P3/fixed.rs": "0b8348a0b2fb9918823fdb642030661595ccc043dc9067f696aaa98bb986fbff",
+        "legacy-paper-patterns/P3/ground_truth.json": "7eee8eaf5f4a4f2896c8e3e3b59c52fa323d6cecc2dd9b98a0f9183396d435b0",
+        "legacy-paper-patterns/P3/legacy_brief.md": "ba69c2c32c5e554accca3f40c858d0f3c0d7236e8a6e7e3e25efb149e08397ea"
+      },
+      "results": {}
     },
     {
       "id": "P4",
-      "status": "ready",
-      "directory": "patterns/P4",
-      "spec": "patterns/P4/spec.md",
-      "contract": "patterns/P4/contract.json",
-      "buggy_cir": "patterns/P4/buggy.cir.json",
-      "fixed_cir": "patterns/P4/fixed.cir.json",
-      "buggy_rs": "patterns/P4/buggy.rs",
-      "fixed_rs": "patterns/P4/fixed.rs",
-      "visualized": "ready",
+      "status": "legacy",
+      "directory": "legacy-paper-patterns/P4",
+      "family": "legacy",
+      "case": "P4",
+      "spec": "legacy-paper-patterns/P4/spec.md",
+      "contract": "legacy-paper-patterns/P4/contract.json",
+      "buggy_cir": null,
+      "fixed_cir": null,
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null,
       "ground_truth": {
         "id": "P4",
         "legacy_id": "three_way_deadlock",
@@ -106,29 +1025,34 @@
           "outcome": "bug",
           "bug_kind": "Deadlock",
           "expected_bug_path": "tests/e2e/three_way_deadlock/expected_bug.json"
-        }
+        },
+        "provenance": "paper Table 1 pattern; status=legacy, excluded from v2 experiments"
       },
       "files": {
-        "patterns/P4/spec.md": "da5c3796589a82929517ae2e7ed8498fede49787bc7f3e9a073250324ba90662",
-        "patterns/P4/buggy.rs": "8e25677b26d2014c731a13da23d163cb96a558a896f8e36d7fb32da633cdcd88",
-        "patterns/P4/fixed.rs": "0916d7ee878bf7e9be3086fbba74265dbd49d3d166b390d6b49fe45560738e3d",
-        "patterns/P4/buggy.cir.json": "a1612a57be333263b16c9f7c6b56ed0c7feb96c805d1800d5e3cfce27f237724",
-        "patterns/P4/fixed.cir.json": "ba0c453d06b702f39cad8f5e5627ee5aa916a3c466b2282e4465024319e49c09",
-        "patterns/P4/contract.json": "f100911745b52bb1a6fda2f23b383ba3ce842b7cf5afb3d8ebac73e3826a7b76",
-        "patterns/P4/ground_truth.json": "309e1c22e5c8e0cf22a10bf1e47325a6e269e00a2594b18e6aa0cf100f2abfb6"
-      }
+        "legacy-paper-patterns/P4/spec.md": "da5c3796589a82929517ae2e7ed8498fede49787bc7f3e9a073250324ba90662",
+        "legacy-paper-patterns/P4/contract.json": "f100911745b52bb1a6fda2f23b383ba3ce842b7cf5afb3d8ebac73e3826a7b76",
+        "legacy-paper-patterns/P4/buggy.cir.json": "a1612a57be333263b16c9f7c6b56ed0c7feb96c805d1800d5e3cfce27f237724",
+        "legacy-paper-patterns/P4/fixed.cir.json": "ba0c453d06b702f39cad8f5e5627ee5aa916a3c466b2282e4465024319e49c09",
+        "legacy-paper-patterns/P4/buggy.rs": "8e25677b26d2014c731a13da23d163cb96a558a896f8e36d7fb32da633cdcd88",
+        "legacy-paper-patterns/P4/fixed.rs": "0916d7ee878bf7e9be3086fbba74265dbd49d3d166b390d6b49fe45560738e3d",
+        "legacy-paper-patterns/P4/ground_truth.json": "309e1c22e5c8e0cf22a10bf1e47325a6e269e00a2594b18e6aa0cf100f2abfb6",
+        "legacy-paper-patterns/P4/legacy_brief.md": "adfe024d3bb8f32917b69355c8effb0c0994b17276841a0427336ddb160c6b05"
+      },
+      "results": {}
     },
     {
       "id": "P5",
-      "status": "to_author",
-      "directory": "patterns/P5",
+      "status": "legacy",
+      "directory": "legacy-paper-patterns/P5",
+      "family": "legacy",
+      "case": "P5",
       "spec": null,
       "contract": null,
       "buggy_cir": null,
       "fixed_cir": null,
-      "buggy_rs": "patterns/P5/buggy.rs",
-      "fixed_rs": "patterns/P5/fixed.rs",
-      "visualized": "to_author",
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null,
       "ground_truth": {
         "id": "P5",
         "legacy_id": "partial_deadlock",
@@ -137,25 +1061,30 @@
           "outcome": "goals_unmet",
           "bug_kind": null,
           "expected_bug_path": null
-        }
+        },
+        "provenance": "paper Table 1 pattern; status=legacy, excluded from v2 experiments"
       },
       "files": {
-        "patterns/P5/buggy.rs": "fd8efdba862186b48388f77c175dd095be231564e273057aa8d252b3f078978c",
-        "patterns/P5/fixed.rs": "62a4a5ca6c4f383aa03b9931541ccd6d85f465d820e40de6c7b01041ca47bc07",
-        "patterns/P5/ground_truth.json": "4620465d067b561999780bf87ca4f6abb9bf7128fd4c34541a679158e3f90366"
-      }
+        "legacy-paper-patterns/P5/buggy.rs": "fd8efdba862186b48388f77c175dd095be231564e273057aa8d252b3f078978c",
+        "legacy-paper-patterns/P5/fixed.rs": "62a4a5ca6c4f383aa03b9931541ccd6d85f465d820e40de6c7b01041ca47bc07",
+        "legacy-paper-patterns/P5/ground_truth.json": "4620465d067b561999780bf87ca4f6abb9bf7128fd4c34541a679158e3f90366",
+        "legacy-paper-patterns/P5/legacy_brief.md": "b2187f1866125af282c5f3eea52d247ad2e1bae6ab66c96d21858cd696da5a57"
+      },
+      "results": {}
     },
     {
       "id": "P6",
-      "status": "to_author",
-      "directory": "patterns/P6",
+      "status": "legacy",
+      "directory": "legacy-paper-patterns/P6",
+      "family": "legacy",
+      "case": "P6",
       "spec": null,
       "contract": null,
       "buggy_cir": null,
       "fixed_cir": null,
-      "buggy_rs": "patterns/P6/buggy.rs",
-      "fixed_rs": "patterns/P6/fixed.rs",
-      "visualized": "to_author",
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null,
       "ground_truth": {
         "id": "P6",
         "legacy_id": "dual_condvar",
@@ -164,25 +1093,30 @@
           "outcome": "bug",
           "bug_kind": "SignalLoss",
           "expected_bug_path": "tests/e2e/dual_condvar/expected_bug.json"
-        }
+        },
+        "provenance": "paper Table 1 pattern; status=legacy, excluded from v2 experiments"
       },
       "files": {
-        "patterns/P6/buggy.rs": "f896a67e8087665322dc70c174768de13b9d0c000513e2b65022984543e94eb6",
-        "patterns/P6/fixed.rs": "4c3f1cc70f4a1828ba909ad30bfaa3f024d80d146faddeae6b071df4a44a4c05",
-        "patterns/P6/ground_truth.json": "7a885ef64eb02fbc4aa17a6f6703bdda1b502269487887e65d3cfea5a7f32722"
-      }
+        "legacy-paper-patterns/P6/buggy.rs": "f896a67e8087665322dc70c174768de13b9d0c000513e2b65022984543e94eb6",
+        "legacy-paper-patterns/P6/fixed.rs": "4c3f1cc70f4a1828ba909ad30bfaa3f024d80d146faddeae6b071df4a44a4c05",
+        "legacy-paper-patterns/P6/ground_truth.json": "7a885ef64eb02fbc4aa17a6f6703bdda1b502269487887e65d3cfea5a7f32722",
+        "legacy-paper-patterns/P6/legacy_brief.md": "5a477be60e888ad7d9d0a1e6681417a3c1e0eb111de2170ae8beda7793505fa6"
+      },
+      "results": {}
     },
     {
       "id": "P7",
-      "status": "to_author",
-      "directory": "patterns/P7",
+      "status": "legacy",
+      "directory": "legacy-paper-patterns/P7",
+      "family": "legacy",
+      "case": "P7",
       "spec": null,
       "contract": null,
       "buggy_cir": null,
       "fixed_cir": null,
-      "buggy_rs": "patterns/P7/buggy.rs",
-      "fixed_rs": "patterns/P7/fixed.rs",
-      "visualized": "to_author",
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null,
       "ground_truth": {
         "id": "P7",
         "legacy_id": "semaphore_throttle",
@@ -191,25 +1125,30 @@
           "outcome": "safe",
           "bug_kind": null,
           "expected_bug_path": null
-        }
+        },
+        "provenance": "paper Table 1 pattern; status=legacy, excluded from v2 experiments"
       },
       "files": {
-        "patterns/P7/buggy.rs": "cf3dc57c42cc9aec7e3a0afd95e42fd01278f1093b285253e6a8c619f69529d9",
-        "patterns/P7/fixed.rs": "cf3dc57c42cc9aec7e3a0afd95e42fd01278f1093b285253e6a8c619f69529d9",
-        "patterns/P7/ground_truth.json": "aedf610f51975f18730e8d5781595026f9495fc9c752e3861b7e4bef7715546b"
-      }
+        "legacy-paper-patterns/P7/buggy.rs": "cf3dc57c42cc9aec7e3a0afd95e42fd01278f1093b285253e6a8c619f69529d9",
+        "legacy-paper-patterns/P7/fixed.rs": "cf3dc57c42cc9aec7e3a0afd95e42fd01278f1093b285253e6a8c619f69529d9",
+        "legacy-paper-patterns/P7/ground_truth.json": "aedf610f51975f18730e8d5781595026f9495fc9c752e3861b7e4bef7715546b",
+        "legacy-paper-patterns/P7/legacy_brief.md": "2d05fcf7f528a44a954db8330a0cefce937b19ae16a92d921373514b75d9f096"
+      },
+      "results": {}
     },
     {
       "id": "P8",
-      "status": "to_author",
-      "directory": "patterns/P8",
+      "status": "legacy",
+      "directory": "legacy-paper-patterns/P8",
+      "family": "legacy",
+      "case": "P8",
       "spec": null,
       "contract": null,
       "buggy_cir": null,
       "fixed_cir": null,
-      "buggy_rs": "patterns/P8/buggy.rs",
-      "fixed_rs": "patterns/P8/fixed.rs",
-      "visualized": "to_author",
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null,
       "ground_truth": {
         "id": "P8",
         "legacy_id": "cas_race",
@@ -218,25 +1157,30 @@
           "outcome": "safe",
           "bug_kind": null,
           "expected_bug_path": null
-        }
+        },
+        "provenance": "paper Table 1 pattern; status=legacy, excluded from v2 experiments"
       },
       "files": {
-        "patterns/P8/buggy.rs": "df6d5f8d738d06c40edba018718af59b9d6eaaef191f7b3d3ce90764ac315dc7",
-        "patterns/P8/fixed.rs": "df6d5f8d738d06c40edba018718af59b9d6eaaef191f7b3d3ce90764ac315dc7",
-        "patterns/P8/ground_truth.json": "6e5928a5c66e8c9cd85cd7525c179a0bec6f9307de6e7cca50084a4f46df9d9f"
-      }
+        "legacy-paper-patterns/P8/buggy.rs": "df6d5f8d738d06c40edba018718af59b9d6eaaef191f7b3d3ce90764ac315dc7",
+        "legacy-paper-patterns/P8/fixed.rs": "df6d5f8d738d06c40edba018718af59b9d6eaaef191f7b3d3ce90764ac315dc7",
+        "legacy-paper-patterns/P8/ground_truth.json": "6e5928a5c66e8c9cd85cd7525c179a0bec6f9307de6e7cca50084a4f46df9d9f",
+        "legacy-paper-patterns/P8/legacy_brief.md": "17aabf07fb2b9b88503fabdec6b549f6415c53501c6bbf7a1e5ee15235e0856f"
+      },
+      "results": {}
     },
     {
       "id": "P9",
-      "status": "to_author",
-      "directory": "patterns/P9",
+      "status": "legacy",
+      "directory": "legacy-paper-patterns/P9",
+      "family": "legacy",
+      "case": "P9",
       "spec": null,
       "contract": null,
       "buggy_cir": null,
       "fixed_cir": null,
-      "buggy_rs": "patterns/P9/buggy.rs",
-      "fixed_rs": "patterns/P9/fixed.rs",
-      "visualized": "to_author",
+      "correct_cir": null,
+      "buggy_rs": null,
+      "fixed_rs": null,
       "ground_truth": {
         "id": "P9",
         "legacy_id": "fn_summary_prop",
@@ -245,25 +1189,30 @@
           "outcome": "safe",
           "bug_kind": null,
           "expected_bug_path": null
-        }
+        },
+        "provenance": "paper Table 1 pattern; status=legacy, excluded from v2 experiments"
       },
       "files": {
-        "patterns/P9/buggy.rs": "b9874b810a6c412d089156cebf4d22ea03063b8cd706295a15bb95df58432c3c",
-        "patterns/P9/fixed.rs": "b9874b810a6c412d089156cebf4d22ea03063b8cd706295a15bb95df58432c3c",
-        "patterns/P9/ground_truth.json": "d7c800f82784a0e18e7b248fc1795082e0400affeecee485c8b01d20305f3ee5"
-      }
+        "legacy-paper-patterns/P9/buggy.rs": "b9874b810a6c412d089156cebf4d22ea03063b8cd706295a15bb95df58432c3c",
+        "legacy-paper-patterns/P9/fixed.rs": "b9874b810a6c412d089156cebf4d22ea03063b8cd706295a15bb95df58432c3c",
+        "legacy-paper-patterns/P9/ground_truth.json": "d7c800f82784a0e18e7b248fc1795082e0400affeecee485c8b01d20305f3ee5",
+        "legacy-paper-patterns/P9/legacy_brief.md": "e32e1f58fcdfff57d6882920903548b2454092d6c96707aed85020ea2e17155c"
+      },
+      "results": {}
     },
     {
-      "id": "rmw-zenoh-998",
+      "id": "real-cases/rmw-zenoh-998",
       "status": "ready",
       "directory": "real-cases/cases/rmw-zenoh-998",
+      "family": "real-cases",
+      "case": "rmw-zenoh-998",
       "spec": null,
       "contract": "real-cases/cases/rmw-zenoh-998/contract.json",
       "buggy_cir": "real-cases/cases/rmw-zenoh-998/buggy.cir.json",
       "fixed_cir": "real-cases/cases/rmw-zenoh-998/fixed.cir.json",
+      "correct_cir": null,
       "buggy_rs": null,
       "fixed_rs": null,
-      "visualized": "ready",
       "ground_truth": {
         "defect_representable": true,
         "root_verification_expected": "FAIL (upstream gdb ABBA proof)",
@@ -279,19 +1228,22 @@
         "real-cases/cases/rmw-zenoh-998/fixed.cir.json": "9588dffe5dd0bab94820ac670619c28dbadabe7460a00d61d15de08d1a9b9a84",
         "real-cases/cases/rmw-zenoh-998/contract.json": "71e5dfb20bab944928c7a9ab28fd9e9fa3f0b7379293b0a2ba3a0fde2b4ee614",
         "real-cases/cases/rmw-zenoh-998/expected.json": "b1dd7a51c1c3ef72e93fc7427ceda6f1a1cac21774351cff39fbc702642cc085"
-      }
+      },
+      "results": {}
     },
     {
-      "id": "dashmap-369",
+      "id": "real-cases/dashmap-369",
       "status": "ready",
       "directory": "real-cases/cases/dashmap-369",
+      "family": "real-cases",
+      "case": "dashmap-369",
       "spec": null,
       "contract": "real-cases/cases/dashmap-369/contract.json",
       "buggy_cir": "real-cases/cases/dashmap-369/buggy.cir.json",
       "fixed_cir": null,
+      "correct_cir": null,
       "buggy_rs": null,
       "fixed_rs": null,
-      "visualized": "ready",
       "ground_truth": {
         "defect_representable": true,
         "root_verification_expected": "UNSUPPORTED (RwLock lowering unsupported in v1)",
@@ -306,7 +1258,9 @@
         "real-cases/cases/dashmap-369/buggy.cir.json": "84f94127f4cd8e3d480dab7c482cfa05acab3aeb769a29472ff64f3b4cc02395",
         "real-cases/cases/dashmap-369/contract.json": "607bcf87dd35cfa017fb3a87a130820b5a79002ba51b615d7c26bf4403b584a3",
         "real-cases/cases/dashmap-369/expected.json": "62e5baa40777ffbde5f6cba26c415c35c788c5ab85d21cd70e257a49013e8d2c"
-      }
+      },
+      "results": {}
     }
-  ]
+  ],
+  "mismatches": []
 }

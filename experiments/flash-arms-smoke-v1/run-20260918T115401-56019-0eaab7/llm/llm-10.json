@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "b03c7833-97ad-45ce-aba4-0b91c7e3781b",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust self-review prompt (v1, arm A1)\n\nYou are reviewing a Rust program for concurrency defects: deadlock, lost wakeup,\ndata race, or a thread that can block forever.\n\n- Inspect the program for concurrency defects and, if you find any, output the\n  full corrected program.\n- Do not rely on external tools. Reason about the interleavings yourself.\n- Keep the same overall design intent; fix the defect minimally.\n- If you are convinced the program has no concurrency defect, reply with exactly\n  the single token `NO_ISSUES` and nothing else.\n- Otherwise output only the full corrected Rust source inside a single ```rust\n  code fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nDesign a waiter/notifier pair sharing a mutex, a condition variable and a boolean flag ready protected by the mutex. The notifier sets ready and signals the condition variable; the waiter must block until ready is true and then finish. The waiter must terminate even if the notifier signals before the waiter starts waiting.\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "350447baad5aebc849952bf40e7cc1f90d3fd12381a3c48a2d271c69ebbe7f72",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 237,
+    "prompt_tokens": 226,
+    "total_tokens": 463,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 0
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 226
+  },
+  "content_sha256": "40edc6b4e23314f95c4c39d139f2fbd0c872e0092fa5c131c30a2cc3e2781a2b",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Shared {\n    ready: Mutex<bool>,\n    condvar: Condvar,\n}\n\nfn main() {\n    let shared = Arc::new(Shared {\n        ready: Mutex::new(false),\n        condvar: Condvar::new(),\n    });\n\n    let waiter_shared = Arc::clone(&shared);\n    let waiter = thread::spawn(move || {\n        let mut ready = waiter_shared.ready.lock().unwrap();\n        while !*ready {\n            ready = waiter_shared.condvar.wait(ready).unwrap();\n        }\n        println!(\"Waiter: ready is true, finishing.\");\n    });\n\n    let notifier_shared = Arc::clone(&shared);\n    let notifier = thread::spawn(move || {\n        let mut ready = notifier_shared.ready.lock().unwrap();\n        *ready = true;\n        notifier_shared.condvar.notify_one();\n        println!(\"Notifier: set ready and signaled.\");\n    });\n\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n}\n```",
+  "wall_ms": 1246
+}

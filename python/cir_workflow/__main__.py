@@ -124,6 +124,15 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("scale", help="B5: generated lock-chain scale experiment (no LLM)")
 
+    p = sub.add_parser("smoke", help="Flash smoke batch: validate the multi-arm chain")
+    p.add_argument("--tasks", help="benchmarks/MANIFEST.json (default: repo manifest)")
+    p.add_argument("--protocol", required=True, help="frozen smoke protocol path")
+    p.add_argument("--protocol-sha256", required=True,
+                   help="confirmation credential: the protocol file's sha256")
+    p.add_argument("--api-key-env", default="DEEPSEEK_API_KEY")
+    p.add_argument("--max-tokens", type=int, default=4096)
+    p.add_argument("--llm-timeout", type=float, default=90.0)
+
     p = sub.add_parser("live-repair", help="run frozen patch-repair tasks against DeepSeek Flash")
     p.add_argument("--tasks", required=True, help="frozen repair tasks JSON")
     p.add_argument("--provider", default=ALLOWED_PROVIDER)
@@ -191,6 +200,25 @@ def main(argv: list[str] | None = None) -> int:
                     json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             print(json.dumps(payload, ensure_ascii=False, indent=2))
             return 0 if result.accepted else 1
+
+        if args.command == "smoke":
+            from .flash_smoke import run_flash_smoke
+
+            api_key = os.environ.get(args.api_key_env, "")
+            if not api_key:
+                print(json.dumps({"status": "error",
+                                  "error": f"missing API key: set {args.api_key_env}"},
+                                 indent=2))
+                return 2
+            manifest = args.tasks or str(repo_root / "benchmarks/MANIFEST.json")
+            summary = run_flash_smoke(
+                manifest, args.out, binary=args.binary, api_key=api_key,
+                protocol_path=args.protocol, protocol_sha256=args.protocol_sha256,
+                timeout=args.llm_timeout, max_tokens=args.max_tokens)
+            print(json.dumps({"batch_dir": summary["batch_dir"],
+                              "requests_used": summary["requests_used"],
+                              "stop_reason": summary["stop_reason"]}, indent=2))
+            return 0
 
         if args.command == "scale":
             from .scale import run_scale

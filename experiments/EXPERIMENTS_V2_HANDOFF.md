@@ -119,3 +119,104 @@ owner; if edition 2024 stays, those three patterns need fixing first.
 See the protocol. In short: single model (Flash), small sample, Miri is dynamic
 and non-exhaustive, the ConcIR detection arm consumes CIR rather than source, and
 the Rust terminal oracle is incomplete until the behavior tests are authored.
+
+---
+
+# Round 2026-09-18c — review fixes, capability benchmark, smoke batch
+
+## REVIEW.md regression results
+
+| review item | status | evidence |
+| --- | --- | --- |
+| P1-1 raw tool output not archived | fixed | every tool call writes `calls/<seq>-<tool>/{argv,env,stdout,stderr,exit,wall_ms}`; records carry paths + hashes. See `experiments/detection-v2/rust_projects/*/calls/*/env.json` (contains `MIRIFLAGS`). |
+| P1-2 zero-test project counted as pass | fixed | `parse_test_result` requires `test result: ok. N passed` with N≥1; zero tests -> `behavior_test_ok=null`, reason `no_tests`. Regression in `test_rust_arm.py`. |
+| P1-3 ConcIR not compilable / stray files | resolved externally | `rust-toolchain.toml` correctly named (working tree channel `nightly`), edition 2024 retained, `cargo test --offline --all-targets --no-fail-fast` = 229 passed / 0 failed. |
+| P2-1 benchmark covered 2/9 | replaced | capability-family benchmark with **21 ready cases** across 8 families; P1-P9 retired to `benchmarks/legacy-paper-patterns` (`status: legacy`). |
+| P2-2 P1 provenance | addressed | `ground_truth.json` declares the buggy CIR as `llm_generated` pilot-v1 t2_abba (`d2d4958b...`). |
+| P2-3 miri sample size / error class | fixed | one `-Zmiri-many-seeds=0..64` pass added (D-1); exit≠0 without a deadlock/race match is `tool_error`, not `detected`; Miri error records are separate. |
+| P2-4 A3 rounds empty | fixed | revision workflow records per-round request/feedback/tool hashes, tokens, LLM/tool wall; `run_cir_arm` maps them into `ArmRun.rounds`. Regression: three-round FAIL→static-error→PASS has 3 records. |
+| P2-5 env not visible | fixed | `env.json` per tool call records `MIRIFLAGS`, `CARGO_*`, `RUST_BACKTRACE`. |
+
+## Versions
+
+- ConcIR binary: `fe3d22c5a52f84b5a46d7a4665328056cec9b132f33eec9ea52c3c1158b7d12d`
+  (`target/release/concir-backend`, built from the committed tree before the
+  last unstaged `thiserror`/comment cleanup; semantics unchanged).
+- `rustc 1.100.0-nightly (a69a63265 2026-09-03)`, edition 2024.
+- `miri 0.1.0 (a69a63265c 2026-09-03)`; `-Zmiri-many-seeds` supported.
+- lockbud: not installed -> `unavailable`; no substitute used.
+
+## Capability-family benchmark
+
+`benchmarks/MANIFEST.json`: 30 tasks (21 ready, 9 legacy). Families:
+lock-order, condvar, channel, semaphore, atomic-data, structure, boundary,
+real-cases. `benchmarks/FAMILIES.md` lists the matrix and the capabilities not
+covered by the paper's Table 1 (precise condvar wait-set, bounded channel,
+counting semaphore, bounded-Int safety invariants, `scope`/`bound`, `AG EF`,
+UNSUPPORTED/UNKNOWN boundary controls). Every ready case passed
+`check`/`support`/`explore` with **petri == interp** and **0 pre-registration
+mismatches** (`python3 benchmarks/build_families.py`).
+
+Partial-deadlock preregistration confirmed: `deadlock_free = PASS` while
+`always_reachable(a/b) = FAIL` on the buggy case, `PASS` on the fixed case.
+
+## Track D v2
+
+`experiments/detection-v2/` (new binary, raw evidence archived, Miri N=65 per
+program: 5 frozen seeds + one 64-seed pass). Across the 21 ready cases: 11
+buggy/reference CIR cases FAIL, 7 fixed/reference cases PASS, 1 correct seed
+PASS, 3 UNSUPPORTED (RwLock, async/await, dashmap), 1 UNKNOWN (unbounded Int),
+and 9 legacy patterns are skipped. Miri did not flag either lock-order bug across
+65 seeds (dynamic, schedule-dependent; not safety). lockbud unavailable.
+
+## Flash smoke batch
+
+`experiments/flash-arms-smoke-v1/run-20260918T120547-59407-fed5a7/` is the
+delivered batch (protocol sha `2429...c8ff`, **36 / 48 requests**, stop reason
+none). Arms: A0/A1/A2/A3/A3p/A3_tool_repair on 3 tasks.
+
+- `lock-order/abba_2lock`: A0 accepted r1, A2 accepted r1, A3 accepted r1
+  (revision), A3p accepted + replayed, A3_tool_repair `repaired`.
+- `condvar/lost_wakeup_notify_before_wait`: A0/A2 accepted r1 (Miri does not see
+  a lost wakeup); A3 rejected (whole-CIR revision did not complete);
+  A3p `rejected`; tool_repair `no_acceptable_candidate` (not swap-fixable).
+- `lock-order/partial_deadlock_bystander`: A0 accepted r1; A1, A2, A3 not
+  accepted; A3p `rejected`; tool_repair `no_acceptable_candidate`.
+
+Two earlier smoke batches in the same directory were superseded by harness fixes
+(A3 wall-clock aggregation; A2 "green" no longer treats a timeout/tool-error as
+green). Each superseded batch is retained and used at most 33 requests.
+
+## ConcIR status and commit suggestions
+
+- Working tree (external edits, not mine): `Cargo.toml` removes unused
+  `thiserror`, `rust-toolchain.toml` channel `nightly-2025-10-27` -> `nightly`,
+  `src/ast.rs` removes a section comment. All 229 tests pass.
+- Suggested split: (1) already committed `816b637` edition 2024 + experiment
+  removal and `6105d40` toolchain file; (2) a small `chore: drop unused thiserror
+  and stray comment` for the remaining unstaged edits. No code semantics changed.
+- `doc/backend-usage.md` now records the pinned toolchain and the 229-test run.
+
+## Repro
+
+```bash
+python3 benchmarks/build_families.py
+CONCIR_BACKEND=/Users/kevin/local-repos/ConcIR/target/release/concir-backend \
+  PYTHONPATH=python python3 -m cir_workflow --out experiments/detection-v2 detection
+PYTHONPATH=python python/.venv/bin/python -m cir_workflow \
+  --binary /Users/kevin/local-repos/ConcIR/target/release/concir-backend \
+  --out experiments/flash-arms-smoke-v1 smoke \
+  --protocol experiments/flash-arms-smoke-v1/PROTOCOL.md \
+  --protocol-sha256 242984312502e5b2586021ffe974232028c3caada8737482738264bc0425c8ff
+```
+
+## Remaining gaps
+
+- Rust `bug_present` in the terminal oracle is still `null` where no per-case
+  rule exists; behavior tests are authored only where noted. The oracle never
+  infers safety from a detector miss.
+- Two of the requested real-case reductions and several family cases
+  (`cycle_3lock` variants, `rendezvous`, `nested_scope`, extra condvar/channel
+  cases) are not all present; the manifest records exactly what is ready.
+- `A3_nofidelity`, full multi-arm live, and multi-model comparison remain out of
+  scope for this round.

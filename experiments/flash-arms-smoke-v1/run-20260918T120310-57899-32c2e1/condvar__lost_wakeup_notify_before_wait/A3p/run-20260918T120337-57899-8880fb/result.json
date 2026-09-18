@@ -1,0 +1,140 @@
+{
+  "status": "rejected",
+  "model_path": "/Users/kevin/local-repos/ConcPlanVerify/benchmarks/families/condvar/lost_wakeup_notify_before_wait/buggy.cir.json",
+  "contract_path": "/Users/kevin/local-repos/ConcPlanVerify/benchmarks/families/condvar/lost_wakeup_notify_before_wait/contract.json",
+  "model_sha256": "bc55bb0ce0543f44d0b225469d8d919e661c73a637d5eeb77593a85250c7df1b",
+  "contract_sha256": "1370b58166473243539e7dd511d47133368dc731ca707fde51ebe63c3ab8b49b",
+  "context_fingerprint": "3689e58c81228480",
+  "out_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-arms-smoke-v1/run-20260918T120310-57899-32c2e1/condvar__lost_wakeup_notify_before_wait/A3p/run-20260918T120337-57899-8880fb",
+  "candidate_source": null,
+  "validator": "tool",
+  "repair_mode": "external_single_patch",
+  "rounds": [
+    {
+      "round": 1,
+      "candidate_source": "llm",
+      "raw_text": "{\"schema_version\": \"concir-external-patch-candidate-v1\", \"context_fingerprint\": \"3689e58c81228480\", \"patch\": {\"module\": \"main\", \"function\": \"waiter\", \"original_hash\": \"fa4b856dc896510a\", \"changes\": []}}",
+      "parsed_candidate": {
+        "schema_version": "concir-external-patch-candidate-v1",
+        "context_fingerprint": "3689e58c81228480",
+        "patch": {
+          "module": "main",
+          "function": "waiter",
+          "original_hash": "fa4b856dc896510a",
+          "changes": []
+        }
+      },
+      "parse_error": null,
+      "provider_error": null,
+      "duplicate": false,
+      "evaluate_status": "rejected",
+      "reject_reason": {
+        "code": "patch_shape",
+        "detail": "exactly one change is allowed, got 0"
+      },
+      "verification_outcome": null,
+      "accepted": false,
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-arms-smoke-v1/run-20260918T120310-57899-32c2e1/condvar__lost_wakeup_notify_before_wait/calls/18d668b28dfccff0-57899-0003-00de3e-evaluate-patch/external_artifact.json",
+      "replay_status": null
+    },
+    {
+      "round": 2,
+      "candidate_source": "llm",
+      "raw_text": "{\"schema_version\": \"concir-external-patch-candidate-v1\", \"context_fingerprint\": \"3689e58c81228480\", \"patch\": {\"module\": \"main\", \"function\": \"notifier\", \"original_hash\": \"8cc7f8e85074af49\", \"changes\": [{\"kind\": \"swap_statements\", \"a\": \"s1\", \"b\": \"s2\"}]}}",
+      "parsed_candidate": {
+        "schema_version": "concir-external-patch-candidate-v1",
+        "context_fingerprint": "3689e58c81228480",
+        "patch": {
+          "module": "main",
+          "function": "notifier",
+          "original_hash": "8cc7f8e85074af49",
+          "changes": [
+            {
+              "kind": "swap_statements",
+              "a": "s1",
+              "b": "s2"
+            }
+          ]
+        }
+      },
+      "parse_error": null,
+      "provider_error": null,
+      "duplicate": false,
+      "evaluate_status": "rejected",
+      "reject_reason": {
+        "code": "unknown_sid",
+        "detail": "swap sids 's1'/'s2' are not both mutex_lock statements in main::notifier"
+      },
+      "verification_outcome": null,
+      "accepted": false,
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-arms-smoke-v1/run-20260918T120310-57899-32c2e1/condvar__lost_wakeup_notify_before_wait/calls/18d668b2b2870b88-57899-0004-2691fd-evaluate-patch/external_artifact.json",
+      "replay_status": null
+    },
+    {
+      "round": 3,
+      "candidate_source": "llm",
+      "raw_text": "{\"schema_version\": \"concir-external-patch-candidate-v1\", \"context_fingerprint\": \"3689e58c81228480\", \"patch\": {\"module\": \"main\", \"function\": \"waiter\", \"original_hash\": \"fa4b856dc896510a\", \"changes\": [{\"kind\": \"swap_statements\", \"a\": \"s1\", \"b\": \"s2\"}]}}",
+      "parsed_candidate": {
+        "schema_version": "concir-external-patch-candidate-v1",
+        "context_fingerprint": "3689e58c81228480",
+        "patch": {
+          "module": "main",
+          "function": "waiter",
+          "original_hash": "fa4b856dc896510a",
+          "changes": [
+            {
+              "kind": "swap_statements",
+              "a": "s1",
+              "b": "s2"
+            }
+          ]
+        }
+      },
+      "parse_error": null,
+      "provider_error": null,
+      "duplicate": false,
+      "evaluate_status": "rejected",
+      "reject_reason": {
+        "code": "unknown_sid",
+        "detail": "swap sids 's1'/'s2' are not both mutex_lock statements in main::waiter"
+      },
+      "verification_outcome": null,
+      "accepted": false,
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-arms-smoke-v1/run-20260918T120310-57899-32c2e1/condvar__lost_wakeup_notify_before_wait/calls/18d668b2dc842ce0-57899-0005-6942c2-evaluate-patch/external_artifact.json",
+      "replay_status": null
+    },
+    {
+      "round": 4,
+      "candidate_source": "llm",
+      "raw_text": "{\"schema_version\": \"concir-external-patch-candidate-v1\", \"context_fingerprint\": \"3689e58c81228480\", \"patch\": {\"module\": \"main\", \"function\": \"notifier\", \"original_hash\": \"8cc7f8e85074af49\", \"changes\": [{\"kind\": \"swap_statements\", \"a\": \"s1\", \"b\": \"s2\"}]}}",
+      "parsed_candidate": {
+        "schema_version": "concir-external-patch-candidate-v1",
+        "context_fingerprint": "3689e58c81228480",
+        "patch": {
+          "module": "main",
+          "function": "notifier",
+          "original_hash": "8cc7f8e85074af49",
+          "changes": [
+            {
+              "kind": "swap_statements",
+              "a": "s1",
+              "b": "s2"
+            }
+          ]
+        }
+      },
+      "parse_error": null,
+      "provider_error": null,
+      "duplicate": true,
+      "evaluate_status": null,
+      "reject_reason": null,
+      "verification_outcome": null,
+      "accepted": false,
+      "artifact_path": null,
+      "replay_status": null
+    }
+  ],
+  "accepted_artifact_path": null,
+  "replay": null,
+  "error": "no accepted patch within the round budget"
+}

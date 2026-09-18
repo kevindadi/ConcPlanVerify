@@ -76,6 +76,26 @@ class RevisionWorkflowOfflineTests(unittest.TestCase):
         self.assertEqual(len(provider.calls), 2)
         self.assertIn("validation_diagnostics", provider.calls[1].feedback or "")
 
+    def test_three_round_records_fail_static_error_pass(self):
+        # from scratch: round 1 FAIL, round 2 static error, round 3 PASS
+        buggy = T2_MODEL.read_text(encoding="utf-8")
+        broken = json.dumps(broken_program())
+        fixed = _fixed_t2_text()
+        provider, result = self._run(
+            [{"text": buggy}, {"text": broken}, {"text": fixed}],
+            max_rounds=4, initial=None)
+        self.assertEqual(result.status, "accepted", result.error)
+        self.assertEqual(result.accepted_version, 3)
+        self.assertEqual(len(result.versions), 3)
+        self.assertEqual([v.decision for v in result.versions],
+                         ["explore_fail", "check_invalid", "accepted"])
+        # every round has a request hash, a feedback hash and a tool-output hash
+        for v in result.versions:
+            self.assertIsNotNone(v.request_sha256)
+            self.assertIsNotNone(v.tool_output_sha256)
+        self.assertIsNotNone(result.versions[0].feedback_sha256)
+        self.assertIsNotNone(result.versions[1].feedback_sha256)
+
     def test_k_rounds_exhausted(self):
         broken = json.dumps(broken_program())
         provider, result = self._run([{"text": broken}, {"text": broken}], max_rounds=3)

@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "ad0b349d-bb05-47c4-873b-b2eae64484e0",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nDesign two workers A and B that each take two mutexes with an intermediate semaphore handshake, plus an independent bystander task that keeps making progress forever. Main spawns all three. Although the bystander keeps the system globally live, every reachable state must still be able to finish A and B, and both workers must complete.\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "676d0f8384e1ba795a163278a0d1ce41b1f2c58410a6131e1e6312fc928cf09b",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 962,
+    "prompt_tokens": 314,
+    "total_tokens": 1276,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 0
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 314
+  },
+  "content_sha256": "5a801383a24c5f2f95ce86289396284c9f12735038eea93e47a95d62d1c08f0f",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\n// A counting semaphore built from a mutex + condvar.\nstruct Semaphore {\n    count: Mutex<usize>,\n    cv: Condvar,\n}\n\nimpl Semaphore {\n    fn new(count: usize) -> Self {\n        Semaphore {\n            count: Mutex::new(count),\n            cv: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut c = self.count.lock().unwrap();\n        while *c == 0 {\n            c = self.cv.wait(c).unwrap();\n        }\n        *c -= 1;\n    }\n\n    fn release(&self) {\n        let mut c = self.count.lock().unwrap();\n        *c += 1;\n        self.cv.notify_one();\n    }\n}\n\nfn main() {\n    // Two mutexes that workers A and B both need.\n    let m1 = Arc::new(Mutex::new(()));\n    let m2 = Arc::new(Mutex::new(()));\n\n    // Intermediate semaphore handshake between A and B.\n    // A releases it after taking its first lock; B waits on it before\n    // taking its second lock, and vice versa, so the two workers\n    // interleave their acquisitions without deadlocking.\n    let sem_a_to_b = Arc::new(Semaphore::new(0));\n    let sem_b_to_a = Arc::new(Semaphore::new(0));\n\n    // Bystander liveness flag: it keeps making progress forever.\n    let bystander_running = Arc::new(Mutex::new(true));\n\n    let mut handles = Vec::new();\n\n    // Worker A: take m1, handshake, take m2, release handshake, finish.\n    {\n        let m1 = Arc::clone(&m1);\n        let m2 = Arc::clone(&m2);\n        let sem_a_to_b = Arc::clone(&sem_a_to_b);\n        let sem_b_to_a = Arc::clone(&sem_b_to_a);\n        handles.push(thread::spawn(move || {\n            // First lock.\n            let _g1 = m1.lock().unwrap();\n            // Signal B that A holds m1.\n            sem_a_to_b.release();\n            // Wait for B to hold m2 before A tries to take it.\n            sem_b_to_a.acquire();\n            // Second lock.\n            let _g2 = m2.lock().unwrap();\n            // Critical section complete; locks drop here.\n        }));\n    }\n\n    // Worker B: take m2, handshake, take m1, release handshake, finish.\n    {\n        let m1 = Arc::clone(&m1);\n        let m2 = Arc::clone(&m2);\n        let sem_a_to_b = Arc::clone(&sem_a_to_b);\n        let sem_b_to_a = Arc::clone(&sem_b_to_a);\n        handles.push(thread::spawn(move || {\n            // First lock.\n            let _g2 = m2.lock().unwrap();\n            // Signal A that B holds m2.\n            sem_b_to_a.release();\n            // Wait for A to hold m1 before B tries to take it.\n            sem_a_to_b.acquire();\n            // Second lock.\n            let _g1 = m1.lock().unwrap();\n            // Critical section complete; locks drop here.\n        }));\n    }\n\n    // Bystander: keeps making progress forever, independent of A and B.\n    {\n        let bystander_running = Arc::clone(&bystander_running);\n        handles.push(thread::spawn(move || {\n            let mut counter: u64 = 0;\n            loop {\n                counter = counter.wrapping_add(1);\n                let running = bystander_running.lock().unwrap();\n                if !*running {\n                    break;\n                }\n                // Progress is made every iteration; the lock is released\n                // immediately so A and B are never blocked by the bystander.\n                drop(running);\n            }\n        }));\n    }\n\n    // Wait for A and B to complete.\n    // The first two handles correspond to A and B.\n    let a = handles.remove(0);\n    let b = handles.remove(0);\n    a.join().unwrap();\n    b.join().unwrap();\n\n    // Stop the bystander and join it.\n    {\n        let mut running = bystander_running.lock().unwrap();\n        *running = false;\n    }\n    for h in handles {\n        h.join().unwrap();\n    }\n}\n```",
+  "wall_ms": 3487
+}
