@@ -1,0 +1,470 @@
+"""Typed subprocess client for the current ConcIR ``concir-backend`` CLI.
+
+The client owns only the process boundary and the wire protocol: it writes the
+inputs, invokes the CLI with an argument array, captures stdout/stderr/exit, and
+maps the documented protocol onto typed results. It never re-implements CIR
+semantics, Petri translation, verification, candidate enumeration, patch
+legality or repair acceptance.
+
+Command protocols (see ConcIR ``doc/backend-usage.md`` and
+``src/bin/concir-backend.rs``):
+
+- ``check   <program.json>``                          -> ValidationReport
+- ``support <program.json>``                          -> supportability report
+- ``explore <program.json> <contract.json> [engine]`` -> VerificationReport
+- ``repair  <program.json> <contract.json> --strategy a|b|c ... --artifact f``
+                                                       -> SearchArtifact (replayable)
+- ``replay  <artifact.json>``                          -> ReplayResult
+
+The positional ``repair <model> <contract> <patches.json>`` form emits a legacy
+patch report, **not** a replayable search artifact; it is deliberately not
+wrapped here.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import signal
+import subprocess
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+# Documented exit-code maps per command.
+CHECK_EXIT = {"valid": 0, "invalid": 4}
+SUPPORT_EXIT = {"supported": 0, "unsupported": 5, "invalid": 4}
+EXPLORE_EXIT = {"pass": 0, "fail": 1, "unknown": 3, "invalid": 4, "unsupported": 5}
+REPAIR_EXIT = {
+    "repaired": 0,
+    "already_satisfied": 0,
+    "no_acceptable_candidate": 1,
+    "budget_exhausted": 1,
+    "analysis_unknown": 3,
+    "invalid": 4,
+    "invalid_config": 4,
+    "unsupported": 5,
+}
+REPLAY_EXIT = {"replayed": 0}
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+@dataclass
+class ConcirIdentity:
+    """Everything that makes one CLI invocation reproducible."""
+
+    binary: str
+    binary_sha256: str
+    argv: list[str]
+    cwd: str
+    input_sha256: str | None = None
+    contract_sha256: str | None = None
+    config: dict[str, Any] = field(default_factory=dict)
+    engine: str | None = None
+
+
+@dataclass
+class ConcirResult:
+    """One typed CLI invocation.
+
+    ``kind`` is the failure class from the *client's* point of view:
+
+    - ``semantic``      — the backend ran and produced its documented outcome,
+      including legitimate non-success outcomes (exit 1/3/4/5);
+    - ``process_error`` — spawn failure, timeout, or missing input file;
+    - ``protocol_error``— non-JSON/empty output, unexpected payload shape, or a
+      payload whose outcome contradicts the exit code;
+    - ``usage_error``   — exit 2 (argument/input error).
+
+    ``exit_code == 0`` does not by itself mean the verified property holds; use
+    ``outcome``/``status``.
+    """
+
+    command: str
+    argv: list[str]
+    exit_code: int | None
+    status: str
+    kind: str
+    payload: dict[str, Any] | None
+    identity: ConcirIdentity
+    stderr: str = ""
+    error: str | None = None
+    wall_ms: int = 0
+    timed_out: bool = False
+    call_dir: str | None = None
+    stdout_path: str | None = None
+    stderr_path: str | None = None
+    exit_path: str | None = None
+    input_path: str | None = None
+    contract_path: str | None = None
+    artifact_path: str | None = None
+
+    # ---- convenience accessors (no semantics beyond the wire protocol) ----
+    @property
+    def is_semantic(self) -> bool:
+        return self.kind == "semantic"
+
+    @property
+    def outcome(self) -> str | None:
+        if not self.payload:
+            return None
+        value = self.payload.get("outcome")
+        return str(value) if value is not None else None
+
+    @property
+    def complete(self) -> bool | None:
+        if not self.payload:
+            return None
+        value = self.payload.get("complete")
+        return bool(value) if isinstance(value, bool) else None
+
+    @property
+    def unsupported(self) -> list[Any]:
+        if not self.payload:
+            return []
+        return list(self.payload.get("unsupported", []) or [])
+
+    @property
+    def diagnostics(self) -> list[Any]:
+        if not self.payload:
+            return []
+        return list(self.payload.get("diagnostics", []) or [])
+
+    @property
+    def valid(self) -> bool | None:
+        if not self.payload:
+            return None
+        value = self.payload.get("valid")
+        return bool(value) if isinstance(value, bool) else None
+
+
+class ConcirClient:
+    """Invoke ``concir-backend`` from Python with a fresh directory per call."""
+
+    def __init__(
+        self,
+        binary: Path | str,
+        *,
+        workdir: Path | str,
+        timeout: float = 30.0,
+        env: dict[str, str] | None = None,
+        binary_sha256: str | None = None,
+    ) -> None:
+        self.binary = Path(binary).expanduser().resolve()
+        self.workdir = Path(workdir).expanduser().resolve()
+        self.timeout = float(timeout)
+        self.env = dict(os.environ if env is None else env)
+        self._counter = 0
+        self._binary_sha256 = binary_sha256
+
+    # ---- binary identity -------------------------------------------------
+    @property
+    def binary_sha256(self) -> str:
+        if self._binary_sha256 is None:
+            if not self.binary.is_file():
+                raise FileNotFoundError(
+                    f"concir-backend binary not found: {self.binary}. "
+                    "Build it in the ConcIR repo (cargo build --release --bin concir-backend) "
+                    "or pass --binary / CONCIR_BACKEND."
+                )
+            self._binary_sha256 = sha256_file(self.binary)
+        return self._binary_sha256
+
+    def _require_binary(self) -> None:
+        if not self.binary.is_file():
+            raise FileNotFoundError(
+                f"concir-backend binary not found: {self.binary}. "
+                "Build it in the ConcIR repo or pass --binary / CONCIR_BACKEND."
+            )
+        if not os.access(self.binary, os.X_OK):
+            raise PermissionError(f"concir-backend is not executable: {self.binary}")
+
+    # ---- inputs ----------------------------------------------------------
+    def _call_dir(self, command: str) -> Path:
+        self._counter += 1
+        for _ in range(1000):
+            token = f"{time.time_ns():x}-{os.getpid()}-{self._counter:04d}-{os.urandom(3).hex()}"
+            path = self.workdir / f"{token}-{command}"
+            try:
+                path.mkdir(parents=True, exist_ok=False)
+                return path
+            except FileExistsError:
+                continue
+        raise RuntimeError("could not allocate a unique call directory")
+
+    @staticmethod
+    def _materialize(value: Path | str, dest: Path) -> Path:
+        if isinstance(value, Path) or (isinstance(value, str) and os.path.exists(value) and "\n" not in value):
+            source = Path(value)
+            dest.write_bytes(source.read_bytes())
+            return dest
+        # Treat as raw text.
+        dest.write_text(str(value), encoding="utf-8")
+        return dest
+
+    def _invoke(
+        self,
+        command: str,
+        argv: list[str],
+        *,
+        call_dir: Path,
+        input_path: Path | None,
+        contract_path: Path | None,
+        config: dict[str, Any] | None = None,
+        engine: str | None = None,
+    ) -> ConcirResult:
+        self._require_binary()
+        identity = ConcirIdentity(
+            binary=str(self.binary),
+            binary_sha256=self.binary_sha256,
+            argv=[str(self.binary), *argv],
+            cwd=str(call_dir),
+            input_sha256=sha256_file(input_path) if input_path else None,
+            contract_sha256=sha256_file(contract_path) if contract_path else None,
+            config=dict(config or {}),
+            engine=engine,
+        )
+        started = time.monotonic()
+        timed_out = False
+        spawn_error: str | None = None
+        try:
+            proc = subprocess.Popen(
+                [str(self.binary), *argv],
+                cwd=str(call_dir),
+                env=self.env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                start_new_session=True,
+            )
+        except OSError as exc:
+            return ConcirResult(
+                command=command, argv=identity.argv, exit_code=None, status="process_error",
+                kind="process_error", payload=None, identity=identity, error=str(exc),
+                wall_ms=int((time.monotonic() - started) * 1000), call_dir=str(call_dir),
+                input_path=str(input_path) if input_path else None,
+                contract_path=str(contract_path) if contract_path else None,
+            )
+        try:
+            out, err = proc.communicate(timeout=self.timeout)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            out, err = proc.communicate()
+        wall_ms = int((time.monotonic() - started) * 1000)
+
+        stdout = out.decode("utf-8", "replace")
+        stderr = err.decode("utf-8", "replace")
+        stdout_path = call_dir / "stdout.json"
+        stderr_path = call_dir / "stderr.txt"
+        exit_path = call_dir / "exit.txt"
+        stdout_path.write_text(stdout, encoding="utf-8")
+        stderr_path.write_text(stderr, encoding="utf-8")
+        exit_path.write_text(str(proc.returncode), encoding="utf-8")
+
+        result = ConcirResult(
+            command=command,
+            argv=identity.argv,
+            exit_code=proc.returncode,
+            status="unknown",
+            kind="semantic",
+            payload=None,
+            identity=identity,
+            stderr=stderr.strip(),
+            wall_ms=wall_ms,
+            timed_out=timed_out,
+            call_dir=str(call_dir),
+            stdout_path=str(stdout_path),
+            stderr_path=str(stderr_path),
+            exit_path=str(exit_path),
+            input_path=str(input_path) if input_path else None,
+            contract_path=str(contract_path) if contract_path else None,
+        )
+        if input_path:
+            result.payload = None
+        if timed_out:
+            result.kind, result.status = "process_error", "timeout"
+            result.error = f"concir-backend timed out after {self.timeout:g}s"
+            return result
+        if proc.returncode == 2:
+            result.kind, result.status = "usage_error", "usage_error"
+            result.error = stderr.strip() or "usage error"
+            return result
+        if command == "replay":
+            # `replay` prints a result only on success; a non-zero exit is the
+            # documented replay failure (stderr "artifact replay failed: ...").
+            if proc.returncode == 0:
+                result.kind, result.status = "semantic", "replayed"
+                text = stdout.strip()
+                if text:
+                    try:
+                        payload = json.loads(text)
+                        if isinstance(payload, dict):
+                            result.payload = payload
+                    except json.JSONDecodeError:
+                        pass
+            else:
+                result.kind, result.status = "semantic", "replay_failed"
+                result.error = stderr.strip() or "artifact replay failed"
+            return result
+        text = stdout.strip()
+        if not text:
+            result.kind, result.status = "protocol_error", "empty_output"
+            result.error = "concir-backend produced no stdout"
+            return result
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError as exc:
+            result.kind, result.status = "protocol_error", "non_json_output"
+            result.error = f"stdout is not JSON: {exc}"
+            return result
+        if not isinstance(payload, dict):
+            result.kind, result.status = "protocol_error", "payload_not_object"
+            result.error = "stdout JSON is not an object"
+            return result
+        result.payload = payload
+        return _classify(result)
+
+    # ---- commands --------------------------------------------------------
+    def check(self, program: Path | str):
+        call_dir = self._call_dir("check")
+        program_path = self._materialize(program, call_dir / "program.json")
+        return self._invoke("check", ["check", str(program_path)], call_dir=call_dir,
+                            input_path=program_path, contract_path=None)
+
+    def support(self, program: Path | str):
+        call_dir = self._call_dir("support")
+        program_path = self._materialize(program, call_dir / "program.json")
+        return self._invoke("support", ["support", str(program_path)], call_dir=call_dir,
+                            input_path=program_path, contract_path=None)
+
+    def explore(self, program: Path | str, contract: Path | str, engine: str = "petri"):
+        if engine not in {"petri", "interp"}:
+            raise ValueError(f"engine must be 'petri' or 'interp', got {engine!r}")
+        call_dir = self._call_dir("explore")
+        program_path = self._materialize(program, call_dir / "program.json")
+        contract_path = self._materialize(contract, call_dir / "contract.json")
+        return self._invoke(
+            "explore", ["explore", str(program_path), str(contract_path), engine],
+            call_dir=call_dir, input_path=program_path, contract_path=contract_path, engine=engine,
+        )
+
+    def repair(
+        self,
+        program: Path | str,
+        contract: Path | str,
+        *,
+        strategy: str = "c",
+        candidate_budget: int = 64,
+        verification_budget: int = 64,
+        max_depth: int = 4,
+        max_total_edits: int = 4,
+        artifact_name: str = "artifact.json",
+    ):
+        if strategy not in {"a", "b", "c"}:
+            raise ValueError(f"strategy must be 'a'/'b'/'c', got {strategy!r}")
+        call_dir = self._call_dir("repair")
+        program_path = self._materialize(program, call_dir / "program.json")
+        contract_path = self._materialize(contract, call_dir / "contract.json")
+        artifact_path = call_dir / artifact_name
+        config = {
+            "strategy": strategy,
+            "candidate_budget": candidate_budget,
+            "verification_budget": verification_budget,
+            "max_depth": max_depth,
+            "max_total_edits": max_total_edits,
+        }
+        result = self._invoke(
+            "repair",
+            [
+                "repair", str(program_path), str(contract_path),
+                "--strategy", strategy,
+                "--candidate-budget", str(candidate_budget),
+                "--verification-budget", str(verification_budget),
+                "--max-depth", str(max_depth),
+                "--max-total-edits", str(max_total_edits),
+                "--artifact", str(artifact_path),
+            ],
+            call_dir=call_dir, input_path=program_path, contract_path=contract_path,
+            config=config,
+        )
+        result.artifact_path = str(artifact_path) if artifact_path.exists() else None
+        return result
+
+    def replay(self, artifact: Path | str):
+        call_dir = self._call_dir("replay")
+        if isinstance(artifact, Path):
+            artifact_path = Path(artifact).resolve()
+        elif os.path.exists(str(artifact)) and "\n" not in str(artifact):
+            artifact_path = Path(artifact).resolve()
+        else:
+            artifact_path = call_dir / "artifact.json"
+            artifact_path.write_text(str(artifact), encoding="utf-8")
+        return self._invoke("replay", ["replay", str(artifact_path)], call_dir=call_dir,
+                            input_path=artifact_path, contract_path=None)
+
+
+def _classify(result: ConcirResult) -> ConcirResult:
+    """Map a parsed payload + exit code to the documented semantic outcome."""
+    payload = result.payload or {}
+    command = result.command
+    exit_code = result.exit_code
+
+    if command == "check":
+        valid = payload.get("valid")
+        status = "valid" if valid else "invalid"
+        expected = CHECK_EXIT[status]
+        if not isinstance(valid, bool):
+            return _protocol(result, "check payload has no boolean 'valid'")
+    elif command == "support":
+        supported = payload.get("supported")
+        status = "supported" if supported else "unsupported"
+        expected = SUPPORT_EXIT[status]
+        if not isinstance(supported, bool):
+            return _protocol(result, "support payload has no boolean 'supported'")
+    elif command == "explore":
+        outcome = payload.get("outcome")
+        status = str(outcome).lower() if outcome is not None else ""
+        if status not in EXPLORE_EXIT:
+            return _protocol(result, f"explore payload has unknown outcome {outcome!r}")
+        expected = EXPLORE_EXIT[status]
+    elif command == "repair":
+        outcome = payload.get("outcome")
+        status = str(outcome) if outcome is not None else ""
+        if status not in REPAIR_EXIT:
+            return _protocol(result, f"repair payload has unknown outcome {outcome!r}")
+        expected = REPAIR_EXIT[status]
+    elif command == "replay":
+        # Replay has no outcome field in the result; exit 0 means success.
+        if exit_code == 0:
+            result.kind, result.status = "semantic", "replayed"
+            return result
+        result.kind, result.status = "semantic", "replay_failed"
+        result.error = result.stderr or "artifact replay failed"
+        return result
+    else:  # pragma: no cover - internal invariant
+        return _protocol(result, f"unknown command {command!r}")
+
+    if exit_code != expected:
+        return _protocol(
+            result,
+            f"{command} outcome {status!r} implies exit {expected}, got {exit_code}",
+        )
+    result.kind, result.status = "semantic", status
+    return result
+
+
+def _protocol(result: ConcirResult, message: str) -> ConcirResult:
+    result.kind, result.status, result.error = "protocol_error", "protocol_error", message
+    return result
