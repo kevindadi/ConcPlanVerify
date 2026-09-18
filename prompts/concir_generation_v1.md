@@ -96,6 +96,13 @@ Every statement is an object with `"sid"` (unique within the function) and
 | `goto` / `branch` / `switch`                  | control targets by `sid`                                  |
 | `return`                                       | optional `value`                                          |
 
+**`expr` is always a JSON *string* holding a source expression**, never an
+object. For example a boolean flag write is
+`{"sid": "s2", "kind": "write_shared", "resource": "main::ready", "expr": "true"}`
+and an increment is `"expr": "counter + 1"`. A `branch` is
+`{"sid": "s3", "kind": "branch", "cond": "ready == true", "then": "s5", "else": "s4"}`.
+An object like `{"kind": "bool", "value": true}` is a schema error.
+
 Not supported by the current verifier — do **not** emit them: `rwlock_read`,
 `rwlock_write`, `rwlock_unlock`, `select`, `async_call`, `await`,
 `abstract_step`, `seq_hole`. `abstract_step` is not an escape hatch for

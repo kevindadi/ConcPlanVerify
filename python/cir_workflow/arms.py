@@ -103,17 +103,39 @@ def _consume_response(run: ArmRun, response) -> None:
     run.consumption.add_usage(usage)
 
 
+def _is_no_issues(text: str) -> bool:
+    return "".join(ch for ch in text.strip().upper() if ch.isalpha()) == "NOISSUES"
+
+
 def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
                  contract: dict[str, Any], out_dir: Path | str, k: int = K,
-                 tool_timeout_s: float = 60.0) -> ArmRun:
-    """A0/A1/A2: LLM writes whole Rust programs; feedback differs by arm."""
+                 tool_timeout_s: float = 60.0, initial_source: str | None = None,
+                 tools_tier: str = "ml", run_miri_many_seeds: bool = True) -> ArmRun:
+    """A0/A1/A2: LLM writes whole Rust programs; feedback differs by arm.
+
+    ``initial_source`` seeds a repair task with the buggy program. For A1 a
+    reply that is exactly ``NO_ISSUES`` accepts the current candidate
+    (``decision=self_no_issues``) without compiling the sentinel. Any other
+    reply must be a full program containing ``fn main`` or it is a
+    ``format_error`` fed back to the next round.
+    """
 
     from .rust_arm import RustArmProject
 
     run = ArmRun(arm=arm, task=task)
     base = _exclusive_run_dir(Path(out_dir))
     feedback: str | None = None
-    previous: str | None = None
+    previous: str | None = initial_source
+    last_path: Path | None = None
+    if initial_source is not None:
+        last_path = base / "initial.rs"
+        last_path.write_text(initial_source, encoding="utf-8")
+    wants_tools = arm.startswith("A2")
+    if tools_tier == "ml" and arm.endswith("_m"):
+        tools_tier = "m"
+    run.notes["tools_tier"] = tools_tier
+
+
     for round_no in range(1, k + 1):
         response = provider.propose(CandidateRequest(
             requirements=spec, contract=contract, feedback=feedback,
@@ -122,36 +144,23 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
         if response.error:
             run.error = response.error
             break
+
+        # C-1: a self-review that reports no issues accepts the current state.
+        if arm == ARM_SELF_ITER and _is_no_issues(response.text):
+            run.rounds.append(RoundRecord(
+                round=round_no, decision="self_no_issues",
+                request_sha256=sha256_text(response.text),
+                llm_wall_ms=int(getattr(response, "wall_ms", 0) or 0)))
+            run.accepted = True
+            run.notes["self_no_issues"] = True
+            break
+
         source = extract_rust(response.text)
-        previous = source
         round_dir = base / f"round-{round_no}"
         round_dir.mkdir(parents=True, exist_ok=True)
-        (round_dir / "candidate.rs").write_text(source, encoding="utf-8")
-        project = RustArmProject(round_dir, source, name="probe")
-        wants_tools = arm == ARM_TOOLS_ITER
-        record = project.analyze(run_miri=wants_tools, run_lockbud=wants_tools,
-                                 timeout_s=tool_timeout_s)
-        tool_wall = _tool_wall(record)
-        run.consumption.tool_wall_ms += tool_wall
-        run.notes.setdefault("tool_rounds", []).append(record)
-        build_ok = record.get("build_ok") is True
-        miri_runs = list(record.get("miri", []))
-        extended = record.get("miri_extended")
-        if isinstance(extended, dict):
-            miri_runs.extend(extended.get("runs", []) if "runs" in extended else [extended])
-        miri_detected = any(r.get("extra", {}).get("detected") for r in miri_runs)
-        # "green" means every run finished cleanly: a timeout or tool error is
-        # not green and must not be accepted.
-        miri_green = bool(miri_runs) and all(
-            r.get("extra", {}).get("status") == "clean" for r in miri_runs)
-        lockbud = record.get("lockbud") or {}
-        lockbud_status = lockbud.get("status") or lockbud.get("extra", {}).get("status")
-        lockbud_detected = bool(lockbud.get("extra", {}).get("detected"))
-        # Unavailable/skipped is neutral; clean is green; a detection, timeout or
-        # tool error is not green.
-        lockbud_green = (lockbud_status in ("clean", "lockbud_unavailable", "skipped")
-                         and not lockbud_detected)
-        prompt_tokens, completion_tokens = _tokens(response)
+        last_path = round_dir / "candidate.rs"
+        last_path.write_text(source, encoding="utf-8")
+
         rr = RoundRecord(
             round=round_no,
             request_sha256=sha256_text(json.dumps({"spec_sha256": sha256_text(spec),
@@ -159,30 +168,70 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
                                                    "attempt": round_no},
                                                   sort_keys=True)),
             feedback_sha256=sha256_text(feedback) if feedback else None,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
             llm_wall_ms=int(getattr(response, "wall_ms", 0) or 0),
-            tool_wall_ms=tool_wall,
-            tool_output_sha256=sha256_text(json.dumps(record, sort_keys=True)),
         )
         run.rounds.append(rr)
+        prompt_tokens, completion_tokens = _tokens(response)
+        rr.prompt_tokens, rr.completion_tokens = prompt_tokens, completion_tokens
+
+        # C-5: every non-sentinel reply must be a complete program.
+        if "fn main" not in source:
+            rr.decision = "format_error"
+            feedback = ("Your reply was not a complete Rust program. Output the full "
+                        "program including `fn main` and every function, inside one "
+                        "```rust fence, or reply exactly NO_ISSUES.")
+            rr.feedback_sha256 = sha256_text(feedback)
+            continue
+
+        previous = source
+        project = RustArmProject(round_dir, source, name="probe")
+        record = project.analyze(run_miri=wants_tools, run_lockbud=wants_tools,
+                                 timeout_s=tool_timeout_s,
+                                 run_miri_many_seeds=run_miri_many_seeds)
+        tool_wall = _tool_wall(record)
+        run.consumption.tool_wall_ms += tool_wall
+        run.notes.setdefault("tool_rounds", []).append(record)
+        build_ok = record.get("build_ok") is True
+        test_ok = record.get("behavior_test_ok")
+        miri_runs = list(record.get("miri", []))
+        extended = record.get("miri_extended")
+        if isinstance(extended, dict):
+            miri_runs.extend(extended.get("runs", []) if "runs" in extended else [extended])
+        miri_detected = any(r.get("extra", {}).get("detected") for r in miri_runs)
+        miri_green = bool(miri_runs) and all(
+            r.get("extra", {}).get("status") == "clean" for r in miri_runs)
+        lockbud = record.get("lockbud") or {}
+        lockbud_status = lockbud.get("status") or lockbud.get("extra", {}).get("status")
+        lockbud_detected = bool(lockbud.get("extra", {}).get("detected"))
+        lockbud_green = (lockbud_status in ("clean", "lockbud_unavailable", "skipped")
+                         and not lockbud_detected)
+        rr.tool_wall_ms = tool_wall
+        rr.tool_output_sha256 = sha256_text(json.dumps(record, sort_keys=True))
+        run.notes.setdefault("round_columns", []).append({
+            "round": round_no, "build_ok": build_ok, "test_ok": test_ok,
+            "miri_green": miri_green, "miri_detected": miri_detected,
+            "lockbud_green": lockbud_green, "lockbud_detected": lockbud_detected,
+            "lockbud_status": lockbud_status,
+        })
 
         if arm == ARM_DIRECT:
             run.accepted = build_ok
             rr.decision = "build_ok" if build_ok else "build_fail"
             break
         if arm == ARM_SELF_ITER:
-            self_report = any(tok in response.text.lower() for tok in SELF_REPORT_TOKENS)
-            run.accepted = build_ok and self_report
-            rr.decision = "self_report_ok" if run.accepted else "continue"
-            if run.accepted:
-                break
-            feedback = "Review the program for concurrency defects and output the full fixed program."
+            # A1 without a sentinel continues; it never accepts on build alone.
+            rr.decision = "continue"
+            feedback = ("Review the program for concurrency defects and either fix it "
+                        "(full program) or reply exactly NO_ISSUES.")
+            rr.feedback_sha256 = sha256_text(feedback)
             continue
-        # A2_tools_iter: accept only when every tool finished cleanly.
-        run.accepted = (build_ok and miri_green and not miri_detected
-                        and lockbud_green)
-        rr.decision = "tools_green" if run.accepted else "tools_dirty"
+        # A2-m (build + miri) vs A2-ml (build + miri + lockbud).
+        accepted_m = bool(build_ok and miri_green and not miri_detected)
+        accepted_ml = bool(accepted_m and lockbud_green)
+        tier_ok = accepted_m if tools_tier == "m" else accepted_ml
+        run.accepted = tier_ok
+        rr.decision = ("tools_green_m" if tier_ok and tools_tier == "m"
+                       else "tools_green_ml" if tier_ok else "tools_dirty")
         if run.accepted:
             break
         feedback = _truncate(json.dumps({
@@ -194,14 +243,16 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
             "build": record.get("build"),
             "behavior_test": record.get("behavior_test"),
         }, sort_keys=True))
+        rr.feedback_sha256 = sha256_text(feedback)
 
     if run.accepted:
         run.accepted_round = run.rounds[-1].round if run.rounds else None
         run.consumption.first_correct_round = run.accepted_round
-    last = base / f"round-{run.rounds[-1].round}" / "candidate.rs" if run.rounds else None
-    if last and last.is_file():
-        run.final_artifact_path = str(last)
-        run.final_artifact_sha256 = sha256_file(last)
+    if last_path is not None and last_path.is_file():
+        run.final_artifact_path = str(last_path)
+        run.final_artifact_sha256 = sha256_file(last_path)
+    elif initial_source is not None:
+        run.notes["initial_source_sha256"] = sha256_text(initial_source)
     return run
 
 
@@ -222,7 +273,8 @@ def _tool_wall(record: dict[str, Any]) -> int:
 def run_cir_arm(client: ConcirClient, provider: CandidateProvider, *, arm: str,
                 task: str, spec: str, contract: dict[str, Any], out_dir: Path | str,
                 k: int = K, fidelity_name: str | None = None,
-                diagnostics: bool = True, check_fidelity: bool = True) -> ArmRun:
+                diagnostics: bool = True, check_fidelity: bool = True,
+                initial_program: Path | str | None = None) -> ArmRun:
     """A3 family: whole-artifact CIR revision (offline scripted or live)."""
 
     from .revision_workflow import WholeArtifactRevisionWorkflow
@@ -231,7 +283,8 @@ def run_cir_arm(client: ConcirClient, provider: CandidateProvider, *, arm: str,
         client, provider, out_dir=out_dir, max_rounds=k,
         diagnostics=diagnostics, check_fidelity=check_fidelity,
         fidelity_name=fidelity_name)
-    result = workflow.run(spec, contract, task_id=task)
+    result = workflow.run(spec, contract, task_id=task,
+                          initial_program=initial_program)
     run = ArmRun(arm=arm, task=task)
     run.accepted = result.accepted
     run.accepted_round = result.accepted_version
@@ -260,7 +313,7 @@ def run_cir_arm(client: ConcirClient, provider: CandidateProvider, *, arm: str,
 
 
 def rust_oracle(source_path: Path | str, *, run_miri: bool = True,
-                timeout_s: float = 60.0) -> dict[str, Any]:
+                timeout_s: float = 60.0, run_miri_many_seeds: bool = True) -> dict[str, Any]:
     """Terminal Rust verdict: build / behavior test / miri / bug rule.
 
     ``bug_present`` stays ``None`` unless a task-specific rule is available; it is
@@ -272,7 +325,9 @@ def rust_oracle(source_path: Path | str, *, run_miri: bool = True,
     source = Path(source_path).read_text(encoding="utf-8")
     with tempfile.TemporaryDirectory() as tmp:
         project = RustArmProject(tmp, source, name="oracle")
-        record = project.analyze(run_miri=run_miri, run_lockbud=False, timeout_s=timeout_s)
+        record = project.analyze(run_miri=run_miri, run_lockbud=False,
+                                 timeout_s=timeout_s,
+                                 run_miri_many_seeds=run_miri_many_seeds)
     miri_detected = any(r.get("extra", {}).get("detected") for r in record.get("miri", []))
     return {
         "build_ok": record.get("build_ok"),

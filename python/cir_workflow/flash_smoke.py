@@ -65,19 +65,21 @@ class RustLiveProvider:
 
     def propose(self, request: CandidateRequest) -> CandidateResponse:
         system = _rust_system(self.mode)
-        if request.feedback is None:
+        has_program = bool(request.previous_candidate)
+        if request.feedback is None and not has_program:
             user = (f"Specification:\n{request.requirements}\n\n"
                     "Output the complete Rust program.")
         elif self.mode == "tools":
+            diagnostics = request.feedback or "(no tool diagnostics yet)"
             user = (f"Specification:\n{request.requirements}\n\n"
                     f"Current program:\n```rust\n{request.previous_candidate}\n```\n\n"
-                    f"Tool diagnostics:\n{request.feedback}\n\n"
+                    f"Tool diagnostics:\n{diagnostics}\n\n"
                     "Output the complete corrected Rust program.")
         else:
             user = (f"Specification:\n{request.requirements}\n\n"
                     f"Current program:\n```rust\n{request.previous_candidate}\n```\n\n"
-                    "If there is no concurrency defect reply exactly NO_ISSUES; "
-                    "otherwise output the complete corrected Rust program.")
+                    "Fix any concurrency defect and output the complete corrected Rust "
+                    "program, or if there is none reply exactly NO_ISSUES.")
         outcome = self.client.complete(system, user)
         self.calls.append({
             "attempt": request.attempt, "request_id": outcome.request_id,
@@ -174,8 +176,8 @@ def run_flash_smoke(manifest_path: Path | str, out_dir: Path | str, *, binary: P
                     timeout=timeout, max_tokens=max_tokens, sdk_client=sdk_client)
                 patch_provider = RecordingPatchProvider(client_llm)
                 a3p = ExternalPatchRepairWorkflow(
-                    client, patch_provider, out_dir=task_dir / "A3p", max_rounds=k).run(
-                    root / task.buggy_cir, contract_path)
+                    client, patch_provider, out_dir=task_dir / ARM_OURS_PATCH,
+                    max_rounds=k).run(root / task.buggy_cir, contract_path)
                 payload = a3p.__dict__
                 payload["rounds"] = [r.__dict__ for r in a3p.rounds]
                 payload["llm_calls"] = patch_provider.calls
@@ -203,23 +205,156 @@ def run_flash_smoke(manifest_path: Path | str, out_dir: Path | str, *, binary: P
     return summary
 
 
+REPAIR_TASKS = ("lock-order/abba_2lock", "lock-order/partial_deadlock_bystander",
+                "condvar/bare_wait_no_predicate")
+
+
+def run_repair_smoke(manifest_path: Path | str, out_dir: Path | str, *, binary: Path | str,
+                     api_key: str, protocol_path: Path | str, protocol_sha256: str,
+                     k: int = K, timeout: float = 90.0, max_tokens: int = 4096,
+                     sdk_client: Any | None = None,
+                     tasks_filter: tuple[str, ...] | None = None) -> dict[str, Any]:
+    """Repair-type arms: the defective input is guaranteed, acceptance is
+    measured against an independent terminal oracle (three columns)."""
+
+    from .arms import rust_oracle
+
+    assert_protocol_confirmed(protocol_path, protocol_sha256)
+    assert_allowed_model(ALLOWED_PROVIDER, "deepseek-flash")
+    root = Path(manifest_path).resolve().parent
+    out = Path(out_dir).expanduser().resolve()
+    batch = _exclusive_run_dir(out)
+    budget = LiveBudget(batch / "budget.json", max_requests=SMOKE_HTTP_CAP,
+                        max_seconds=SMOKE_WALL_CAP_S)
+    wanted = tasks_filter or REPAIR_TASKS
+    tasks = {t.id: t for t in load_manifest(manifest_path)}
+    summary: dict[str, Any] = {
+        "batch_dir": str(batch), "provider": ALLOWED_PROVIDER,
+        "requested_model": "deepseek-flash", "protocol_sha256": protocol_sha256,
+        "k": k, "max_requests": budget.max_requests, "tasks": [], "stop_reason": None,
+    }
+    stop_reason = None
+    for task_id in wanted:
+        task = tasks.get(task_id)
+        if task is None or not task.buggy_cir:
+            summary["tasks"].append({"task": task_id, "skipped": "no_buggy_cir"})
+            continue
+        if budget.exhausted():
+            stop_reason = budget.exhausted()
+            break
+        task_dir = batch / task_id.replace("/", "__")
+        contract_path = root / task.contract
+        contract = json.loads(contract_path.read_text(encoding="utf-8"))
+        spec = (root / task.spec).read_text(encoding="utf-8") if task.spec else task_id
+        buggy_cir = root / task.buggy_cir
+        input_rust = (root / task.buggy_rs).read_text(encoding="utf-8") if task.buggy_rs else None
+        client = ConcirClient(binary, workdir=task_dir / "calls", timeout=30.0)
+        record: dict[str, Any] = {"task": task_id, "arms": {}}
+        try:
+            if input_rust is not None:
+                for arm, tier in ((ARM_DIRECT, "ml"), ("A1_self_iter", "ml"),
+                                  ("A2_tools_iter_m", "m"), ("A2_tools_iter_ml", "ml")):
+                    if budget.exhausted():
+                        break
+                    mode = {"A0_direct": "direct", "A1_self_iter": "self"}.get(arm, "tools")
+                    llm = DeepSeekFlashClient(
+                        api_key=api_key, budget=budget, evidence_dir=batch / "llm",
+                        timeout=timeout, max_tokens=max_tokens, sdk_client=sdk_client)
+                    provider = RustLiveProvider(llm, mode)
+                    run = run_rust_arm(provider, arm=arm, task=task_id, spec=spec,
+                                       contract=contract, out_dir=task_dir / arm,
+                                       k=k, initial_source=input_rust,
+                                       tool_timeout_s=8.0, run_miri_many_seeds=False)
+                    arm_record = run.as_dict()
+                    arm_record["llm_calls"] = provider.calls
+                    if run.final_artifact_path:
+                        arm_record["oracle"] = rust_oracle(run.final_artifact_path,
+                                                           run_miri=True, timeout_s=8.0,
+                                                           run_miri_many_seeds=False)
+                    else:
+                        arm_record["oracle"] = {"build_ok": None, "miri_detected": None,
+                                                "behavior_test_ok": None, "bug_present": None}
+                    record["arms"][arm] = arm_record
+            # A3: revise the buggy CIR.
+            if not budget.exhausted():
+                llm = DeepSeekFlashClient(
+                    api_key=api_key, budget=budget, evidence_dir=batch / "llm",
+                    timeout=timeout, max_tokens=max_tokens, sdk_client=sdk_client)
+                cir_provider = RecordingProvider(llm)
+                a3 = run_cir_arm(client, cir_provider, arm=ARM_OURS_REVISION,
+                                 task=task_id, spec=spec, contract=contract,
+                                 out_dir=task_dir / ARM_OURS_REVISION, k=k,
+                                 initial_program=buggy_cir)
+                a3_record = a3.as_dict()
+                a3_record["llm_calls"] = cir_provider.calls
+                if a3.final_artifact_path:
+                    from .arms import cir_oracle
+                    a3_record["oracle"] = cir_oracle(client, a3.final_artifact_path,
+                                                     contract_path)
+                record["arms"][ARM_OURS_REVISION] = a3_record
+        except Exception as exc:  # noqa: BLE001
+            stop_reason = f"{type(exc).__name__}: {exc}"
+            record["error"] = stop_reason
+        summary["tasks"].append(record)
+        if stop_reason:
+            summary["stop_reason"] = stop_reason
+            break
+    summary["requests_used"] = budget.requests_used
+    summary["requests_remaining"] = budget.remaining
+    (batch / "SUMMARY.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (batch / "SUMMARY.md").write_text(render_repair_md(summary), encoding="utf-8")
+    return summary
+
+
+def render_repair_md(summary: dict[str, Any]) -> str:
+    lines = ["# Flash repair smoke — SUMMARY", "",
+             f"- batch dir: `{summary['batch_dir']}`",
+             f"- requests used: {summary.get('requests_used')}",
+             f"- stop reason: {summary.get('stop_reason')}", "",
+             "| task | arm | accepted | round | oracle.build | oracle.miri | oracle.model | false_accept |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for task in summary["tasks"]:
+        for arm, run in (task.get("arms") or {}).items():
+            oracle = run.get("oracle") or {}
+            bug = oracle.get("bug_present")
+            fa = (run.get("accepted") and bug is True) if bug is not None else None
+            lines.append(
+                f"| {task['task']} | {arm} | {run.get('accepted')} | "
+                f"{run.get('accepted_round')} | {oracle.get('build_ok')} | "
+                f"{oracle.get('miri_detected')} | {bug} | {fa} |")
+    return "\n".join(lines) + "\n"
+
+
 def render_smoke_markdown(summary: dict[str, Any]) -> str:
     lines = ["# Flash smoke batch — SUMMARY", "",
              f"- batch dir: `{summary['batch_dir']}`",
              f"- protocol sha256: `{summary['protocol_sha256']}`",
              f"- requests used: {summary.get('requests_used')}",
              f"- stop reason: {summary.get('stop_reason')}", "",
-             "| task | arm | accepted | round | http | tokens | llm_ms | tool_ms |",
-             "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+             "| task | arm | accepted/status | round | http | tokens | llm_ms | tool_ms | notes |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for task in summary["tasks"]:
         if "arms" not in task:
             lines.append(f"| {task['task']} | — | — | — | — | — | — | — | {task.get('skipped', '')} |")
             continue
         for arm, run in task["arms"].items():
+            if arm == ARM_OURS_PATCH:
+                # ExternalPatchRepairWorkflow payload: status/rounds, no consumption
+                lines.append(
+                    f"| {task['task']} | {arm} | {run.get('status')} | "
+                    f"{len(run.get('rounds') or [])} | — | — | — | — | "
+                    f"{run.get('error') or ''} |")
+                continue
+            if arm == "A3_tool_repair":
+                lines.append(
+                    f"| {task['task']} | {arm} | {run.get('status')} | — | — | — | — "
+                    f"| {run.get('wall_ms')} | {run.get('outcome')} |")
+                continue
             consumption = run.get("consumption", {}) if isinstance(run, dict) else {}
             lines.append(
                 f"| {task['task']} | {arm} | {run.get('accepted')} | "
                 f"{run.get('accepted_round')} | {consumption.get('http_requests')} | "
                 f"{consumption.get('total_tokens')} | {consumption.get('llm_wall_ms')} | "
-                f"{consumption.get('tool_wall_ms')} |")
+                f"{consumption.get('tool_wall_ms')} | |")
     return "\n".join(lines) + "\n"

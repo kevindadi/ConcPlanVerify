@@ -65,6 +65,24 @@ class ArmTests(unittest.TestCase):
             self.assertIsNotNone(record.request_sha256)
             self.assertIsNotNone(record.tool_output_sha256)
 
+    def test_a1_no_issues_accepts_without_compiling_sentinel(self):
+        provider = ScriptedProvider([{"text": GOOD_RUST}, {"text": "NO_ISSUES"}])
+        run = run_rust_arm(provider, arm="A1_self_iter", task="P1", spec=self.spec,
+                           contract=self.contract, out_dir=self.root / "a1", k=4)
+        self.assertTrue(run.accepted)
+        self.assertEqual(run.accepted_round, 2)
+        self.assertEqual(len(run.rounds), 2)
+        self.assertEqual(run.rounds[1].decision, "self_no_issues")
+        self.assertTrue(run.notes.get("self_no_issues"))
+
+    def test_a1_fragment_is_format_error(self):
+        fragment = "let _g1 = a.lock().unwrap(); let _g2 = b.lock().unwrap();"
+        provider = ScriptedProvider([{"text": fragment}, {"text": GOOD_RUST}])
+        run = run_rust_arm(provider, arm="A1_self_iter", task="P1", spec=self.spec,
+                           contract=self.contract, out_dir=self.root / "a1f", k=2)
+        self.assertEqual(run.rounds[0].decision, "format_error")
+        self.assertIsNotNone(run.rounds[0].feedback_sha256)
+
     def test_a2_accepts_when_tools_are_clean(self):
         fixed_rs = (PATTERNS / "P1/fixed.rs").read_text(encoding="utf-8")
         provider = ScriptedProvider([{"text": fixed_rs}])
@@ -72,7 +90,7 @@ class ArmTests(unittest.TestCase):
                            contract=self.contract, out_dir=self.root / "a2")
         self.assertTrue(run.accepted, run.error)
         self.assertEqual(run.accepted_round, 1)
-        self.assertEqual(run.rounds[0].decision, "tools_green")
+        self.assertEqual(run.rounds[0].decision, "tools_green_ml")
 
     def test_a0_direct_accepts_building_rust(self):
         provider = ScriptedProvider([{"text": GOOD_RUST}])

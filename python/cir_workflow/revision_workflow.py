@@ -219,6 +219,20 @@ class WholeArtifactRevisionWorkflow:
             result.consumption.tool_wall_ms += check.wall_ms
             record.tool_output_sha256 = _payload_hash("check", check.status, check.payload)
             if check.kind != "semantic":
+                # A malformed candidate (usage/protocol/parse) is a schema error
+                # the LLM can fix: feed it back and spend the round instead of
+                # stopping the batch. Only a missing/broken binary is a tool error.
+                if check.kind in ("usage_error", "protocol_error"):
+                    record.decision = "check_schema_error"
+                    feedback_dict = {
+                        "stage": "check",
+                        "schema_error": check.error or check.stderr,
+                        "detail": "the program JSON did not parse or had an invalid shape; "
+                                  "fix the schema (e.g. `expr` must be a string) and "
+                                  "resend the whole program",
+                    }
+                    record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
+                    continue
                 result.status = "tool_error"
                 result.error = check.error or "check failed"
                 _write_result(run_dir, result)

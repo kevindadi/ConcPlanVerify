@@ -96,6 +96,30 @@ class RevisionWorkflowOfflineTests(unittest.TestCase):
         self.assertIsNotNone(result.versions[0].feedback_sha256)
         self.assertIsNotNone(result.versions[1].feedback_sha256)
 
+    def test_schema_error_is_feedback_not_tool_error(self):
+        # `expr` must be a string; an object makes the backend exit 2 (usage).
+        fixed = json.loads((REPO / "benchmarks/families/condvar/"
+                            "lost_wakeup_notify_before_wait/fixed.cir.json").read_text())
+        contract = json.loads((REPO / "benchmarks/families/condvar/"
+                               "lost_wakeup_notify_before_wait/contract.json").read_text())
+        corrupt = copy.deepcopy(fixed)
+        for fn in corrupt["modules"][0]["functions"]:
+            for stmt in fn.get("body", []):
+                if stmt.get("kind") == "write_shared" and "expr" in stmt:
+                    stmt["expr"] = {"kind": "bool", "value": True}
+        provider = ScriptedProvider([{"text": json.dumps(corrupt)},
+                                     {"text": json.dumps(fixed)}])
+        client = ConcirClient(self.binary, workdir=self.root / "schema", timeout=30.0)
+        workflow = WholeArtifactRevisionWorkflow(
+            client, provider, out_dir=self.root / "schema-out", max_rounds=3)
+        result = workflow.run("waiter/notifier with a ready flag", contract,
+                              task_id="lost_wakeup")
+        self.assertEqual(result.status, "accepted", result.error)
+        self.assertEqual(result.accepted_version, 2)
+        self.assertEqual(len(result.versions), 2)
+        self.assertEqual(result.versions[0].decision, "check_schema_error")
+        self.assertIn("schema_error", provider.calls[1].feedback or "")
+
     def test_k_rounds_exhausted(self):
         broken = json.dumps(broken_program())
         provider, result = self._run([{"text": broken}, {"text": broken}], max_rounds=3)

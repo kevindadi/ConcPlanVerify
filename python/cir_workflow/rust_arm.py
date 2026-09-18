@@ -400,7 +400,7 @@ class RustArmProject:
         miri_runs = []
         if run_miri:
             for seed, rate in MIRI_COMBOS:
-                mr = self.miri(seed=seed, preemption_rate=rate)
+                mr = self.miri(seed=seed, preemption_rate=rate, timeout_s=timeout_s)
                 mr.extra.update({"seed": seed, "preemption_rate": rate})
                 mr.extra.update(classify_tool_run(mr))
                 miri_runs.append(mr.as_dict())
