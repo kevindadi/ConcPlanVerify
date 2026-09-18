@@ -74,7 +74,7 @@ class RevisionWorkflowOfflineTests(unittest.TestCase):
         self.assertEqual(result.versions[1].decision, "check_invalid")
         # the second provider call carried the real check feedback
         self.assertEqual(len(provider.calls), 2)
-        self.assertIn("validation_diagnostics", provider.calls[1].feedback or "")
+        self.assertIn("diagnostics", provider.calls[1].feedback or "")
 
     def test_three_round_records_fail_static_error_pass(self):
         # from scratch: round 1 FAIL, round 2 static error, round 3 PASS
@@ -102,11 +102,12 @@ class RevisionWorkflowOfflineTests(unittest.TestCase):
                             "lost_wakeup_notify_before_wait/fixed.cir.json").read_text())
         contract = json.loads((REPO / "benchmarks/families/condvar/"
                                "lost_wakeup_notify_before_wait/contract.json").read_text())
+        # An unnormalisable schema error: a Var with neither `base` nor `init`.
         corrupt = copy.deepcopy(fixed)
-        for fn in corrupt["modules"][0]["functions"]:
-            for stmt in fn.get("body", []):
-                if stmt.get("kind") == "write_shared" and "expr" in stmt:
-                    stmt["expr"] = {"kind": "bool", "value": True}
+        for res in corrupt["modules"][0]["resources"]:
+            if res.get("type") == "Var":
+                res.pop("base", None)
+                res.pop("init", None)
         provider = ScriptedProvider([{"text": json.dumps(corrupt)},
                                      {"text": json.dumps(fixed)}])
         client = ConcirClient(self.binary, workdir=self.root / "schema", timeout=30.0)
@@ -117,8 +118,10 @@ class RevisionWorkflowOfflineTests(unittest.TestCase):
         self.assertEqual(result.status, "accepted", result.error)
         self.assertEqual(result.accepted_version, 2)
         self.assertEqual(len(result.versions), 2)
-        self.assertEqual(result.versions[0].decision, "check_schema_error")
-        self.assertIn("schema_error", provider.calls[1].feedback or "")
+        self.assertEqual(result.versions[0].decision, "check_invalid")
+        feedback = provider.calls[1].feedback or ""
+        self.assertIn("expected_shapes", feedback)
+        self.assertNotIn("revision-1", feedback)
 
     def test_k_rounds_exhausted(self):
         broken = json.dumps(broken_program())

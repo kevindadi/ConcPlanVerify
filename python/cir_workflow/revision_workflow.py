@@ -32,7 +32,8 @@ from .concir_client import ConcirClient, sha256_file
 from .experiments_v2 import Consumption, sha256_text
 from .json_utils import extract_json
 from .models import normalize_token_usage
-from .prompts import build_check_feedback, build_explore_feedback, render_feedback
+from .normalize import normalize as normalize_program
+from .prompts import build_explore_feedback, render_feedback
 from .providers import CandidateProvider, CandidateRequest
 from .structural import run_structural_check
 
@@ -63,6 +64,9 @@ class RevisionVersion:
     llm_wall_ms: int = 0
     tool_wall_ms: int = 0
     tool_output_sha256: str | None = None
+    normalizations: list[dict[str, Any]] = field(default_factory=list)
+    sid_issues: list[dict[str, Any]] = field(default_factory=list)
+    local_patch_function: str | None = None
 
 
 @dataclass
@@ -150,6 +154,10 @@ class WholeArtifactRevisionWorkflow:
         feedback_dict: dict[str, Any] | None = None
         previous_text: str | None = None
         next_program: Path | None = None
+        last_norm_sha: str | None = None
+        last_normalized: dict[str, Any] | None = None
+        stall_count = 0
+        local_patch_function: str | None = None
         if initial_program is not None:
             src = Path(initial_program).expanduser().resolve()
             next_program = run_dir / "revision-0.cir.json"
@@ -160,8 +168,15 @@ class WholeArtifactRevisionWorkflow:
             result.versions.append(record)
 
             if next_program is not None:
-                program_path = next_program
                 record.source = "frozen"
+                parsed = json.loads(next_program.read_text(encoding="utf-8"))
+                parsed, norm_records, sid_issues = normalize_program(parsed)
+                record.normalizations = norm_records
+                record.sid_issues = sid_issues
+                program_path = run_dir / f"revision-{version}.normalized.cir.json"
+                program_path.write_text(
+                    json.dumps(parsed, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8")
                 next_program = None
             else:
                 request = CandidateRequest(
@@ -206,12 +221,65 @@ class WholeArtifactRevisionWorkflow:
                     feedback_dict = {"stage": "parse", "error": "candidate is not a JSON object"}
                     record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
                     continue
-                program_path = run_dir / f"revision-{version}.cir.json"
+                # Local-patch reply: {function, body:[...]} merged into the last
+                # accepted program instead of a whole-program replacement.
+                if (local_patch_function and "modules" not in parsed
+                        and isinstance(parsed.get("body"), list)
+                        and last_normalized is not None):
+                    merged = json.loads(json.dumps(last_normalized))
+                    for module in merged.get("modules", []):
+                        for function in module.get("functions", []):
+                            if function.get("name") == local_patch_function:
+                                function["body"] = parsed["body"]
+                    parsed = merged
+                    record.decision = "local_patch"
+
+                # Tier-1 deterministic normalisation (recorded, sid-safe).
+                parsed, norm_records, sid_issues = normalize_program(parsed)
+                record.normalizations = norm_records
+                record.sid_issues = sid_issues
+                program_path = run_dir / f"revision-{version}.normalized.cir.json"
                 program_path.write_text(json.dumps(parsed, ensure_ascii=False, indent=2) + "\n",
                                         encoding="utf-8")
+                (run_dir / f"revision-{version}.cir.json").write_text(
+                    json.dumps(parsed, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
             record.program_sha256 = sha256_file(program_path)
             record.artifact_path = str(program_path)
+
+            if record.sid_issues:
+                record.decision = "sid_invalid"
+                feedback_dict = {
+                    "stage": "schema",
+                    "sid_issues": record.sid_issues,
+                    "expected": "every statement sid must match ^s[0-9]+$ (s1, s2, ...)",
+                }
+                record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
+                continue
+
+            # Stall detection: identical normalised program -> local-patch, then stop.
+            if last_norm_sha is not None and record.program_sha256 == last_norm_sha:
+                stall_count += 1
+                if stall_count >= 2:
+                    record.decision = "stalled"
+                    result.status = "stalled"
+                    result.error = "candidate unchanged twice; stopping"
+                    _write_result(run_dir, result)
+                    return result
+                local_patch_function = record.local_patch_function
+                feedback_dict = {
+                    "stage": "stalled",
+                    "message": "the program is byte-identical to the previous attempt; "
+                               "change only the offending function body",
+                    "function": local_patch_function,
+                    "expected": "reply with {\"function\": name, \"body\": [ ...statements... ]}",
+                }
+                record.decision = "stalled_local_patch"
+                record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
+                continue
+            stall_count = 0
+            last_norm_sha = record.program_sha256
+            last_normalized = parsed
 
             check = self.client.check(program_path)
             record.check_status = check.status
@@ -239,7 +307,10 @@ class WholeArtifactRevisionWorkflow:
                 return result
             if check.status == "invalid":
                 record.decision = "check_invalid"
-                feedback_dict = (build_check_feedback(check) if self.diagnostics
+                record.local_patch_function = _first_function(check)
+                local_patch_function = record.local_patch_function
+                feedback_dict = (build_schema_feedback(check, record.normalizations)
+                                 if self.diagnostics
                                  else {"stage": "check", "outcome": "INVALID"})
                 record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
                 continue
@@ -345,6 +416,49 @@ def _payload_hash(stage: str, status: str | None, payload: Any) -> str:
     return sha256_text(json.dumps(
         {"stage": stage, "status": status, "payload": payload},
         sort_keys=True, default=str))
+
+
+SHAPE_HINTS = {
+    "E001": "a Var/Atomic resource requires both `base` (e.g. \"Bool\"/\"Int\") and "
+            "`init`; a Channel requires `base` and `capacity`",
+    "E005": "every statement `sid` must match ^s[0-9]+$ (s1, s2, ...)",
+    "E008": "sync resource `type` must be one of Mutex, Condvar, Semaphore, Channel",
+    "E205": "atomic_cas `dst` receives the old value and must have the Atomic `base` "
+            "type, not a Bool",
+    "E510": "mutex_unlock requires holding that mutex",
+    "E511": "condvar_wait requires holding the paired `lock`",
+}
+
+
+def _first_function(check) -> str | None:
+    for diag in ((check.payload or {}).get("diagnostics") or []):
+        location = str(diag.get("location") or "")
+        if "::" in location:
+            return location.split(".")[0]
+    return None
+
+
+def build_schema_feedback(check, normalizations: list[dict[str, Any]]) -> dict[str, Any]:
+    """Schema feedback with JSON pointers and shapes, never file paths/lines."""
+
+    payload = check.payload or {}
+    diagnostics = []
+    hints: list[str] = []
+    for diag in payload.get("diagnostics", []) or []:
+        diagnostics.append({k: diag.get(k) for k in ("code", "message", "path")
+                            if diag.get(k) is not None})
+        hint = SHAPE_HINTS.get(str(diag.get("code")))
+        if hint and hint not in hints:
+            hints.append(hint)
+    return {
+        "stage": "check",
+        "status": "INVALID",
+        "diagnostics": diagnostics,
+        "expected_shapes": hints,
+        "normalizations": normalizations,
+        "note": "`path` is a JSON pointer into the program; resend the whole program "
+                "with those fields fixed (do not add fields the schema forbids).",
+    }
 
 
 def _write_result(run_dir: Path, result: RevisionResult) -> None:
