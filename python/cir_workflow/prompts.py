@@ -16,8 +16,10 @@ from typing import Any
 PROMPT_ASSET_DIR = Path(__file__).resolve().parent / "prompt_assets"
 GENERATION_ASSET = "concir_generation_v1.md"
 FEEDBACK_ASSET = "concir_feedback_v1.md"
+PATCH_ASSET = "concir_patch_v1.md"
 GENERATION_PROMPT_VERSION = "concir-generation-v1"
 FEEDBACK_PROMPT_VERSION = "concir-feedback-v1"
+PATCH_PROMPT_VERSION = "concir-patch-v1"
 
 
 def _read(name: str) -> str:
@@ -26,7 +28,7 @@ def _read(name: str) -> str:
 
 def prompt_asset_record() -> dict[str, str]:
     out = {}
-    for name in (GENERATION_ASSET, FEEDBACK_ASSET):
+    for name in (GENERATION_ASSET, FEEDBACK_ASSET, PATCH_ASSET):
         data = (PROMPT_ASSET_DIR / name).read_bytes()
         out[name] = hashlib.sha256(data).hexdigest()
     return out
@@ -38,6 +40,68 @@ def generation_system_prompt() -> str:
 
 def feedback_system_prompt() -> str:
     return _read(FEEDBACK_ASSET)
+
+
+def patch_system_prompt() -> str:
+    return _read(PATCH_ASSET)
+
+
+def patch_user_prompt(context: dict[str, Any], *,
+                      feedback: str | None = None,
+                      previous_candidate: str | None = None) -> str:
+    sections = [
+        "Propose exactly one constrained patch for the frozen model below.",
+        "The repair context (fingerprints, allowed scope, root verification and "
+        "diagnostics, functions with lock sids and original hashes) is authoritative.",
+        "<repair_context>",
+        json.dumps(context, ensure_ascii=False),
+        "</repair_context>",
+    ]
+    if previous_candidate is not None:
+        sections += [
+            "<previous_candidate>",
+            previous_candidate,
+            "</previous_candidate>",
+        ]
+    if feedback is not None:
+        sections += [
+            "<rejection_feedback>",
+            feedback,
+            "</rejection_feedback>",
+            "Propose a different single adjacent mutex_lock swap that fixes the "
+            "full contract without changing the contract or the program structure.",
+        ]
+    sections.append("Output only the JSON object.")
+    return "\n".join(sections)
+
+
+def render_patch_feedback(payload: dict[str, Any]) -> str:
+    """Compact, structured feedback from an evaluate-patch artifact."""
+    verification = payload.get("verification") or {}
+    properties = verification.get("properties") or []
+    failed = [{"id": p.get("id"), "outcome": p.get("outcome")} for p in properties
+              if p.get("outcome") not in (None, "PASS")]
+    diagnostics = []
+    for d in verification.get("diagnostics") or []:
+        diagnostics.append({
+            "property": d.get("property"),
+            "outcome": d.get("outcome"),
+            "message": d.get("message"),
+            "blocked": d.get("blocked"),
+            "counterexample": d.get("counterexample"),
+        })
+    return json.dumps({
+        "stage": "evaluate-patch",
+        "status": payload.get("status"),
+        "reject": payload.get("reject_reason"),
+        "static_valid": payload.get("static_valid"),
+        "supported": payload.get("supported"),
+        "verification_outcome": verification.get("outcome"),
+        "verification_complete": verification.get("complete"),
+        "failed_properties": failed,
+        "preserved_unmet": [f for f in failed if str(f.get("id", "")).startswith("preserved:")],
+        "diagnostics": diagnostics,
+    }, ensure_ascii=False)
 
 
 def generation_user_prompt(requirements: str, contract: dict[str, Any]) -> str:

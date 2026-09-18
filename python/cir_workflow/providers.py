@@ -108,3 +108,55 @@ class LlmCandidateProvider:
         return CandidateResponse.from_usage(
             text, "llm", self.model.provider, model_id=self.model.model_id, usage=usage,
         )
+
+
+@dataclass
+class PatchRequest:
+    context: dict[str, Any]
+    attempt: int
+    feedback: str | None = None
+    previous_candidate: str | None = None
+
+
+@dataclass
+class PatchResponse:
+    text: str
+    source: str
+    provider: str
+    model_id: str | None = None
+    usage: dict[str, Any] | None = None
+    error: str | None = None
+
+
+class PatchCandidateProvider(Protocol):
+    name: str
+
+    def propose_patch(self, request: PatchRequest) -> PatchResponse: ...
+
+
+class ScriptedPatchProvider:
+    """Deterministic patch provider replaying a fixed list of responses.
+
+    Each entry is ``{"text": str}`` or ``{"error": str}``. Requests are recorded
+    so tests can assert the rejection feedback was actually passed back.
+    """
+
+    name = "scripted"
+
+    def __init__(self, responses: list[dict[str, Any]]) -> None:
+        self._responses = list(responses)
+        self.calls: list[PatchRequest] = []
+        self._cursor = 0
+
+    def propose_patch(self, request: PatchRequest) -> PatchResponse:
+        self.calls.append(request)
+        if self._cursor >= len(self._responses):
+            return PatchResponse(text="", source="scripted", provider=self.name,
+                                 error="scripted patch provider exhausted")
+        entry = self._responses[self._cursor]
+        self._cursor += 1
+        if "error" in entry:
+            return PatchResponse(text="", source="scripted", provider=self.name,
+                                 error=str(entry["error"]))
+        return PatchResponse(text=str(entry.get("text", "")), source="scripted",
+                             provider=self.name)

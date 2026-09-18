@@ -31,8 +31,21 @@ from typing import Any
 
 from .concir_client import ConcirClient
 from .offline_workflow import OfflineWorkflow, _exclusive_run_dir
-from .prompts import generation_system_prompt, generation_user_prompt, retry_user_prompt
-from .providers import CandidateProvider, CandidateRequest, CandidateResponse
+from .patch_repair import ExternalPatchRepairWorkflow
+from .prompts import (
+    generation_system_prompt,
+    generation_user_prompt,
+    patch_system_prompt,
+    patch_user_prompt,
+    retry_user_prompt,
+)
+from .providers import (
+    CandidateProvider,
+    CandidateRequest,
+    CandidateResponse,
+    PatchRequest,
+    PatchResponse,
+)
 from .structural import run_structural_check
 
 ALLOWED_PROVIDER = "deepseek"
@@ -476,6 +489,147 @@ def run_live_pilot(
             "modeling": modeling,
             "stop_reason": stop_reason,
             "run_dir": None if result is None else result.out_dir,
+        }
+        summary["tasks"].append(record)
+        if stop_reason:
+            summary["stop_reason"] = stop_reason
+            break
+
+    summary["requests_used"] = budget.requests_used
+    summary["requests_remaining"] = budget.remaining
+    (batch_dir / "summary.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return summary
+
+
+class RecordingPatchProvider:
+    """Adapt :class:`DeepSeekFlashClient` to the single-patch provider protocol."""
+
+    name = "llm"
+
+    def __init__(self, client: DeepSeekFlashClient) -> None:
+        self.client = client
+        self.calls: list[dict[str, Any]] = []
+
+    def propose_patch(self, request: PatchRequest) -> PatchResponse:
+        system = patch_system_prompt()
+        user = patch_user_prompt(request.context, feedback=request.feedback,
+                                 previous_candidate=request.previous_candidate)
+        try:
+            outcome = self.client.complete(system, user)
+        except EmptyResponseError as exc:
+            return PatchResponse(text="", source="llm", provider=ALLOWED_PROVIDER,
+                                 model_id=ALLOWED_MODEL, error=str(exc))
+        self.calls.append({
+            "attempt": request.attempt,
+            "request_id": outcome.request_id,
+            "response_model": outcome.response_model,
+            "finish_reason": outcome.finish_reason,
+            "usage": outcome.usage,
+            "transport_attempt": outcome.transport_attempt,
+            "prompt_sha256": outcome.prompt_sha256,
+            "wall_ms": outcome.wall_ms,
+            "had_feedback": request.feedback is not None,
+        })
+        return PatchResponse(text=outcome.text, source="llm", provider=ALLOWED_PROVIDER,
+                             model_id=outcome.response_model or ALLOWED_MODEL,
+                             usage=outcome.usage)
+
+
+def run_live_repair_pilot(
+    tasks_path: Path | str,
+    *,
+    out_dir: Path | str,
+    binary: Path | str,
+    api_key: str,
+    timeout: float = DEFAULT_TIMEOUT,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    max_rounds: int = 3,
+    sdk_client: Any | None = None,
+) -> dict[str, Any]:
+    """Run the frozen single-patch repair tasks against DeepSeek Flash."""
+    tasks_path = Path(tasks_path).expanduser().resolve()
+    spec = json.loads(tasks_path.read_text(encoding="utf-8"))
+    tasks = spec.get("tasks", [])
+    out_dir = Path(out_dir).expanduser().resolve()
+    batch_dir = _exclusive_run_dir(out_dir)
+    budget = LiveBudget(
+        batch_dir / "budget.json",
+        max_requests=int(spec.get("max_requests", 6)),
+        max_seconds=float(spec.get("max_seconds", DEFAULT_MAX_SECONDS)),
+    )
+    summary: dict[str, Any] = {
+        "batch_dir": str(batch_dir),
+        "provider": ALLOWED_PROVIDER,
+        "requested_model": ALLOWED_MODEL,
+        "base_url": DEEPSEEK_BASE_URL,
+        "thinking": THINKING_DISABLED,
+        "max_tokens": max_tokens,
+        "timeout_s": timeout,
+        "max_rounds": max_rounds,
+        "max_requests": budget.max_requests,
+        "max_seconds": budget.max_seconds,
+        "deadline_epoch": budget.deadline_epoch,
+        "tasks_path": str(tasks_path),
+        "tasks": [],
+        "stop_reason": None,
+    }
+    from .concir_client import sha256_file as _sha
+
+    stop_reason = None
+    for task in tasks:
+        reason = budget.exhausted()
+        if reason:
+            summary["tasks"].append({"id": task.get("id"), "skipped": True, "stop_reason": reason})
+            stop_reason = reason
+            break
+
+        task_id = task["id"]
+        task_dir = batch_dir / task_id
+        model = Path(task["model"]).expanduser()
+        contract = Path(task["contract"]).expanduser()
+        identity_ok = (_sha(model) == task.get("model_sha256")
+                       and _sha(contract) == task.get("contract_sha256"))
+        if not identity_ok:
+            stop_reason = f"{task_id}: frozen model/contract hash mismatch"
+            summary["tasks"].append({"id": task_id, "identity_ok": False, "stop_reason": stop_reason})
+            summary["stop_reason"] = stop_reason
+            break
+
+        client = ConcirClient(binary, workdir=task_dir / "calls", timeout=30.0)
+        # Reconfirm the frozen root on the current backend before any patch.
+        root = client.explore(model, contract, "petri")
+        llm = DeepSeekFlashClient(
+            api_key=api_key, budget=budget, evidence_dir=batch_dir / "llm",
+            timeout=timeout, max_tokens=max_tokens, sdk_client=sdk_client,
+        )
+        provider = RecordingPatchProvider(llm)
+        workflow = ExternalPatchRepairWorkflow(client, provider, out_dir=task_dir,
+                                               max_rounds=max_rounds)
+        result = None
+        stop_reason = None
+        try:
+            result = workflow.run(model, contract)
+        except Exception as exc:
+            stop_reason = f"{type(exc).__name__}: {exc}"
+
+        record = {
+            "id": task_id,
+            "identity_ok": True,
+            "root": {"status": root.status, "outcome": root.outcome, "complete": root.complete},
+            "calls": provider.calls,
+            "requests_used_total": budget.requests_used,
+            "status": None if result is None else result.status,
+            "candidate_source": None if result is None else result.candidate_source,
+            "validator": None if result is None else result.validator,
+            "repair_mode": None if result is None else result.repair_mode,
+            "context_fingerprint": None if result is None else result.context_fingerprint,
+            "rounds": None if result is None else [r.__dict__ for r in result.rounds],
+            "accepted_artifact_path": None if result is None else result.accepted_artifact_path,
+            "replay": None if result is None else result.replay,
+            "error": None if result is None else result.error,
+            "run_dir": None if result is None else result.out_dir,
+            "stop_reason": stop_reason,
         }
         summary["tasks"].append(record)
         if stop_reason:

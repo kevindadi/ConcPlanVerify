@@ -80,6 +80,7 @@ class ConcirClientProtocolTests(unittest.TestCase):
             "patch_chain": [{"module": "main", "function": "t1", "changes": []}],
             "nodes": [{"report": {"outcome": "FAIL"}}],
             "accepted_node": None,
+            "outcome": "no_acceptable_candidate",
         }
         artifact.update(over)
         path = self.root / "artifact.json"
@@ -114,6 +115,46 @@ class ConcirClientProtocolTests(unittest.TestCase):
         self.assertTrue(Path(r.stdout_path).read_text().strip())
         self.assertTrue(Path(r.stderr_path).read_text().strip())
         self.assertEqual(Path(r.exit_path).read_text().strip(), "0")
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+class ConcirReplayContradictionTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.stub = make_stub_binary(self.root / "bin")
+        self.artifact = self.root / "search_artifact.json"
+        self.artifact.write_text(json.dumps({
+            "schema_version": "concir-repair-artifact-v1",
+            "outcome": "repaired",
+            "nodes": [{"report": {"outcome": "FAIL"}}, {"report": {"outcome": "PASS"}}],
+            "patch_chain": [{"changes": [{"kind": "swap_statements"}]}],
+            "accepted_node": 1,
+        }))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def replay_with(self, stdout):
+        client = ConcirClient(self.stub, workdir=self.root / "w", timeout=5.0,
+                              env=stub_env(STUB_STDOUT=stdout, STUB_EXIT="0"))
+        return client.replay(self.artifact)
+
+    def test_real_and_contradictory_payloads(self):
+        good = ('{"nodes": 2, "input_outcome": "FAIL", "accepted_ok": true, '
+                '"accepted_node": 1, "chain_len": 1, "outcome": "repaired"}')
+        self.assertEqual(self.replay_with(good).status, "replayed")
+        contradiction = ('{"nodes": 999, "input_outcome": "FAIL", "accepted_ok": false, '
+                         '"accepted_node": null, "chain_len": 1, "outcome": "no_acceptable_candidate"}')
+        r = self.replay_with(contradiction)
+        self.assertEqual(r.kind, "protocol_error")
+        # bool must not be accepted as an integer count
+        bool_int = ('{"nodes": true, "input_outcome": "FAIL", "accepted_ok": true, '
+                    '"accepted_node": 1, "chain_len": 1, "outcome": "repaired"}')
+        self.assertEqual(self.replay_with(bool_int).kind, "protocol_error")
 
 
 if __name__ == "__main__":

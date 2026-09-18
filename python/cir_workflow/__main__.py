@@ -23,9 +23,10 @@ from pathlib import Path
 
 from .concir_client import ConcirClient
 from .env import load_dotenv
-from .live import ALLOWED_MODEL, ALLOWED_PROVIDER, run_live_pilot
+from .live import ALLOWED_MODEL, ALLOWED_PROVIDER, run_live_pilot, run_live_repair_pilot
 from .offline_workflow import OfflineWorkflow
-from .providers import ScriptedProvider
+from .patch_repair import ExternalPatchRepairWorkflow
+from .providers import ScriptedPatchProvider, ScriptedProvider
 
 
 def _default_binary() -> str:
@@ -107,6 +108,22 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--max-tokens", type=int, default=4096)
     p.add_argument("--llm-timeout", type=float, default=90.0)
 
+    p = sub.add_parser("patch-repair", help="offline scripted single-patch repair loop")
+    p.add_argument("--model", required=True)
+    p.add_argument("--contract", required=True)
+    p.add_argument("--script", required=True, help="scripted patch responses JSON")
+    p.add_argument("--max-rounds", type=int, default=3)
+    p.add_argument("--report", help="write the patch-repair result JSON here")
+
+    p = sub.add_parser("live-repair", help="run frozen patch-repair tasks against DeepSeek Flash")
+    p.add_argument("--tasks", required=True, help="frozen repair tasks JSON")
+    p.add_argument("--provider", default=ALLOWED_PROVIDER)
+    p.add_argument("--model", default=ALLOWED_MODEL)
+    p.add_argument("--api-key-env", default="DEEPSEEK_API_KEY")
+    p.add_argument("--max-rounds", type=int, default=3)
+    p.add_argument("--max-tokens", type=int, default=4096)
+    p.add_argument("--llm-timeout", type=float, default=90.0)
+
     args = parser.parse_args(argv)
     repo_root = Path(__file__).resolve().parents[2]
     load_dotenv(repo_root / ".env")
@@ -148,6 +165,41 @@ def main(argv: list[str] | None = None) -> int:
                 args.tasks, out_dir=args.out, binary=args.binary, api_key=api_key,
                 timeout=args.llm_timeout, max_tokens=args.max_tokens,
                 max_generation_rounds=args.max_generation_rounds,
+            )
+            print(json.dumps(summary, ensure_ascii=False, indent=2))
+            return 0
+
+        if args.command == "patch-repair":
+            responses = json.loads(Path(args.script).read_text(encoding="utf-8"))
+            provider = ScriptedPatchProvider(responses)
+            workflow = ExternalPatchRepairWorkflow(
+                client, provider, out_dir=args.out, max_rounds=args.max_rounds)
+            result = workflow.run(args.model, args.contract)
+            payload = dataclasses.asdict(result)
+            payload["rounds"] = [dataclasses.asdict(r) for r in result.rounds]
+            if args.report:
+                Path(args.report).write_text(
+                    json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            return 0 if result.accepted else 1
+
+        if args.command == "live-repair":
+            if args.provider != ALLOWED_PROVIDER or args.model != ALLOWED_MODEL:
+                print(json.dumps({
+                    "status": "error",
+                    "error": f"only provider {ALLOWED_PROVIDER!r} and model {ALLOWED_MODEL!r} "
+                             "are allowed (Pro/aliases/fallback are forbidden)",
+                }, indent=2))
+                return 2
+            api_key = os.environ.get(args.api_key_env, "")
+            if not api_key:
+                print(json.dumps({"status": "error",
+                                  "error": f"missing API key: set env var {args.api_key_env}"}, indent=2))
+                return 2
+            summary = run_live_repair_pilot(
+                args.tasks, out_dir=args.out, binary=args.binary, api_key=api_key,
+                timeout=args.llm_timeout, max_tokens=args.max_tokens,
+                max_rounds=args.max_rounds,
             )
             print(json.dumps(summary, ensure_ascii=False, indent=2))
             return 0

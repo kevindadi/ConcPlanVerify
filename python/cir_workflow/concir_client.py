@@ -418,6 +418,31 @@ class ConcirClient:
         result.artifact_path = str(artifact_path) if artifact_path.exists() else None
         return result
 
+    def repair_context(self, program: Path | str, contract: Path | str):
+        call_dir = self._call_dir("repair-context")
+        program_path = self._materialize(program, call_dir / "program.json")
+        contract_path = self._materialize(contract, call_dir / "contract.json")
+        return self._invoke(
+            "repair-context",
+            ["repair-context", str(program_path), str(contract_path),
+             "--artifact", str(call_dir / "context.json")],
+            call_dir=call_dir, input_path=program_path, contract_path=contract_path,
+        )
+
+    def evaluate_patch(self, context: Path | str, candidate: Path | str):
+        call_dir = self._call_dir("evaluate-patch")
+        context_path = self._materialize(context, call_dir / "context.json")
+        candidate_path = self._materialize(candidate, call_dir / "candidate.json")
+        result = self._invoke(
+            "evaluate-patch",
+            ["evaluate-patch", str(context_path), str(candidate_path),
+             "--artifact", str(call_dir / "external_artifact.json")],
+            call_dir=call_dir, input_path=candidate_path, contract_path=None,
+        )
+        artifact = call_dir / "external_artifact.json"
+        result.artifact_path = str(artifact) if artifact.exists() else None
+        return result
+
     def replay(self, artifact: Path | str):
         call_dir = self._call_dir("replay")
         if isinstance(artifact, Path):
@@ -469,6 +494,24 @@ def _classify(result: ConcirResult) -> ConcirResult:
         result.kind, result.status = "semantic", "replay_failed"
         result.error = result.stderr or "artifact replay failed"
         return result
+    elif command == "repair-context":
+        if payload.get("schema_version") != "concir-repair-context-v1":
+            return _protocol(result, f"unexpected context schema {payload.get('schema_version')!r}")
+        if exit_code != 0:
+            return _protocol(result, f"repair-context exited {exit_code}")
+        result.kind, result.status = "semantic", "context"
+        return result
+    elif command == "evaluate-patch":
+        if payload.get("schema_version") != EXTERNAL_ARTIFACT_SCHEMA:
+            return _protocol(result, f"unexpected artifact schema {payload.get('schema_version')!r}")
+        status = payload.get("status")
+        if status not in ("accepted", "rejected"):
+            return _protocol(result, f"evaluate-patch has unknown status {status!r}")
+        expected = 0 if status == "accepted" else _eval_reject_exit(payload.get("reject_reason"))
+        if exit_code != expected:
+            return _protocol(result, f"evaluate-patch status {status!r} implies exit {expected}, got {exit_code}")
+        result.kind, result.status = "semantic", status
+        return result
     else:  # pragma: no cover - internal invariant
         return _protocol(result, f"unknown command {command!r}")
 
@@ -486,30 +529,53 @@ def _protocol(result: ConcirResult, message: str) -> ConcirResult:
     return result
 
 
-# Required ReplayResult fields and their Python types (None allowed where the
-# Rust type is Option<...>).
-_REPLAY_FIELDS = {
-    "nodes": (int,),
-    "input_outcome": (str,),
-    "accepted_ok": (bool, type(None)),
-    "accepted_node": (int, type(None)),
-    "chain_len": (int,),
-    "outcome": (str,),
+def _eval_reject_exit(reason: Any) -> int:
+    code = (reason or {}).get("code") if isinstance(reason, dict) else None
+    if code == "verification_unknown":
+        return 3
+    if code in ("unsupported", "verification_unsupported"):
+        return 5
+    if code == "verification_fail":
+        return 1
+    return 4
+
+
+# Required ReplayResult fields. Integers must be real ints (not bool); Option
+# fields may be null.
+_REPLAY_INTS = ("nodes", "chain_len")
+_REPLAY_OPTIONAL_INTS = ("accepted_node",)
+SEARCH_ARTIFACT_SCHEMA = "concir-repair-artifact-v1"
+EXTERNAL_ARTIFACT_SCHEMA = "concir-external-patch-artifact-v1"
+_EXTERNAL_OUTCOME_MAP = {
+    "PASS": "repaired",
+    "FAIL": "no_acceptable_candidate",
+    "UNKNOWN": "analysis_unknown",
+    "INVALID": "invalid",
+    "UNSUPPORTED": "unsupported",
 }
 
 
 def _validate_replay_payload(payload: dict, artifact_path: Path | None) -> str | None:
-    """Check a replay payload is a real ReplayResult for the given artifact."""
-    for name, types in _REPLAY_FIELDS.items():
+    """Check a replay payload is a real ReplayResult consistent with the artifact."""
+    for name in ("nodes", "chain_len", "accepted_ok", "input_outcome", "outcome"):
         if name not in payload:
             return f"replay payload missing field {name!r}"
-        if not isinstance(payload[name], types):
-            return (f"replay payload field {name!r} has type "
-                    f"{type(payload[name]).__name__}, expected {types}")
+    for name in _REPLAY_INTS:
+        if type(payload[name]) is not int:
+            return f"replay field {name!r} must be an integer, got {type(payload[name]).__name__}"
+    if type(payload["accepted_ok"]) is not bool and payload["accepted_ok"] is not None:
+        return "replay field 'accepted_ok' must be a boolean or null"
+    if "accepted_node" not in payload:
+        return "replay payload missing field 'accepted_node'"
+    if type(payload["accepted_node"]) is not int and payload["accepted_node"] is not None:
+        return "replay field 'accepted_node' must be an integer or null"
+    if not isinstance(payload["input_outcome"], str):
+        return "replay field 'input_outcome' must be a string"
     if payload["outcome"] not in REPAIR_EXIT:
         return f"replay payload has unknown outcome {payload['outcome']!r}"
     if payload["nodes"] < 0 or payload["chain_len"] < 0:
         return "replay payload has negative counts"
+
     if artifact_path is None or not Path(artifact_path).exists():
         return "cannot read the replayed artifact for correspondence checking"
     try:
@@ -518,16 +584,68 @@ def _validate_replay_payload(payload: dict, artifact_path: Path | None) -> str |
         return f"replayed artifact is not readable JSON: {exc}"
     if not isinstance(artifact, dict):
         return "replayed artifact is not a JSON object"
+
+    schema = artifact.get("schema_version")
+    if schema == EXTERNAL_ARTIFACT_SCHEMA:
+        return _validate_external_replay(payload, artifact)
+    if schema == SEARCH_ARTIFACT_SCHEMA:
+        return _validate_search_replay(payload, artifact)
+    return f"replayed artifact has unknown schema {schema!r}"
+
+
+def _validate_search_replay(payload: dict, artifact: dict) -> str | None:
+    nodes = artifact.get("nodes")
+    if not isinstance(nodes, list):
+        return "search artifact has no nodes list"
+    if payload["nodes"] != len(nodes):
+        return f"replay nodes {payload['nodes']} != artifact nodes {len(nodes)}"
+    if payload["outcome"] != artifact.get("outcome"):
+        return (f"replay outcome {payload['outcome']!r} != artifact outcome "
+                f"{artifact.get('outcome')!r}")
     chain = artifact.get("patch_chain")
     if isinstance(chain, list) and payload["chain_len"] != len(chain):
         return (f"replay chain_len {payload['chain_len']} != artifact patch_chain "
                 f"length {len(chain)}")
-    nodes = artifact.get("nodes")
-    if isinstance(nodes, list) and nodes:
+    if nodes:
         root_outcome = ((nodes[0] or {}).get("report") or {}).get("outcome")
         if root_outcome is not None and payload["input_outcome"] != root_outcome:
             return (f"replay input_outcome {payload['input_outcome']!r} != artifact "
                     f"root outcome {root_outcome!r}")
-    if payload["accepted_node"] != artifact.get("accepted_node"):
-        return "replay accepted_node does not match the artifact"
+    if artifact.get("outcome") == "repaired":
+        if payload["accepted_ok"] is not True or payload["accepted_node"] is None:
+            return "repaired search artifact replay must report an accepted node"
+        if payload["accepted_node"] != artifact.get("accepted_node"):
+            return "replay accepted_node does not match the artifact"
+    else:
+        if payload["accepted_ok"] is not None or payload["accepted_node"] is not None:
+            return "non-repaired search artifact replay must report no accepted node"
+    return None
+
+
+def _validate_external_replay(payload: dict, artifact: dict) -> str | None:
+    accepted = artifact.get("accepted")
+    if not isinstance(accepted, bool):
+        return "external artifact has no boolean 'accepted'"
+    verification = artifact.get("verification")
+    if not isinstance(verification, dict):
+        return "external artifact has no verification report"
+    expected_ok = accepted and verification.get("outcome") == "PASS"
+    if payload["nodes"] != 1 or payload["chain_len"] != 1:
+        return "external artifact replay must report exactly one node and one edit"
+    if payload["accepted_ok"] != expected_ok:
+        return (f"replay accepted_ok {payload['accepted_ok']!r} != artifact accepted "
+                f"{expected_ok!r}")
+    if expected_ok:
+        if payload["accepted_node"] != 0:
+            return "accepted external artifact replay must report accepted_node 0"
+    elif payload["accepted_node"] is not None:
+        return "non-accepted external artifact replay must report no accepted node"
+    root = artifact.get("root_report") or {}
+    if root.get("outcome") is not None and payload["input_outcome"] != root.get("outcome"):
+        return (f"replay input_outcome {payload['input_outcome']!r} != artifact root "
+                f"outcome {root.get('outcome')!r}")
+    expected_outcome = _EXTERNAL_OUTCOME_MAP.get(str(verification.get("outcome")))
+    if payload["outcome"] != expected_outcome:
+        return (f"replay outcome {payload['outcome']!r} != verification outcome "
+                f"{verification.get('outcome')!r} mapped to {expected_outcome!r}")
     return None
