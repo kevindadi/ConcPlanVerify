@@ -241,6 +241,30 @@ Registered deviations (must be repeated in the handoff):
   `no_tests`, never `true`. Cases without an authored behavior test report
   `null` for that oracle field.
 
+## Revision 2026-09-18d — repair-type main experiment + consistency layer
+
+- **D-5 (repair-type main experiment).** The multi-arm comparison is repair-type,
+  not generation-type: each task supplies a defective program guaranteed by
+  construction (Rust for A0/A1/A2, the corresponding CIR for A3) plus the frozen
+  requirement. Generation-type results are a supplementary table only. Smoke
+  protocol: `experiments/flash-repair-smoke-v1/PROTOCOL.md` (task list and arms).
+- **D-6 (code-level conformance).** ConcIR adds `codegen` (sid-annotated, std-only
+  Rust skeleton with `// HOLE` placeholders and a `cir_trace` runtime) and
+  `conform` (replay a trace against the reference interpreter). Events are
+  emitted after a **completing** step for lock/acquire/condvar-wait/channel
+  (blocking attempt) and when the statement is reached for
+  unlock/notify/release/scope/spawn/join. `conform` treats a blocking attempt and
+  a blocked resume as silent where appropriate, carries a frontier of candidate
+  model states (nondeterministic bindings), and assigns child tags during silent
+  spawn/scope steps. A conformant trace means "every observed execution is a
+  model execution"; it is not a correctness proof.
+- **A2 acceptance tiers.** `A2_tools_iter_m` = build + Miri (5 frozen seeds);
+  `A2_tools_iter_ml` = + Lockbud. Per round the harness records `build_ok`,
+  `test_ok`, `miri_green`, `lockbud_green`, `lockbud_detected`.
+- **C-1..C-5 fixes.** A1 parses `NO_ISSUES`; A3 treats a `check` usage/protocol
+  error as schema feedback (not a tool error); outputs must contain `fn main`;
+  SUMMARY keys match arm ids; `.gitignore` re-includes `experiments/**/*.txt`.
+
 ## Threats to validity (must appear in the final handoff)
 
 - Miri is dynamic and non-exhaustive: a miss is not proof of absence.

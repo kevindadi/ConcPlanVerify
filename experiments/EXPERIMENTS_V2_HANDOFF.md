@@ -204,11 +204,14 @@ none). Arms: A0/A1/A2/A3/A3p/A3_tool_repair on 3 tasks; A2 now includes Lockbud.
 - `lock-order/abba_2lock`: A0 accepted r1; A2 accepted r1 (build + Miri 5 seeds +
   64-seed pass + Lockbud all clean); A3 accepted r1 (whole-CIR revision); A3p
   accepted + replayed; A3_tool_repair `repaired`.
-- `condvar/lost_wakeup_notify_before_wait`: A0 accepted r1 and A2 accepted r1 —
-  Miri and Lockbud both miss the lost wakeup, which is exactly the dynamic/static
-  tool limitation the benchmark is meant to expose; A3 rejected (revision did not
-  reach a complete PASS); A3p `rejected`; tool_repair
-  `no_acceptable_candidate` (not swap-fixable).
+- `condvar/lost_wakeup_notify_before_wait`: A0 accepted r1 and A2 accepted r1
+  **because the model wrote a correct program on the first try** (predicate loop,
+  flag set before `notify`); this is not a Miri/Lockbud miss and the earlier
+  "both tools miss the lost wakeup" reading was wrong (REVIEW C-3). A3 stopped
+  at round 1 with `check_status=usage_error` because the model wrote
+  `write_shared.expr` as an object; the harness treated it as a tool error
+  instead of schema feedback (REVIEW C-2), and the earlier "revision did not
+  reach a complete PASS" wording was also wrong. Both are fixed this round.
 - `lock-order/partial_deadlock_bystander`: A0 accepted r1; A1 and A2 not
   accepted (Lockbud reports `DoubleLock` on the generated program every round —
   an over-approximation, so A2 correctly refuses to call the tools "green");
@@ -254,3 +257,116 @@ PYTHONPATH=python python/.venv/bin/python -m cir_workflow \
   cases) are not all present; the manifest records exactly what is ready.
 - `A3_nofidelity`, full multi-arm live, and multi-model comparison remain out of
   scope for this round.
+
+---
+
+# Round 2026-09-18d — review fixes, conformance layer, repair benchmark
+
+## REVIEW C-1..C-5 regression results
+
+| item | status | evidence |
+| --- | --- | --- |
+| C-1 A1 never accepts `NO_ISSUES` | fixed | `run_rust_arm` parses the reply: exactly `NO_ISSUES` -> `decision=self_no_issues`, accepts the current candidate without compiling it. Regression `test_a1_no_issues_accepts_without_compiling_sentinel`. |
+| C-2 A3 schema error stops the batch | fixed | a `check` usage/protocol error becomes `stage=check, schema_error` feedback and spends the round; only a missing/broken binary is a tool error. Regression `test_schema_error_is_feedback_not_tool_error`. Prompt now states `expr` is a string with an example. |
+| C-3 HANDOFF misread lost_wakeup | fixed | the "Miri/Lockbud miss the lost wakeup" and "A3 did not reach PASS" sentences are corrected: the model wrote a correct program, and A3's first candidate was schema-invalid. |
+| C-4 SUMMARY arm/id mismatch | fixed | A3p writes to `A3p_ours_patch/`, the renderer prints A3p/tool-repair status from their own payloads. |
+| C-5 fragments accepted | fixed | a non-sentinel reply without `fn main` is `format_error` with format feedback. Regression `test_a1_fragment_is_format_error`. |
+| P2 same_cv label | fixed | `condvar/same_cv_different_locks` now has only `correct.cir.json`; stale `buggy.cir.json` removed on rebuild. |
+| P2 `.gitignore` | fixed | `!experiments/**/*.txt` re-includes archived tool evidence. |
+| P2 A2 columns | fixed | per-round `build_ok`/`test_ok`/`miri_green`/`lockbud_green`; A2-m and A2-ml arms. |
+| P2 toolchain | partially | `rust-toolchain.toml` currently `channel = "nightly"`; the resolved toolchain is `rustc 1.100.0-nightly (a69a63265 2026-09-03)` / `miri 0.1.0 (a69a63265c)`. `nightly-2026-09-03` is not installed under that name, so it was not pinned (deviation). |
+
+## Conformance layer (D-6)
+
+ConcIR adds `codegen` + `conform` and an emitted `cir_trace` runtime; ConcPlanVerify
+adds `python/cir_workflow/conformance.py`. The rule: a trace event is a
+**completed** step for lock/acquire/condvar-wait/channel, and a reached
+statement for unlock/notify/release/scope/spawn/join. `conform` carries a
+frontier of candidate model states and assigns child tags during silent
+spawn/scope steps, so nondeterministic bindings and blocking attempts are handled.
+
+`experiments/conformance-v1/CONFORMANCE.md` (offline, no LLM; 50 native runs + one
+Miri many-seeds pass per case):
+
+| case | traces | conformant | violation | coverage |
+| --- | --- | --- | --- | --- |
+| lock-order/abba_2lock (fixed) | 51 | 51 | 0 | 4/4 |
+| condvar/lost_wakeup (fixed) | 51 | 51 | 0 | 4/4 |
+| semaphore/permit_leak (fixed) | 51 | 51 | 0 | 2/2 |
+| structure/scope_bound_k_workers (correct) | 51 | 51 | 0 | 2/2 |
+
+A tampered trace (a lock-out-of-order or an unknown sid) is reported
+`violation` / `unknown_sid` with the event index; Rust unit tests in
+`tests/conformance.rs` cover this. The Rust suite is **234 passed / 0 failed**
+(229 + 5 conformance tests); Python is **88 passed**.
+
+## Capability benchmark
+
+`benchmarks/MANIFEST.json` now has **37 ready cases + 9 legacy**. Every family has
+at least two buggy cases: lock-order 5, condvar 3, channel 3, semaphore 2,
+atomic-data 2, structure 2, boundary 2, real-cases 2. New cases:
+`semaphore/acquire_twice_no_release`, `condvar/bare_wait_no_predicate`,
+`channel/bounded_backpressure_lock_held`, `atomic-data/counter_overflow_safety`,
+`atomic-data/atomic_lost_update`, `structure/nested_scope_lock_order`,
+`structure/scope_worker_abba`. Each buggy case also writes a `repair_task.json`.
+All cases pass `check`/`support`/`explore` with **petri == interp** and **0
+pre-registration mismatches** (`python3 benchmarks/build_families.py`).
+
+## Repair-type smoke — completed
+
+Delivered batch `experiments/flash-repair-smoke-v1/run-20260918T161254-8755-bf0e2a/`
+(protocol sha `0811f44c…`, **30 / 48 requests**, stop reason none; K=4). Miri is
+bounded (8 s per run, no many-seeds) so a still-deadlocking artifact is recorded
+as `timeout`, not a hang.
+
+| task | A0 | A1 | A2-m | A2-ml | A3 (round) | A3 oracle |
+| --- | --- | --- | --- | --- | --- | --- |
+| lock-order/abba_2lock | accept r1 | accept r2 | accept r1 | accept r1 | **accept r2** | verify PASS, bug_present False |
+| lock-order/partial_deadlock_bystander | accept r1 | reject | reject | reject | reject | verify FAIL, bug_present True |
+| condvar/bare_wait_no_predicate | accept r1 | accept r2 | accept r1 | accept r1 | reject | verify FAIL, bug_present True |
+
+- **Measurable A3 acceptance**: on `abba_2lock` the whole-CIR revision reached a
+  complete `PASS` at round 2 and its `oracle.model` is `verify_pass=True,
+  bug_present=False`; the other two A3 runs are correctly rejected with the final
+  CIR still failing (`bug_present=True`).
+- Rust arms: `oracle.build` and `oracle.miri` are populated; `miri` did not
+  detect any of these defects (expected: lost wakeup / goal-layer / schedule
+  dependent). `A2_tools_iter_ml` correctly refused `partial_deadlock_bystander`
+  because Lockbud reports `DoubleLock` on the generated program.
+- `false_accept` is computed where a `bug_present` rule exists (A3); for Rust
+  arms it stays `null` because the per-task `bug_present` rule is not authored.
+
+Two earlier attempts (`run-20260918T140756…`, `run-20260918T150907…`) were
+aborted by unbounded Miri on hanging programs; the harness fix (single-seed Miri
+now honours the analyzer timeout) is what made this run complete. Those batches
+are retained.
+
+## Versions / binary
+
+- ConcIR release binary sha256 `eedf7bfe0d5e6faf1293c66e08a595cdea4ace457f6390fcd38066f6265fad94`.
+- `rustc 1.100.0-nightly (a69a63265 2026-09-03)`, `miri 0.1.0 (a69a63265c 2026-09-03)`.
+- Lockbud commit `cc78cb72cb85cb80e596717339cca95ef50c8fe0`, toolchain `nightly-2026-02-07`.
+
+## Repro
+
+```bash
+python3 benchmarks/build_families.py
+PYTHONPATH=python python3 -m cir_workflow --binary <concir-backend> \
+  --out experiments/conformance-v1 conformance
+# repair smoke (Miri bounded to 8 s per run, no many-seeds)
+PYTHONPATH=python python/.venv/bin/python -m cir_workflow --binary <concir-backend> \
+  --out experiments/flash-repair-smoke-v1 repair-smoke \
+  --protocol experiments/flash-repair-smoke-v1/PROTOCOL.md --protocol-sha256 <sha>
+```
+
+## Remaining gaps
+
+- Repair smoke `SUMMARY` is complete; Rust arm `bug_present`/behavior oracles
+  remain `null` (rules not authored), so Rust-arm false-accept is not computable.
+- Rust `bug_present` rules and `rust/tests/behavior.rs` are still not authored,
+  so `oracle.model`/`oracle.behavior` are `null`; false-accept for Rust arms is
+  not yet computable.
+- `codegen` supports a single module and no channel/RwLock/composite values; the
+  channel and nested-scope buggy cases are Track D only.
+- The model-extraction oracle (LLM extracts Rust back to CIR) is not implemented.
+- `rust-toolchain.toml` is not pinned to an immutable date (deviation).
