@@ -48,7 +48,7 @@ def _read(name: str) -> str:
 
 
 def spec_extract() -> str:
-    return _read("rust_to_cir_extract_v1.md")
+    return _read("rust_to_cir_extract_v2.md")
 
 
 def _extract_and_validate(api_key: str, budget: LiveBudget, batch: Path, system: str,
@@ -67,6 +67,21 @@ def _extract_and_validate(api_key: str, budget: LiveBudget, batch: Path, system:
         return {"extract_validated": False, "reason": f"{type(exc).__name__}: {exc}",
                 "model_verdict": None}
     parsed = parse_extraction(outcome.text)
+    if not parsed or "cir" not in parsed or "rust" not in parsed:
+        # One format-feedback retry (counts against the budget).
+        if not budget.exhausted():
+            try:
+                retry = llm.complete(
+                    system,
+                    extraction_prompt(schema_text(binary), rust_source)
+                    + "\n\nYour previous reply was not a JSON object with keys `cir` "
+                      "and `rust`, or its CIR had malformed statements. Reply again "
+                      "with only that JSON object; every CIR statement must carry a "
+                      "`\"sid\"` string like `s1`, `s2`, ... and the annotated Rust "
+                      "must call `cir_trace::finish()`.")
+                parsed = parse_extraction(retry.text)
+            except Exception:  # noqa: BLE001
+                parsed = None
     if not parsed or "cir" not in parsed or "rust" not in parsed:
         return {"extract_validated": False, "reason": "reply not a {cir,rust} object",
                 "model_verdict": None}

@@ -1,0 +1,113 @@
+{
+  "program": "mutex_order",
+  "version": "cir-schema-v1",
+  "entry": "main",
+  "modules": [
+    {
+      "name": "main",
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            "mtx_a",
+            "mtx_b",
+            "w1",
+            "w2"
+          ],
+          "body": [
+            {
+              "kind": "assign_local",
+              "target": "mtx_a",
+              "expr": "Arc::new(Mutex::new(()))"
+            },
+            {
+              "kind": "assign_local",
+              "target": "mtx_b",
+              "expr": "Arc::new(Mutex::new(()))"
+            },
+            {
+              "kind": "spawn",
+              "func": "worker1",
+              "handle": "w1"
+            },
+            {
+              "kind": "spawn",
+              "func": "worker2",
+              "handle": "w2"
+            },
+            {
+              "kind": "join",
+              "handle": "w1"
+            },
+            {
+              "kind": "join",
+              "handle": "w2"
+            },
+            {
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "worker1",
+          "params": [],
+          "locals": [
+            "ga",
+            "gb"
+          ],
+          "body": [
+            {
+              "kind": "mutex_lock",
+              "resource": "mtx_a"
+            },
+            {
+              "kind": "mutex_lock",
+              "resource": "mtx_b"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mtx_b"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mtx_a"
+            },
+            {
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "worker2",
+          "params": [],
+          "locals": [
+            "ga",
+            "gb"
+          ],
+          "body": [
+            {
+              "kind": "mutex_lock",
+              "resource": "mtx_a"
+            },
+            {
+              "kind": "mutex_lock",
+              "resource": "mtx_b"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mtx_b"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mtx_a"
+            },
+            {
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

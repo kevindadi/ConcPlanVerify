@@ -82,6 +82,12 @@ def normalize(program: dict) -> tuple[dict, list[dict], list[dict]]:
     records: list[dict] = []
     sid_issues: list[dict] = []
 
+    # Top-level fields the verifier rejects: drop and record.
+    allowed = {"program", "version", "entry", "modules"}
+    for key in [k for k in list(out.keys()) if k not in allowed]:
+        out.pop(key, None)
+        records.append({"rule": "drop_top_level", "field": key})
+
     for module in out.get("modules", []) or []:
         for resource in module.get("resources", []) or []:
             if resource.get("kind") == "var":

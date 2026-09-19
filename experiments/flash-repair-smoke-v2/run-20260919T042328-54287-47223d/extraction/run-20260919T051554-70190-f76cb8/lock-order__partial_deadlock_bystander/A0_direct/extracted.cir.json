@@ -1,0 +1,151 @@
+{
+  "program": "semaphore_handshake",
+  "version": "cir-schema-v1",
+  "entry": "main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "mtx_a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "mtx_b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "sem_a",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 0
+        },
+        {
+          "name": "sem_b",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 0
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "body": [
+            {
+              "kind": "spawn",
+              "func": "worker_a",
+              "handle": "h_a"
+            },
+            {
+              "kind": "spawn",
+              "func": "worker_b",
+              "handle": "h_b"
+            },
+            {
+              "kind": "spawn",
+              "func": "progress",
+              "handle": "h_p"
+            },
+            {
+              "kind": "join",
+              "handle": "h_a"
+            },
+            {
+              "kind": "join",
+              "handle": "h_b"
+            },
+            {
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "worker_a",
+          "params": [],
+          "body": [
+            {
+              "kind": "mutex_lock",
+              "resource": "mtx_a"
+            },
+            {
+              "kind": "semaphore_release",
+              "resource": "sem_a"
+            },
+            {
+              "kind": "semaphore_acquire",
+              "resource": "sem_b"
+            },
+            {
+              "kind": "mutex_lock",
+              "resource": "mtx_b"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mtx_b"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mtx_a"
+            },
+            {
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "worker_b",
+          "params": [],
+          "body": [
+            {
+              "kind": "mutex_lock",
+              "resource": "mtx_b"
+            },
+            {
+              "kind": "semaphore_release",
+              "resource": "sem_b"
+            },
+            {
+              "kind": "semaphore_acquire",
+              "resource": "sem_a"
+            },
+            {
+              "kind": "mutex_lock",
+              "resource": "mtx_a"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mtx_a"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mtx_b"
+            },
+            {
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "progress",
+          "params": [],
+          "body": [
+            {
+              "kind": "goto",
+              "target": "s0"
+            },
+            {
+              "kind": "nop"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

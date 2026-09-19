@@ -1,0 +1,175 @@
+{
+  "program": "condvar_wait_notify",
+  "version": "cir-schema-v1",
+  "entry": "main",
+  "modules": [
+    {
+      "name": "main",
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            "pair",
+            "pair_w",
+            "waiter",
+            "pair_n",
+            "notifier"
+          ],
+          "body": [
+            {
+              "kind": "assign_local",
+              "target": "pair",
+              "expr": "Arc::new((Mutex::new(false), Condvar::new()))"
+            },
+            {
+              "kind": "assign_local",
+              "target": "pair_w",
+              "expr": "Arc::clone(&pair)"
+            },
+            {
+              "kind": "spawn",
+              "func": "waiter_fn",
+              "handle": "waiter",
+              "args": [
+                "pair_w"
+              ]
+            },
+            {
+              "kind": "assign_local",
+              "target": "pair_n",
+              "expr": "Arc::clone(&pair)"
+            },
+            {
+              "kind": "spawn",
+              "func": "notifier_fn",
+              "handle": "notifier",
+              "args": [
+                "pair_n"
+              ]
+            },
+            {
+              "kind": "join",
+              "handle": "waiter"
+            },
+            {
+              "kind": "join",
+              "handle": "notifier"
+            },
+            {
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "waiter_fn",
+          "params": [
+            "pair_w"
+          ],
+          "locals": [
+            "mtx",
+            "cv",
+            "guard"
+          ],
+          "body": [
+            {
+              "kind": "assign_local",
+              "target": "mtx",
+              "expr": "&pair_w.0"
+            },
+            {
+              "kind": "assign_local",
+              "target": "cv",
+              "expr": "&pair_w.1"
+            },
+            {
+              "kind": "mutex_lock",
+              "resource": "mtx"
+            },
+            {
+              "kind": "assign_local",
+              "target": "guard",
+              "expr": "mtx.lock().unwrap()"
+            },
+            {
+              "kind": "branch",
+              "cond": "!*guard",
+              "then": [
+                {
+                  "kind": "condvar_wait",
+                  "condvar": "cv",
+                  "lock": "mtx"
+                },
+                {
+                  "kind": "assign_local",
+                  "target": "guard",
+                  "expr": "cv.wait(guard).unwrap()"
+                },
+                {
+                  "kind": "goto",
+                  "target": "loop_check"
+                }
+              ],
+              "else": []
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mtx"
+            },
+            {
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "notifier_fn",
+          "params": [
+            "pair_n"
+          ],
+          "locals": [
+            "mtx",
+            "cv",
+            "ready"
+          ],
+          "body": [
+            {
+              "kind": "assign_local",
+              "target": "mtx",
+              "expr": "&pair_n.0"
+            },
+            {
+              "kind": "assign_local",
+              "target": "cv",
+              "expr": "&pair_n.1"
+            },
+            {
+              "kind": "mutex_lock",
+              "resource": "mtx"
+            },
+            {
+              "kind": "assign_local",
+              "target": "ready",
+              "expr": "mtx.lock().unwrap()"
+            },
+            {
+              "kind": "write_shared",
+              "resource": "ready",
+              "expr": "true"
+            },
+            {
+              "kind": "condvar_notify_all",
+              "condvar": "cv"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mtx"
+            },
+            {
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
