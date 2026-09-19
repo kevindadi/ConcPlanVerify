@@ -12,7 +12,9 @@ import copy
 import re
 from typing import Any
 
-SID_RE = re.compile(r"^s[0-9]+$")
+# `s<n>` is the canonical sid; `L<n>` is an instrumenter label used by the
+# tool-driven extraction protocol (both are left untouched by the normalizer).
+SID_RE = re.compile(r"^(s|L)[0-9]+$")
 
 # Field aliases (from the authoritative schema): (kind, wrong) -> right.
 FIELD_ALIASES: dict[tuple[str, str], str] = {

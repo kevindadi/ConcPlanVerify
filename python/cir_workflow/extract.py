@@ -38,6 +38,40 @@ def extraction_prompt(schema: str, rust_source: str) -> str:
     )
 
 
+def extraction_prompt_v4(schema: str, rust_source: str, labels_markdown: str) -> str:
+    return (
+        "Machine schema for ConcIR (authoritative):\n```json\n"
+        + schema.strip()
+        + "\n```\n\nRust program (annotated by the tool; do not edit):\n```rust\n"
+        + rust_source.strip()
+        + "\n```\n\nConcurrency labels (each is the `sid` of its operation):\n"
+        + labels_markdown.strip()
+        + "\n\nReply with exactly one ```json block containing the CIR model."
+    )
+
+
+def parse_cir_only(text: str) -> dict[str, Any] | None:
+    """Parse a single-fence CIR reply (v4 protocol)."""
+
+    stripped = text.strip()
+    if "```" in stripped:
+        for part in stripped.split("```")[1::2]:
+            candidate = part.lstrip()
+            if candidate.lower().startswith("json"):
+                candidate = candidate[4:]
+            try:
+                data = json.loads(candidate)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(data, dict) and "modules" in data:
+                return {"cir": data}
+    try:
+        data = json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+    return {"cir": data} if isinstance(data, dict) and "modules" in data else None
+
+
 def _fenced(text: str, lang: str) -> str | None:
     import re
 
@@ -106,7 +140,8 @@ def _ensure_cir_trace_mod(rust: str) -> tuple[str, bool]:
 def validate_extraction(extracted_cir: dict, annotated_rust: str, contract_path: Path,
                         work_dir: Path, *, binary: Path | str,
                         native_runs: int = 20, miri_seeds: int = 8,
-                        client=None) -> dict[str, Any]:
+                        client=None, lenient_unlock: bool = False,
+                        attempt_events: bool = False) -> dict[str, Any]:
     """Build the annotated Rust, trace it, and require every trace conformant.
 
     Every exit writes ``extraction_result.json`` in ``work_dir`` with a
@@ -185,7 +220,9 @@ def validate_extraction(extracted_cir: dict, annotated_rust: str, contract_path:
     except Exception as exc:  # noqa: BLE001
         return harness("trace", exc, normalizations=normalizations)
     try:
-        agg = conform_all(program_path, tries, binary=binary)
+        agg = conform_all(program_path, tries, binary=binary,
+                          lenient_unlock=lenient_unlock,
+                          attempt_events=attempt_events)
     except Exception as exc:  # noqa: BLE001
         return harness("conform", exc, normalizations=normalizations)
     expected = native_runs + miri_seeds

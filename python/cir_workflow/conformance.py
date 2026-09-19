@@ -388,12 +388,23 @@ def render_conformance_md(payload: dict[str, Any]) -> str:
 
 def conform_all(program: Path | str, traces: list[TraceRun], *,
                 binary: Path | str | None = None,
-                conform_runner: Callable[[Path, Path], dict] | None = None) -> dict[str, Any]:
-    """Replay every trace and aggregate conformance."""
+                conform_runner: Callable[[Path, Path], dict] | None = None,
+                lenient_unlock: bool = False,
+                attempt_events: bool = False) -> dict[str, Any]:
+    """Replay every trace and aggregate conformance.
+
+    ``lenient_unlock`` is the extraction-mode relaxation: a model
+    ``mutex_unlock`` statement may be taken silently (Rust guard drop). It is
+    never used for codegen-mode conformance.
+    """
 
     def default_runner(program_path: Path, trace_path: Path) -> dict:
-        result = _run([str(_binary(binary)), "conform", str(program_path),
-                       str(trace_path)], timeout=120.0)
+        argv = [str(_binary(binary)), "conform", str(program_path), str(trace_path)]
+        if lenient_unlock:
+            argv.append("--lenient-unlock")
+        if attempt_events:
+            argv.append("--attempt-events")
+        result = _run(argv, timeout=120.0)
         try:
             return json.loads(result.stdout)
         except json.JSONDecodeError:

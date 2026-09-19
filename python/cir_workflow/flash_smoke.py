@@ -20,8 +20,10 @@ from typing import Any
 
 from .arms import run_cir_arm, run_rust_arm
 from .concir_client import ConcirClient
-from .extract import (extraction_prompt, parse_extraction, schema_text,
-                      validate_extraction, write_extraction_result)
+from .extract import (extraction_prompt, extraction_prompt_v4, parse_cir_only,
+                      parse_extraction, schema_text, validate_extraction,
+                      write_extraction_result)
+from .instrument import instrument, labels_prompt_section
 from .experiments_v2 import K, load_manifest
 from .live import (
     ALLOWED_PROVIDER, DEFAULT_MAX_SECONDS, DeepSeekFlashClient, LiveBudget,
@@ -91,6 +93,44 @@ def _extract_and_validate(api_key: str, budget: LiveBudget, batch: Path, system:
     try:
         return validate_extraction(parsed["cir"], str(parsed["rust"]), contract_path,
                                    work_dir, binary=binary)
+    except Exception as exc:  # noqa: BLE001
+        return write_extraction_result(
+            work_dir, {"stage": "harness", "where": "validate_extraction",
+                       "reason": f"{type(exc).__name__}: {exc}", "harness_error": True})
+
+
+def _extract_labels_and_validate(api_key: str, budget: LiveBudget, batch: Path,
+                                 system: str, rust_source: str, contract_path: Path,
+                                 work_dir: Path, binary: Path | str,
+                                 sdk_client: Any, timeout: float,
+                                 max_tokens: int) -> dict[str, Any]:
+    """v4 extraction: the tool instruments the Rust, the model writes only CIR."""
+
+    llm = DeepSeekFlashClient(api_key=api_key, budget=budget,
+                              evidence_dir=batch / "llm", timeout=timeout,
+                              max_tokens=max_tokens, sdk_client=sdk_client)
+    work_dir = Path(work_dir)
+    try:
+        inst = instrument(rust_source, work_dir / "instrument", binary=None)
+    except Exception as exc:  # noqa: BLE001
+        return write_extraction_result(
+            work_dir, {"stage": "harness", "where": "instrument",
+                       "reason": f"{type(exc).__name__}: {exc}", "harness_error": True})
+    labels_md = labels_prompt_section(inst["labels"])
+    try:
+        outcome = llm.complete(
+            system, extraction_prompt_v4(schema_text(binary), rust_source, labels_md))
+    except Exception as exc:  # noqa: BLE001
+        return write_extraction_result(
+            work_dir, {"stage": "parse", "reason": f"{type(exc).__name__}: {exc}"})
+    parsed = parse_cir_only(outcome.text)
+    if not parsed:
+        return write_extraction_result(
+            work_dir, {"stage": "parse", "reason": "reply was not a CIR object"})
+    try:
+        return validate_extraction(parsed["cir"], inst["annotated"], contract_path,
+                                   work_dir, binary=binary, lenient_unlock=True,
+                                   attempt_events=True)
     except Exception as exc:  # noqa: BLE001
         return write_extraction_result(
             work_dir, {"stage": "harness", "where": "validate_extraction",
