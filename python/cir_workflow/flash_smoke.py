@@ -490,11 +490,14 @@ FILL_SYSTEM = (
 
 FREE_SYSTEM = (
     "You write a complete standard-library-only Rust program for the given ConcIR "
-    "model. Insert `cir_trace::ev(\"<tag>\", \"<sid>\")` immediately before every "
-    "concurrency operation, using tag `t0` for main and `t<sid>_<i>` for the i-th "
-    "member of a `scope`, and the sid from the CIR. The program must define `fn "
-    "main` and must not use any external crate. Output only the Rust source in one "
-    "```rust fence."
+    "model. Emit `cir_trace::ev(\"<tag>\", \"<sid>\")` exactly as codegen does: "
+    "after `mutex_lock`/`semaphore_acquire`/`condvar_wait`/`channel_send`/"
+    "`channel_recv` return, and at `mutex_unlock`/`condvar_notify`/"
+    "`condvar_notify_all`/`semaphore_release`/`spawn`/`scope`/`join`; use tag `t0` "
+    "for main and `t<sid>_<i>` for the i-th member of a `scope`, with the sid from "
+    "the CIR. You MUST call `cir_trace::finish()` once at the end of `main` (the "
+    "runtime is already provided as `mod cir_trace`). Define `fn main`, use no "
+    "external crate, and output only the Rust source in one ```rust fence."
 )
 
 
@@ -552,7 +555,10 @@ def run_fill_smoke(program: Path | str, contract: Path | str, out_dir: Path | st
                             "ConcIR model:\n```json\n" + cir_text + "\n```\n\n"
                             "Output the annotated Rust program.")
         source = _extract_rust(resp.text)
-        # reuse the generated runtime, replace main
+        # reuse the generated runtime, replace main; drop any inline
+        # `mod cir_trace { ... }` the model defined so the injected runtime
+        # (which honours CIR_TRACE_OUT) is used.
+        source = _strip_inline_cir_trace(source)
         conformance.codegen(program, free, binary=binary)
         (free / "src/main.rs").write_text(source, encoding="utf-8")
         build = subprocess.run(["cargo", "build", "--offline", "--quiet"], cwd=free,
@@ -574,6 +580,29 @@ def run_fill_smoke(program: Path | str, contract: Path | str, out_dir: Path | st
     (batch / "FILL_SUMMARY.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return summary
+
+
+def _strip_inline_cir_trace(source: str) -> str:
+    """Remove a top-level ``mod cir_trace { ... }`` block (balanced braces)."""
+
+    marker = "mod cir_trace {"
+    idx = source.find(marker)
+    if idx == -1:
+        return source
+    depth = 0
+    end = idx
+    for i in range(idx, len(source)):
+        if source[i] == "{":
+            depth += 1
+        elif source[i] == "}":
+            depth -= 1
+            if depth == 0:
+                end = i + 1
+                break
+    stripped = (source[:idx] + source[end:]).lstrip("\n")
+    if "cir_trace::" in stripped and "mod cir_trace" not in stripped:
+        stripped = "mod cir_trace;\n" + stripped
+    return stripped
 
 
 def _extract_rust(text: str) -> str:

@@ -104,7 +104,7 @@ class ArmTests(unittest.TestCase):
         path.write_text(GOOD_RUST, encoding="utf-8")
         verdict = rust_oracle(path, run_miri=False)
         self.assertTrue(verdict["build_ok"])
-        self.assertEqual(verdict["behavior_status"], "terminated")
+        self.assertEqual(verdict["behavior_status"], "terminated_ok")
         self.assertFalse(verdict["bug_present"])
         # A program that cannot terminate is a hang and still has the defect.
         hang = self.root / "hang.rs"

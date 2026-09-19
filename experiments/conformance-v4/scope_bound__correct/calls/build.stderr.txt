@@ -1,0 +1,52 @@
+warning: binary `cir_generated` should have a kebab-case name
+  |
+1 | /Users/kevin/local-repos/ConcPlanVerify/experiments/conformance-v4/scope_bound__correct/skeleton/target/.../cir_generated
+  |                                                                                                             ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-generated`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_generated"
+2 + name = "cir-generated"
+  |
+help: to change the binary name to `cir-generated`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-generated"
+9 + path = "src/main.rs"
+  |
+warning: unused imports: `Condvar` and `Mutex`
+ --> src/main.rs:3:22
+  |
+3 | use std::sync::{Arc, Condvar, Mutex};
+  |                      ^^^^^^^  ^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated items `new`, `send`, and `recv` are never used
+  --> src/cir_trace.rs:56:12
+   |
+55 | impl<T: Send> Channel<T> {
+   | ------------------------ associated items in this implementation
+56 |     pub fn new(cap: usize) -> Arc<Self> {
+   |            ^^^
+...
+64 |     pub fn send(&self, v: T) {
+   |            ^^^^
+...
+80 |     pub fn recv(&self) -> T {
+   |            ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: structure field `r_main__s` should have a snake case name
+ --> src/main.rs:6:5
+  |
+6 |     r_main__s: Arc<cir_trace::Semaphore>,
+  |     ^^^^^^^^^ help: convert the identifier to snake case: `r_main_s`
+  |
+  = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+

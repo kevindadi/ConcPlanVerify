@@ -1245,6 +1245,16 @@ def add_reuse() -> list[dict]:
             data["correct"] = prog
         else:
             data["buggy"] = prog
+            # A fixed twin for the channel rendezvous-mismatch seed: the receiver
+            # waits on the channel the sender actually uses.
+            if case == "send_while_holding_mutex":
+                fixed = json.loads(json.dumps(prog))
+                for mm in fixed.get("modules", []):
+                    for fn in mm.get("functions", []):
+                        for st in fn.get("body", []):
+                            if st.get("kind") == "channel_recv" and st.get("channel") == "ch2":
+                                st["channel"] = "ch1"
+                data["fixed"] = fixed
         entries.append(write_case(family, case, data))
     return entries
 

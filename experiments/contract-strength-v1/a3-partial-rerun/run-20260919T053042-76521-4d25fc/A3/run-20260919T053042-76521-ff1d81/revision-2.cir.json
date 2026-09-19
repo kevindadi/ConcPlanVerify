@@ -1,0 +1,216 @@
+{
+  "program": "partial_bystander",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "a",
+          "b",
+          "handshake",
+          "done_a",
+          "done_b",
+          "output"
+        ],
+        "functions": [
+          "main",
+          "a",
+          "b",
+          "bystander"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "handshake",
+          "kind": "sync",
+          "type": "Semaphore",
+          "count": 1
+        },
+        {
+          "name": "done_a",
+          "kind": "var",
+          "type": "Atomic"
+        },
+        {
+          "name": "done_b",
+          "kind": "var",
+          "type": "Atomic"
+        },
+        {
+          "name": "output",
+          "kind": "var",
+          "type": "Var"
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::a",
+                "main::b",
+                "main::bystander"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "a",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "a1",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "a2",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "a3",
+              "kind": "semaphore_acquire",
+              "resource": "main::handshake"
+            },
+            {
+              "sid": "a4",
+              "kind": "semaphore_release",
+              "resource": "main::handshake"
+            },
+            {
+              "sid": "a5",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "a6",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "a7",
+              "kind": "atomic_store",
+              "resource": "main::done_a",
+              "value": "1"
+            },
+            {
+              "sid": "a8",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "b1",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "b2",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "b3",
+              "kind": "semaphore_acquire",
+              "resource": "main::handshake"
+            },
+            {
+              "sid": "b4",
+              "kind": "semaphore_release",
+              "resource": "main::handshake"
+            },
+            {
+              "sid": "b5",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "b6",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "b7",
+              "kind": "atomic_store",
+              "resource": "main::done_b",
+              "value": "1"
+            },
+            {
+              "sid": "b8",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "bystander",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "c1",
+              "kind": "assign_local",
+              "target": "i",
+              "expr": "0"
+            },
+            {
+              "sid": "c2",
+              "kind": "branch",
+              "cond": "i < 3",
+              "then": "c3",
+              "else": "c5"
+            },
+            {
+              "sid": "c3",
+              "kind": "assign_local",
+              "target": "i",
+              "expr": "i + 1"
+            },
+            {
+              "sid": "c4",
+              "kind": "goto",
+              "target": "c2"
+            },
+            {
+              "sid": "c5",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

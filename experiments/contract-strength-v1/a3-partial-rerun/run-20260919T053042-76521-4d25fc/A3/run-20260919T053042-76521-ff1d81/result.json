@@ -1,0 +1,269 @@
+{
+  "status": "exhausted",
+  "task": "partial_deadlock_bystander",
+  "requirements": "Two workers A and B use two mutexes with an intermediate semaphore handshake, and an independent third task keeps making progress. Main starts all three. Every reachable state must still allow A and B to complete, and both workers must complete. On completion the program must print exactly one line `DONE a=1 b=1` and then exit; it must terminate.\n",
+  "contract_sha256": "753eb1c81fb8c87aa560e2ed5cca88cfa307c10df1ce6f4d93debeebcf02f304",
+  "out_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/contract-strength-v1/a3-partial-rerun/run-20260919T053042-76521-4d25fc/A3/run-20260919T053042-76521-ff1d81",
+  "max_rounds": 4,
+  "engine": "petri",
+  "diagnostics": true,
+  "check_fidelity": true,
+  "fidelity_name": null,
+  "versions": [
+    {
+      "version": 1,
+      "source": "frozen",
+      "raw_text": null,
+      "program_sha256": "d4fa74cd5e308b40d8b7570c3189252d05bc2d79feefdf4e9250f46f48a87810",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/contract-strength-v1/a3-partial-rerun/run-20260919T053042-76521-4d25fc/A3/run-20260919T053042-76521-ff1d81/revision-1.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "valid",
+      "support_status": "supported",
+      "explore_outcome": "FAIL",
+      "explore_complete": true,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "explore_fail",
+      "request_sha256": null,
+      "feedback_sha256": "49a115a3c005778571163721fca89473a585c32e4e40937c235d6705c2217f3f",
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "llm_wall_ms": 0,
+      "tool_wall_ms": 21,
+      "tool_output_sha256": "f8676efd3d73da015daf3328bdcb57edee15ba4960bf986a77b85abbd4ddcfd0",
+      "normalizations": [],
+      "sid_issues": [],
+      "local_patch_function": null
+    },
+    {
+      "version": 2,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"partial_bystander\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"a\", \"b\", \"handshake\", \"done_a\", \"done_b\", \"output\"],\n        \"functions\": [\"main\", \"a\", \"b\", \"bystander\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"a\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"b\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"handshake\", \"kind\": \"sync\", \"type\": \"Semaphore\", \"count\": 1 },\n        { \"name\": \"done_a\", \"kind\": \"var\", \"type\": \"Atomic\", \"mode\": \"Sync\" },\n        { \"name\": \"done_b\", \"kind\": \"var\", \"type\": \"Atomic\", \"mode\": \"Sync\" },\n        { \"name\": \"output\", \"kind\": \"var\", \"type\": \"Var\", \"mode\": \"Sync\" }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"scope\", \"funcs\": [\"main::a\", \"main::b\", \"main::bystander\"] },\n            { \"sid\": \"s2\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"a\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"a1\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"a2\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"a3\", \"kind\": \"semaphore_acquire\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"a4\", \"kind\": \"semaphore_release\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"a5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"a6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"a7\", \"kind\": \"atomic_store\", \"resource\": \"main::done_a\", \"value\": \"1\" },\n            { \"sid\": \"a8\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"b\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"b1\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"b2\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"b3\", \"kind\": \"semaphore_acquire\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"b4\", \"kind\": \"semaphore_release\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"b5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"b6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"b7\", \"kind\": \"atomic_store\", \"resource\": \"main::done_b\", \"value\": \"1\" },\n            { \"sid\": \"b8\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"bystander\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"c1\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"0\" },\n            { \"sid\": \"c2\", \"kind\": \"branch\", \"cond\": \"i < 3\", \"then\": \"c3\", \"else\": \"c5\" },\n            { \"sid\": \"c3\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"i + 1\" },\n            { \"sid\": \"c4\", \"kind\": \"goto\", \"target\": \"c2\" },\n            { \"sid\": \"c5\", \"kind\": \"return\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "9015f9b052c4abf45b5a06ffc621c4fb3838f01ec5ee7974a52f2b84c7d767d0",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/contract-strength-v1/a3-partial-rerun/run-20260919T053042-76521-4d25fc/A3/run-20260919T053042-76521-ff1d81/revision-2.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": null,
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "sid_invalid",
+      "request_sha256": "6ba2ec492e4de2209b5fd2051a5852a773d10e82513c9fb0a6899919863ac935",
+      "feedback_sha256": "c5031b7a1466d69ab7a91d3c40fdef804d377598c5b5a0065c7d75a8819311d0",
+      "prompt_tokens": 3711,
+      "completion_tokens": 1041,
+      "llm_wall_ms": 3491,
+      "tool_wall_ms": 0,
+      "tool_output_sha256": null,
+      "normalizations": [
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "done_a",
+          "field": "mode"
+        },
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "done_b",
+          "field": "mode"
+        },
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "output",
+          "field": "mode"
+        }
+      ],
+      "sid_issues": [
+        {
+          "function": "a",
+          "sid": "a1"
+        },
+        {
+          "function": "a",
+          "sid": "a2"
+        },
+        {
+          "function": "a",
+          "sid": "a3"
+        },
+        {
+          "function": "a",
+          "sid": "a4"
+        },
+        {
+          "function": "a",
+          "sid": "a5"
+        },
+        {
+          "function": "a",
+          "sid": "a6"
+        },
+        {
+          "function": "a",
+          "sid": "a7"
+        },
+        {
+          "function": "a",
+          "sid": "a8"
+        },
+        {
+          "function": "b",
+          "sid": "b1"
+        },
+        {
+          "function": "b",
+          "sid": "b2"
+        },
+        {
+          "function": "b",
+          "sid": "b3"
+        },
+        {
+          "function": "b",
+          "sid": "b4"
+        },
+        {
+          "function": "b",
+          "sid": "b5"
+        },
+        {
+          "function": "b",
+          "sid": "b6"
+        },
+        {
+          "function": "b",
+          "sid": "b7"
+        },
+        {
+          "function": "b",
+          "sid": "b8"
+        },
+        {
+          "function": "bystander",
+          "sid": "c1"
+        },
+        {
+          "function": "bystander",
+          "sid": "c2"
+        },
+        {
+          "function": "bystander",
+          "sid": "c3"
+        },
+        {
+          "function": "bystander",
+          "sid": "c4"
+        },
+        {
+          "function": "bystander",
+          "sid": "c5"
+        }
+      ],
+      "local_patch_function": null
+    },
+    {
+      "version": 3,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"partial_bystander\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"a\", \"b\", \"handshake\", \"done_a\", \"done_b\", \"output\"],\n        \"functions\": [\"main\", \"a\", \"b\", \"bystander\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"a\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"b\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"handshake\", \"kind\": \"sync\", \"type\": \"Semaphore\", \"count\": 1 },\n        { \"name\": \"done_a\", \"kind\": \"var\", \"type\": \"Atomic\", \"mode\": \"Sync\" },\n        { \"name\": \"done_b\", \"kind\": \"var\", \"type\": \"Atomic\", \"mode\": \"Sync\" },\n        { \"name\": \"output\", \"kind\": \"var\", \"type\": \"Var\", \"mode\": \"Sync\" }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"scope\", \"funcs\": [\"main::a\", \"main::b\", \"main::bystander\"] },\n            { \"sid\": \"s2\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"a\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s3\", \"kind\": \"semaphore_acquire\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s4\", \"kind\": \"semaphore_release\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s7\", \"kind\": \"atomic_store\", \"resource\": \"main::done_a\", \"value\": \"1\" },\n            { \"sid\": \"s8\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"b\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s3\", \"kind\": \"semaphore_acquire\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s4\", \"kind\": \"semaphore_release\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s7\", \"kind\": \"atomic_store\", \"resource\": \"main::done_b\", \"value\": \"1\" },\n            { \"sid\": \"s8\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"bystander\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"0\" },\n            { \"sid\": \"s2\", \"kind\": \"branch\", \"cond\": \"i < 3\", \"then\": \"s3\", \"else\": \"s5\" },\n            { \"sid\": \"s3\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"i + 1\" },\n            { \"sid\": \"s4\", \"kind\": \"goto\", \"target\": \"s2\" },\n            { \"sid\": \"s5\", \"kind\": \"return\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "5ab4f48d96046c51036071c88dbcf3272899186cc27cf21a6326e58cf7e59941",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/contract-strength-v1/a3-partial-rerun/run-20260919T053042-76521-4d25fc/A3/run-20260919T053042-76521-ff1d81/revision-3.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "invalid",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "check_invalid",
+      "request_sha256": "6d32a2e133c541729efed8c1c7cb08a19bf48f8eb41d43165d967651e88a527a",
+      "feedback_sha256": "59203242ee0b38c0f573e400c89b8850e4196a52e9b2f82bd21a84d41dfeb89a",
+      "prompt_tokens": 3615,
+      "completion_tokens": 1041,
+      "llm_wall_ms": 3166,
+      "tool_wall_ms": 6,
+      "tool_output_sha256": "731db043df0d454666d10395c324087295fba58f15e29426eddbed8730889b46",
+      "normalizations": [
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "done_a",
+          "field": "mode"
+        },
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "done_b",
+          "field": "mode"
+        },
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "output",
+          "field": "mode"
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": "main::bystander"
+    },
+    {
+      "version": 4,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"partial_bystander\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"a\", \"b\", \"handshake\", \"done_a\", \"done_b\", \"output\"],\n        \"functions\": [\"main\", \"a\", \"b\", \"bystander\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"a\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"b\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"handshake\", \"kind\": \"sync\", \"type\": \"Semaphore\", \"mode\": \"Sync\", \"count\": 1 },\n        { \"name\": \"done_a\", \"kind\": \"var\", \"type\": \"Atomic\", \"base\": \"Int\", \"init\": \"0\" },\n        { \"name\": \"done_b\", \"kind\": \"var\", \"type\": \"Atomic\", \"base\": \"Int\", \"init\": \"0\" },\n        { \"name\": \"output\", \"kind\": \"var\", \"type\": \"Var\", \"base\": \"Int\", \"init\": \"0\" }\n      ],\n      \"protection\": [\n        { \"resource\": \"main::output\", \"protected_by\": \"main::a\" }\n      ],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"scope\", \"funcs\": [\"main::a\", \"main::b\", \"main::bystander\"] },\n            { \"sid\": \"s2\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"a\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s3\", \"kind\": \"semaphore_acquire\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s4\", \"kind\": \"semaphore_release\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s7\", \"kind\": \"atomic_store\", \"resource\": \"main::done_a\", \"value\": \"1\" },\n            { \"sid\": \"s8\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"b\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s3\", \"kind\": \"semaphore_acquire\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s4\", \"kind\": \"semaphore_release\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s7\", \"kind\": \"atomic_store\", \"resource\": \"main::done_b\", \"value\": \"1\" },\n            { \"sid\": \"s8\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"bystander\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"0\" },\n            { \"sid\": \"s2\", \"kind\": \"branch\", \"cond\": \"i < 3\", \"then\": \"s3\", \"else\": \"s5\" },\n            { \"sid\": \"s3\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"i + 1\" },\n            { \"sid\": \"s4\", \"kind\": \"goto\", \"target\": \"s2\" },\n            { \"sid\": \"s5\", \"kind\": \"return\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "2a1c45bf94a6051edfec536eea674eb03de8f44f7c3e7277d83d40fa5452be60",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/contract-strength-v1/a3-partial-rerun/run-20260919T053042-76521-4d25fc/A3/run-20260919T053042-76521-ff1d81/revision-4.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "invalid",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "check_invalid",
+      "request_sha256": "644daa1899e56f06132d9f5dc1f9fffde93dc844e7ee68faa25500b6bc3ffe0c",
+      "feedback_sha256": "3d4f1dc09308ad33419da9726ca3a91750b3e661db33c2454939aff8d9ad89e6",
+      "prompt_tokens": 3916,
+      "completion_tokens": 1087,
+      "llm_wall_ms": 3036,
+      "tool_wall_ms": 5,
+      "tool_output_sha256": "d3e7a874870d827ebb22e7c85c553359cadb67023c73cb3a391834709fe74ba1",
+      "normalizations": [
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "resource",
+          "to": "var"
+        },
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "protected_by",
+          "to": "lock"
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": "main::bystander"
+    }
+  ],
+  "accepted_version": null,
+  "repair_mode": "llm_revision",
+  "candidate_source": "llm",
+  "consumption": {
+    "http_requests": 3,
+    "prompt_tokens": 11242,
+    "completion_tokens": 3169,
+    "total_tokens": 14411,
+    "llm_wall_ms": 9693,
+    "tool_wall_ms": 32,
+    "rounds": 3,
+    "first_correct_round": null
+  },
+  "error": "no complete PASS within 4 rounds",
+  "accepted": false
+}
