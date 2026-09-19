@@ -48,7 +48,7 @@ def _read(name: str) -> str:
 
 
 def spec_extract() -> str:
-    return _read("rust_to_cir_extract_v2.md")
+    return _read("rust_to_cir_extract_v3.md")
 
 
 def _extract_and_validate(api_key: str, budget: LiveBudget, batch: Path, system: str,

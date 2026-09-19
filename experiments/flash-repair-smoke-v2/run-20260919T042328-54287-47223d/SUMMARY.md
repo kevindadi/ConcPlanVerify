@@ -24,16 +24,16 @@
 
 ## oracle.model reasons
 
-- lock-order/abba_2lock / A0_direct: reply not a {cir,rust} object
-- lock-order/abba_2lock / A1_self_iter: reply not a {cir,rust} object
-- lock-order/abba_2lock / A2_tools_iter_m: reply not a {cir,rust} object
-- lock-order/abba_2lock / A2_tools_iter_ml: extracted CIR not codegen-able: codegen failed: JSON parse error in '/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v2/run-20260919T042328-54287-47223d/extraction/run-20260919T051554-70190-f76cb8/lock-order__abba_2lock/A2_tools_iter_ml/extracted.cir.json': missing field `kind` at line 54 column 9
-- lock-order/partial_deadlock_bystander / A0_direct: extracted CIR has invalid sids
-- lock-order/partial_deadlock_bystander / A2_tools_iter_m: reply not a {cir,rust} object
-- lock-order/partial_deadlock_bystander / A2_tools_iter_ml: extracted CIR has invalid sids
-- condvar/bare_wait_no_predicate / A0_direct: extracted CIR has invalid sids
-- condvar/bare_wait_no_predicate / A1_self_iter: extracted CIR has invalid sids
-- condvar/bare_wait_no_predicate / A2_tools_iter_m: extracted CIR has invalid sids
-- condvar/bare_wait_no_predicate / A2_tools_iter_ml: extracted CIR has invalid sids
+- lock-order/abba_2lock / A0_direct: annotated Rust did not build
+- lock-order/abba_2lock / A1_self_iter: AttributeError: 'str' object has no attribute 'get'
+- lock-order/abba_2lock / A2_tools_iter_m: extracted CIR not codegen-able: codegen failed: JSON parse error in '/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v2/run-20260919T042328-54287-47223d/extraction-v3b/run-20260919T060118-84844-ff0127/lock-order__abba_2lock/A2_tools_iter_m/extracted.cir.json': missing field `kind` at line 53 column 9
+- lock-order/abba_2lock / A2_tools_iter_ml: extracted CIR not codegen-able: codegen failed: JSON parse error in '/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v2/run-20260919T042328-54287-47223d/extraction-v3b/run-20260919T060118-84844-ff0127/lock-order__abba_2lock/A2_tools_iter_ml/extracted.cir.json': missing field `kind` at line 54 column 9
+- lock-order/partial_deadlock_bystander / A0_direct: extracted CIR not codegen-able: codegen failed: JSON parse error in '/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v2/run-20260919T042328-54287-47223d/extraction-v3b/run-20260919T060118-84844-ff0127/lock-order__partial_deadlock_bystander/A0_direct/extracted.cir.json': invalid type: sequence, expected a string at line 72 column 13
+- lock-order/partial_deadlock_bystander / A2_tools_iter_m: extracted CIR not codegen-able: codegen failed: JSON parse error in '/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v2/run-20260919T042328-54287-47223d/extraction-v3b/run-20260919T060118-84844-ff0127/lock-order__partial_deadlock_bystander/A2_tools_iter_m/extracted.cir.json': invalid type: string "count", expected struct ParamDecl at line 12 column 19
+- lock-order/partial_deadlock_bystander / A2_tools_iter_ml: extracted CIR not codegen-able: codegen failed: JSON parse error in '/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v2/run-20260919T042328-54287-47223d/extraction-v3b/run-20260919T060118-84844-ff0127/lock-order__partial_deadlock_bystander/A2_tools_iter_ml/extracted.cir.json': missing field `kind` at line 78 column 9
+- condvar/bare_wait_no_predicate / A0_direct: extracted CIR not codegen-able: codegen failed: JSON parse error in '/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v2/run-20260919T042328-54287-47223d/extraction-v3c/run-20260919T060244-87150-773a1c/condvar__bare_wait_no_predicate/A0_direct/extracted.cir.json': invalid type: sequence, expected a string at line 69 column 13
+- condvar/bare_wait_no_predicate / A1_self_iter: extracted CIR not codegen-able: codegen failed: JSON parse error in '/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v2/run-20260919T042328-54287-47223d/extraction-v3b/run-20260919T060118-84844-ff0127/condvar__bare_wait_no_predicate/A1_self_iter/extracted.cir.json': missing field `kind` at line 61 column 9
+- condvar/bare_wait_no_predicate / A2_tools_iter_m: extracted CIR not codegen-able: codegen failed: JSON parse error in '/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v2/run-20260919T042328-54287-47223d/extraction-v3b/run-20260919T060118-84844-ff0127/condvar__bare_wait_no_predicate/A2_tools_iter_m/extracted.cir.json': missing field `kind` at line 61 column 9
+- condvar/bare_wait_no_predicate / A2_tools_iter_ml: extracted CIR not codegen-able: codegen failed: JSON parse error in '/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v2/run-20260919T042328-54287-47223d/extraction-v3b/run-20260919T060118-84844-ff0127/condvar__bare_wait_no_predicate/A2_tools_iter_ml/extracted.cir.json': missing field `kind` at line 40 column 9
 
 `behavior_status`: terminated_ok / terminated_wrong_state / hang / no_output / no_build. `oracle.model` is not truncated (see reasons section above).

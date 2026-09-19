@@ -33,18 +33,37 @@ def extraction_prompt(schema: str, rust_source: str) -> str:
         + schema.strip()
         + "\n```\n\nRust program to model and annotate:\n```rust\n"
         + rust_source.strip()
-        + "\n```\n\nReply with only `{\"cir\": {...}, \"rust\": \"...\"}`."
+        + "\n```\n\nReply with exactly two fenced blocks: a ```json CIR block "
+          "first, then a ```rust annotated-source block."
     )
 
 
+def _fenced(text: str, lang: str) -> str | None:
+    import re
+
+    match = re.search(r"```" + lang + r"\s*\n(.*?)```", text, re.DOTALL | re.IGNORECASE)
+    return match.group(1).strip() if match else None
+
+
 def parse_extraction(text: str) -> dict[str, Any] | None:
+    """Two-fence protocol: ```json CIR then ```rust annotated source."""
+
     stripped = text.strip()
     if "```" in stripped:
-        parts = stripped.split("```")
-        for i, part in enumerate(parts):
-            candidate = part
-            if candidate.lstrip().lower().startswith("json"):
-                candidate = candidate.lstrip()[4:]
+        json_block = _fenced(stripped, "json")
+        rust_block = _fenced(stripped, "rust") or _fenced(stripped, "rs")
+        if json_block and rust_block:
+            try:
+                cir = json.loads(json_block)
+            except json.JSONDecodeError:
+                cir = None
+            if isinstance(cir, dict):
+                return {"cir": cir, "rust": rust_block}
+        # single-object fallback
+        for part in stripped.split("```")[1::2]:
+            candidate = part.lstrip()
+            if candidate.lower().startswith("json"):
+                candidate = candidate[4:]
             try:
                 data = json.loads(candidate)
                 if isinstance(data, dict) and "cir" in data:

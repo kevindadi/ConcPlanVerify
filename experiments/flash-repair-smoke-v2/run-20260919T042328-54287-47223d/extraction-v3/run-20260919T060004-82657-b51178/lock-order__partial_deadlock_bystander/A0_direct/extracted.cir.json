@@ -1,0 +1,299 @@
+{
+  "program": "semaphore_handshake",
+  "version": "cir-schema-v1",
+  "entry": "main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "mtx_a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "mtx_b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "sem_a",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 0
+        },
+        {
+          "name": "sem_b",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 0
+        },
+        {
+          "name": "sem_a_permits",
+          "kind": "var",
+          "type": "Var",
+          "base": "u32",
+          "init": "0"
+        },
+        {
+          "name": "sem_b_permits",
+          "kind": "var",
+          "type": "Var",
+          "base": "u32",
+          "init": "0"
+        }
+      ],
+      "functions": [
+        {
+          "name": "sem_a_acquire",
+          "params": [],
+          "body": [
+            {
+              "kind": "mutex_lock",
+              "resource": "sem_a_permits",
+              "sid": "s1"
+            },
+            {
+              "kind": "branch",
+              "cond": "sem_a_permits == 0",
+              "then": [
+                {
+                  "kind": "condvar_wait",
+                  "condvar": "sem_a_cv",
+                  "lock": "sem_a_permits"
+                }
+              ],
+              "else": [],
+              "sid": "s2"
+            },
+            {
+              "kind": "assign_local",
+              "target": "sem_a_permits",
+              "expr": "sem_a_permits - 1",
+              "sid": "s3"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "sem_a_permits",
+              "sid": "s4"
+            }
+          ]
+        },
+        {
+          "name": "sem_a_release",
+          "params": [],
+          "body": [
+            {
+              "kind": "mutex_lock",
+              "resource": "sem_a_permits",
+              "sid": "s1"
+            },
+            {
+              "kind": "assign_local",
+              "target": "sem_a_permits",
+              "expr": "sem_a_permits + 1",
+              "sid": "s2"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "sem_a_permits",
+              "sid": "s3"
+            },
+            {
+              "kind": "condvar_notify",
+              "condvar": "sem_a_cv",
+              "sid": "s4"
+            }
+          ]
+        },
+        {
+          "name": "sem_b_acquire",
+          "params": [],
+          "body": [
+            {
+              "kind": "mutex_lock",
+              "resource": "sem_b_permits",
+              "sid": "s1"
+            },
+            {
+              "kind": "branch",
+              "cond": "sem_b_permits == 0",
+              "then": [
+                {
+                  "kind": "condvar_wait",
+                  "condvar": "sem_b_cv",
+                  "lock": "sem_b_permits"
+                }
+              ],
+              "else": [],
+              "sid": "s2"
+            },
+            {
+              "kind": "assign_local",
+              "target": "sem_b_permits",
+              "expr": "sem_b_permits - 1",
+              "sid": "s3"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "sem_b_permits",
+              "sid": "s4"
+            }
+          ]
+        },
+        {
+          "name": "sem_b_release",
+          "params": [],
+          "body": [
+            {
+              "kind": "mutex_lock",
+              "resource": "sem_b_permits",
+              "sid": "s1"
+            },
+            {
+              "kind": "assign_local",
+              "target": "sem_b_permits",
+              "expr": "sem_b_permits + 1",
+              "sid": "s2"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "sem_b_permits",
+              "sid": "s3"
+            },
+            {
+              "kind": "condvar_notify",
+              "condvar": "sem_b_cv",
+              "sid": "s4"
+            }
+          ]
+        },
+        {
+          "name": "worker_a",
+          "params": [],
+          "body": [
+            {
+              "kind": "mutex_lock",
+              "resource": "mtx_a",
+              "sid": "s1"
+            },
+            {
+              "kind": "call",
+              "func": "sem_a_release",
+              "sid": "s2"
+            },
+            {
+              "kind": "call",
+              "func": "sem_b_acquire",
+              "sid": "s3"
+            },
+            {
+              "kind": "mutex_lock",
+              "resource": "mtx_b",
+              "sid": "s4"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mtx_b",
+              "sid": "s5"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mtx_a",
+              "sid": "s6"
+            }
+          ]
+        },
+        {
+          "name": "worker_b",
+          "params": [],
+          "body": [
+            {
+              "kind": "mutex_lock",
+              "resource": "mtx_b",
+              "sid": "s1"
+            },
+            {
+              "kind": "call",
+              "func": "sem_b_release",
+              "sid": "s2"
+            },
+            {
+              "kind": "call",
+              "func": "sem_a_acquire",
+              "sid": "s3"
+            },
+            {
+              "kind": "mutex_lock",
+              "resource": "mtx_a",
+              "sid": "s4"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mtx_a",
+              "sid": "s5"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mtx_b",
+              "sid": "s6"
+            }
+          ]
+        },
+        {
+          "name": "progress",
+          "params": [],
+          "body": [
+            {
+              "kind": "goto",
+              "target": "progress",
+              "sid": "s1"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "params": [],
+          "body": [
+            {
+              "kind": "spawn",
+              "func": "worker_a",
+              "handle": "h_a",
+              "sid": "s1"
+            },
+            {
+              "kind": "spawn",
+              "func": "worker_b",
+              "handle": "h_b",
+              "sid": "s2"
+            },
+            {
+              "kind": "spawn",
+              "func": "progress",
+              "handle": "h_p",
+              "sid": "s3"
+            },
+            {
+              "kind": "join",
+              "handle": "h_a",
+              "sid": "s4"
+            },
+            {
+              "kind": "join",
+              "handle": "h_b",
+              "sid": "s5"
+            },
+            {
+              "kind": "return",
+              "sid": "s6"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

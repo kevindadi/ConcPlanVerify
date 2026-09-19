@@ -88,6 +88,26 @@ def normalize(program: dict) -> tuple[dict, list[dict], list[dict]]:
         out.pop(key, None)
         records.append({"rule": "drop_top_level", "field": key})
 
+    # Version must be the supported schema version.
+    if out.get("version") != "3.5.0":
+        records.append({"rule": "version", "from": out.get("version"), "to": "3.5.0"})
+        out["version"] = "3.5.0"
+
+    # Entry must be a `module::function` FQN.
+    entry = out.get("entry")
+    if isinstance(entry, str) and "::" not in entry:
+        owner = None
+        for m in out.get("modules", []) or []:
+            if any(isinstance(f, dict) and f.get("name") == entry
+                   for f in m.get("functions", []) or []):
+                owner = m.get("name")
+                break
+        if owner is None and out.get("modules"):
+            owner = out["modules"][0].get("name")
+        if owner:
+            out["entry"] = f"{owner}::{entry}"
+            records.append({"rule": "entry_fqn", "from": entry, "to": out["entry"]})
+
     for module in out.get("modules", []) or []:
         for resource in module.get("resources", []) or []:
             if resource.get("kind") == "var":
@@ -112,6 +132,11 @@ def normalize(program: dict) -> tuple[dict, list[dict], list[dict]]:
                     records.append({"rule": "protection_alias", "scope": "protection",
                                     "from": wrong, "to": right})
         for function in module.get("functions", []) or []:
+            if not isinstance(function, dict):
+                continue
+            if "kind" not in function:
+                function["kind"] = "normal"
+                records.append({"rule": "function_kind", "function": function.get("name")})
             body = function.get("body", []) or []
             # Deterministic sid repair: fill missing / rename malformed sids and
             # rewrite goto/branch/switch targets accordingly.

@@ -1,0 +1,390 @@
+{
+  "program": "semaphore_handoff",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "functions": [
+        {
+          "name": "Semaphore::new",
+          "params": [
+            "count"
+          ],
+          "body": [
+            {
+              "kind": "assign_local",
+              "target": "permits",
+              "expr": "count",
+              "sid": "s1"
+            },
+            {
+              "kind": "return",
+              "value": "Self { permits, cv }",
+              "sid": "s2"
+            }
+          ]
+        },
+        {
+          "name": "Semaphore::acquire",
+          "params": [
+            "self"
+          ],
+          "body": [
+            {
+              "kind": "mutex_lock",
+              "resource": "self.permits",
+              "sid": "s1"
+            },
+            {
+              "kind": "assign_local",
+              "target": "permits",
+              "expr": "self.permits",
+              "sid": "s2"
+            },
+            {
+              "kind": "branch",
+              "cond": "*permits == 0",
+              "then": [
+                {
+                  "kind": "condvar_wait",
+                  "condvar": "self.cv",
+                  "lock": "self.permits"
+                },
+                {
+                  "kind": "assign_local",
+                  "target": "permits",
+                  "expr": "self.permits"
+                }
+              ],
+              "else": [],
+              "sid": "s3"
+            },
+            {
+              "kind": "assign_local",
+              "target": "*permits",
+              "expr": "*permits - 1",
+              "sid": "s4"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "self.permits",
+              "sid": "s5"
+            }
+          ]
+        },
+        {
+          "name": "Semaphore::release",
+          "params": [
+            "self"
+          ],
+          "body": [
+            {
+              "kind": "mutex_lock",
+              "resource": "self.permits",
+              "sid": "s1"
+            },
+            {
+              "kind": "assign_local",
+              "target": "*permits",
+              "expr": "*permits + 1",
+              "sid": "s2"
+            },
+            {
+              "kind": "condvar_notify",
+              "condvar": "self.cv",
+              "sid": "s3"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "self.permits",
+              "sid": "s4"
+            }
+          ]
+        },
+        {
+          "name": "worker_a",
+          "params": [
+            "ma",
+            "mb",
+            "sa",
+            "sb"
+          ],
+          "body": [
+            {
+              "kind": "call",
+              "func": "Semaphore::acquire",
+              "args": [
+                "sa"
+              ],
+              "sid": "s1"
+            },
+            {
+              "kind": "mutex_lock",
+              "resource": "ma",
+              "sid": "s2"
+            },
+            {
+              "kind": "mutex_lock",
+              "resource": "mb",
+              "sid": "s3"
+            },
+            {
+              "kind": "call",
+              "func": "Semaphore::release",
+              "args": [
+                "sb"
+              ],
+              "sid": "s4"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mb",
+              "sid": "s5"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "ma",
+              "sid": "s6"
+            }
+          ]
+        },
+        {
+          "name": "worker_b",
+          "params": [
+            "ma2",
+            "mb2",
+            "sa2",
+            "sb2"
+          ],
+          "body": [
+            {
+              "kind": "call",
+              "func": "Semaphore::acquire",
+              "args": [
+                "sb2"
+              ],
+              "sid": "s1"
+            },
+            {
+              "kind": "mutex_lock",
+              "resource": "ma2",
+              "sid": "s2"
+            },
+            {
+              "kind": "mutex_lock",
+              "resource": "mb2",
+              "sid": "s3"
+            },
+            {
+              "kind": "call",
+              "func": "Semaphore::release",
+              "args": [
+                "sa2"
+              ],
+              "sid": "s4"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "mb2",
+              "sid": "s5"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "ma2",
+              "sid": "s6"
+            }
+          ]
+        },
+        {
+          "name": "bystander",
+          "params": [
+            "stop_task"
+          ],
+          "body": [
+            {
+              "kind": "assign_local",
+              "target": "lock",
+              "expr": "stop_task.0",
+              "sid": "s1"
+            },
+            {
+              "kind": "assign_local",
+              "target": "cv",
+              "expr": "stop_task.1",
+              "sid": "s2"
+            },
+            {
+              "kind": "mutex_lock",
+              "resource": "lock",
+              "sid": "s3"
+            },
+            {
+              "kind": "assign_local",
+              "target": "done",
+              "expr": "lock",
+              "sid": "s4"
+            },
+            {
+              "kind": "branch",
+              "cond": "*done",
+              "then": [
+                {
+                  "kind": "mutex_unlock",
+                  "resource": "lock"
+                },
+                {
+                  "kind": "return"
+                }
+              ],
+              "else": [],
+              "sid": "s5"
+            },
+            {
+              "kind": "condvar_wait",
+              "condvar": "cv",
+              "lock": "lock",
+              "sid": "s6"
+            },
+            {
+              "kind": "assign_local",
+              "target": "done",
+              "expr": "lock",
+              "sid": "s7"
+            },
+            {
+              "kind": "branch",
+              "cond": "*done",
+              "then": [
+                {
+                  "kind": "mutex_unlock",
+                  "resource": "lock"
+                },
+                {
+                  "kind": "return"
+                }
+              ],
+              "else": [],
+              "sid": "s8"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "lock",
+              "sid": "s9"
+            },
+            {
+              "kind": "goto",
+              "target": "bystander_loop",
+              "sid": "s10"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "params": [],
+          "body": [
+            {
+              "kind": "assign_local",
+              "target": "mtx_a",
+              "expr": "Mutex::new(())",
+              "sid": "s1"
+            },
+            {
+              "kind": "assign_local",
+              "target": "mtx_b",
+              "expr": "Mutex::new(())",
+              "sid": "s2"
+            },
+            {
+              "kind": "assign_local",
+              "target": "sem_a",
+              "expr": "Semaphore::new(1)",
+              "sid": "s3"
+            },
+            {
+              "kind": "assign_local",
+              "target": "sem_b",
+              "expr": "Semaphore::new(0)",
+              "sid": "s4"
+            },
+            {
+              "kind": "spawn",
+              "func": "worker_a",
+              "handle": "worker_a",
+              "args": [
+                "mtx_a",
+                "mtx_b",
+                "sem_a",
+                "sem_b"
+              ],
+              "sid": "s5"
+            },
+            {
+              "kind": "spawn",
+              "func": "worker_b",
+              "handle": "worker_b",
+              "args": [
+                "mtx_a",
+                "mtx_b",
+                "sem_a",
+                "sem_b"
+              ],
+              "sid": "s6"
+            },
+            {
+              "kind": "assign_local",
+              "target": "stop",
+              "expr": "(Mutex::new(false), Condvar::new())",
+              "sid": "s7"
+            },
+            {
+              "kind": "spawn",
+              "func": "bystander",
+              "handle": "bystander",
+              "args": [
+                "stop"
+              ],
+              "sid": "s8"
+            },
+            {
+              "kind": "join",
+              "handle": "worker_a",
+              "sid": "s9"
+            },
+            {
+              "kind": "join",
+              "handle": "worker_b",
+              "sid": "s10"
+            },
+            {
+              "kind": "mutex_lock",
+              "resource": "stop.0",
+              "sid": "s11"
+            },
+            {
+              "kind": "write_shared",
+              "resource": "stop.0",
+              "expr": "true",
+              "sid": "s12"
+            },
+            {
+              "kind": "condvar_notify_all",
+              "condvar": "stop.1",
+              "sid": "s13"
+            },
+            {
+              "kind": "mutex_unlock",
+              "resource": "stop.0",
+              "sid": "s14"
+            },
+            {
+              "kind": "join",
+              "handle": "bystander",
+              "sid": "s15"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

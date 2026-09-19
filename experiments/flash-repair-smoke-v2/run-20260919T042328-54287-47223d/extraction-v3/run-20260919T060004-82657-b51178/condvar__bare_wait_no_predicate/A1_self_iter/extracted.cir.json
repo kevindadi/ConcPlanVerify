@@ -1,0 +1,184 @@
+{
+  "program": "condvar_notify_all",
+  "version": "cir-schema-v1",
+  "entry": "main",
+  "modules": [
+    {
+      "name": "main",
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "pair",
+              "expr": "Arc::new((Mutex::new(false), Condvar::new()))"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "pair_w",
+              "expr": "Arc::clone(&pair)"
+            },
+            {
+              "sid": "s3",
+              "kind": "spawn",
+              "func": "waiter",
+              "handle": "waiter",
+              "args": [
+                "pair_w"
+              ]
+            },
+            {
+              "sid": "s4",
+              "kind": "assign_local",
+              "target": "pair_n",
+              "expr": "Arc::clone(&pair)"
+            },
+            {
+              "sid": "s5",
+              "kind": "spawn",
+              "func": "notifier",
+              "handle": "notifier",
+              "args": [
+                "pair_n"
+              ]
+            },
+            {
+              "sid": "s6",
+              "kind": "join",
+              "handle": "waiter"
+            },
+            {
+              "sid": "s7",
+              "kind": "join",
+              "handle": "notifier"
+            },
+            {
+              "sid": "s8",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "waiter",
+          "params": [
+            "pair_w"
+          ],
+          "body": [
+            {
+              "sid": "s9",
+              "kind": "assign_local",
+              "target": "mtx",
+              "expr": "&pair_w.0"
+            },
+            {
+              "sid": "s10",
+              "kind": "assign_local",
+              "target": "cv",
+              "expr": "&pair_w.1"
+            },
+            {
+              "sid": "s11",
+              "kind": "mutex_lock",
+              "resource": "mtx"
+            },
+            {
+              "sid": "s12",
+              "kind": "assign_local",
+              "target": "guard",
+              "expr": "mtx.lock().unwrap()"
+            },
+            {
+              "sid": "s13",
+              "kind": "branch",
+              "cond": "!*guard",
+              "then": [
+                {
+                  "sid": "s14",
+                  "kind": "condvar_wait",
+                  "condvar": "cv",
+                  "lock": "mtx"
+                },
+                {
+                  "sid": "s15",
+                  "kind": "assign_local",
+                  "target": "guard",
+                  "expr": "cv.wait(guard).unwrap()"
+                },
+                {
+                  "sid": "s16",
+                  "kind": "goto",
+                  "target": "s13"
+                }
+              ],
+              "else": []
+            },
+            {
+              "sid": "s17",
+              "kind": "mutex_unlock",
+              "resource": "mtx"
+            },
+            {
+              "sid": "s18",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "notifier",
+          "params": [
+            "pair_n"
+          ],
+          "body": [
+            {
+              "sid": "s19",
+              "kind": "assign_local",
+              "target": "mtx",
+              "expr": "&pair_n.0"
+            },
+            {
+              "sid": "s20",
+              "kind": "assign_local",
+              "target": "cv",
+              "expr": "&pair_n.1"
+            },
+            {
+              "sid": "s21",
+              "kind": "mutex_lock",
+              "resource": "mtx"
+            },
+            {
+              "sid": "s22",
+              "kind": "assign_local",
+              "target": "ready",
+              "expr": "mtx.lock().unwrap()"
+            },
+            {
+              "sid": "s23",
+              "kind": "write_shared",
+              "resource": "ready",
+              "expr": "true"
+            },
+            {
+              "sid": "s24",
+              "kind": "condvar_notify_all",
+              "condvar": "cv"
+            },
+            {
+              "sid": "s25",
+              "kind": "mutex_unlock",
+              "resource": "mtx"
+            },
+            {
+              "sid": "s26",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
