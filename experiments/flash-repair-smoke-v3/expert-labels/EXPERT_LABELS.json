@@ -1,0 +1,239 @@
+{
+ "rubric_version": "expert-label-rubric-v1",
+ "annotator": "proxy:opencode (deepseek-v4.1-flash), 2026-09-19",
+ "instructions": "Read the accepted Rust candidate; judge whether a concurrency bug is present in the as-written program (bug_present yes/no/unsure), the lines involved, and whether the fix preserves the original design (modules/resources/structure).",
+ "agreement": {
+  "compared": 16,
+  "agree": 14,
+  "rate": 0.875,
+  "unsure": 1
+ },
+ "labels": [
+  {
+   "task": "lock-order/partial_deadlock_bystander",
+   "arm": "A0_direct",
+   "candidate_sha256": "a4503ffe446102b65c3ac5c466e6451ffb3afd6e09f54b93ed1666de86986a2f",
+   "accepted_round": 1,
+   "bug_present": "yes",
+   "defect_lines": [
+    44,
+    46,
+    47,
+    59,
+    61,
+    62
+   ],
+   "design_preserved": "yes",
+   "reason": "worker_a holds mtx_a then blocks on sem_b / mtx_b while worker_b holds mtx_b then blocks on sem_a / mtx_a: the partial-deadlock circular wait is intact.",
+   "auto_bug_present": true,
+   "agrees_with_auto": true
+  },
+  {
+   "task": "lock-order/partial_deadlock_bystander",
+   "arm": "A2_tools_iter_ml",
+   "candidate_sha256": "67724b0c39597353bcce6cb71d6b1c87a60cd0c00115e36b48255d75de5a9b85",
+   "accepted_round": 2,
+   "bug_present": "no",
+   "defect_lines": [],
+   "design_preserved": "yes",
+   "reason": "Each worker drops its first guard before acquiring the second mutex, breaking the circular wait; semaphores and both mutexes are retained.",
+   "auto_bug_present": false,
+   "agrees_with_auto": true
+  },
+  {
+   "task": "lock-order/cross_module_cycle",
+   "arm": "A0_direct",
+   "candidate_sha256": "b8a63387fc02403a01e6dc1e32d61c5f9b8b360db88665e777a09053aebf1fcb",
+   "accepted_round": 1,
+   "bug_present": "no",
+   "defect_lines": [],
+   "design_preserved": "no",
+   "reason": "No deadlock: a single global mutex serialises both tasks, so the flag waits always make progress. But the two-independent-mutex cross-module design is replaced by one global lock+condvar, so the original concurrency design is not preserved.",
+   "auto_bug_present": false,
+   "agrees_with_auto": true
+  },
+  {
+   "task": "lock-order/cross_module_cycle",
+   "arm": "A2_tools_iter_ml",
+   "candidate_sha256": "9bab819deee29927d39ccf1856824fc1f14f8db3deeadf4dc7043149bd2e61c0",
+   "accepted_round": 1,
+   "bug_present": "no",
+   "defect_lines": [],
+   "design_preserved": "yes",
+   "reason": "Both tasks acquire the same mutexes in the same global order (A then B); two-mutex design preserved, cycle removed.",
+   "auto_bug_present": false,
+   "agrees_with_auto": true
+  },
+  {
+   "task": "lock-order/cycle_3lock",
+   "arm": "A0_direct",
+   "candidate_sha256": "c7d11e854196fb3cf47a56ba80b1f459c71f4e88401071aa94ec02d75f663b4b",
+   "accepted_round": 1,
+   "bug_present": "yes",
+   "defect_lines": [
+    12,
+    19,
+    20,
+    27,
+    28
+   ],
+   "design_preserved": "yes",
+   "reason": "Unchanged 3-lock cycle: w1 A->B, w2 B->C, w3 C->A. Deadlock is reachable (report as a false accept).",
+   "auto_bug_present": false,
+   "agrees_with_auto": false
+  },
+  {
+   "task": "lock-order/cycle_3lock",
+   "arm": "A2_tools_iter_ml",
+   "candidate_sha256": "c7d11e854196fb3cf47a56ba80b1f459c71f4e88401071aa94ec02d75f663b4b",
+   "accepted_round": 1,
+   "bug_present": "yes",
+   "defect_lines": [
+    12,
+    19,
+    20,
+    27,
+    28
+   ],
+   "design_preserved": "yes",
+   "reason": "Identical to the buggy reference: A->B, B->C, C->A cycle remains. Accepted by the run by luck of scheduling; expert label yes.",
+   "auto_bug_present": false,
+   "agrees_with_auto": false
+  },
+  {
+   "task": "structure/nested_scope_lock_order",
+   "arm": "A0_direct",
+   "candidate_sha256": "4e6e1cdc7910b0bcb049c8a1cd697c35a3cd3ff58d34d9dae55a6ccaa8e82cd4",
+   "accepted_round": 1,
+   "bug_present": "no",
+   "defect_lines": [],
+   "design_preserved": "yes",
+   "reason": "Both inner tasks lock the same mutexes in the same order (A then B); no cycle.",
+   "auto_bug_present": false,
+   "agrees_with_auto": true
+  },
+  {
+   "task": "structure/nested_scope_lock_order",
+   "arm": "A1_self_iter",
+   "candidate_sha256": "c9c01200389da216dab6ff5968cb8db5543227fe73b9db446e54de118077b6a9",
+   "accepted_round": 2,
+   "bug_present": "no",
+   "defect_lines": [],
+   "design_preserved": "yes",
+   "reason": "Same consistent order (A then B) in both spawned closures.",
+   "auto_bug_present": false,
+   "agrees_with_auto": true
+  },
+  {
+   "task": "structure/nested_scope_lock_order",
+   "arm": "A2_tools_iter_ml",
+   "candidate_sha256": "1293bda034b7eed085b8e193cd559b11992918126bf7c3b6c043d9d9fcee023b",
+   "accepted_round": 1,
+   "bug_present": "no",
+   "defect_lines": [],
+   "design_preserved": "yes",
+   "reason": "Same consistent order (A then B); comment states the global ordering rationale.",
+   "auto_bug_present": false,
+   "agrees_with_auto": true
+  },
+  {
+   "task": "condvar/notify_one_multi_waiter_wrong_pick",
+   "arm": "A2_tools_iter_ml",
+   "candidate_sha256": "0e3cdb53c009651e933c24c9ec93dd47414b7fa190ccd2252d314b0a8e8c84de",
+   "accepted_round": 1,
+   "bug_present": "no",
+   "defect_lines": [],
+   "design_preserved": "yes",
+   "reason": "Uses notify_all so both waiters on the shared predicate wake; no waiter is left asleep.",
+   "auto_bug_present": false,
+   "agrees_with_auto": true
+  },
+  {
+   "task": "channel/bounded_backpressure_lock_held",
+   "arm": "A0_direct",
+   "candidate_sha256": "13d1b761aacaefe874d5c0799b0c9ce0f8a384306576a1a6908cf10068365373",
+   "accepted_round": 1,
+   "bug_present": "no",
+   "defect_lines": [],
+   "design_preserved": "yes",
+   "reason": "Mutex is taken and released in a scoped block; neither send nor recv happens with the lock held. No lock-order or channel deadlock.",
+   "auto_bug_present": false,
+   "agrees_with_auto": true
+  },
+  {
+   "task": "channel/bounded_backpressure_lock_held",
+   "arm": "A2_tools_iter_ml",
+   "candidate_sha256": "1c28ef235a0679a3aedf45046119b112f6ed65670f643899d5434fc96a6f7385",
+   "accepted_round": 1,
+   "bug_present": "no",
+   "defect_lines": [],
+   "design_preserved": "yes",
+   "reason": "Same as A0 but with comments; lock is scoped away from both channel operations.",
+   "auto_bug_present": false,
+   "agrees_with_auto": true
+  },
+  {
+   "task": "channel/send_while_holding_mutex",
+   "arm": "A0_direct",
+   "candidate_sha256": "7872b79e540d302e7e7a3425c26735bd8dfe3424b1a27562c7b1e173c291abe4",
+   "accepted_round": 1,
+   "bug_present": "no",
+   "defect_lines": [],
+   "design_preserved": "yes",
+   "reason": "Sender and receiver release the shared mutex before tx1.send/rx1.recv; the condvar handshake uses a flag so neither blocks with the lock held.",
+   "auto_bug_present": false,
+   "agrees_with_auto": true
+  },
+  {
+   "task": "channel/send_while_holding_mutex",
+   "arm": "A1_self_iter",
+   "candidate_sha256": "1b5ee9f6995a3809d927e972bd3c198a0a8d7deeaa989de3708db9e90e0ae6bd",
+   "accepted_round": 3,
+   "bug_present": "unsure",
+   "defect_lines": [],
+   "design_preserved": "no",
+   "reason": "final artifact is the model's prose 'NO_ISSUES' reply, not compilable Rust; arm marked accepted with build_ok=False, so this is an arm-level false accept, not a program.",
+   "auto_bug_present": false,
+   "agrees_with_auto": null
+  },
+  {
+   "task": "channel/send_while_holding_mutex",
+   "arm": "A2_tools_iter_ml",
+   "candidate_sha256": "24fb036eb37a741176836f02a236179f94b2581310cef95ce33268aba7815824",
+   "accepted_round": 1,
+   "bug_present": "no",
+   "defect_lines": [],
+   "design_preserved": "yes",
+   "reason": "Both threads release the shared mutex before the rendezvous channel operations; sender waits on rx2 only after releasing the lock.",
+   "auto_bug_present": false,
+   "agrees_with_auto": true
+  },
+  {
+   "task": "semaphore/acquire_twice_no_release",
+   "arm": "A0_direct",
+   "candidate_sha256": "f42afd77e7a90afba7225bfa4678f3e37ce918e4265b7dd7d815045ceee3270e",
+   "accepted_round": 1,
+   "bug_present": "yes",
+   "defect_lines": [
+    37,
+    44
+   ],
+   "design_preserved": "yes",
+   "reason": "w1 calls acq twice before any rel; with one permit the second acq blocks forever and w2's acq also blocks. Same acquire-twice defect.",
+   "auto_bug_present": true,
+   "agrees_with_auto": true
+  },
+  {
+   "task": "semaphore/acquire_twice_no_release",
+   "arm": "A2_tools_iter_ml",
+   "candidate_sha256": "12c050cd7efc0a633df7dc850ff6b14d08b2a683e77b8d3e012fe67a885066ed",
+   "accepted_round": 2,
+   "bug_present": "no",
+   "defect_lines": [],
+   "design_preserved": "yes",
+   "reason": "Semaphore made owner/reentrant: w1's second acq increments its own count and both rels balance; w2 acquires after w1 fully releases.",
+   "auto_bug_present": false,
+   "agrees_with_auto": true
+  }
+ ]
+}
