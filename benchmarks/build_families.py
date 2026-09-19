@@ -197,7 +197,8 @@ def strip_fields(obj):
 
 
 def sanitize_case(family: str, case: str, task_dir: Path, seq: int,
-                  contract_rel: str, ground_truth: dict) -> dict:
+                  contract_rel: str, ground_truth: dict,
+                  base_rel: str | None = None) -> dict:
     """Generate ``repair_input/`` with comments/names/qualitative wording removed."""
 
     rin = task_dir / "repair_input"
@@ -224,10 +225,11 @@ def sanitize_case(family: str, case: str, task_dir: Path, seq: int,
         raise KeyError(f"no sanitized requirements for {family}/{case}")
     (rin / "requirements.txt").write_text(requirements + "\n", encoding="utf-8")
 
+    base = base_rel or f"families/{family}/{case}"
     write_json(task_dir / "repair_task.json", {
-        "requirements_file": f"{family}/{case}/repair_input/requirements.txt",
-        "input_cir": f"{family}/{case}/repair_input/input.cir.json",
-        "input_rust": (f"{family}/{case}/repair_input/input.rs"
+        "requirements_file": f"{base}/repair_input/requirements.txt",
+        "input_cir": f"{base}/repair_input/input.cir.json",
+        "input_rust": (f"{base}/repair_input/input.rs"
                        if input_rust.is_file() else None),
         "contract": contract_rel,
         "ground_truth": ground_truth,
@@ -237,9 +239,9 @@ def sanitize_case(family: str, case: str, task_dir: Path, seq: int,
     for name in ("requirements.txt", "input.cir.json", "input.rs"):
         path = rin / name
         if path.is_file():
-            files[f"families/{family}/{case}/repair_input/{name}"] = sha256(path)
-    files[f"families/{family}/{case}/repair_task.json"] = sha256(task_dir / "repair_task.json")
-    return {"requirements_sha256": files[f"families/{family}/{case}/repair_input/requirements.txt"],
+            files[f"{base}/repair_input/{name}"] = sha256(path)
+    files[f"{base}/repair_task.json"] = sha256(task_dir / "repair_task.json")
+    return {"requirements_sha256": files[f"{base}/repair_input/requirements.txt"],
             "program": program_name, "files": files}
 
 
@@ -1171,25 +1173,8 @@ def main() -> int:
 
     tasks.extend(add_reuse())
 
-    # `worker_with_payload` exists to exercise codegen HOLEs; the petri engine
-    # disagrees with the interpreter on its nobody `call`, so it is not an
-    # explore benchmark and is validated with `check` only.
-    conformance_only = {("structure", "worker_with_payload")}
-
     # validate every case
     for entry in tasks:
-        if (entry["family"], entry["case"]) in conformance_only:
-            task_dir = ROOT / "benchmarks/families" / entry["family"] / entry["case"]
-            check = run_cmd("check", task_dir / "correct.cir.json")
-            entry["status"] = "conformance_only"
-            entry["note"] = "petri vs interp disagree on the nobody call; codegen only"
-            entry["results"] = {"correct": {"check_valid": check.get("valid")}}
-            entry["id"] = f"{entry['family']}/{entry['case']}"
-            entry["directory"] = f"families/{entry['family']}/{entry['case']}"
-            entry["contract"] = f"{entry['directory']}/contract.json"
-            entry["correct_cir"] = f"{entry['directory']}/correct.cir.json"
-            entry["spec"] = f"{entry['directory']}/spec.md"
-            continue
         task_dir = ROOT / "benchmarks/families" / entry["family"] / entry["case"]
         contract_path = task_dir / "contract.json"
         variants = []
@@ -1261,7 +1246,7 @@ def main() -> int:
             info = sanitize_case(
                 fam, case, task_dir, counters[fam],
                 entry.get("contract") or f"{entry['directory']}/contract.json",
-                entry.get("ground_truth") or {})
+                entry.get("ground_truth") or {}, base_rel=entry["directory"])
         except KeyError as exc:
             failures.append(str(exc))
             continue

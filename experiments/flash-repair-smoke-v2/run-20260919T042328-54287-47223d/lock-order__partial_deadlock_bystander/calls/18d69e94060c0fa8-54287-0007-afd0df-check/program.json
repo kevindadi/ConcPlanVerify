@@ -1,0 +1,173 @@
+{
+  "program": "partial_bystander",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "a",
+          "b",
+          "handshake"
+        ],
+        "functions": [
+          "main",
+          "a",
+          "b",
+          "c"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "handshake",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::a",
+                "main::b",
+                "main::c"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "a",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s2",
+              "kind": "semaphore_release",
+              "resource": "main::handshake"
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "semaphore_acquire",
+              "resource": "main::handshake"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "c",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

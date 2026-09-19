@@ -1,0 +1,153 @@
+{
+  "version": "cir-schema-v1",
+  "contract": {
+    "allowed_scope": [
+      "functions",
+      "modules",
+      "allow_lock_reorder",
+      "allow_statement_delete"
+    ],
+    "bounds": [
+      {
+        "kind": "max_threads",
+        "value": 3
+      },
+      {
+        "kind": "max_frames_per_thread",
+        "value": 4
+      },
+      {
+        "kind": "max_states",
+        "value": 10000
+      },
+      {
+        "kind": "max_depth",
+        "value": 100
+      },
+      {
+        "kind": "max_boundary_events",
+        "value": 100
+      }
+    ],
+    "predicates": {},
+    "preserved": {},
+    "properties": []
+  },
+  "resources": {
+    "mtx_a": {
+      "name": "mtx_a",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    "mtx_b": {
+      "name": "mtx_b",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    }
+  },
+  "functions": {
+    "main": {
+      "params": [],
+      "locals": [
+        "w1",
+        "w2"
+      ],
+      "body": [
+        {
+          "sid": "s1",
+          "kind": "spawn",
+          "func": "worker1",
+          "handle": "w1"
+        },
+        {
+          "sid": "s2",
+          "kind": "spawn",
+          "func": "worker2",
+          "handle": "w2"
+        },
+        {
+          "sid": "s3",
+          "kind": "join",
+          "handle": "w1"
+        },
+        {
+          "sid": "s4",
+          "kind": "join",
+          "handle": "w2"
+        },
+        {
+          "sid": "s5",
+          "kind": "return"
+        }
+      ]
+    },
+    "worker1": {
+      "params": [],
+      "locals": [
+        "ga",
+        "gb"
+      ],
+      "body": [
+        {
+          "sid": "s6",
+          "kind": "mutex_lock",
+          "resource": "mtx_a"
+        },
+        {
+          "sid": "s7",
+          "kind": "mutex_lock",
+          "resource": "mtx_b"
+        },
+        {
+          "sid": "s8",
+          "kind": "mutex_unlock",
+          "resource": "mtx_b"
+        },
+        {
+          "sid": "s9",
+          "kind": "mutex_unlock",
+          "resource": "mtx_a"
+        },
+        {
+          "sid": "s10",
+          "kind": "return"
+        }
+      ]
+    },
+    "worker2": {
+      "params": [],
+      "locals": [
+        "ga",
+        "gb"
+      ],
+      "body": [
+        {
+          "sid": "s11",
+          "kind": "mutex_lock",
+          "resource": "mtx_a"
+        },
+        {
+          "sid": "s12",
+          "kind": "mutex_lock",
+          "resource": "mtx_b"
+        },
+        {
+          "sid": "s13",
+          "kind": "mutex_unlock",
+          "resource": "mtx_b"
+        },
+        {
+          "sid": "s14",
+          "kind": "mutex_unlock",
+          "resource": "mtx_a"
+        },
+        {
+          "sid": "s15",
+          "kind": "return"
+        }
+      ]
+    }
+  }
+}

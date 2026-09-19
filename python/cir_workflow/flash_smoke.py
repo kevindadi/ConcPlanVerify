@@ -13,6 +13,7 @@ arms, K=4, <= 48 HTTP requests, <= 60 minutes.
 from __future__ import annotations
 
 import json
+import subprocess
 import time
 from pathlib import Path
 from typing import Any
@@ -275,11 +276,22 @@ def run_repair_smoke(manifest_path: Path | str, out_dir: Path | str, *, binary: 
             stop_reason = budget.exhausted()
             break
         task_dir = batch / task_id.replace("/", "__")
-        contract_path = root / task.contract
+        # Prefer the de-leaked repair_input declared by repair_task.json.
+        repair_path = root / task.directory / "repair_task.json"
+        if repair_path.is_file():
+            rt = json.loads(repair_path.read_text(encoding="utf-8"))
+            contract_path = root / rt["contract"]
+            spec = (root / rt["requirements_file"]).read_text(encoding="utf-8")
+            buggy_cir = root / rt["input_cir"]
+            input_rust = ((root / rt["input_rust"]).read_text(encoding="utf-8")
+                          if rt.get("input_rust") else None)
+        else:
+            contract_path = root / task.contract
+            spec = (root / task.spec).read_text(encoding="utf-8") if task.spec else task_id
+            buggy_cir = root / task.buggy_cir
+            input_rust = ((root / task.buggy_rs).read_text(encoding="utf-8")
+                          if task.buggy_rs else None)
         contract = json.loads(contract_path.read_text(encoding="utf-8"))
-        spec = (root / task.spec).read_text(encoding="utf-8") if task.spec else task_id
-        buggy_cir = root / task.buggy_cir
-        input_rust = (root / task.buggy_rs).read_text(encoding="utf-8") if task.buggy_rs else None
         client = ConcirClient(binary, workdir=task_dir / "calls", timeout=30.0)
         record: dict[str, Any] = {"task": task_id, "arms": {}}
         try:
@@ -334,8 +346,16 @@ def run_repair_smoke(manifest_path: Path | str, out_dir: Path | str, *, binary: 
                 a3_record["llm_calls"] = cir_provider.calls
                 if a3.final_artifact_path:
                     from .arms import cir_oracle
-                    a3_record["oracle"] = cir_oracle(client, a3.final_artifact_path,
-                                                     contract_path)
+                    co = cir_oracle(client, a3.final_artifact_path, contract_path)
+                    passed = co.get("verify_pass") is True
+                    a3_record["oracle"] = {
+                        "build_ok": None, "behavior_ok": None, "miri_detected": None,
+                        "model": {"extract_validated": True,
+                                  "model_verdict": "PASS" if passed else "FAIL",
+                                  "verify_pass": co.get("verify_pass"),
+                                  "evidence": co.get("evidence")},
+                        "bug_present": not passed,
+                    }
                 record["arms"][ARM_OURS_REVISION] = a3_record
         except Exception as exc:  # noqa: BLE001
             stop_reason = f"{type(exc).__name__}: {exc}"
@@ -411,3 +431,111 @@ def render_smoke_markdown(summary: dict[str, Any]) -> str:
                 f"{consumption.get('total_tokens')} | {consumption.get('llm_wall_ms')} | "
                 f"{consumption.get('tool_wall_ms')} | |")
     return "\n".join(lines) + "\n"
+
+
+FILL_SYSTEM = (
+    "You fill only the marked holes in a Rust skeleton. Replace ONLY the text of a "
+    "`/* HOLE(id) expected: T */ Default::default()` placeholder; do not touch any "
+    "other line, statement, or sid comment. Hole code is sequential local "
+    "computation only: no synchronization, thread, channel, atomic, unsafe, or "
+    "`cir_trace` construct, and no new `use`. Reply with a JSON object mapping each "
+    "hole id to the Rust expression or statement block to substitute."
+)
+
+FREE_SYSTEM = (
+    "You write a complete standard-library-only Rust program for the given ConcIR "
+    "model. Insert `cir_trace::ev(\"<tag>\", \"<sid>\")` immediately before every "
+    "concurrency operation, using tag `t0` for main and `t<sid>_<i>` for the i-th "
+    "member of a `scope`, and the sid from the CIR. The program must define `fn "
+    "main` and must not use any external crate. Output only the Rust source in one "
+    "```rust fence."
+)
+
+
+def run_fill_smoke(program: Path | str, contract: Path | str, out_dir: Path | str, *,
+                   binary: Path | str, api_key: str, protocol_path: Path | str,
+                   protocol_sha256: str, timeout: float = 90.0,
+                   max_tokens: int = 4096, native_runs: int = 50,
+                   miri_seeds: int = 16, sdk_client: Any | None = None) -> dict[str, Any]:
+    """Fill the codegen holes with Flash, validate by conformance; also run the
+    `A3_free` ablation (LLM writes the whole annotated Rust)."""
+
+    from . import conformance
+
+    assert_protocol_confirmed(protocol_path, protocol_sha256)
+    program = Path(program).resolve()
+    contract = Path(contract).resolve()
+    out = Path(out_dir).expanduser().resolve()
+    batch = _exclusive_run_dir(out)
+    budget = LiveBudget(batch / "budget.json", max_requests=6, max_seconds=1800.0)
+    llm = DeepSeekFlashClient(api_key=api_key, budget=budget,
+                              evidence_dir=batch / "llm", timeout=timeout,
+                              max_tokens=max_tokens, sdk_client=sdk_client)
+    summary: dict[str, Any] = {"batch_dir": str(batch), "program": str(program),
+                               "arms": {}, "stop_reason": None}
+    spec = (program.parent / "spec.md").read_text(encoding="utf-8")
+
+    # ---- skeleton arm (fill holes) ----
+    skeleton = batch / "skeleton"
+    conformance.codegen(program, skeleton, binary=binary)
+    holes = conformance.holes_of(skeleton)
+    summary["holes"] = [h["id"] for h in holes]
+    try:
+        resp = llm.complete(FILL_SYSTEM, conformance.fill_prompt(skeleton, spec))
+        fills = conformance.parse_fill(resp.text)
+        filled = batch / "filled"
+        applied = conformance.fill_holes(skeleton, filled, fills)
+        lint = conformance.lint_filled(skeleton, filled)
+        traces = conformance.collect_traces(filled, native_runs=native_runs,
+                                            miri_seeds=miri_seeds,
+                                            calls_dir=batch / "skeleton_calls")
+        agg = conformance.conform_all(program, traces, binary=binary)
+        summary["arms"]["skeleton_fill"] = {
+            "applied": applied, "lint": lint, "conformance": agg,
+            "requests": 1,
+        }
+    except Exception as exc:  # noqa: BLE001
+        summary["arms"]["skeleton_fill"] = {"error": f"{type(exc).__name__}: {exc}"}
+
+    # ---- A3_free: LLM writes the whole annotated Rust ----
+    free = batch / "free"
+    free.mkdir(parents=True, exist_ok=True)
+    try:
+        cir_text = program.read_text(encoding="utf-8")
+        resp = llm.complete(FREE_SYSTEM,
+                            "ConcIR model:\n```json\n" + cir_text + "\n```\n\n"
+                            "Output the annotated Rust program.")
+        source = _extract_rust(resp.text)
+        # reuse the generated runtime, replace main
+        conformance.codegen(program, free, binary=binary)
+        (free / "src/main.rs").write_text(source, encoding="utf-8")
+        build = subprocess.run(["cargo", "build", "--offline", "--quiet"], cwd=free,
+                               capture_output=True, text=True, timeout=300)
+        if build.returncode != 0:
+            summary["arms"]["A3_free"] = {"build_ok": False,
+                                          "build_stderr": build.stderr[-300:]}
+        else:
+            traces = conformance.collect_traces(free, native_runs=native_runs,
+                                                miri_seeds=miri_seeds,
+                                                calls_dir=batch / "free_calls")
+            agg = conformance.conform_all(program, traces, binary=binary)
+            summary["arms"]["A3_free"] = {"build_ok": True, "conformance": agg,
+                                          "requests": 1}
+    except Exception as exc:  # noqa: BLE001
+        summary["arms"]["A3_free"] = {"error": f"{type(exc).__name__}: {exc}"}
+
+    summary["requests_used"] = budget.requests_used
+    (batch / "FILL_SUMMARY.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return summary
+
+
+def _extract_rust(text: str) -> str:
+    if "```" in text:
+        parts = text.split("```")
+        candidate = max(parts[1::2], key=len) if parts[1::2] else text
+        lines = candidate.splitlines()
+        if lines and lines[0].strip().lower() in ("rust", "rs"):
+            lines = lines[1:]
+        return "\n".join(lines).strip() + "\n"
+    return text.strip() + "\n"

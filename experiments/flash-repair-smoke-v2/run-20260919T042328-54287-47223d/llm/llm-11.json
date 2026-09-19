@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "874d061c-e8c6-4bda-8df8-79a3ec459f63",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nTwo workers A and B use two mutexes with an intermediate semaphore handshake, and an independent third task keeps making progress. Main starts all three. Every reachable state must still allow A and B to complete, and both workers must complete.\n\n\nCurrent program:\n```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\nuse std::time::Duration;\n\nstruct Semaphore {\n    permits: Mutex<u32>,\n    cv: Condvar,\n}\n\nimpl Semaphore {\n    fn new(count: u32) -> Self {\n        Self {\n            permits: Mutex::new(count),\n            cv: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            permits = self.cv.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        *self.permits.lock().unwrap() += 1;\n        self.cv.notify_one();\n    }\n}\n\nfn main() {\n    let mtx_a = Arc::new(Mutex::new(()));\n    let mtx_b = Arc::new(Mutex::new(()));\n    let sem_a = Arc::new(Semaphore::new(0));\n    let sem_b = Arc::new(Semaphore::new(0));\n\n    let (ma, mb, sa, sb) = (\n        Arc::clone(&mtx_a),\n        Arc::clone(&mtx_b),\n        Arc::clone(&sem_a),\n        Arc::clone(&sem_b),\n    );\n    let worker_a = thread::spawn(move || {\n        let ga = ma.lock().unwrap();\n        sa.release();\n        sb.acquire();\n        let gb = mb.lock().unwrap();\n        drop(gb);\n        drop(ga);\n    });\n\n    let (ma2, mb2, sa2, sb2) = (\n        Arc::clone(&mtx_a),\n        Arc::clone(&mtx_b),\n        Arc::clone(&sem_a),\n        Arc::clone(&sem_b),\n    );\n    let worker_b = thread::spawn(move || {\n        let gb = mb2.lock().unwrap();\n        sb2.release();\n        sa2.acquire();\n        let ga = ma2.lock().unwrap();\n        drop(ga);\n        drop(gb);\n    });\n\n    thread::spawn(move || loop {\n        thread::sleep(Duration::from_millis(10));\n    });\n\n    worker_a.join().unwrap();\n    worker_b.join().unwrap();\n}\n\n```\n\nFix any concurrency defect and output the complete corrected Rust program, or if there is none reply exactly NO_ISSUES."
+    }
+  ],
+  "prompt_sha256": "325fcde5630396c7abdb266ba5533c67792007942a146b2cada24151efd0e061",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 517,
+    "prompt_tokens": 820,
+    "total_tokens": 1337,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 0
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 820
+  },
+  "content_sha256": "5e41b0a2cbd31d6ca274ae435186c58cb1c15af86386914920295f0fcd643ff2",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Semaphore {\n    permits: Mutex<u32>,\n    cv: Condvar,\n}\n\nimpl Semaphore {\n    fn new(count: u32) -> Self {\n        Self {\n            permits: Mutex::new(count),\n            cv: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            permits = self.cv.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        *self.permits.lock().unwrap() += 1;\n        self.cv.notify_one();\n    }\n}\n\nfn main() {\n    let mtx_a = Arc::new(Mutex::new(()));\n    let mtx_b = Arc::new(Mutex::new(()));\n    let sem_a = Arc::new(Semaphore::new(0));\n    let sem_b = Arc::new(Semaphore::new(0));\n\n    let (ma, mb, sa, sb) = (\n        Arc::clone(&mtx_a),\n        Arc::clone(&mtx_b),\n        Arc::clone(&sem_a),\n        Arc::clone(&sem_b),\n    );\n    let worker_a = thread::spawn(move || {\n        let ga = ma.lock().unwrap();\n        sa.release();\n        sb.acquire();\n        let gb = mb.lock().unwrap();\n        drop(gb);\n        drop(ga);\n    });\n\n    let (ma2, mb2, sa2, sb2) = (\n        Arc::clone(&mtx_a),\n        Arc::clone(&mtx_b),\n        Arc::clone(&sem_a),\n        Arc::clone(&sem_b),\n    );\n    let worker_b = thread::spawn(move || {\n        let gb = mb2.lock().unwrap();\n        sb2.release();\n        sa2.acquire();\n        let ga = ma2.lock().unwrap();\n        drop(ga);\n        drop(gb);\n    });\n\n    let progress = thread::spawn(move || loop {\n        std::hint::spin_loop();\n    });\n\n    worker_a.join().unwrap();\n    worker_b.join().unwrap();\n\n    // The independent task is intentionally non-terminating; detach it so main can exit.\n    drop(progress);\n}\n```",
+  "wall_ms": 1661
+}

@@ -131,6 +131,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--max-tokens", type=int, default=4096)
     p.add_argument("--llm-timeout", type=float, default=90.0)
 
+    p = sub.add_parser("fill-smoke", help="Flash hole-fill + A3_free conformance smoke")
+    p.add_argument("--program", required=True)
+    p.add_argument("--contract", required=True)
+    p.add_argument("--protocol", required=True)
+    p.add_argument("--protocol-sha256", required=True)
+    p.add_argument("--api-key-env", default="DEEPSEEK_API_KEY")
+    p.add_argument("--max-tokens", type=int, default=4096)
+    p.add_argument("--llm-timeout", type=float, default=90.0)
+
     p = sub.add_parser("conformance", help="offline conformance smoke (codegen+traces+conform)")
     p.add_argument("--cases", help="JSON list of [label, program_path]")
     p.add_argument("--native-runs", type=int, default=50)
@@ -251,6 +260,24 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"batch_dir": summary["batch_dir"],
                               "requests_used": summary["requests_used"],
                               "stop_reason": summary["stop_reason"]}, indent=2))
+            return 0
+
+        if args.command == "fill-smoke":
+            from .flash_smoke import run_fill_smoke
+
+            api_key = os.environ.get(args.api_key_env, "")
+            if not api_key:
+                print(json.dumps({"status": "error",
+                                  "error": f"missing API key: set {args.api_key_env}"},
+                                 indent=2))
+                return 2
+            summary = run_fill_smoke(
+                args.program, args.contract, args.out, binary=args.binary,
+                api_key=api_key, protocol_path=args.protocol,
+                protocol_sha256=args.protocol_sha256, timeout=args.llm_timeout,
+                max_tokens=args.max_tokens)
+            print(json.dumps({"batch_dir": summary["batch_dir"],
+                              "requests_used": summary["requests_used"]}, indent=2))
             return 0
 
         if args.command == "conformance":

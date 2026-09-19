@@ -1,0 +1,241 @@
+{
+  "version": "cir-schema-v1",
+  "contract": {
+    "allowed_scope": [
+      "functions",
+      "modules",
+      "allow_lock_reorder",
+      "allow_statement_delete"
+    ],
+    "bounds": [
+      "max_threads",
+      "max_frames_per_thread",
+      "max_states",
+      "max_depth",
+      "max_boundary_events"
+    ],
+    "predicates": {
+      "and": {
+        "required": [
+          "kind",
+          "predicates"
+        ]
+      },
+      "channel_at_least": {
+        "required": [
+          "kind",
+          "resource",
+          "len"
+        ]
+      },
+      "channel_empty": {
+        "required": [
+          "kind",
+          "resource"
+        ]
+      },
+      "false": {
+        "required": [
+          "kind"
+        ]
+      },
+      "function_completed": {
+        "required": [
+          "kind",
+          "function"
+        ]
+      },
+      "mutex_free": {
+        "required": [
+          "kind",
+          "resource"
+        ]
+      },
+      "mutex_held": {
+        "required": [
+          "kind",
+          "resource"
+        ]
+      },
+      "not": {
+        "required": [
+          "kind",
+          "predicate"
+        ]
+      },
+      "or": {
+        "required": [
+          "kind",
+          "predicates"
+        ]
+      },
+      "true": {
+        "required": [
+          "kind"
+        ]
+      },
+      "var_cmp": {
+        "required": [
+          "kind",
+          "resource",
+          "op",
+          "value"
+        ]
+      },
+      "var_eq": {
+        "required": [
+          "kind",
+          "resource",
+          "value"
+        ]
+      }
+    },
+    "preserved": {
+      "always": {
+        "required": [
+          "kind",
+          "description",
+          "invariant"
+        ]
+      },
+      "reachable": {
+        "required": [
+          "kind",
+          "description",
+          "goal"
+        ]
+      }
+    },
+    "properties": {
+      "always_reachable": {
+        "required": [
+          "kind",
+          "id",
+          "goal"
+        ]
+      },
+      "deadlock_free": {
+        "required": [
+          "kind",
+          "id"
+        ]
+      },
+      "reachability": {
+        "required": [
+          "kind",
+          "id",
+          "goal"
+        ]
+      },
+      "safety": {
+        "required": [
+          "kind",
+          "id",
+          "invariant"
+        ]
+      },
+      "unreachable": {
+        "required": [
+          "kind",
+          "id",
+          "bad"
+        ]
+      }
+    }
+  },
+  "resources": {
+    "mtx_a": {
+      "name": "mtx_a",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    "mtx_b": {
+      "name": "mtx_b",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    }
+  },
+  "statements": {
+    "s0": {
+      "kind": "spawn",
+      "func": "w1",
+      "handle": "w1"
+    },
+    "s1": {
+      "kind": "spawn",
+      "func": "w2",
+      "handle": "w2"
+    },
+    "s2": {
+      "kind": "join",
+      "handle": "w1"
+    },
+    "s3": {
+      "kind": "join",
+      "handle": "w2"
+    },
+    "s4": {
+      "kind": "mutex_lock",
+      "resource": "mtx_a"
+    },
+    "s5": {
+      "kind": "mutex_lock",
+      "resource": "mtx_b"
+    },
+    "s6": {
+      "kind": "mutex_unlock",
+      "resource": "mtx_b"
+    },
+    "s7": {
+      "kind": "mutex_unlock",
+      "resource": "mtx_a"
+    },
+    "s8": {
+      "kind": "mutex_lock",
+      "resource": "mtx_a"
+    },
+    "s9": {
+      "kind": "mutex_lock",
+      "resource": "mtx_b"
+    },
+    "s10": {
+      "kind": "mutex_unlock",
+      "resource": "mtx_b"
+    },
+    "s11": {
+      "kind": "mutex_unlock",
+      "resource": "mtx_a"
+    }
+  },
+  "functions": {
+    "main": {
+      "params": [],
+      "body": [
+        "s0",
+        "s1",
+        "s2",
+        "s3"
+      ]
+    },
+    "w1": {
+      "params": [],
+      "body": [
+        "s4",
+        "s5",
+        "s6",
+        "s7"
+      ]
+    },
+    "w2": {
+      "params": [],
+      "body": [
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ]
+    }
+  }
+}

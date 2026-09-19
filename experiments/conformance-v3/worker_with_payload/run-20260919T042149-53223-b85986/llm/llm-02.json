@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "485154fb-9ebd-4705-b34f-fa75f037d10d",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You write a complete standard-library-only Rust program for the given ConcIR model. Insert `cir_trace::ev(\"<tag>\", \"<sid>\")` immediately before every concurrency operation, using tag `t0` for main and `t<sid>_<i>` for the i-th member of a `scope`, and the sid from the CIR. The program must define `fn main` and must not use any external crate. Output only the Rust source in one ```rust fence."
+    },
+    {
+      "role": "user",
+      "content": "ConcIR model:\n```json\n{\n  \"program\": \"worker_payload\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\n          \"m\",\n          \"acc\"\n        ],\n        \"functions\": [\n          \"main\",\n          \"w1\",\n          \"w2\",\n          \"compute\"\n        ]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        {\n          \"name\": \"m\",\n          \"kind\": \"sync\",\n          \"type\": \"Mutex\",\n          \"mode\": \"Sync\"\n        },\n        {\n          \"name\": \"acc\",\n          \"kind\": \"var\",\n          \"type\": \"Var\",\n          \"base\": \"Int\",\n          \"init\": 0\n        }\n      ],\n      \"protection\": [\n        {\n          \"var\": \"acc\",\n          \"lock\": \"m\"\n        }\n      ],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"scope\",\n              \"funcs\": [\n                \"main::w1\",\n                \"main::w2\"\n              ]\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"w1\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"call\",\n              \"func\": \"main::compute\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"write_shared\",\n              \"resource\": \"main::acc\",\n              \"expr\": \"acc + 1\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s5\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"w2\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"call\",\n              \"func\": \"main::compute\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"write_shared\",\n              \"resource\": \"main::acc\",\n              \"expr\": \"acc + 1\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s5\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"compute\",\n          \"kind\": \"normal\",\n          \"body\": []\n        }\n      ]\n    }\n  ]\n}\n\n```\n\nOutput the annotated Rust program."
+    }
+  ],
+  "prompt_sha256": "63ac6c223e81a3fd17245e27f8874d0036843f5afc55e283b87763129bbc5a51",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 512,
+    "prompt_tokens": 816,
+    "total_tokens": 1328,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 0
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 816
+  },
+  "content_sha256": "3840fb168e6175662d54f8f63eb295fcf254cd1a254f0951bafb2e7718fec7c2",
+  "content": "```rust\n// ConcIR model: worker_payload v3.5.0\n// Standard-library-only Rust program with concurrency tracing.\n\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nmod cir_trace {\n    pub fn ev(_tag: &str, _sid: &str) {\n        // Trace hook: no-op in this standard-library-only program.\n    }\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(()));\n    let acc = Arc::new(Mutex::new(0i64));\n\n    let m1 = Arc::clone(&m);\n    let acc1 = Arc::clone(&acc);\n    let m2 = Arc::clone(&m);\n    let acc2 = Arc::clone(&acc);\n\n    let w1 = move || {\n        cir_trace::ev(\"t1_0\", \"s1\");\n        let _guard = m1.lock().unwrap();\n        cir_trace::ev(\"t1_1\", \"s2\");\n        compute();\n        cir_trace::ev(\"t1_2\", \"s3\");\n        {\n            let mut a = acc1.lock().unwrap();\n            *a = *a + 1;\n        }\n        cir_trace::ev(\"t1_3\", \"s4\");\n        drop(_guard);\n        cir_trace::ev(\"t1_4\", \"s5\");\n    };\n\n    let w2 = move || {\n        cir_trace::ev(\"t2_0\", \"s1\");\n        let _guard = m2.lock().unwrap();\n        cir_trace::ev(\"t2_1\", \"s2\");\n        compute();\n        cir_trace::ev(\"t2_2\", \"s3\");\n        {\n            let mut a = acc2.lock().unwrap();\n            *a = *a + 1;\n        }\n        cir_trace::ev(\"t2_3\", \"s4\");\n        drop(_guard);\n        cir_trace::ev(\"t2_4\", \"s5\");\n    };\n\n    cir_trace::ev(\"t0\", \"s1\");\n    let h1 = thread::spawn(w1);\n    let h2 = thread::spawn(w2);\n    h1.join().unwrap();\n    h2.join().unwrap();\n\n    cir_trace::ev(\"t0\", \"s2\");\n}\n\nfn compute() {\n    // Empty body per model.\n}\n```",
+  "wall_ms": 2331
+}

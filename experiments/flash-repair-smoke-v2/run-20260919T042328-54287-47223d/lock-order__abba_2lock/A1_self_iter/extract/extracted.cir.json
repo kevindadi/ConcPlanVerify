@@ -1,0 +1,251 @@
+{
+  "version": "cir-schema-v1",
+  "resources": {
+    "mtx_a": {
+      "name": "mtx_a",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    },
+    "mtx_b": {
+      "name": "mtx_b",
+      "kind": "sync",
+      "type": "Mutex",
+      "mode": "Sync"
+    }
+  },
+  "functions": {
+    "main": {
+      "params": [],
+      "body": [
+        {
+          "sid": "s1",
+          "kind": "spawn",
+          "func": "worker1",
+          "handle": "w1"
+        },
+        {
+          "sid": "s2",
+          "kind": "spawn",
+          "func": "worker2",
+          "handle": "w2"
+        },
+        {
+          "sid": "s3",
+          "kind": "join",
+          "handle": "w1"
+        },
+        {
+          "sid": "s4",
+          "kind": "join",
+          "handle": "w2"
+        },
+        {
+          "sid": "s5",
+          "kind": "return"
+        }
+      ]
+    },
+    "worker1": {
+      "params": [],
+      "body": [
+        {
+          "sid": "s6",
+          "kind": "mutex_lock",
+          "resource": "mtx_a"
+        },
+        {
+          "sid": "s7",
+          "kind": "mutex_lock",
+          "resource": "mtx_b"
+        },
+        {
+          "sid": "s8",
+          "kind": "mutex_unlock",
+          "resource": "mtx_b"
+        },
+        {
+          "sid": "s9",
+          "kind": "mutex_unlock",
+          "resource": "mtx_a"
+        },
+        {
+          "sid": "s10",
+          "kind": "return"
+        }
+      ]
+    },
+    "worker2": {
+      "params": [],
+      "body": [
+        {
+          "sid": "s11",
+          "kind": "mutex_lock",
+          "resource": "mtx_a"
+        },
+        {
+          "sid": "s12",
+          "kind": "mutex_lock",
+          "resource": "mtx_b"
+        },
+        {
+          "sid": "s13",
+          "kind": "mutex_unlock",
+          "resource": "mtx_b"
+        },
+        {
+          "sid": "s14",
+          "kind": "mutex_unlock",
+          "resource": "mtx_a"
+        },
+        {
+          "sid": "s15",
+          "kind": "return"
+        }
+      ]
+    }
+  },
+  "contract": {
+    "allowed_scope": [
+      "functions",
+      "modules",
+      "allow_lock_reorder",
+      "allow_statement_delete"
+    ],
+    "bounds": [
+      "max_threads",
+      "max_frames_per_thread",
+      "max_states",
+      "max_depth",
+      "max_boundary_events"
+    ],
+    "predicates": {
+      "and": {
+        "required": [
+          "kind",
+          "predicates"
+        ]
+      },
+      "channel_at_least": {
+        "required": [
+          "kind",
+          "resource",
+          "len"
+        ]
+      },
+      "channel_empty": {
+        "required": [
+          "kind",
+          "resource"
+        ]
+      },
+      "false": {
+        "required": [
+          "kind"
+        ]
+      },
+      "function_completed": {
+        "required": [
+          "kind",
+          "function"
+        ]
+      },
+      "mutex_free": {
+        "required": [
+          "kind",
+          "resource"
+        ]
+      },
+      "mutex_held": {
+        "required": [
+          "kind",
+          "resource"
+        ]
+      },
+      "not": {
+        "required": [
+          "kind",
+          "predicate"
+        ]
+      },
+      "or": {
+        "required": [
+          "kind",
+          "predicates"
+        ]
+      },
+      "true": {
+        "required": [
+          "kind"
+        ]
+      },
+      "var_cmp": {
+        "required": [
+          "kind",
+          "resource",
+          "op",
+          "value"
+        ]
+      },
+      "var_eq": {
+        "required": [
+          "kind",
+          "resource",
+          "value"
+        ]
+      }
+    },
+    "preserved": {
+      "always": {
+        "required": [
+          "kind",
+          "description",
+          "invariant"
+        ]
+      },
+      "reachable": {
+        "required": [
+          "kind",
+          "description",
+          "goal"
+        ]
+      }
+    },
+    "properties": {
+      "always_reachable": {
+        "required": [
+          "kind",
+          "id",
+          "goal"
+        ]
+      },
+      "deadlock_free": {
+        "required": [
+          "kind",
+          "id"
+        ]
+      },
+      "reachability": {
+        "required": [
+          "kind",
+          "id",
+          "goal"
+        ]
+      },
+      "safety": {
+        "required": [
+          "kind",
+          "id",
+          "invariant"
+        ]
+      },
+      "unreachable": {
+        "required": [
+          "kind",
+          "id",
+          "bad"
+        ]
+      }
+    }
+  }
+}

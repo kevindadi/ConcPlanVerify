@@ -227,6 +227,24 @@ def _sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def _sha_bytes(data: bytes) -> str:
+    import hashlib
+
+    return hashlib.sha256(data).hexdigest()
+
+
+def _git_rev(binary: Path) -> str:
+    try:
+        repo = binary.resolve().parents[2]
+        out = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"],
+                             capture_output=True, text=True, timeout=10)
+        if out.returncode == 0:
+            return out.stdout.strip()
+    except Exception:  # noqa: BLE001
+        pass
+    return "unknown"
+
+
 def collect_traces(filled_dir: Path | str, *, native_runs: int = 50,
                    miri_seeds: int = 64, timeout_s: float = 10.0,
                    calls_dir: Path | str | None = None,
@@ -308,13 +326,17 @@ def run_conformance_smoke(cases: list[tuple[str, Path | str]], out_dir: Path | s
 
     out = Path(out_dir).expanduser().resolve()
     out.mkdir(parents=True, exist_ok=True)
+    binary_path = _binary(binary)
+    binary_sha = _sha_bytes(binary_path.read_bytes())
+    git_rev = _git_rev(binary_path)
     records = []
     for label, program in cases:
         program = Path(program).resolve()
         case_dir = out / label
         skeleton = case_dir / "skeleton"
         record: dict[str, Any] = {"case": label, "program": str(program),
-                                  "program_sha256": _sha(program.read_text(encoding="utf-8"))}
+                                  "program_sha256": _sha(program.read_text(encoding="utf-8")),
+                                  "binary_sha256": binary_sha, "git_rev": git_rev}
         try:
             codegen(program, skeleton, binary=binary)
             holes = holes_of(skeleton)
@@ -339,7 +361,8 @@ def run_conformance_smoke(cases: list[tuple[str, Path | str]], out_dir: Path | s
             record["status"] = "error"
             record["error"] = f"{type(exc).__name__}: {exc}"
         records.append(record)
-    payload = {"schema_version": "conformance-v1", "cases": records}
+    payload = {"schema_version": "conformance-v1", "binary_sha256": binary_sha,
+               "git_rev": git_rev, "cases": records}
     (out / "CONFORMANCE.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (out / "CONFORMANCE.md").write_text(render_conformance_md(payload), encoding="utf-8")
