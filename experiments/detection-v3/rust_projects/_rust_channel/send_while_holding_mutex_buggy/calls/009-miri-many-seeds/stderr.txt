@@ -1,0 +1,458 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...nnel/send_while_holding_mutex_buggy/probe/target/miri/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+warning: unused imports: `Arc`, `Condvar`, and `Mutex`
+ --> src/main.rs:1:17
+  |
+1 | use std::sync::{Arc, Condvar, Mutex, mpsc};
+  |                 ^^^  ^^^^^^^  ^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+Trying seed: 0
+Trying seed: 63
+Trying seed: 62
+Trying seed: 59
+Trying seed: 58
+Trying seed: 60
+Trying seed: 55
+Trying seed: 56
+Trying seed: 54
+Trying seed: 61
+Trying seed: 53
+Trying seed: 57
+error: the evaluated program deadlocked
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66
+    |
+135 |         let ret = unsafe { libc::pthread_join(id, ptr::null_mut()) };
+    |                                                                  ^ thread got stuck here
+    |
+    = note: this is on thread `main`
+    = note: stack backtrace:
+            0: std::sys::thread::unix::Thread::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66: 135:67
+            1: std::thread::lifecycle::JoinInner::<'_, ()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/lifecycle.rs:220:9: 220:27
+            2: std::thread::JoinHandle::<()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/join_handle.rs:150:9: 150:22
+            3: main
+                at src/main.rs:9:5: 9:13
+
+error: the evaluated program deadlocked
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66
+    |
+135 |         let ret = unsafe { libc::pthread_join(id, ptr::null_mut()) };
+    |                                                                  ^ thread got stuck here
+    |
+    = note: this is on thread `main`
+    = note: stack backtrace:
+            0: std::sys::thread::unix::Thread::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66: 135:67
+            1: std::thread::lifecycle::JoinInner::<'_, ()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/lifecycle.rs:220:9: 220:27
+            2: std::thread::JoinHandle::<()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/join_handle.rs:150:9: 150:22
+            3: main
+                at src/main.rs:9:5: 9:13
+    = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: the evaluated program deadlocked
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66
+    |
+135 |         let ret = unsafe { libc::pthread_join(id, ptr::null_mut()) };
+    |                                                                  ^ thread got stuck here
+    |
+    = note: this is on thread `main`
+    = note: stack backtrace:
+            0: std::sys::thread::unix::Thread::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66: 135:67
+            1: std::thread::lifecycle::JoinInner::<'_, ()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/lifecycle.rs:220:9: 220:27
+            2: std::thread::JoinHandle::<()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/join_handle.rs:150:9: 150:22
+            3: main
+                at src/main.rs:9:5: 9:13
+    = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: the evaluated program deadlocked
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66
+    |
+135 |         let ret = unsafe { libc::pthread_join(id, ptr::null_mut()) };
+    |                                                                  ^ thread got stuck here
+    |
+    = note: this is on thread `main`
+    = note: stack backtrace:
+            0: std::sys::thread::unix::Thread::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66: 135:67
+            1: std::thread::lifecycle::JoinInner::<'_, ()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/lifecycle.rs:220:9: 220:27
+            2: std::thread::JoinHandle::<()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/join_handle.rs:150:9: 150:22
+            3: main
+                at src/main.rs:9:5: 9:13
+    = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: the evaluated program deadlocked
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66
+    |
+135 |         let ret = unsafe { libc::pthread_join(id, ptr::null_mut()) };
+    |                                                                  ^ thread got stuck here
+    |
+    = note: this is on thread `main`
+    = note: stack backtrace:
+            0: std::sys::thread::unix::Thread::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66: 135:67
+            1: std::thread::lifecycle::JoinInner::<'_, ()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/lifecycle.rs:220:9: 220:27
+            2: std::thread::JoinHandle::<()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/join_handle.rs:150:9: 150:22
+            3: main
+                at src/main.rs:9:5: 9:13
+    = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: the evaluated program deadlocked
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66
+    |
+135 |         let ret = unsafe { libc::pthread_join(id, ptr::null_mut()) };
+    |                                                                  ^ thread got stuck here
+    |
+    = note: this is on thread `main`
+    = note: stack backtrace:
+            0: std::sys::thread::unix::Thread::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66: 135:67
+            1: std::thread::lifecycle::JoinInner::<'_, ()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/lifecycle.rs:220:9: 220:27
+            2: std::thread::JoinHandle::<()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/join_handle.rs:150:9: 150:22
+            3: main
+                at src/main.rs:9:5: 9:13
+    = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: the evaluated program deadlocked
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66
+    |
+135 |         let ret = unsafe { libc::pthread_join(id, ptr::null_mut()) };
+    |                                                                  ^ thread got stuck here
+    |
+    = note: this is on thread `main`
+    = note: stack backtrace:
+            0: std::sys::thread::unix::Thread::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66: 135:67
+            1: std::thread::lifecycle::JoinInner::<'_, ()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/lifecycle.rs:220:9: 220:27
+            2: std::thread::JoinHandle::<()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/join_handle.rs:150:9: 150:22
+            3: main
+                at src/main.rs:9:5: 9:13
+    = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: the evaluated program deadlocked
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66
+    |
+135 |         let ret = unsafe { libc::pthread_join(id, ptr::null_mut()) };
+    |                                                                  ^ thread got stuck here
+    |
+    = note: this is on thread `main`
+    = note: stack backtrace:
+            0: std::sys::thread::unix::Thread::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66: 135:67
+            1: std::thread::lifecycle::JoinInner::<'_, ()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/lifecycle.rs:220:9: 220:27
+            2: std::thread::JoinHandle::<()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/join_handle.rs:150:9: 150:22
+            3: main
+                at src/main.rs:9:5: 9:13
+    = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: the evaluated program deadlocked
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66
+    |
+135 |         let ret = unsafe { libc::pthread_join(id, ptr::null_mut()) };
+    |                                                                  ^ thread got stuck here
+    |
+    = note: this is on thread `main`
+    = note: stack backtrace:
+            0: std::sys::thread::unix::Thread::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66: 135:67
+            1: std::thread::lifecycle::JoinInner::<'_, ()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/lifecycle.rs:220:9: 220:27
+            2: std::thread::JoinHandle::<()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/join_handle.rs:150:9: 150:22
+            3: main
+                at src/main.rs:9:5: 9:13
+    = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: the evaluated program deadlocked
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66
+    |
+135 |         let ret = unsafe { libc::pthread_join(id, ptr::null_mut()) };
+    |                                                                  ^ thread got stuck here
+    |
+    = note: this is on thread `main`
+    = note: stack backtrace:
+            0: std::sys::thread::unix::Thread::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66: 135:67
+            1: std::thread::lifecycle::JoinInner::<'_, ()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/lifecycle.rs:220:9: 220:27
+            2: std::thread::JoinHandle::<()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/join_handle.rs:150:9: 150:22
+            3: main
+                at src/main.rs:9:5: 9:13
+    = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: the evaluated program deadlocked
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66
+    |
+135 |         let ret = unsafe { libc::pthread_join(id, ptr::null_mut()) };
+    |                                                                  ^ thread got stuck here
+    |
+    = note: this is on thread `main`
+    = note: stack backtrace:
+            0: std::sys::thread::unix::Thread::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66: 135:67
+            1: std::thread::lifecycle::JoinInner::<'_, ()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/lifecycle.rs:220:9: 220:27
+            2: std::thread::JoinHandle::<()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/join_handle.rs:150:9: 150:22
+            3: main
+                at src/main.rs:9:5: 9:13
+    = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: the evaluated program deadlocked
+  --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73
+   |
+47 |         let r = unsafe { libc::pthread_cond_wait(self.raw(), mutex.raw()) };
+   |                                                                         ^ thread got stuck here
+   |
+   = note: this is on thread `unnamed-1`
+   = note: stack backtrace:
+           0: std::sys::pal::unix::sync::condvar::Condvar::wait
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73: 47:74
+           1: std::sys::sync::thread_parking::pthread::Parker::park
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/thread_parking/pthread.rs:79:13: 79:42
+           2: std::thread::Thread::park
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/thread.rs:121:18: 121:53
+           3: std::sync::mpmc::context::Context::wait_until
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:143:26: 143:50
+           4: std::sync::mpmc::zero::Channel::<i32>::send::{closure#0}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/zero.rs:194:32: 194:55
+           5: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#0}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:49:13: 49:18
+           6: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#1}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:57:31: 57:37
+           7: std::thread::LocalKey::<std::cell::Cell<std::option::Option<std::sync::mpmc::context::Context>>>::try_with::<{closure@std::sync::mpmc::context::Context::with<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#1}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:12: 463:27
+           8: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:52:9: 61:15
+           9: std::sync::mpmc::zero::Channel::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/zero.rs:184:9: 214:11
+           10: std::sync::mpmc::Sender::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/mod.rs:405:41: 405:61
+           11: std::sync::mpsc::SyncSender::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpsc.rs:710:9: 710:27
+           12: main::{closure#0}
+               at src/main.rs:7:33: 7:44
+note: the last function in that backtrace got called indirectly due to this code
+  --> src/main.rs:7:11
+   |
+ 7 |     let s=thread::spawn(move||{ tx1.send(1).unwrap(); let _=tx2; });
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: the evaluated program deadlocked
+  --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73
+   |
+47 |         let r = unsafe { libc::pthread_cond_wait(self.raw(), mutex.raw()) };
+   |                                                                         ^ thread got stuck here
+   |
+   = note: this is on thread `unnamed-1`
+   = note: stack backtrace:
+           0: std::sys::pal::unix::sync::condvar::Condvar::wait
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73: 47:74
+           1: std::sys::sync::thread_parking::pthread::Parker::park
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/thread_parking/pthread.rs:79:13: 79:42
+           2: std::thread::Thread::park
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/thread.rs:121:18: 121:53
+           3: std::sync::mpmc::context::Context::wait_until
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:143:26: 143:50
+           4: std::sync::mpmc::zero::Channel::<i32>::send::{closure#0}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/zero.rs:194:32: 194:55
+           5: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#0}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:49:13: 49:18
+           6: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#1}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:57:31: 57:37
+           7: std::thread::LocalKey::<std::cell::Cell<std::option::Option<std::sync::mpmc::context::Context>>>::try_with::<{closure@std::sync::mpmc::context::Context::with<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#1}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:12: 463:27
+           8: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:52:9: 61:15
+           9: std::sync::mpmc::zero::Channel::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/zero.rs:184:9: 214:11
+           10: std::sync::mpmc::Sender::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/mod.rs:405:41: 405:61
+           11: std::sync::mpsc::SyncSender::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpsc.rs:710:9: 710:27
+           12: main::{closure#0}
+               at src/main.rs:7:33: 7:44
+note: the last function in that backtrace got called indirectly due to this code
+  --> src/main.rs:7:11
+   |
+ 7 |     let s=thread::spawn(move||{ tx1.send(1).unwrap(); let _=tx2; });
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+  |
+  = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: the evaluated program deadlocked
+  --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73
+   |
+47 |         let r = unsafe { libc::pthread_cond_wait(self.raw(), mutex.raw()) };
+   |                                                                         ^ thread got stuck here
+   |
+   = note: this is on thread `unnamed-1`
+   = note: stack backtrace:
+           0: std::sys::pal::unix::sync::condvar::Condvar::wait
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73: 47:74
+           1: std::sys::sync::thread_parking::pthread::Parker::park
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/thread_parking/pthread.rs:79:13: 79:42
+           2: std::thread::Thread::park
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/thread.rs:121:18: 121:53
+           3: std::sync::mpmc::context::Context::wait_until
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:143:26: 143:50
+           4: std::sync::mpmc::zero::Channel::<i32>::send::{closure#0}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/zero.rs:194:32: 194:55
+           5: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#0}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:49:13: 49:18
+           6: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#1}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:57:31: 57:37
+           7: std::thread::LocalKey::<std::cell::Cell<std::option::Option<std::sync::mpmc::context::Context>>>::try_with::<{closure@std::sync::mpmc::context::Context::with<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#1}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:12: 463:27
+           8: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:52:9: 61:15
+           9: std::sync::mpmc::zero::Channel::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/zero.rs:184:9: 214:11
+           10: std::sync::mpmc::Sender::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/mod.rs:405:41: 405:61
+           11: std::sync::mpsc::SyncSender::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpsc.rs:710:9: 710:27
+           12: main::{closure#0}
+               at src/main.rs:7:33: 7:44
+note: the last function in that backtrace got called indirectly due to this code
+  --> src/main.rs:7:11
+   |
+ 7 |     let s=thread::spawn(move||{ tx1.send(1).unwrap(); let _=tx2; });
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+  |
+  = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+FAILING SEED: 61
+error: the evaluated program deadlocked
+  --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73
+   |
+47 |         let r = unsafe { libc::pthread_cond_wait(self.raw(), mutex.raw()) };
+   |                                                                         ^ thread got stuck here
+   |
+   = note: this is on thread `unnamed-1`
+   = note: stack backtrace:
+           0: std::sys::pal::unix::sync::condvar::Condvar::wait
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73: 47:74
+           1: std::sys::sync::thread_parking::pthread::Parker::park
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/thread_parking/pthread.rs:79:13: 79:42
+           2: std::thread::Thread::park
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/thread.rs:121:18: 121:53
+           3: std::sync::mpmc::context::Context::wait_until
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:143:26: 143:50
+           4: std::sync::mpmc::zero::Channel::<i32>::send::{closure#0}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/zero.rs:194:32: 194:55
+           5: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#0}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:49:13: 49:18
+           6: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#1}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:57:31: 57:37
+           7: std::thread::LocalKey::<std::cell::Cell<std::option::Option<std::sync::mpmc::context::Context>>>::try_with::<{closure@std::sync::mpmc::context::Context::with<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#1}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:12: 463:27
+           8: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:52:9: 61:15
+           9: std::sync::mpmc::zero::Channel::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/zero.rs:184:9: 214:11
+           10: std::sync::mpmc::Sender::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/mod.rs:405:41: 405:61
+           11: std::sync::mpsc::SyncSender::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpsc.rs:710:9: 710:27
+           12: main::{closure#0}
+               at src/main.rs:7:33: 7:44
+note: the last function in that backtrace got called indirectly due to this code
+  --> src/main.rs:7:11
+   |
+ 7 |     let s=thread::spawn(move||{ tx1.send(1).unwrap(); let _=tx2; });
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+FAILING SEED: 54
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+  |
+  = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+error: the evaluated program deadlocked
+  --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73
+   |
+47 |         let r = unsafe { libc::pthread_cond_wait(self.raw(), mutex.raw()) };
+   |                                                                         ^ thread got stuck here
+   |
+   = note: this is on thread `unnamed-1`
+   = note: stack backtrace:
+           0: std::sys::pal::unix::sync::condvar::Condvar::wait
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73: 47:74
+           1: std::sys::sync::thread_parking::pthread::Parker::park
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/thread_parking/pthread.rs:79:13: 79:42
+           2: std::thread::Thread::park
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/thread.rs:121:18: 121:53
+           3: std::sync::mpmc::context::Context::wait_until
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:143:26: 143:50
+           4: std::sync::mpmc::zero::Channel::<i32>::send::{closure#0}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/zero.rs:194:32: 194:55
+           5: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#0}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:49:13: 49:18
+           6: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#1}
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:57:31: 57:37
+           7: std::thread::LocalKey::<std::cell::Cell<std::option::Option<std::sync::mpmc::context::Context>>>::try_with::<{closure@std::sync::mpmc::context::Context::with<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>::{closure#1}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rs:463:12: 463:27
+           8: std::sync::mpmc::context::Context::with::<{closure@std::sync::mpmc::zero::Channel<i32>::send::{closure#0}}, std::result::Result<(), std::sync::mpmc::SendTimeoutError<i32>>>
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/context.rs:52:9: 61:15
+           9: std::sync::mpmc::zero::Channel::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/zero.rs:184:9: 214:11
+           10: std::sync::mpmc::Sender::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpmc/mod.rs:405:41: 405:61
+           11: std::sync::mpsc::SyncSender::<i32>::send
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpsc.rs:710:9: 710:27
+           12: main::{closure#0}
+               at src/main.rs:7:33: 7:44
+note: the last function in that backtrace got called indirectly due to this code
+  --> src/main.rs:7:11
+   |
+ 7 |     let s=thread::spawn(move||{ tx1.send(1).unwrap(); let _=tx2; });
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: duplicate diagnostic emitted due to `-Z deduplicate-diagnostics=no`
+
+FAILING SEED: 57
