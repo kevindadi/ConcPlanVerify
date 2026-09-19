@@ -4,9 +4,8 @@ You write one **ConcIR** program as a single JSON object. CIR is the input
 to a separate Rust verifier; you never verify, translate, repair or accept
 anything yourself. Output only the JSON object, no prose or fences.
 
-The statement and resource tables below are generated from the verifier's
-machine schema (`concir-backend schema`); use exactly these kinds and field
-names. `sid` is per-function and must match `^s[0-9]+$`.
+The tables below are generated from the verifier's machine schema
+(`concir-backend schema`). `sid` is per-function and must match `^s[0-9]+$`.
 
 ## Statements
 
@@ -37,11 +36,9 @@ names. `sid` is per-function and must match `^s[0-9]+$`.
 | `switch` | `var`, `cases`, `default` | — |
 | `write_shared` | `resource`, `expr` | — |
 
-Every statement also carries `sid` (a string matching `^s[0-9]+$`).
-
 ## Resources
 
-| type | kind/type fields | required | optional |
+| type | fixed fields | required | optional |
 | --- | --- | --- | --- |
 | `Atomic` | `kind='var'`, `type='Atomic'` | `name`, `kind`, `type`, `base`, `init` | — |
 | `Channel` | `kind='sync'`, `mode='Sync'`, `type='Channel'` | `name`, `kind`, `type`, `mode`, `base`, `capacity` | — |
@@ -50,8 +47,15 @@ Every statement also carries `sid` (a string matching `^s[0-9]+$`).
 | `Semaphore` | `kind='sync'`, `mode='Sync'`, `type='Semaphore'` | `name`, `kind`, `type`, `mode` | `count` |
 | `Var` | `kind='var'`, `type='Var'` | `name`, `kind`, `type`, `base`, `init` | — |
 
-`expr`, `cond`, `value`, `expected`, `desired` are **JSON strings** holding a
-source expression, never objects. Resource references use FQNs (`module::name`).
+## Contract (you never write it; this is what it can observe)
+
+Properties: `always_reachable`, `deadlock_free`, `reachability`, `safety`, `unreachable`.
+Preserved behaviors: `always`, `reachable`.
+Predicates: `and`, `channel_at_least`, `channel_empty`, `false`, `function_completed`, `holds_all`, `mutex_exclusive`, `mutex_free`, `mutex_held`, `never_holds_all`, `not`, `or`, `true`, `var_cmp`, `var_eq`.
+
+`holds_all`/`never_holds_all` take a `function` and a `resources` list;
+`mutex_exclusive` takes a `resource`. Semaphore resources count as held
+while permits are below the declared count.
 
 ## Three minimal fragments
 
@@ -61,7 +65,7 @@ A variable resource (note `base` and `init` are required):
 {"name": "ready", "kind": "var", "type": "Var", "base": "Bool", "init": false}
 ```
 
-A write and a predicate-guarded wait loop (control targets are `sid`s):
+A write and a predicate-guarded wait loop:
 
 ```json
 {"sid": "s1", "kind": "write_shared", "resource": "main::ready", "expr": "true"}
@@ -79,18 +83,13 @@ A scope that starts two tasks and waits:
 ## Top-level, module, function
 
 ```json
-{ "program": "short_name", "version": "3.5.0", "entry": "main::main",
-  "modules": [ { "name": "main",
-    "provides": { "resources": ["m", "ready"], "functions": ["main", "t1"] },
-    "requires": { "resources": [], "functions": [] },
-    "resources": [ /* resource objects */ ],
-    "protection": [ { "var": "ready", "lock": "m" } ],
-    "functions": [ /* function objects */ ] } ] }
+{ "program": "short_name", "version": "3.5.0", "entry": "main::main", "modules": [
+  { "name": "main", "provides": {"resources": ["m"], "functions": ["main","t1"]},
+    "requires": {"resources": [], "functions": []}, "resources": [ ... ],
+    "protection": [ {"var": "ready", "lock": "m"} ], "functions": [ ... ] } ] }
 ```
 
-A function is `{"name": "t1", "kind": "normal", "form": "closure",
-"body": [ ...statements... ]}`. A condition variable is paired with the
-mutex passed as `lock`; a `mutex_lock` must be matched by a `mutex_unlock` on
-every path. Do not emit unsupported kinds (`rwlock_*`, `select`, `async_call`,
-`await`, `abstract_step`, `seq_hole`).
-
+A function is `{"name":"t1","kind":"normal","form":"closure","body":[...]}`.
+`expr`/`cond`/`value`/`expected`/`desired` are **JSON strings**, never objects.
+Do not emit unsupported kinds (`rwlock_*`, `select`, `async_call`, `await`,
+`abstract_step`, `seq_hole`).

@@ -1076,7 +1076,84 @@ def run_explore(program_path: Path, contract_path: Path, engine: str) -> dict:
     return payload
 
 
+def _holds(fn: str, *resources: str, prefix: str = "main") -> dict:
+    return {"kind": "reachable",
+            "description": f"{fn} holds [{', '.join(resources)}] at once",
+            "goal": {"kind": "holds_all", "function": fn,
+                     "resources": [r if "::" in r else f"{prefix}::{r}" for r in resources]}}
+
+
+def _var_eq(resource: str, value) -> dict:
+    return {"kind": "reachable", "description": f"{resource} == {value}",
+            "goal": {"kind": "var_eq", "resource": resource, "value": value}}
+
+
+# Design intent that a patch must preserve (F-1). Keyed "family/case".
+DESIGN_INTENT: dict[str, tuple[list[dict], str]] = {
+    "lock-order/abba_2lock": ([_holds("main::t1", "main::a", "main::b"),
+                               _holds("main::t2", "main::a", "main::b")],
+                              "Each worker must hold both mutexes at once; a fix that "
+                              "removes the nested critical section is not a repair."),
+    "lock-order/cycle_3lock": ([_holds("main::t1", "main::a", "main::b"),
+                                _holds("main::t2", "main::b", "main::c"),
+                                _holds("main::t3", "main::c", "main::a")],
+                               "Every worker must hold its pair of mutexes at once."),
+    "lock-order/cross_module_cycle": ([_holds("main::t1", "main::a", "other::b"),
+                                       _holds("other::t2", "main::a", "other::b")],
+                                      "Both cross-module tasks must hold both resources "
+                                      "at once."),
+    "lock-order/partial_deadlock_bystander": ([_holds("main::a", "main::a", "main::b"),
+                                               _holds("main::b", "main::a", "main::b")],
+                                              "Each worker must still enter a critical "
+                                              "section holding both mutexes."),
+    "lock-order/two_independent_cycles": ([_holds("main::t1", "a", "b"),
+                                           _holds("main::t2", "a", "b"),
+                                           _holds("main::t3", "c", "d"),
+                                           _holds("main::t4", "c", "d")],
+                                          "Each worker must hold its pair at once."),
+    "structure/scope_worker_abba": ([_holds("main::w1", "a", "b"),
+                                     _holds("main::w2", "a", "b")],
+                                    "Each worker must hold both mutexes at once."),
+    "structure/nested_scope_lock_order": ([_holds("main::x1", "a", "b"),
+                                           _holds("main::x2", "a", "b")],
+                                          "The inner tasks must hold both mutexes at "
+                                          "once."),
+    "semaphore/permit_leak": ([_holds("main::w1", "main::s")],
+                              "A worker must hold the permit while it works."),
+    "semaphore/acquire_twice_no_release": ([_holds("main::w1", "main::s")],
+                                           "A worker must hold the permit while it "
+                                           "works."),
+    "condvar/lost_wakeup_notify_before_wait": ([_var_eq("main::ready", True)],
+                                               "The design requires the ready flag to "
+                                               "become true."),
+    "condvar/bare_wait_no_predicate": ([_var_eq("main::ready", True)],
+                                       "The design requires the ready flag to become "
+                                       "true."),
+    "condvar/notify_one_multi_waiter_wrong_pick": ([_holds("main::w1", "main::m")],
+                                                   "A waiter must hold the mutex while "
+                                                   "it waits."),
+    "atomic-data/atomic_lost_update": ([_var_eq("main::c", 2)],
+                                       "Both increments must be observable in the "
+                                       "counter's reachable values."),
+    "channel/rendezvous_both_send": ([
+        {"kind": "reachable", "description": "the channel is drained",
+         "goal": {"kind": "channel_empty", "resource": "main::ch"}}],
+        "The message must be delivered, leaving the channel drained."),
+}
+
+
+def _apply_design_intent(family: str, case: str, data: dict) -> None:
+    key = f"{family}/{case}"
+    entry = DESIGN_INTENT.get(key)
+    if not entry or data.get("buggy") is None:
+        return
+    predicates, why = entry
+    data["contract"].setdefault("preserved", []).extend(predicates)
+    data["spec"] = data["spec"].rstrip() + " " + why
+
+
 def write_case(family: str, case: str, data: dict) -> dict:
+    _apply_design_intent(family, case, data)
     task = OUT / family / case
     task.mkdir(parents=True, exist_ok=True)
     # remove stale variants so an old buggy/fixed/correct file can never linger

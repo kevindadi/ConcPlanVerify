@@ -1,5 +1,5 @@
 {
-  "name": "cycle-3lock",
+  "name": "strengthened",
   "properties": [
     {
       "kind": "deadlock_free",
@@ -9,34 +9,34 @@
   "preserved": [
     {
       "kind": "reachable",
-      "description": "main::t1 completes",
+      "description": "main::a completes",
       "goal": {
         "kind": "function_completed",
-        "function": "main::t1"
+        "function": "main::a"
       }
     },
     {
       "kind": "reachable",
-      "description": "main::t2 completes",
+      "description": "main::b completes",
       "goal": {
         "kind": "function_completed",
-        "function": "main::t2"
+        "function": "main::b"
       }
     },
     {
       "kind": "reachable",
-      "description": "main::t3 completes",
+      "description": "main::c completes",
       "goal": {
         "kind": "function_completed",
-        "function": "main::t3"
+        "function": "main::c"
       }
     },
     {
       "kind": "reachable",
-      "description": "main::t1 holds [main::a, main::b] at once",
+      "description": "main::a holds ['main::a', 'main::b']",
       "goal": {
         "kind": "holds_all",
-        "function": "main::t1",
+        "function": "main::a",
         "resources": [
           "main::a",
           "main::b"
@@ -45,33 +45,29 @@
     },
     {
       "kind": "reachable",
-      "description": "main::t2 holds [main::b, main::c] at once",
+      "description": "main::b holds ['main::b', 'main::a']",
       "goal": {
         "kind": "holds_all",
-        "function": "main::t2",
+        "function": "main::b",
         "resources": [
           "main::b",
-          "main::c"
+          "main::a"
         ]
       }
     },
     {
       "kind": "reachable",
-      "description": "main::t3 holds [main::c, main::a] at once",
+      "description": "main::c holds ['main::a', 'main::b']",
       "goal": {
         "kind": "holds_all",
-        "function": "main::t3",
+        "function": "main::c",
         "resources": [
-          "main::c",
-          "main::a"
+          "main::a",
+          "main::b"
         ]
       }
     }
   ],
-  "assumptions": {
-    "sequential_consistency": true,
-    "no_spurious_wakeups": true
-  },
   "bounds": {
     "max_threads": 8,
     "max_frames_per_thread": 8,
