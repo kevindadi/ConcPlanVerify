@@ -643,3 +643,39 @@ def run_live_repair_pilot(
     (batch_dir / "summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return summary
+
+
+class RecordingLocalProvider:
+    """A3_local provider: current program + diagnostics in, function-map out."""
+
+    name = "llm"
+
+    def __init__(self, client: "DeepSeekFlashClient", base_program: str) -> None:
+        self.client = client
+        self.base_program = base_program
+        self.calls: list[dict[str, Any]] = []
+
+    def propose(self, request):
+        from .prompts import local_revision_system_prompt
+        from .providers import CandidateResponse
+
+        system = local_revision_system_prompt()
+        program = request.current_program or self.base_program
+        user = (f"Current program:\n```json\n{program}\n```\n\n"
+                f"Verifier diagnostics:\n{request.feedback}\n\n"
+                "Return only the JSON object {\"functions\": {...}, "
+                "\"new_resources\": [...], \"removed_resources\": [...]}.")
+        outcome = self.client.complete(system, user)
+        self.calls.append({
+            "attempt": request.attempt, "request_id": outcome.request_id,
+            "response_model": outcome.response_model,
+            "finish_reason": outcome.finish_reason, "usage": outcome.usage,
+            "transport_attempt": outcome.transport_attempt,
+            "prompt_sha256": outcome.prompt_sha256, "wall_ms": outcome.wall_ms,
+            "had_feedback": request.feedback is not None,
+        })
+        response = CandidateResponse(
+            text=outcome.text, source="llm", provider=ALLOWED_PROVIDER,
+            model_id=outcome.response_model or ALLOWED_MODEL, usage=outcome.usage)
+        response.wall_ms = outcome.wall_ms
+        return response

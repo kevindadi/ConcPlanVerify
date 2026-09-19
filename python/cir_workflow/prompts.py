@@ -17,9 +17,11 @@ PROMPT_ASSET_DIR = Path(__file__).resolve().parents[2] / "prompts"
 GENERATION_ASSET = "concir_generation_v1.md"
 FEEDBACK_ASSET = "concir_feedback_v1.md"
 PATCH_ASSET = "concir_patch_v1.md"
+LOCAL_REVISION_ASSET = "concir_local_revision_v1.md"
 GENERATION_PROMPT_VERSION = "concir-generation-v1"
 FEEDBACK_PROMPT_VERSION = "concir-feedback-v1"
 PATCH_PROMPT_VERSION = "concir-patch-v1"
+LOCAL_REVISION_PROMPT_VERSION = "concir-local-revision-v1"
 
 
 def _read(name: str) -> str:
@@ -28,10 +30,14 @@ def _read(name: str) -> str:
 
 def prompt_asset_record() -> dict[str, str]:
     out = {}
-    for name in (GENERATION_ASSET, FEEDBACK_ASSET, PATCH_ASSET):
+    for name in (GENERATION_ASSET, FEEDBACK_ASSET, PATCH_ASSET, LOCAL_REVISION_ASSET):
         data = (PROMPT_ASSET_DIR / name).read_bytes()
         out[name] = hashlib.sha256(data).hexdigest()
     return out
+
+
+def local_revision_system_prompt() -> str:
+    return _read("concir_local_revision_v1.md")
 
 
 def generation_system_prompt() -> str:

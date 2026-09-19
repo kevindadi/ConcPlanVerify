@@ -127,6 +127,7 @@ class WholeArtifactRevisionWorkflow:
         diagnostics: bool = True,
         check_fidelity: bool = True,
         fidelity_name: str | None = None,
+        reply_format: str = "whole",
     ) -> None:
         self.client = client
         self.provider = provider
@@ -136,6 +137,7 @@ class WholeArtifactRevisionWorkflow:
         self.diagnostics = diagnostics
         self.check_fidelity = check_fidelity
         self.fidelity_name = fidelity_name
+        self.reply_format = reply_format
 
     def run(self, requirements: str, contract: dict[str, Any], *,
             task_id: str = "task", initial_program: Path | str | None = None) -> RevisionResult:
@@ -183,6 +185,8 @@ class WholeArtifactRevisionWorkflow:
                     requirements=requirements, contract=contract,
                     feedback=render_feedback(feedback_dict) if feedback_dict else None,
                     attempt=version, previous_candidate=previous_text,
+                    current_program=(json.dumps(last_normalized, ensure_ascii=False)
+                                     if last_normalized is not None else None),
                 )
                 response = self.provider.propose(request)
                 result.candidate_source = response.source
@@ -207,20 +211,43 @@ class WholeArtifactRevisionWorkflow:
                 record.raw_text = response.text
                 previous_text = response.text
                 extracted = extract_json(response.text)
-                try:
-                    parsed = json.loads(extracted)
-                except json.JSONDecodeError as exc:
-                    record.parse_error = f"invalid JSON: {exc}"
-                    record.decision = "parse_error"
-                    feedback_dict = {"stage": "parse", "error": f"invalid JSON: {exc}"}
-                    record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
-                    continue
-                if not isinstance(parsed, dict):
-                    record.parse_error = "candidate is not a JSON object"
-                    record.decision = "parse_error"
-                    feedback_dict = {"stage": "parse", "error": "candidate is not a JSON object"}
-                    record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
-                    continue
+                if self.reply_format == "local":
+                    reply = _parse_local_reply(extracted)
+                    if reply is None:
+                        record.parse_error = "not a {functions,...} object"
+                        record.decision = "parse_error"
+                        feedback_dict = {"stage": "parse",
+                                         "error": "reply must be a JSON object with "
+                                                  "'functions' and 'new_resources'"}
+                        record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
+                        continue
+                    if last_normalized is None:
+                        result.status = "tool_error"
+                        result.error = "local revision requires an initial program"
+                        _write_result(run_dir, result)
+                        return result
+                    merged, merge_errors = _merge_local(last_normalized, reply)
+                    if merge_errors:
+                        record.decision = "merge_error"
+                        feedback_dict = {"stage": "merge", "errors": merge_errors}
+                        record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
+                        continue
+                    parsed = merged
+                else:
+                    try:
+                        parsed = json.loads(extracted)
+                    except json.JSONDecodeError as exc:
+                        record.parse_error = f"invalid JSON: {exc}"
+                        record.decision = "parse_error"
+                        feedback_dict = {"stage": "parse", "error": f"invalid JSON: {exc}"}
+                        record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
+                        continue
+                    if not isinstance(parsed, dict):
+                        record.parse_error = "candidate is not a JSON object"
+                        record.decision = "parse_error"
+                        feedback_dict = {"stage": "parse", "error": "candidate is not a JSON object"}
+                        record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
+                        continue
                 # Local-patch reply: {function, body:[...]} merged into the last
                 # accepted program instead of a whole-program replacement.
                 if (local_patch_function and "modules" not in parsed
@@ -309,7 +336,7 @@ class WholeArtifactRevisionWorkflow:
                 record.decision = "check_invalid"
                 record.local_patch_function = _first_function(check)
                 local_patch_function = record.local_patch_function
-                feedback_dict = (build_schema_feedback(check, record.normalizations)
+                feedback_dict = (build_schema_feedback(check, record.normalizations, parsed)
                                  if self.diagnostics
                                  else {"stage": "check", "outcome": "INVALID"})
                 record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
@@ -418,6 +445,89 @@ def _payload_hash(stage: str, status: str | None, payload: Any) -> str:
         sort_keys=True, default=str))
 
 
+def _parse_local_reply(text: str) -> dict[str, Any] | None:
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict) or "functions" not in data:
+        return None
+    if not isinstance(data["functions"], dict):
+        return None
+    return data
+
+
+def _norm_ref(module: str, ref: str) -> str:
+    return ref if "::" in ref else f"{module}::{ref}"
+
+
+def _merge_local(base: dict[str, Any], reply: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Merge a local revision into the previous program; return (program, errors)."""
+
+    import copy
+
+    out = copy.deepcopy(base)
+    errors: list[str] = []
+    known_fns = {f"{m['name']}::{f['name']}" for m in out.get("modules", [])
+                 for f in m.get("functions", [])}
+    new_fns: list[str] = []
+    for fqn, body in (reply.get("functions") or {}).items():
+        if "::" not in fqn or not isinstance(body, list):
+            errors.append(f"function {fqn!r} must be module::function with a body list")
+            continue
+        module_name, fn_name = fqn.split("::", 1)
+        module = next((m for m in out.get("modules", []) if m.get("name") == module_name),
+                      None)
+        if module is None:
+            module = {"name": module_name,
+                      "provides": {"resources": [], "functions": []},
+                      "requires": {"resources": [], "functions": []},
+                      "resources": [], "protection": [], "functions": []}
+            out.setdefault("modules", []).append(module)
+        fn = next((f for f in module.setdefault("functions", []) if f.get("name") == fn_name),
+                  None)
+        if fn is None:
+            fn = {"name": fn_name, "kind": "normal", "form": "closure", "body": []}
+            module["functions"].append(fn)
+            module.setdefault("provides", {}).setdefault("functions", []).append(fn_name)
+            new_fns.append(fqn)
+        fn["body"] = body
+    # new resources go to the entry module
+    entry_mod = str(out.get("entry", "main::main")).split("::")[0]
+    module = next((m for m in out.get("modules", []) if m.get("name") == entry_mod),
+                  out.get("modules", [{}])[0])
+    for res in reply.get("new_resources") or []:
+        name = res.get("name") if isinstance(res, dict) else None
+        if not name:
+            errors.append("new resource entry without a name")
+            continue
+        if any(r.get("name") == name for r in module.get("resources", [])):
+            continue
+        module.setdefault("resources", []).append(res)
+        module.setdefault("provides", {}).setdefault("resources", []).append(name)
+    for fqn in reply.get("removed_resources") or []:
+        if not isinstance(fqn, str) or "::" not in fqn:
+            continue
+        mod_name, res_name = fqn.split("::", 1)
+        m = next((x for x in out.get("modules", []) if x.get("name") == mod_name), None)
+        if m:
+            m["resources"] = [r for r in m.get("resources", []) if r.get("name") != res_name]
+    # every newly added function must be reachable
+    referenced: set[str] = set()
+    for m in out.get("modules", []):
+        for f in m.get("functions", []):
+            for stmt in f.get("body", []) or []:
+                for ref in stmt.get("funcs", []) or []:
+                    referenced.add(_norm_ref(m["name"], str(ref)))
+                if stmt.get("kind") in ("spawn", "call", "async_call") and stmt.get("func"):
+                    referenced.add(_norm_ref(m["name"], str(stmt["func"])))
+    entry = str(out.get("entry"))
+    for fqn in new_fns:
+        if fqn not in referenced and fqn != entry:
+            errors.append(f"new function {fqn} is not reachable from any scope/spawn/call")
+    return out, errors
+
+
 SHAPE_HINTS = {
     "E001": "a Var/Atomic resource requires both `base` (e.g. \"Bool\"/\"Int\") and "
             "`init`; a Channel requires `base` and `capacity`",
@@ -427,7 +537,29 @@ SHAPE_HINTS = {
             "type, not a Bool",
     "E510": "mutex_unlock requires holding that mutex",
     "E511": "condvar_wait requires holding the paired `lock`",
+    "E208": "a resource's `init` must match its declared `base` type: `base: \"Int\"` "
+            "needs an integer init, `base: \"Bool\"` a boolean; example "
+            "{\"name\":\"done\",\"kind\":\"var\",\"type\":\"Var\",\"base\":\"Int\",\"init\":0}",
+    "E931": "every name used in an expression must be a declared param/local of the "
+            "function or a shared resource; declare new locals in the function's "
+            "`locals` list",
 }
+
+
+def _function_symbols(program: dict[str, Any] | None, location: str) -> dict[str, Any]:
+    """Params/locals declared for the function named in a diagnostic location."""
+
+    if not program or "::" not in location:
+        return {}
+    fqn = location.split(".")[0]
+    for module in program.get("modules", []) or []:
+        for fn in module.get("functions", []) or []:
+            full = f"{module.get('name')}::{fn.get('name')}"
+            if full == fqn:
+                params = [p.get("name") for p in fn.get("params", []) or []]
+                locals_ = [l.get("name") for l in fn.get("locals", []) or []]
+                return {"function": full, "params": params, "locals": locals_}
+    return {}
 
 
 def _first_function(check) -> str | None:
@@ -438,18 +570,31 @@ def _first_function(check) -> str | None:
     return None
 
 
-def build_schema_feedback(check, normalizations: list[dict[str, Any]]) -> dict[str, Any]:
+def build_schema_feedback(check, normalizations: list[dict[str, Any]],
+                          program: dict[str, Any] | None = None) -> dict[str, Any]:
     """Schema feedback with JSON pointers and shapes, never file paths/lines."""
 
     payload = check.payload or {}
     diagnostics = []
     hints: list[str] = []
     for diag in payload.get("diagnostics", []) or []:
-        diagnostics.append({k: diag.get(k) for k in ("code", "message", "path")
-                            if diag.get(k) is not None})
-        hint = SHAPE_HINTS.get(str(diag.get("code")))
-        if hint and hint not in hints:
-            hints.append(hint)
+        code = str(diag.get("code"))
+        entry = {k: diag.get(k) for k in ("code", "message", "path", "location")
+                 if diag.get(k) is not None}
+        if code == "E931":
+            symbols = _function_symbols(program, str(diag.get("location") or ""))
+            if symbols:
+                entry["declared_symbols"] = symbols
+                source = (f" (declared in {symbols['function']}: params "
+                          f"{symbols['params']}, locals {symbols['locals']})")
+            else:
+                source = ""
+        else:
+            source = ""
+        diagnostics.append(entry)
+        hint = SHAPE_HINTS.get(code)
+        if hint and hint + source not in hints:
+            hints.append(hint + source)
     return {
         "stage": "check",
         "status": "INVALID",

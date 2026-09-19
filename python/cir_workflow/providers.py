@@ -22,6 +22,7 @@ class CandidateRequest:
     feedback: str | None
     attempt: int
     previous_candidate: str | None = None
+    current_program: str | None = None
 
 
 @dataclass

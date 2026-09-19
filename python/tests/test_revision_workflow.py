@@ -10,7 +10,9 @@ from pathlib import Path
 
 from cir_workflow.concir_client import ConcirClient
 from cir_workflow.providers import ScriptedProvider
-from cir_workflow.revision_workflow import WholeArtifactRevisionWorkflow
+from cir_workflow.revision_workflow import (
+    WholeArtifactRevisionWorkflow, _merge_local,
+)
 from tests._helpers import REPO, broken_program, real_binary
 
 FROZEN = REPO / "experiments/deepseek-flash-repair-v1/frozen-inputs"
@@ -122,6 +124,46 @@ class RevisionWorkflowOfflineTests(unittest.TestCase):
         feedback = provider.calls[1].feedback or ""
         self.assertIn("expected_shapes", feedback)
         self.assertNotIn("revision-1", feedback)
+
+    def test_local_merge_keeps_unmentioned_functions(self):
+        base = json.loads(T2_MODEL.read_text(encoding="utf-8"))
+        original_t1 = next(f for f in base["modules"][0]["functions"] if f["name"] == "t1")
+        new_body = [{"sid": "s1", "kind": "return"}]
+        merged, errors = _merge_local(base, {"functions": {"main::t1": new_body}})
+        self.assertEqual(errors, [])
+        t1 = next(f for f in merged["modules"][0]["functions"] if f["name"] == "t1")
+        t2 = next(f for f in merged["modules"][0]["functions"] if f["name"] == "t2")
+        self.assertEqual(t1["body"], new_body)
+        self.assertEqual(t2["body"],
+                         next(f for f in base["modules"][0]["functions"]
+                              if f["name"] == "t2")["body"])
+        self.assertEqual(original_t1["body"][0]["kind"], "mutex_lock")
+
+    def test_local_merge_rejects_unreachable_new_function(self):
+        base = json.loads(T2_MODEL.read_text(encoding="utf-8"))
+        merged, errors = _merge_local(base, {
+            "functions": {"main::ghost": [{"sid": "s1", "kind": "return"}]}})
+        self.assertTrue(any("not reachable" in e for e in errors))
+
+    def test_local_mode_undeclared_resource_is_feedback_not_crash(self):
+        base = json.loads(T2_MODEL.read_text(encoding="utf-8"))
+        bad_body = [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::a"},
+            {"sid": "s2", "kind": "write_shared", "resource": "main::ghost", "expr": "1"},
+            {"sid": "s3", "kind": "mutex_unlock", "resource": "main::a"},
+            {"sid": "s4", "kind": "return"},
+        ]
+        provider = ScriptedProvider([{"text": json.dumps(
+            {"functions": {"main::t2": bad_body}})}])
+        client = ConcirClient(self.binary, workdir=self.root / "local", timeout=30.0)
+        workflow = WholeArtifactRevisionWorkflow(
+            client, provider, out_dir=self.root / "local-out", max_rounds=2,
+            reply_format="local")
+        result = workflow.run("two tasks take two locks", self.contract,
+                              task_id="P1", initial_program=T2_MODEL)
+        self.assertEqual(result.status, "exhausted")
+        self.assertEqual(result.versions[0].decision, "explore_fail")
+        self.assertEqual(result.versions[1].decision, "check_invalid")
 
     def test_k_rounds_exhausted(self):
         broken = json.dumps(broken_program())

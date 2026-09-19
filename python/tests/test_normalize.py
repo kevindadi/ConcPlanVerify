@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 from cir_workflow.concir_client import ConcirClient
-from cir_workflow.normalize import normalize
+from cir_workflow.normalize import SID_RE, normalize
 from tests._helpers import REPO, real_binary
 
 
@@ -58,13 +58,28 @@ class NormalizeUnitTests(unittest.TestCase):
         self.assertEqual(var["base"], "Bool")
         self.assertTrue(any(r["rule"] == "infer_base" for r in records))
 
-    def test_bad_sid_not_rewritten_only_reported(self):
+    def test_bad_sid_is_renamed_and_recorded(self):
         program = _bare_wait()
         stmt = program["modules"][0]["functions"][-1]["body"][0]
         stmt["sid"] = "b6"
-        out, _, issues = normalize(program)
-        self.assertEqual(out["modules"][0]["functions"][-1]["body"][0]["sid"], "b6")
-        self.assertTrue(any(i["sid"] == "b6" for i in issues))
+        out, records, issues = normalize(program)
+        self.assertNotEqual(out["modules"][0]["functions"][-1]["body"][0]["sid"], "b6")
+        self.assertEqual(issues, [])
+        self.assertTrue(any(r["rule"] == "sid_rename" and r.get("from") == "b6"
+                            for r in records))
+
+    def test_missing_sid_filled_and_goto_rewritten(self):
+        program = _bare_wait()
+        fn = program["modules"][0]["functions"][-1]
+        fn["body"] = [
+            {"sid": "b6", "kind": "goto", "target": "b6"},
+            {"kind": "return"},
+        ]
+        out, records, issues = normalize(program)
+        body = out["modules"][0]["functions"][-1]["body"]
+        self.assertTrue(all(SID_RE.match(s["sid"]) for s in body))
+        self.assertIn(body[0]["target"], [s["sid"] for s in body])
+        self.assertEqual(issues, [])
 
 
 SMOKE_D = (REPO / "experiments/flash-repair-smoke-v1/run-20260918T161254-8755-bf0e2a/"

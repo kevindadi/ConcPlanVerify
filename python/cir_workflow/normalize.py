@@ -112,11 +112,43 @@ def normalize(program: dict) -> tuple[dict, list[dict], list[dict]]:
                     records.append({"rule": "protection_alias", "scope": "protection",
                                     "from": wrong, "to": right})
         for function in module.get("functions", []) or []:
-            for stmt in function.get("body", []) or []:
+            body = function.get("body", []) or []
+            # Deterministic sid repair: fill missing / rename malformed sids and
+            # rewrite goto/branch/switch targets accordingly.
+            sid_map: dict[str, str] = {}
+            used = {str(s.get("sid")) for s in body if SID_RE.match(str(s.get("sid", "")))}
+            n = 1
+            for stmt in body:
+                sid = stmt.get("sid")
+                if sid is None or not SID_RE.match(str(sid)):
+                    while f"s{n}" in used:
+                        n += 1
+                    new = f"s{n}"
+                    used.add(new)
+                    n += 1
+                    if sid is not None:
+                        sid_map[str(sid)] = new
+                    stmt["sid"] = new
+                    records.append({"rule": "sid_rename", "function": function.get("name"),
+                                    "from": sid, "to": new})
+            if sid_map:
+                for stmt in body:
+                    target = stmt.get("target")
+                    if isinstance(target, str) and target in sid_map:
+                        stmt["target"] = sid_map[target]
+                    if stmt.get("kind") == "branch":
+                        for key in ("then", "else"):
+                            if isinstance(stmt.get(key), str) and stmt[key] in sid_map:
+                                stmt[key] = sid_map[stmt[key]]
+                    if stmt.get("kind") == "switch":
+                        cases = stmt.get("cases") or {}
+                        for k, v in list(cases.items()):
+                            if isinstance(v, str) and v in sid_map:
+                                cases[k] = sid_map[v]
+                        if isinstance(stmt.get("default"), str) and stmt["default"] in sid_map:
+                            stmt["default"] = sid_map[stmt["default"]]
+            for stmt in body:
                 sid = str(stmt.get("sid", ""))
-                if not SID_RE.match(sid):
-                    sid_issues.append({"function": function.get("name"),
-                                       "sid": stmt.get("sid")})
                 kind = str(stmt.get("kind", ""))
                 for wrong, right in list(FIELD_ALIASES.items()):
                     (alias_kind, bad) = wrong
