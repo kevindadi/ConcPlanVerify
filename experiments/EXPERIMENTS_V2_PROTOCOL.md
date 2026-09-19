@@ -296,3 +296,20 @@ Registered deviations (must be repeated in the handoff):
 - Single model (Flash) and small sample size; this is a feasibility + first-data
   study, not an effect-size study.
 - `to_author` tasks are reported and excluded rather than faked.
+
+## Revision 2026-09-18f — correctness, diagnostics, oracle
+
+- **D-10 (`thread_leak`).** Miri's "main thread terminated without waiting for all
+  remaining threads" is classified `thread_leak`, distinct from
+  `deadlock`/`data_race`/`timeout`/`tool_error`; it is not green for A2.
+- **D-11 (arm-oracle Miri).** The Rust arm/oracle runs Miri per seed 0..15 (8 s
+  each); a timeout is `timeout` with `hang_suspect=true`.
+- **D-12 (implicit return).** Falling off a function body is an implicit `return`
+  in both engines; the validator warns `E114 FallOffEnd`. `worker_with_payload`
+  is a normal benchmark again.
+- **Behaviour oracle.** Rather than an injected `rust/tests/behavior.rs`, the
+  behaviour column is a 10 s watchdog run of the built candidate: timeout `hang`,
+  exit 0 `terminated`, other `crash`. This is documented as a deviation.
+- **Channel.** codegen maps channels to `cir_trace::Channel`; its rendezvous
+  completion order is reported as a violation where it diverges from the model,
+  without loosening `conform`.

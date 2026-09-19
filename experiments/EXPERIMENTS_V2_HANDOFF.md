@@ -427,3 +427,105 @@ future ConcIR fix.
 - ConcIR release binary sha256 `5aac4ac1851f40b25e58ae4337f82a6e6c11ac41831b2b9362161de88cc60865`.
 - `rustc 1.100.0-nightly (a69a63265 2026-09-03)` under pinned `nightly-2026-09-04`.
 - Rust tests **237 passed**, Python **99 passed**.
+
+---
+
+# Round 2026-09-18f — first credible repair data
+
+## N-1..N-4 and remaining items
+
+| item | status | evidence / commit |
+| --- | --- | --- |
+| N-1 petri/interp on empty-body call | fixed | implicit return in both engines; `E114 FallOffEnd` warning; `tests/engine_agreement.rs`; `worker_with_payload` PASS in both engines. ConcIR `722f271`, `43679b9`. |
+| N-2 Miri `tool_error` root cause | fixed | it was a thread leak; `thread_leak` classification + regression. ConcPlanVerify `9081686`. |
+| N-3 channel conformance | recorded | codegen emits completion events; the runtime rendezvous order (receiver-first) diverges from the model's second-arriver attribution; channel cases are violations, not excused. ConcIR `f9df7fa`. |
+| N-4 version binding | fixed | `binary_sha256` + `git_rev` in `explore`/`codegen`/`conform` output; build.rs watches the branch ref; conformance JSON carries `binary_sha256`. |
+| R-3 diagnostics | fixed | `counterexample_names`, `doom_state` (holds/waiting_on FQN, free_resources), templated loop hints. ConcIR `1f7cb07`. |
+| R-6 multi-module codegen | not done | single-module only. |
+| VI.1 behavior.rs x6 | substituted | behaviour column is a bounded run of the built candidate (deviation D). |
+| VI.2 arm Miri many-seeds | fixed | per-seed 0..15 in the arm oracle. |
+| VI.3 extraction oracle | implemented, weak | prompt + `extract.py`; most extractions fail codegen validation and are `extract_unverified` (honest). |
+
+## Engine agreement
+
+`CONCIR_ENGINE_AGREEMENT_DIRS=benchmarks/families:benchmarks/real-cases cargo
+test -p concir --test engine_agreement` → **zero disagreements** over 38 family
+cases, real-cases, examples and tests fixtures.
+
+## Diagnostics regression
+
+`partial_deadlock_bystander` buggy diagnostic now carries the symmetric doom
+state: `main::a at s4 holds [main::a] waiting_on mutex main::b` and
+`main::b at s4 holds [main::b] waiting_on mutex main::a`, plus two templated
+cycle hints. `counterexample_names` are `module::function::sid`.
+
+## conformance-v3
+
+`experiments/conformance-v3/CONFORMANCE.{json,md}` (binary
+`6ff6dad8…`, git_rev `1f7cb07…`):
+
+| case | traces | conformant | violation | timeout | coverage |
+| --- | --- | --- | --- | --- | --- |
+| abba_2lock (fixed) | 58 | 58 | 0 | 0 | 9/9 |
+| lost_wakeup (fixed) | 58 | 58 | 0 | 0 | 7/7 |
+| permit_leak (fixed) | 58 | 58 | 0 | 0 | 5/5 |
+| scope_bound (correct) | 58 | 58 | 0 | 0 | 7/7 |
+| rendezvous_both_send (fixed) | 58 | 0 | 58 | 0 | 0/0 |
+| bounded_backpressure (fixed) | 58 | 49 | 9 | 0 | 5/5 |
+| rmw-zenoh-998 (buggy) | 58 | 24 | 0 | 34 | 9/9 |
+| worker_with_payload skeleton_fill | 66 | 66 | 0 | 0 | 5/5 |
+| worker_with_payload A3_free | 66 | 0 | 0 | 0 | 0/0 (all missing traces — the free program never called `cir_trace::finish`) |
+
+The four v2 cases stay at 100% with the new `(function, sid)` coverage. The
+channel violations are a codegen-vs-model rendezvous ordering gap (analysis in
+`docs/backend-usage.md`); `rmw` timeouts are the buggy program hanging, which is
+the expected observation.
+
+## repair-smoke-v2 (de-leaked inputs)
+
+Delivered batch `experiments/flash-repair-smoke-v2/run-20260919T042328-54287-47223d/`
+(protocol sha `b7da4a11…`, **40 / 72 requests**, stop reason none). Three oracle
+columns per Rust arm; A3 uses the CIR verdict.
+
+Highlights (full table in `SUMMARY.md`, incl. the v1→v2 comparison):
+
+- **A measurable false-accept**: `A0_direct` on `partial_deadlock_bystander`
+  accepted round 1, `oracle.behavior = hang`, `bug_present = true` →
+  `false_accept = true`. After de-leaking, the direct arm no longer sees the
+  answer and its fix still hangs.
+- **A3 now accepts all three**: abba round 2, partial round 3, bare_wait round 4
+  (v1 rejected partial and bare_wait). Decisions: abba `explore_fail → accepted`;
+  partial `explore_fail ×2 → accepted`; bare_wait `explore_fail → check_invalid ×2
+  → accepted` (the schema normaliser rescued the `check_invalid` rounds).
+- A2-m/A2-ml on partial need 4 rounds after de-leaking (v1 needed 1), and all
+  end `terminated` (bug fixed).
+- `oracle.model` is `extract_unverified` for most Rust arms (the extracted CIR did
+  not codegen); `oracle.miri` detected nothing. `inconclusive` cells are those
+  where build succeeded but extraction failed — recorded as is.
+
+## Commits this round
+
+- ConcIR: `722f271` (N-1 + E114 + engine_agreement + version fields),
+  `43679b9` (build.rs ref watch), `1f7cb07` (doom-state diagnostics),
+  `f9df7fa` (channel doc/rule).
+- ConcPlanVerify: `9081686` (oracle: thread_leak, per-seed Miri, behaviour,
+  extraction), `45b27a0` (repair-smoke-v2 + conformance-v3).
+
+## Versions
+
+- Conformance-v3 and repair-smoke-v2 were produced by binary
+  `6ff6dad887dc6ea1eb4cd446be400f8ae26411a6abbda04215c0f0b9cd4d8637` at
+  git_rev `1f7cb07acfdd001c2d65b9532bebdb0134b99099`; the conformance-v3 JSON
+  records exactly that pair (HANDOFF and JSON agree). The later commit
+  `f9df7fa` is docs-only and, when rebuilt, gives a different binary hash
+  (`b12c813e…`) with git_rev `f9df7fa…`.
+- Rust tests **238 passed**; Python **100 passed**.
+
+## Not done
+
+- Multi-module codegen (R-6).
+- The extraction oracle rarely validates (extracted CIRs fail codegen) — needs a
+  stronger extraction prompt or codegen coverage.
+- `A3_free`'s program did not call `cir_trace::finish`, so its conformance is
+  all-missing; the free prompt should demand the call.
+- Injected `rust/tests/behavior.rs` (substituted by the watchdog run).
