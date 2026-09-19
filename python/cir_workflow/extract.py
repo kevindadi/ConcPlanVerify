@@ -77,11 +77,42 @@ def parse_extraction(text: str) -> dict[str, Any] | None:
         return None
 
 
+LINE_RE = __import__("re").compile(r"line (\d+)")
+
+
+def write_extraction_result(work_dir: Path | str, record: dict[str, Any]) -> dict[str, Any]:
+    """Persist a per-cell extraction record (used for parse/transport stages)."""
+
+    work_dir = Path(work_dir)
+    work_dir.mkdir(parents=True, exist_ok=True)
+    record.setdefault("extract_validated", False)
+    record.setdefault("model_verdict", None)
+    (work_dir / "extraction_result.json").write_text(
+        json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return record
+
+
+def _ensure_cir_trace_mod(rust: str) -> tuple[str, bool]:
+    """The skeleton provides ``src/cir_trace.rs``; models often omit the
+    ``mod`` declaration when they rewrite ``main.rs``. Prepend it if absent."""
+
+    import re
+
+    if re.search(r"^\s*(pub\s+)?mod\s+cir_trace\s*;", rust, re.MULTILINE):
+        return rust, False
+    return "mod cir_trace;\n" + rust, True
+
+
 def validate_extraction(extracted_cir: dict, annotated_rust: str, contract_path: Path,
                         work_dir: Path, *, binary: Path | str,
                         native_runs: int = 20, miri_seeds: int = 8,
                         client=None) -> dict[str, Any]:
-    """Build the annotated Rust, trace it, and require every trace conformant."""
+    """Build the annotated Rust, trace it, and require every trace conformant.
+
+    Every exit writes ``extraction_result.json`` in ``work_dir`` with a
+    ``stage`` in {parse, normalize, codegen, build, trace, conform, explore,
+    harness}, a JSON pointer when one is known, and the stderr artefact path.
+    """
 
     from . import conformance
     from .concir_client import ConcirClient  # lazy: avoids cycles at import time
@@ -89,44 +120,95 @@ def validate_extraction(extracted_cir: dict, annotated_rust: str, contract_path:
     work_dir = Path(work_dir)
     work_dir.mkdir(parents=True, exist_ok=True)
     program_path = work_dir / "extracted.cir.json"
-    normalized, records, issues = normalize_program(extracted_cir)
+    result_path = work_dir / "extraction_result.json"
+
+    def emit(record: dict[str, Any]) -> dict[str, Any]:
+        record.setdefault("extract_validated", False)
+        record.setdefault("model_verdict", None)
+        result_path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n",
+                               encoding="utf-8")
+        return record
+
+    def harness(stage: str, exc: BaseException, **extra: Any) -> dict[str, Any]:
+        return emit({"stage": "harness", "where": stage,
+                     "reason": f"{type(exc).__name__}: {exc}",
+                     "harness_error": True, **extra})
+
+    try:
+        normalized, records, issues = normalize_program(extracted_cir,
+                                                        strict_arrays=True)
+    except Exception as exc:  # noqa: BLE001
+        return harness("normalize", exc)
     program_path.write_text(json.dumps(normalized, ensure_ascii=False, indent=2) + "\n",
                             encoding="utf-8")
     if issues:
-        return {"extract_validated": False, "reason": "extracted CIR has invalid sids",
-                "model_verdict": None}
+        first = issues[0]
+        return emit({"stage": "normalize", "reason": "extracted CIR failed normalisation",
+                     "pointer": first.get("pointer"), "detail": first,
+                     "normalizations": records})
+
+    rust_source, added_mod = _ensure_cir_trace_mod(annotated_rust)
+    normalizations = list(records)
+    if added_mod:
+        normalizations.append({"rule": "prepend_mod_cir_trace"})
 
     # Use the generated skeleton for the trace runtime, then replace its main
     # with the model's annotated Rust.
+    skeleton = work_dir / "skeleton"
     try:
-        skeleton = work_dir / "skeleton"
         conformance.codegen(program_path, skeleton, binary=binary)
     except Exception as exc:  # noqa: BLE001
-        return {"extract_validated": False, "reason": f"extracted CIR not codegen-able: {exc}",
-                "model_verdict": None}
-    (skeleton / "src/main.rs").write_text(annotated_rust, encoding="utf-8")
-    build = subprocess.run(["cargo", "build", "--offline", "--quiet"], cwd=skeleton,
-                           capture_output=True, text=True, timeout=300)
+        stderr_path = work_dir / "codegen.stderr.txt"
+        stderr_path.write_text(str(exc), encoding="utf-8")
+        return emit({"stage": "codegen", "reason": f"extracted CIR not codegen-able: {exc}",
+                     "stderr_path": str(stderr_path),
+                     "normalizations": normalizations})
+    (skeleton / "src/main.rs").write_text(rust_source, encoding="utf-8")
+    try:
+        build = subprocess.run(["cargo", "build", "--offline", "--quiet"], cwd=skeleton,
+                               capture_output=True, text=True, timeout=300)
+    except Exception as exc:  # noqa: BLE001
+        return harness("build", exc, normalizations=normalizations)
+    (work_dir / "build.stderr.txt").write_text(build.stderr, encoding="utf-8")
     if build.returncode != 0:
-        return {"extract_validated": False, "reason": "annotated Rust did not build",
-                "model_verdict": None}
-    tries = collect_traces(skeleton, native_runs=native_runs, miri_seeds=miri_seeds,
-                           timeout_s=8.0, calls_dir=work_dir / "traces",
-                           run_miri=miri_seeds > 0)
-    agg = conform_all(program_path, tries, binary=binary)
+        pointer = None
+        match = LINE_RE.search(build.stderr)
+        if match:
+            pointer = f"source:line:{match.group(1)}"
+        return emit({"stage": "build", "reason": "annotated Rust did not build",
+                     "pointer": pointer, "stderr_path": str(work_dir / "build.stderr.txt"),
+                     "normalizations": normalizations})
+    try:
+        tries = collect_traces(skeleton, native_runs=native_runs, miri_seeds=miri_seeds,
+                               timeout_s=8.0, calls_dir=work_dir / "traces",
+                               run_miri=miri_seeds > 0)
+    except Exception as exc:  # noqa: BLE001
+        return harness("trace", exc, normalizations=normalizations)
+    try:
+        agg = conform_all(program_path, tries, binary=binary)
+    except Exception as exc:  # noqa: BLE001
+        return harness("conform", exc, normalizations=normalizations)
     expected = native_runs + miri_seeds
     validated = agg["conformant"] == expected and agg["violation"] == 0
     if not validated:
-        return {"extract_validated": False, "reason": "traces not all conformant",
-                "conformance": agg, "model_verdict": None}
+        bad = next((d for d in agg["details"]
+                    if d.get("status") not in ("conformant",)), None)
+        return emit({"stage": "conform", "reason": "traces not all conformant",
+                     "pointer": f"traces/{bad['kind']}-{bad['index']}" if bad else None,
+                     "conformance": agg, "normalizations": normalizations})
 
-    concir = ConcirClient(binary, workdir=work_dir / "explore", timeout=30.0)
-    explore = concir.explore(program_path, contract_path, "petri")
+    try:
+        concir = ConcirClient(binary, workdir=work_dir / "explore", timeout=30.0)
+        explore = concir.explore(program_path, contract_path, "petri")
+    except Exception as exc:  # noqa: BLE001
+        return harness("explore", exc, conformance=agg, normalizations=normalizations)
     verdict = explore.outcome
-    return {
+    return emit({
+        "stage": "explore",
         "extract_validated": True,
         "conformance": agg,
         "model_verdict": verdict,
         "model_complete": explore.complete,
+        "normalizations": normalizations,
         "extracted_cir_sha256": sha256_text(json.dumps(normalized, sort_keys=True)),
-    }
+    })

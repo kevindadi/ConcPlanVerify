@@ -20,7 +20,8 @@ from typing import Any
 
 from .arms import run_cir_arm, run_rust_arm
 from .concir_client import ConcirClient
-from .extract import extraction_prompt, parse_extraction, schema_text, validate_extraction
+from .extract import (extraction_prompt, parse_extraction, schema_text,
+                      validate_extraction, write_extraction_result)
 from .experiments_v2 import K, load_manifest
 from .live import (
     ALLOWED_PROVIDER, DEFAULT_MAX_SECONDS, DeepSeekFlashClient, LiveBudget,
@@ -65,8 +66,8 @@ def _extract_and_validate(api_key: str, budget: LiveBudget, batch: Path, system:
         schema = schema_text(binary)
         outcome = llm.complete(system, extraction_prompt(schema, rust_source))
     except Exception as exc:  # noqa: BLE001
-        return {"extract_validated": False, "reason": f"{type(exc).__name__}: {exc}",
-                "model_verdict": None}
+        return write_extraction_result(
+            work_dir, {"stage": "parse", "reason": f"{type(exc).__name__}: {exc}"})
     parsed = parse_extraction(outcome.text)
     if not parsed or "cir" not in parsed or "rust" not in parsed:
         # One format-feedback retry (counts against the budget).
@@ -84,14 +85,16 @@ def _extract_and_validate(api_key: str, budget: LiveBudget, batch: Path, system:
             except Exception:  # noqa: BLE001
                 parsed = None
     if not parsed or "cir" not in parsed or "rust" not in parsed:
-        return {"extract_validated": False, "reason": "reply not a {cir,rust} object",
-                "model_verdict": None}
+        return write_extraction_result(
+            work_dir, {"stage": "parse",
+                       "reason": "reply not a {cir,rust} object"})
     try:
         return validate_extraction(parsed["cir"], str(parsed["rust"]), contract_path,
                                    work_dir, binary=binary)
     except Exception as exc:  # noqa: BLE001
-        return {"extract_validated": False, "reason": f"{type(exc).__name__}: {exc}",
-                "model_verdict": None}
+        return write_extraction_result(
+            work_dir, {"stage": "harness", "where": "validate_extraction",
+                       "reason": f"{type(exc).__name__}: {exc}", "harness_error": True})
 
 
 def _rust_system(mode: str) -> str:

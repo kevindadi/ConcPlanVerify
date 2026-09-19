@@ -31,6 +31,20 @@ FIELD_ALIASES: dict[tuple[str, str], str] = {
 
 EXPR_KINDS = {"bool", "int", "float", "string", "str", "enum"}
 
+# Resource `kind`/`mode` follow from `type` (authoritative schema):
+# Var/Atomic are value resources, everything else is a synchronisation resource.
+VALUE_TYPES = {"Var", "Atomic"}
+SYNC_TYPES = {"Channel", "Condvar", "Mutex", "Semaphore"}
+RESOURCE_SYNC_MODE = "Sync"
+
+# Statement fields that must be scalar strings. A single-element list holding a
+# string is an unambiguous model serialisation slip and is unwrapped; any other
+# list is a genuine error and is reported (and, in strict mode, rejected).
+SCALAR_FIELDS = ("expr", "cond", "value", "expected", "desired", "resource",
+                 "channel", "lock", "condvar", "func", "var", "dst", "src")
+FUNC_FIELDS = {"spawn": ("func",), "call": ("func",), "scope": ("funcs",)}
+DEFAULT_PARAM_TYPE = "int"
+
 # protection entry aliases: {wrong} -> {var|lock}
 PROTECTION_ALIASES = {"resource": "var", "protected_by": "lock", "mutex": "lock",
                       "lock_var": "lock", "variable": "var"}
@@ -75,12 +89,88 @@ def _infer_base(resource: dict) -> dict | None:
     return {"rule": "infer_base", "resource": resource.get("name"), "base": base}
 
 
-def normalize(program: dict) -> tuple[dict, list[dict], list[dict]]:
-    """Return ``(normalized, normalizations, sid_issues)``."""
+def _pointer(module_idx: int, function_idx: int | None = None,
+             statement_idx: int | None = None, field: str | None = None) -> str:
+    pointer = f"/modules/{module_idx}"
+    if function_idx is not None:
+        pointer += f"/functions/{function_idx}"
+    if statement_idx is not None:
+        pointer += f"/body/{statement_idx}"
+    if field:
+        pointer += f"/{field}"
+    return pointer
+
+
+def _function_fqns(modules: list) -> dict[str, list[str]]:
+    """Map bare function name -> [module::name, ...] across the program."""
+
+    by_name: dict[str, list[str]] = {}
+    for module in modules:
+        if not isinstance(module, dict):
+            continue
+        mname = module.get("name")
+        for function in module.get("functions", []) or []:
+            if isinstance(function, dict) and function.get("name"):
+                by_name.setdefault(str(function["name"]), []).append(
+                    f"{mname}::{function['name']}")
+    return by_name
+
+
+def _fix_fqn(name: Any, module_name: str | None,
+             fn_fqns: dict[str, list[str]]) -> Any:
+    """Prefix a bare function name with its owning module (``module::name``)."""
+
+    if not isinstance(name, str) or not name or "::" in name:
+        return name
+    candidates = fn_fqns.get(name) or []
+    if len(candidates) == 1:
+        return candidates[0]
+    if module_name:
+        return f"{module_name}::{name}"
+    return name
+
+
+def _normalize_params(params: Any, function: dict,
+                      records: list[dict], location: str) -> None:
+    """Rewrite ``params`` into ``[{name, type}, ...]`` where unambiguous."""
+
+    if not isinstance(params, list):
+        return
+    changed = False
+    fixed = []
+    for i, param in enumerate(params):
+        if isinstance(param, str):
+            fixed.append({"name": param, "type": DEFAULT_PARAM_TYPE})
+            records.append({"rule": "param_string", "location": f"{location}/{i}",
+                            "from": param, "to": {"name": param,
+                                                  "type": DEFAULT_PARAM_TYPE}})
+            changed = True
+        elif isinstance(param, dict) and param.get("name") and "type" not in param:
+            new = dict(param)
+            new["type"] = DEFAULT_PARAM_TYPE
+            fixed.append(new)
+            records.append({"rule": "param_missing_type", "location": f"{location}/{i}",
+                            "to": DEFAULT_PARAM_TYPE})
+            changed = True
+        else:
+            fixed.append(param)
+    if changed:
+        function["params"] = fixed
+
+
+def normalize(program: dict, *, strict_arrays: bool = False
+              ) -> tuple[dict, list[dict], list[dict]]:
+    """Return ``(normalized, normalizations, sid_issues)``.
+
+    With ``strict_arrays=True`` a scalar field serialised as a multi-element or
+    non-string array is recorded as a rejection issue (with a JSON pointer)
+    instead of being silently left for the verifier.
+    """
 
     out = copy.deepcopy(program)
     records: list[dict] = []
     sid_issues: list[dict] = []
+    fn_fqns = _function_fqns(out.get("modules", []) or [])
 
     # Top-level fields the verifier rejects: drop and record.
     allowed = {"program", "version", "entry", "modules"}
@@ -108,8 +198,30 @@ def normalize(program: dict) -> tuple[dict, list[dict], list[dict]]:
             out["entry"] = f"{owner}::{entry}"
             records.append({"rule": "entry_fqn", "from": entry, "to": out["entry"]})
 
-    for module in out.get("modules", []) or []:
+    for module_idx, module in enumerate(out.get("modules", []) or []):
+        if not isinstance(module, dict):
+            continue
         for resource in module.get("resources", []) or []:
+            if not isinstance(resource, dict):
+                continue
+            rtype = resource.get("type")
+            if rtype in VALUE_TYPES:
+                inferred_kind = "var"
+            elif rtype in SYNC_TYPES:
+                inferred_kind = "sync"
+            else:
+                inferred_kind = None
+            if inferred_kind and "kind" not in resource:
+                resource["kind"] = inferred_kind
+                records.append({"rule": "resource_kind", "scope": "resource",
+                                "resource": resource.get("name"),
+                                "location": _pointer(module_idx), "to": inferred_kind})
+            if resource.get("kind") == "sync" and "mode" not in resource:
+                resource["mode"] = RESOURCE_SYNC_MODE
+                records.append({"rule": "resource_mode", "scope": "resource",
+                                "resource": resource.get("name"),
+                                "location": _pointer(module_idx),
+                                "to": RESOURCE_SYNC_MODE})
             if resource.get("kind") == "var":
                 for field in DROP_ON_VALUE_RESOURCE:
                     if field in resource:
@@ -131,12 +243,15 @@ def normalize(program: dict) -> tuple[dict, list[dict], list[dict]]:
                     entry[right] = entry.pop(wrong)
                     records.append({"rule": "protection_alias", "scope": "protection",
                                     "from": wrong, "to": right})
-        for function in module.get("functions", []) or []:
+        for fn_idx, function in enumerate(module.get("functions", []) or []):
             if not isinstance(function, dict):
                 continue
             if "kind" not in function:
                 function["kind"] = "normal"
-                records.append({"rule": "function_kind", "function": function.get("name")})
+                records.append({"rule": "function_kind", "function": function.get("name"),
+                                "location": _pointer(module_idx, fn_idx)})
+            _normalize_params(function.get("params"), function, records,
+                              _pointer(module_idx, fn_idx, None, "params"))
             body = function.get("body", []) or []
             # Deterministic sid repair: fill missing / rename malformed sids and
             # rewrite goto/branch/switch targets accordingly.
@@ -172,7 +287,9 @@ def normalize(program: dict) -> tuple[dict, list[dict], list[dict]]:
                                 cases[k] = sid_map[v]
                         if isinstance(stmt.get("default"), str) and stmt["default"] in sid_map:
                             stmt["default"] = sid_map[stmt["default"]]
-            for stmt in body:
+            for stmt_idx, stmt in enumerate(body):
+                if not isinstance(stmt, dict):
+                    continue
                 sid = str(stmt.get("sid", ""))
                 kind = str(stmt.get("kind", ""))
                 for wrong, right in list(FIELD_ALIASES.items()):
@@ -181,9 +298,46 @@ def normalize(program: dict) -> tuple[dict, list[dict], list[dict]]:
                         stmt[right] = stmt.pop(bad)
                         records.append({"rule": "field_alias", "function": function.get("name"),
                                         "sid": sid, "from": bad, "to": right})
-                for field in ("expr", "cond", "value", "expected", "desired"):
-                    if field in stmt:
-                        new_value, record = _expr_string(stmt[field])
+                # FQN-prefix bare function references (spawn.func / call.func /
+                # scope.funcs) using the program-wide name map, local first.
+                for ffield in FUNC_FIELDS.get(kind, ()):  # noqa: B007
+                    value = stmt.get(ffield)
+                    if isinstance(value, list):
+                        for i, item in enumerate(value):
+                            fixed = _fix_fqn(item, module.get("name"), fn_fqns)
+                            if fixed != item:
+                                value[i] = fixed
+                                records.append({"rule": "fqn_prefix",
+                                                "function": function.get("name"),
+                                                "sid": sid, "field": ffield, "from": item,
+                                                "to": fixed})
+                    else:
+                        fixed = _fix_fqn(value, module.get("name"), fn_fqns)
+                        if fixed != value:
+                            stmt[ffield] = fixed
+                            records.append({"rule": "fqn_prefix",
+                                            "function": function.get("name"),
+                                            "sid": sid, "field": ffield, "from": value,
+                                            "to": fixed})
+                for field in SCALAR_FIELDS:
+                    if field not in stmt:
+                        continue
+                    value = stmt[field]
+                    if isinstance(value, list):
+                        location = _pointer(module_idx, fn_idx, stmt_idx, field)
+                        if (len(value) == 1 and isinstance(value[0], str)):
+                            stmt[field] = value[0]
+                            records.append({"rule": "array_unwrap", "function": function.get("name"),
+                                            "sid": sid, "field": field,
+                                            "location": location, "to": value[0]})
+                        elif strict_arrays:
+                            sid_issues.append({
+                                "stage": "normalize", "pointer": location,
+                                "reason": "expected a string, got an array",
+                                "rule": "reject_array_field", "field": field})
+                        continue
+                    if field in ("expr", "cond", "value", "expected", "desired"):
+                        new_value, record = _expr_string(value)
                         if record:
                             stmt[field] = new_value
                             record.update({"function": function.get("name"), "sid": sid,
