@@ -19,6 +19,7 @@ from typing import Any
 
 from .arms import run_cir_arm, run_rust_arm
 from .concir_client import ConcirClient
+from .extract import extraction_prompt, parse_extraction, schema_text, validate_extraction
 from .experiments_v2 import K, load_manifest
 from .live import (
     ALLOWED_PROVIDER, DEFAULT_MAX_SECONDS, DeepSeekFlashClient, LiveBudget,
@@ -43,6 +44,37 @@ SMOKE_ARMS = ("A0_direct", "A1_self_iter", "A2_tools_iter", "A3_ours_revision",
 
 def _read(name: str) -> str:
     return (PROMPTS / name).read_text(encoding="utf-8")
+
+
+def spec_extract() -> str:
+    return _read("rust_to_cir_extract_v1.md")
+
+
+def _extract_and_validate(api_key: str, budget: LiveBudget, batch: Path, system: str,
+                          rust_source: str, contract_path: Path, work_dir: Path,
+                          binary: Path | str, sdk_client: Any, timeout: float,
+                          max_tokens: int) -> dict[str, Any]:
+    """One extraction request + conformance validation (returns a model verdict)."""
+
+    llm = DeepSeekFlashClient(api_key=api_key, budget=budget,
+                              evidence_dir=batch / "llm", timeout=timeout,
+                              max_tokens=max_tokens, sdk_client=sdk_client)
+    try:
+        schema = schema_text(binary)
+        outcome = llm.complete(system, extraction_prompt(schema, rust_source))
+    except Exception as exc:  # noqa: BLE001
+        return {"extract_validated": False, "reason": f"{type(exc).__name__}: {exc}",
+                "model_verdict": None}
+    parsed = parse_extraction(outcome.text)
+    if not parsed or "cir" not in parsed or "rust" not in parsed:
+        return {"extract_validated": False, "reason": "reply not a {cir,rust} object",
+                "model_verdict": None}
+    try:
+        return validate_extraction(parsed["cir"], str(parsed["rust"]), contract_path,
+                                   work_dir, binary=binary)
+    except Exception as exc:  # noqa: BLE001
+        return {"extract_validated": False, "reason": f"{type(exc).__name__}: {exc}",
+                "model_verdict": None}
 
 
 def _rust_system(mode: str) -> str:
@@ -268,12 +300,25 @@ def run_repair_smoke(manifest_path: Path | str, out_dir: Path | str, *, binary: 
                     arm_record = run.as_dict()
                     arm_record["llm_calls"] = provider.calls
                     if run.final_artifact_path:
-                        arm_record["oracle"] = rust_oracle(run.final_artifact_path,
-                                                           run_miri=True, timeout_s=8.0,
-                                                           run_miri_many_seeds=False)
+                        arm_record["oracle"] = rust_oracle(
+                            run.final_artifact_path, run_miri=True, timeout_s=8.0,
+                            run_miri_many_seeds=False, miri_seed_count=16)
+                        # Extraction oracle (<=2 requests per candidate).
+                        if (not budget.exhausted()
+                                and arm_record["oracle"].get("build_ok")):
+                            source = Path(run.final_artifact_path).read_text(encoding="utf-8")
+                            arm_record["oracle"]["model"] = _extract_and_validate(
+                                api_key, budget, batch, spec_extract(), source,
+                                contract_path, task_dir / arm / "extract",
+                                binary, sdk_client, timeout, max_tokens)
                     else:
                         arm_record["oracle"] = {"build_ok": None, "miri_detected": None,
-                                                "behavior_test_ok": None, "bug_present": None}
+                                                "behavior_ok": None, "bug_present": None}
+                    model = (arm_record["oracle"].get("model") or {})
+                    arm_record["oracle"]["bug_present"] = bool(
+                        arm_record["oracle"].get("behavior_ok") is False
+                        or (model.get("extract_validated") is True
+                            and model.get("model_verdict") == "FAIL"))
                     record["arms"][arm] = arm_record
             # A3: revise the buggy CIR.
             if not budget.exhausted():
@@ -312,17 +357,25 @@ def render_repair_md(summary: dict[str, Any]) -> str:
              f"- batch dir: `{summary['batch_dir']}`",
              f"- requests used: {summary.get('requests_used')}",
              f"- stop reason: {summary.get('stop_reason')}", "",
-             "| task | arm | accepted | round | oracle.build | oracle.miri | oracle.model | false_accept |",
-             "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+             "| task | arm | accepted | round | oracle.build | oracle.behavior | oracle.miri | oracle.model | false_accept |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for task in summary["tasks"]:
         for arm, run in (task.get("arms") or {}).items():
             oracle = run.get("oracle") or {}
             bug = oracle.get("bug_present")
             fa = (run.get("accepted") and bug is True) if bug is not None else None
+            model = oracle.get("model") or {}
+            if model.get("extract_validated") is True:
+                model_str = f"validated:{model.get('model_verdict')}"
+            elif model:
+                model_str = f"unverified:{model.get('reason', '')}"[:60]
+            else:
+                model_str = "inconclusive"
             lines.append(
                 f"| {task['task']} | {arm} | {run.get('accepted')} | "
                 f"{run.get('accepted_round')} | {oracle.get('build_ok')} | "
-                f"{oracle.get('miri_detected')} | {bug} | {fa} |")
+                f"{oracle.get('behavior_status')} | {oracle.get('miri_detected')} | "
+                f"{model_str} | {fa} |")
     return "\n".join(lines) + "\n"
 
 

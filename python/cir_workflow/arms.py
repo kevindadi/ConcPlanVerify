@@ -110,7 +110,8 @@ def _is_no_issues(text: str) -> bool:
 def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
                  contract: dict[str, Any], out_dir: Path | str, k: int = K,
                  tool_timeout_s: float = 60.0, initial_source: str | None = None,
-                 tools_tier: str = "ml", run_miri_many_seeds: bool = True) -> ArmRun:
+                 tools_tier: str = "ml", run_miri_many_seeds: bool = True,
+                 miri_seed_count: int | None = None) -> ArmRun:
     """A0/A1/A2: LLM writes whole Rust programs; feedback differs by arm.
 
     ``initial_source`` seeds a repair task with the buggy program. For A1 a
@@ -187,7 +188,8 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
         project = RustArmProject(round_dir, source, name="probe")
         record = project.analyze(run_miri=wants_tools, run_lockbud=wants_tools,
                                  timeout_s=tool_timeout_s,
-                                 run_miri_many_seeds=run_miri_many_seeds)
+                                 run_miri_many_seeds=run_miri_many_seeds,
+                                 miri_seed_count=miri_seed_count)
         tool_wall = _tool_wall(record)
         run.consumption.tool_wall_ms += tool_wall
         run.notes.setdefault("tool_rounds", []).append(record)
@@ -313,7 +315,8 @@ def run_cir_arm(client: ConcirClient, provider: CandidateProvider, *, arm: str,
 
 
 def rust_oracle(source_path: Path | str, *, run_miri: bool = True,
-                timeout_s: float = 60.0, run_miri_many_seeds: bool = True) -> dict[str, Any]:
+                timeout_s: float = 60.0, run_miri_many_seeds: bool = True,
+                miri_seed_count: int | None = None) -> dict[str, Any]:
     """Terminal Rust verdict: build / behavior test / miri / bug rule.
 
     ``bug_present`` stays ``None`` unless a task-specific rule is available; it is
@@ -323,18 +326,40 @@ def rust_oracle(source_path: Path | str, *, run_miri: bool = True,
     from .rust_arm import RustArmProject
 
     source = Path(source_path).read_text(encoding="utf-8")
+    behavior = None
     with tempfile.TemporaryDirectory() as tmp:
         project = RustArmProject(tmp, source, name="oracle")
         record = project.analyze(run_miri=run_miri, run_lockbud=False,
                                  timeout_s=timeout_s,
-                                 run_miri_many_seeds=run_miri_many_seeds)
+                                 run_miri_many_seeds=run_miri_many_seeds,
+                                 miri_seed_count=miri_seed_count)
+        if record.get("build_ok"):
+            behavior = project.behavior_run(timeout_s=10.0)
     miri_detected = any(r.get("extra", {}).get("detected") for r in record.get("miri", []))
+    miri_statuses = [r.get("extra", {}).get("status") for r in record.get("miri", [])]
+    if behavior is None:
+        behavior_ok = None
+        behavior_status = "no_build"
+    elif behavior.timed_out:
+        behavior_ok = False
+        behavior_status = "hang"
+    elif behavior.exit_code == 0:
+        behavior_ok = True
+        behavior_status = "terminated"
+    else:
+        behavior_ok = False
+        behavior_status = "crash"
+    # Per-task bug rule available without model extraction: a program that hangs
+    # when it must terminate still contains the defect.
+    bug_present = behavior_ok is False
     return {
         "build_ok": record.get("build_ok"),
-        "behavior_test_ok": None,  # benchmark behavior tests not yet authored
+        "behavior_status": behavior_status,
+        "behavior_ok": behavior_ok,
         "lockbud_detected": None,
         "miri_detected": miri_detected,
-        "bug_present": None,
+        "miri_statuses": miri_statuses,
+        "bug_present": bug_present,
         "evidence": {"source_sha256": record.get("source_sha256")},
     }
 

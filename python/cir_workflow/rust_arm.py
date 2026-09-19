@@ -118,20 +118,26 @@ def classify_lockbud(text: str) -> dict[str, Any]:
             "detected": deadlocks, "bug_kinds": kinds}
 
 
+THREAD_LEAK_MARKER = "the main thread terminated without waiting for all remaining threads"
+
+
 def classify_tool_run(run: ToolRun) -> dict[str, Any]:
-    """Distinguish detection, clean, timeout and genuine tool errors."""
+    """Distinguish detection, thread leak, clean, timeout and tool errors."""
 
     text = run.stdout + "\n" + run.stderr
     detected = classify_detection(text)
+    thread_leak = THREAD_LEAK_MARKER in text.lower()
     if run.timed_out:
         status = "timeout"
     elif detected:
         status = "detected"
+    elif thread_leak:
+        status = "thread_leak"
     elif run.exit_code != 0:
         status = "tool_error"  # failed for a non-detection reason
     else:
         status = "clean"
-    return {"status": status, "detected": detected}
+    return {"status": status, "detected": detected, "thread_leak": thread_leak}
 
 
 def parse_test_result(text: str) -> tuple[int | None, int | None]:
@@ -320,6 +326,20 @@ class RustArmProject:
                                cwd=self.dir, timeout_s=timeout_s,
                                env_extra={"MIRIFLAGS": flags})
 
+    def behavior_run(self, *, timeout_s: float = 10.0,
+                     binary_name: str = "cir_arm_probe") -> ToolRun:
+        """Run the built candidate with a watchdog. Terminates -> behavior ok;
+        a timeout is a `hang` (a deadlock/livelock observation)."""
+
+        binary = self.dir / "target/debug" / binary_name
+        if not binary.is_file():
+            return ToolRun(tool="behavior", argv=[str(binary)], exit_code=None,
+                           wall_ms=0, timed_out=False, stdout="", stderr="",
+                           stdout_sha256=sha256_text(""), stderr_sha256=sha256_text(""),
+                           error="no built binary")
+        return self.runner.run("behavior", [str(binary)], cwd=self.dir,
+                               timeout_s=timeout_s, env_extra={})
+
     def lockbud(self, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> ToolRun:
         """Run Lockbud as a ``RUSTC_WRAPPER`` on a fresh copy of the program.
 
@@ -350,7 +370,8 @@ class RustArmProject:
 
     def analyze(self, *, timeout_s: float = DEFAULT_TIMEOUT_S,
                 run_miri: bool = True, run_lockbud: bool = True,
-                run_miri_many_seeds: bool = True) -> dict[str, Any]:
+                run_miri_many_seeds: bool = True,
+                miri_seed_count: int | None = None) -> dict[str, Any]:
         """Run the frozen tool suite and return a hash-complete record."""
 
         record: dict[str, Any] = {
@@ -398,6 +419,18 @@ class RustArmProject:
             record["lockbud"] = {"tool": "lockbud", "status": "skipped"}
 
         miri_runs = []
+        if run_miri and miri_seed_count:
+            # One run per seed 0..N-1 (each bounded); a timeout is a
+            # `hang_suspect` observation, not a detection.
+            for seed in range(miri_seed_count):
+                mr = self.miri(seed=seed, preemption_rate=0.5, timeout_s=timeout_s)
+                mr.extra.update({"seed": seed, "preemption_rate": 0.5,
+                                 "hang_suspect": mr.timed_out})
+                mr.extra.update(classify_tool_run(mr))
+                miri_runs.append(mr.as_dict())
+            record["miri"] = miri_runs
+            record["miri_extended"] = None
+            return record
         if run_miri:
             for seed, rate in MIRI_COMBOS:
                 mr = self.miri(seed=seed, preemption_rate=rate, timeout_s=timeout_s)

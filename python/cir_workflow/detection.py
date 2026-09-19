@@ -120,6 +120,13 @@ def _miri_statuses(rust_record: dict[str, Any] | None) -> list[str]:
     return [r.get("extra", {}).get("status", "unknown") for r in _miri_runs(rust_record)]
 
 
+def _miri_thread_leak(rust_record: dict[str, Any] | None) -> bool | None:
+    runs = _miri_runs(rust_record)
+    if not runs:
+        return None
+    return any(r.get("extra", {}).get("thread_leak") for r in runs)
+
+
 def _lockbud_detected(rust_record: dict[str, Any] | None) -> bool | None:
     if not rust_record:
         return None
@@ -192,11 +199,11 @@ def render_markdown(result: dict[str, Any]) -> str:
              f"- Miri combos: {result['miri_combos']}",
              f"- Lockbud: {result.get('lockbud')}", "",
              "## Per task", "",
-             "| task | CIR buggy | CIR fixed | Miri buggy | seeds | Lockbud buggy | Miri fixed | tool errors | notes |",
-             "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+             "| task | CIR buggy | CIR fixed | Miri buggy | seeds | Miri leak | Lockbud buggy | Miri fixed | tool errors | notes |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for rec in result["records"]:
         if rec.get("status") != "ready":
-            lines.append(f"| {rec['task']} | — | — | — | — | — | — | — | {rec['status']} |")
+            lines.append(f"| {rec['task']} | — | — | — | — | — | — | — | — | {rec['status']} |")
             continue
         cir = rec.get("concir") or {}
         buggy = (cir.get("buggy") or {}).get("petri", {}) if isinstance(cir.get("buggy"), dict) else {}
@@ -212,8 +219,9 @@ def render_markdown(result: dict[str, Any]) -> str:
             notes.append("CIR false positive")
         lines.append(
             f"| {rec['task']} | {buggy.get('outcome')} | {fixed.get('outcome')} | "
-            f"{_miri_detected(rb)} | {len(_miri_runs(rb))} | {_lockbud_detected(rb)} | "
-            f"{_miri_detected(rf)} | {errors} | {', '.join(notes)} |")
+            f"{_miri_detected(rb)} | {len(_miri_runs(rb))} | {_miri_thread_leak(rb)} | "
+            f"{_lockbud_detected(rb)} | {_miri_detected(rf)} | {errors} | "
+            f"{', '.join(notes)} |")
     lines += ["", "## Caveats", ""]
     lines += [f"- {c}" for c in result["caveats"]]
     return "\n".join(lines) + "\n"

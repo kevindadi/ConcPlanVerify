@@ -30,6 +30,30 @@ fn main() { let x: i32 = "not an int"; }
 """
 
 
+class ThreadLeakTests(unittest.TestCase):
+    def test_thread_leak_is_classified(self):
+        root = Path(__file__).resolve().parents[2] / "experiments"
+        marker = "terminated without waiting for all remaining threads"
+        sample = None
+        if root.is_dir():
+            for path in root.rglob("stderr.txt"):
+                try:
+                    if marker in path.read_text(encoding="utf-8", errors="ignore"):
+                        sample = path
+                        break
+                except OSError:
+                    continue
+        if sample is None:
+            raise unittest.SkipTest("no recorded Miri thread-leak stderr found")
+        run = ToolRun(tool="miri", argv=[], exit_code=1, wall_ms=1, timed_out=False,
+                      stdout="", stderr=sample.read_text(encoding="utf-8"),
+                      stdout_sha256="", stderr_sha256="")
+        result = classify_tool_run(run)
+        self.assertEqual(result["status"], "thread_leak")
+        self.assertTrue(result["thread_leak"])
+        self.assertEqual(result["detected"], [])
+
+
 class ParseTests(unittest.TestCase):
     def test_parses_counts(self):
         text = "test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured"

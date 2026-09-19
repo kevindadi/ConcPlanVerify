@@ -99,12 +99,19 @@ class ArmTests(unittest.TestCase):
         self.assertTrue(run.accepted, run.error)
         self.assertTrue(run.notes["tool_rounds"][0]["build_ok"])
 
-    def test_rust_oracle_does_not_guess_bug_presence(self):
+    def test_rust_oracle_uses_behavior_for_bug_presence(self):
         path = self.root / "prog.rs"
         path.write_text(GOOD_RUST, encoding="utf-8")
         verdict = rust_oracle(path, run_miri=False)
         self.assertTrue(verdict["build_ok"])
-        self.assertIsNone(verdict["bug_present"])
+        self.assertEqual(verdict["behavior_status"], "terminated")
+        self.assertFalse(verdict["bug_present"])
+        # A program that cannot terminate is a hang and still has the defect.
+        hang = self.root / "hang.rs"
+        hang.write_text("fn main() { loop {} }", encoding="utf-8")
+        bad = rust_oracle(hang, run_miri=False)
+        self.assertEqual(bad["behavior_status"], "hang")
+        self.assertTrue(bad["bug_present"])
 
 
 if __name__ == "__main__":
