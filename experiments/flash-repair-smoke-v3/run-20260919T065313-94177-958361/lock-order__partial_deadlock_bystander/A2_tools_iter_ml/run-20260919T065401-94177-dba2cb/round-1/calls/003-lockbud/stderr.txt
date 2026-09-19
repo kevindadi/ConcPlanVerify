@@ -1,0 +1,28 @@
+   Compiling cir_arm_probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v3/run-20260919T065313-94177-958361/lock-order__partial_deadlock_bystander/A2_tools_iter_ml/run-20260919T065401-94177-dba2cb/round-1/lockbud-probe)
+[2026-09-19T06:54:04Z WARN  lockbud::callbacks] [
+      {
+        "ConflictLock": {
+          "bug_kind": "ConflictLock",
+          "possibility": "Possibly",
+          "diagnosis": [
+            {
+              "first_lock_type": "StdMutex(())",
+              "first_lock_span": "src/main.rs:44:13: 44:15 (#0)",
+              "second_lock_type": "StdMutex(())",
+              "second_lock_span": "src/main.rs:47:13: 47:15 (#0)",
+              "callchains": []
+            },
+            {
+              "first_lock_type": "StdMutex(())",
+              "first_lock_span": "src/main.rs:59:13: 59:15 (#0)",
+              "second_lock_type": "StdMutex(())",
+              "second_lock_span": "src/main.rs:62:13: 62:15 (#0)",
+              "callchains": []
+            }
+          ],
+          "explanation": "Locks mutually wait for each other to form a cycle"
+        }
+      }
+    ]
+[2026-09-19T06:54:04Z WARN  lockbud::callbacks] crate cir_arm_probe contains bugs: { probably: 0, possibly: 0 }, conflictlock: { probably: 0, possibly: 1 }, condvar_deadlock: { probably: 0, possibly: 0 }, atomicity_violation: { possibly: 0 }, invalid_free: { possibly: 0 }, use_after_free: { possibly: 0 }
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.52s

@@ -1,0 +1,304 @@
+{
+  "status": "exhausted",
+  "task": "lock-order/partial_deadlock_bystander",
+  "requirements": "Two workers A and B use two mutexes with an intermediate semaphore handshake, and an independent third task keeps making progress. Main starts all three. Every reachable state must still allow A and B to complete, and both workers must complete. On completion the program must print exactly one line `DONE a=1 b=1` and then exit; it must terminate.\n",
+  "contract_sha256": "753eb1c81fb8c87aa560e2ed5cca88cfa307c10df1ce6f4d93debeebcf02f304",
+  "out_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v3/run-20260919T065313-94177-958361/lock-order__partial_deadlock_bystander/A3_whole/run-20260919T065431-94177-f3dbd6",
+  "max_rounds": 4,
+  "engine": "petri",
+  "diagnostics": true,
+  "check_fidelity": true,
+  "fidelity_name": null,
+  "versions": [
+    {
+      "version": 1,
+      "source": "frozen",
+      "raw_text": null,
+      "program_sha256": "d4fa74cd5e308b40d8b7570c3189252d05bc2d79feefdf4e9250f46f48a87810",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v3/run-20260919T065313-94177-958361/lock-order__partial_deadlock_bystander/A3_whole/run-20260919T065431-94177-f3dbd6/revision-1.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "valid",
+      "support_status": "supported",
+      "explore_outcome": "FAIL",
+      "explore_complete": true,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "explore_fail",
+      "request_sha256": null,
+      "feedback_sha256": "49a115a3c005778571163721fca89473a585c32e4e40937c235d6705c2217f3f",
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "llm_wall_ms": 0,
+      "tool_wall_ms": 27,
+      "tool_output_sha256": "3b6013098e788eb5b1f84f4568f40c8e73042bef532d06213eca845b81a7d20f",
+      "normalizations": [],
+      "sid_issues": [],
+      "local_patch_function": null
+    },
+    {
+      "version": 2,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"partial_bystander\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"a\", \"b\", \"handshake\", \"done_a\", \"done_b\", \"out\"],\n        \"functions\": [\"main\", \"a\", \"b\", \"bystander\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"a\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"b\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"handshake\", \"kind\": \"sync\", \"type\": \"Semaphore\", \"mode\": \"Sync\", \"count\": 1 },\n        { \"name\": \"done_a\", \"kind\": \"var\", \"type\": \"Atomic\", \"mode\": \"Sync\" },\n        { \"name\": \"done_b\", \"kind\": \"var\", \"type\": \"Atomic\", \"mode\": \"Sync\" },\n        { \"name\": \"out\", \"kind\": \"var\", \"type\": \"Var\", \"mode\": \"Sync\" }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"scope\", \"funcs\": [\"main::a\", \"main::b\", \"main::bystander\"] },\n            { \"sid\": \"s2\", \"kind\": \"atomic_load\", \"resource\": \"main::done_a\", \"dst\": \"da\" },\n            { \"sid\": \"s3\", \"kind\": \"atomic_load\", \"resource\": \"main::done_b\", \"dst\": \"db\" },\n            { \"sid\": \"s4\", \"kind\": \"branch\", \"cond\": \"da == 1 && db == 1\", \"then\": \"s5\", \"else\": \"s2\" },\n            { \"sid\": \"s5\", \"kind\": \"write_shared\", \"resource\": \"main::out\", \"expr\": \"\\\"DONE a=1 b=1\\\"\" },\n            { \"sid\": \"s6\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"a\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"a1\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"a2\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"a3\", \"kind\": \"semaphore_acquire\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"a4\", \"kind\": \"semaphore_release\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"a5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"a6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"a7\", \"kind\": \"atomic_store\", \"resource\": \"main::done_a\", \"value\": \"1\" },\n            { \"sid\": \"a8\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"b\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"b1\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"b2\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"b3\", \"kind\": \"semaphore_acquire\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"b4\", \"kind\": \"semaphore_release\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"b5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"b6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"b7\", \"kind\": \"atomic_store\", \"resource\": \"main::done_b\", \"value\": \"1\" },\n            { \"sid\": \"b8\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"bystander\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"c1\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"0\" },\n            { \"sid\": \"c2\", \"kind\": \"branch\", \"cond\": \"i < 3\", \"then\": \"c3\", \"else\": \"c5\" },\n            { \"sid\": \"c3\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"i + 1\" },\n            { \"sid\": \"c4\", \"kind\": \"goto\", \"target\": \"c2\" },\n            { \"sid\": \"c5\", \"kind\": \"return\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "edb399416a9020176ca94297b5735230f8bff962f15b5747b65714e67bc30802",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v3/run-20260919T065313-94177-958361/lock-order__partial_deadlock_bystander/A3_whole/run-20260919T065431-94177-f3dbd6/revision-2.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "invalid",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "check_invalid",
+      "request_sha256": "6ba2ec492e4de2209b5fd2051a5852a773d10e82513c9fb0a6899919863ac935",
+      "feedback_sha256": "7ba6e9b58182dbee3700ee3418755d7d09458f446227e625a11507817277fb6b",
+      "prompt_tokens": 3711,
+      "completion_tokens": 1196,
+      "llm_wall_ms": 3562,
+      "tool_wall_ms": 5,
+      "tool_output_sha256": "76785adc2147da9668a5c373610b7174071417b0588dfe552d119f9a93a86447",
+      "normalizations": [
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "done_a",
+          "field": "mode"
+        },
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "done_b",
+          "field": "mode"
+        },
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "out",
+          "field": "mode"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a1",
+          "to": "s1"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a2",
+          "to": "s2"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a3",
+          "to": "s3"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a4",
+          "to": "s4"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a5",
+          "to": "s5"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a6",
+          "to": "s6"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a7",
+          "to": "s7"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a8",
+          "to": "s8"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b1",
+          "to": "s1"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b2",
+          "to": "s2"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b3",
+          "to": "s3"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b4",
+          "to": "s4"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b5",
+          "to": "s5"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b6",
+          "to": "s6"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b7",
+          "to": "s7"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b8",
+          "to": "s8"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "bystander",
+          "from": "c1",
+          "to": "s1"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "bystander",
+          "from": "c2",
+          "to": "s2"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "bystander",
+          "from": "c3",
+          "to": "s3"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "bystander",
+          "from": "c4",
+          "to": "s4"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "bystander",
+          "from": "c5",
+          "to": "s5"
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": "main::main"
+    },
+    {
+      "version": 3,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"partial_bystander\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"a\", \"b\", \"handshake\", \"done_a\", \"done_b\", \"out\"],\n        \"functions\": [\"main\", \"a\", \"b\", \"bystander\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"a\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"b\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"handshake\", \"kind\": \"sync\", \"type\": \"Semaphore\", \"mode\": \"Sync\", \"count\": 1 },\n        { \"name\": \"done_a\", \"kind\": \"var\", \"type\": \"Atomic\", \"base\": \"Int\", \"init\": \"0\" },\n        { \"name\": \"done_b\", \"kind\": \"var\", \"type\": \"Atomic\", \"base\": \"Int\", \"init\": \"0\" },\n        { \"name\": \"out\", \"kind\": \"var\", \"type\": \"Var\", \"base\": \"Int\", \"init\": \"0\" }\n      ],\n      \"protection\": [\n        { \"resource\": \"main::out\", \"protected_by\": \"main::a\" }\n      ],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"locals\": [\"da\", \"db\"],\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"scope\", \"funcs\": [\"main::a\", \"main::b\", \"main::bystander\"] },\n            { \"sid\": \"s2\", \"kind\": \"atomic_load\", \"resource\": \"main::done_a\", \"dst\": \"da\" },\n            { \"sid\": \"s3\", \"kind\": \"atomic_load\", \"resource\": \"main::done_b\", \"dst\": \"db\" },\n            { \"sid\": \"s4\", \"kind\": \"branch\", \"cond\": \"da == 1 && db == 1\", \"then\": \"s5\", \"else\": \"s2\" },\n            { \"sid\": \"s5\", \"kind\": \"write_shared\", \"resource\": \"main::out\", \"expr\": \"\\\"DONE a=1 b=1\\\"\" },\n            { \"sid\": \"s6\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"a\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s3\", \"kind\": \"semaphore_acquire\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s4\", \"kind\": \"semaphore_release\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s7\", \"kind\": \"atomic_store\", \"resource\": \"main::done_a\", \"value\": \"1\" },\n            { \"sid\": \"s8\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"b\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s3\", \"kind\": \"semaphore_acquire\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s4\", \"kind\": \"semaphore_release\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s7\", \"kind\": \"atomic_store\", \"resource\": \"main::done_b\", \"value\": \"1\" },\n            { \"sid\": \"s8\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"bystander\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"locals\": [\"i\"],\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"0\" },\n            { \"sid\": \"s2\", \"kind\": \"branch\", \"cond\": \"i < 3\", \"then\": \"s3\", \"else\": \"s5\" },\n            { \"sid\": \"s3\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"i + 1\" },\n            { \"sid\": \"s4\", \"kind\": \"goto\", \"target\": \"s2\" },\n            { \"sid\": \"s5\", \"kind\": \"return\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "1e26c83f7bf08546fa9f3c6da53810b84c127bc9512701ce381436137f37ed4f",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v3/run-20260919T065313-94177-958361/lock-order__partial_deadlock_bystander/A3_whole/run-20260919T065431-94177-f3dbd6/revision-3.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "usage_error",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "check_schema_error",
+      "request_sha256": "55100ed58816c8c23269a531231d8375b9e37a0f4c86089cae1b703877bffb11",
+      "feedback_sha256": "b5b0e0b41ff6ec1838bbcc9fa9ad9f0a587324b802f565987412f74e2ba2b501",
+      "prompt_tokens": 5518,
+      "completion_tokens": 1253,
+      "llm_wall_ms": 3847,
+      "tool_wall_ms": 5,
+      "tool_output_sha256": "d3a2d8304169baf2bf4c24cdb773dacffaf9de6c669274f741555ec72b1486d5",
+      "normalizations": [
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "resource",
+          "to": "var"
+        },
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "protected_by",
+          "to": "lock"
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    },
+    {
+      "version": 4,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"partial_bystander\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"a\", \"b\", \"handshake\", \"done_a\", \"done_b\", \"out\"],\n        \"functions\": [\"main\", \"a\", \"b\", \"bystander\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"a\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"b\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"handshake\", \"kind\": \"sync\", \"type\": \"Semaphore\", \"mode\": \"Sync\", \"count\": 1 },\n        { \"name\": \"done_a\", \"kind\": \"var\", \"type\": \"Atomic\", \"base\": \"Int\", \"init\": \"0\" },\n        { \"name\": \"done_b\", \"kind\": \"var\", \"type\": \"Atomic\", \"base\": \"Int\", \"init\": \"0\" },\n        { \"name\": \"out\", \"kind\": \"var\", \"type\": \"Var\", \"base\": \"Int\", \"init\": \"0\" }\n      ],\n      \"protection\": [\n        { \"resource\": \"main::out\", \"protected_by\": \"main::a\" }\n      ],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"locals\": [\n            { \"name\": \"da\", \"type\": \"Int\" },\n            { \"name\": \"db\", \"type\": \"Int\" }\n          ],\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"scope\", \"funcs\": [\"main::a\", \"main::b\", \"main::bystander\"] },\n            { \"sid\": \"s2\", \"kind\": \"atomic_load\", \"resource\": \"main::done_a\", \"dst\": \"da\" },\n            { \"sid\": \"s3\", \"kind\": \"atomic_load\", \"resource\": \"main::done_b\", \"dst\": \"db\" },\n            { \"sid\": \"s4\", \"kind\": \"branch\", \"cond\": \"da == 1 && db == 1\", \"then\": \"s5\", \"else\": \"s2\" },\n            { \"sid\": \"s5\", \"kind\": \"write_shared\", \"resource\": \"main::out\", \"expr\": \"\\\"DONE a=1 b=1\\\"\" },\n            { \"sid\": \"s6\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"a\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s3\", \"kind\": \"semaphore_acquire\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s4\", \"kind\": \"semaphore_release\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s7\", \"kind\": \"atomic_store\", \"resource\": \"main::done_a\", \"value\": \"1\" },\n            { \"sid\": \"s8\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"b\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s3\", \"kind\": \"semaphore_acquire\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s4\", \"kind\": \"semaphore_release\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s7\", \"kind\": \"atomic_store\", \"resource\": \"main::done_b\", \"value\": \"1\" },\n            { \"sid\": \"s8\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"bystander\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"locals\": [\n            { \"name\": \"i\", \"type\": \"Int\" }\n          ],\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"0\" },\n            { \"sid\": \"s2\", \"kind\": \"branch\", \"cond\": \"i < 3\", \"then\": \"s3\", \"else\": \"s5\" },\n            { \"sid\": \"s3\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"i + 1\" },\n            { \"sid\": \"s4\", \"kind\": \"goto\", \"target\": \"s2\" },\n            { \"sid\": \"s5\", \"kind\": \"return\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "67c7079b1cd2e2f96126696d57a418e00ebee8c3c5bb3a313984781ea2a9d237",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v3/run-20260919T065313-94177-958361/lock-order__partial_deadlock_bystander/A3_whole/run-20260919T065431-94177-f3dbd6/revision-4.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "invalid",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "check_invalid",
+      "request_sha256": "c1db7df33ffaf9cc3926404351bb695493332e7c88291f5535908c5261aa9db2",
+      "feedback_sha256": "97008dddebdced56c395501892873799f6c186bde0c0cdff9365020b64f9ab3c",
+      "prompt_tokens": 3382,
+      "completion_tokens": 1295,
+      "llm_wall_ms": 3452,
+      "tool_wall_ms": 5,
+      "tool_output_sha256": "82ddc6921bf26d2925ab89f6f107b4b2ec77944c547e1a6e627a4e00070a1ef5",
+      "normalizations": [
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "resource",
+          "to": "var"
+        },
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "protected_by",
+          "to": "lock"
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": "main::main"
+    }
+  ],
+  "accepted_version": null,
+  "repair_mode": "llm_revision",
+  "candidate_source": "llm",
+  "consumption": {
+    "http_requests": 3,
+    "prompt_tokens": 12611,
+    "completion_tokens": 3744,
+    "total_tokens": 16355,
+    "llm_wall_ms": 10861,
+    "tool_wall_ms": 42,
+    "rounds": 3,
+    "first_correct_round": null
+  },
+  "error": "no complete PASS within 4 rounds",
+  "accepted": false
+}

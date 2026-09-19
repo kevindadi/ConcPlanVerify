@@ -24,7 +24,8 @@ from .extract import extraction_prompt, parse_extraction, schema_text, validate_
 from .experiments_v2 import K, load_manifest
 from .live import (
     ALLOWED_PROVIDER, DEFAULT_MAX_SECONDS, DeepSeekFlashClient, LiveBudget,
-    RecordingPatchProvider, RecordingProvider, assert_allowed_model,
+    RecordingLocalProvider, RecordingPatchProvider, RecordingProvider,
+    assert_allowed_model,
 )
 from .offline_workflow import _exclusive_run_dir
 from .patch_repair import ExternalPatchRepairWorkflow
@@ -614,3 +615,217 @@ def _extract_rust(text: str) -> str:
             lines = lines[1:]
         return "\n".join(lines).strip() + "\n"
     return text.strip() + "\n"
+
+
+SMOKE_V3_TASKS = (
+    "lock-order/partial_deadlock_bystander",
+    "lock-order/cross_module_cycle",
+    "lock-order/cycle_3lock",
+    "structure/nested_scope_lock_order",
+    "condvar/notify_one_multi_waiter_wrong_pick",
+    "channel/bounded_backpressure_lock_held",
+    "channel/send_while_holding_mutex",
+    "semaphore/acquire_twice_no_release",
+)
+SMOKE_V3_ARMS = ("A0_direct", "A1_self_iter", "A2_tools_iter_ml",
+                 "A3_local", "A3_whole")
+ARC = {"A0_direct": "direct", "A1_self_iter": "self", "A2_tools_iter_ml": "tools"}
+
+
+def run_repair_smoke_v3(manifest_path: Path | str, out_dir: Path | str, *,
+                        binary: Path | str, api_key: str, protocol_path: Path | str,
+                        protocol_sha256: str, k: int = K, timeout: float = 90.0,
+                        max_tokens: int = 4096, max_requests: int = 200,
+                        max_seconds: float = 10800.0, sdk_client: Any | None = None,
+                        tasks_filter: tuple[str, ...] | None = None) -> dict[str, Any]:
+    from .arms import cir_oracle, rust_oracle
+    from .revision_workflow import WholeArtifactRevisionWorkflow
+
+    assert_protocol_confirmed(protocol_path, protocol_sha256)
+    assert_allowed_model(ALLOWED_PROVIDER, "deepseek-flash")
+    root = Path(manifest_path).resolve().parent
+    out = Path(out_dir).expanduser().resolve()
+    batch = _exclusive_run_dir(out)
+    budget = LiveBudget(batch / "budget.json", max_requests=max_requests,
+                        max_seconds=max_seconds)
+    tasks = {t.id: t for t in load_manifest(manifest_path)}
+    wanted = tasks_filter or SMOKE_V3_TASKS
+    summary: dict[str, Any] = {
+        "batch_dir": str(batch), "protocol_sha256": protocol_sha256,
+        "provider": ALLOWED_PROVIDER, "requested_model": "deepseek-flash",
+        "binary_sha256": __import__("hashlib").sha256(Path(binary).read_bytes()).hexdigest(),
+        "k": k, "max_requests": max_requests, "tasks": [], "stop_reason": None,
+    }
+    stop_reason = None
+    for task_id in wanted:
+        task = tasks.get(task_id)
+        if task is None:
+            summary["tasks"].append({"task": task_id, "skipped": "not_in_manifest"})
+            continue
+        if budget.exhausted():
+            stop_reason = budget.exhausted()
+            break
+        task_dir = batch / task_id.replace("/", "__")
+        rt = json.loads((root / task.directory / "repair_task.json").read_text(encoding="utf-8"))
+        contract_path = root / rt["contract"]
+        contract = json.loads(contract_path.read_text(encoding="utf-8"))
+        spec = (root / rt["requirements_file"]).read_text(encoding="utf-8")
+        buggy_cir = root / rt["input_cir"]
+        input_rust = ((root / rt["input_rust"]).read_text(encoding="utf-8")
+                      if rt.get("input_rust") else None)
+        client = ConcirClient(binary, workdir=task_dir / "calls", timeout=30.0)
+        record: dict[str, Any] = {"task": task_id, "contract_sha256": __import__("hashlib")
+                                  .sha256(contract_path.read_bytes()).hexdigest(), "arms": {}}
+        try:
+            if input_rust is not None:
+                for arm in ("A0_direct", "A1_self_iter", "A2_tools_iter_ml"):
+                    if budget.exhausted():
+                        break
+                    llm = DeepSeekFlashClient(api_key=api_key, budget=budget,
+                                              evidence_dir=batch / "llm", timeout=timeout,
+                                              max_tokens=max_tokens, sdk_client=sdk_client)
+                    provider = RustLiveProvider(llm, ARC[arm])
+                    run = run_rust_arm(provider, arm=arm, task=task_id, spec=spec,
+                                       contract=contract, out_dir=task_dir / arm, k=k,
+                                       initial_source=input_rust, tool_timeout_s=8.0,
+                                       run_miri_many_seeds=False)
+                    arec = run.as_dict()
+                    arec["llm_calls"] = provider.calls
+                    arec["oracle"] = (rust_oracle(
+                        run.final_artifact_path, run_miri=True, miri_seed_count=16,
+                        run_miri_many_seeds=False,
+                        expected_terminal=TASK_TERMINAL.get(task_id))
+                        if run.final_artifact_path else {})
+                    record["arms"][arm] = arec
+            for arm, fmt in (("A3_local", "local"), ("A3_whole", "whole")):
+                if budget.exhausted():
+                    break
+                llm = DeepSeekFlashClient(api_key=api_key, budget=budget,
+                                          evidence_dir=batch / "llm", timeout=timeout,
+                                          max_tokens=max_tokens, sdk_client=sdk_client)
+                if fmt == "local":
+                    provider = RecordingLocalProvider(llm, buggy_cir.read_text(encoding="utf-8"))
+                else:
+                    provider = RecordingProvider(llm)
+                workflow = WholeArtifactRevisionWorkflow(
+                    client, provider, out_dir=task_dir / arm, max_rounds=k,
+                    reply_format=fmt)
+                res = workflow.run(spec, contract, task_id=task_id,
+                                   initial_program=buggy_cir)
+                arec = {"accepted": res.accepted, "accepted_round": res.accepted_version,
+                        "status": res.status, "decision_distribution": _decision_dist(res),
+                        "consumption": res.consumption.as_dict(),
+                        "llm_calls": provider.calls}
+                if res.versions and res.versions[-1].artifact_path:
+                    arec["final_cir"] = res.versions[-1].artifact_path
+                    arec["oracle"] = cir_oracle(client, res.versions[-1].artifact_path,
+                                                contract_path)
+                record["arms"][arm] = arec
+        except Exception as exc:  # noqa: BLE001
+            stop_reason = f"{type(exc).__name__}: {exc}"
+            record["error"] = stop_reason
+        summary["tasks"].append(record)
+        if stop_reason:
+            summary["stop_reason"] = stop_reason
+            break
+    summary["requests_used"] = budget.requests_used
+    summary["requests_remaining"] = budget.remaining
+    (batch / "SUMMARY.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (batch / "SUMMARY.md").write_text(render_smoke_v3_md(summary), encoding="utf-8")
+    return summary
+
+
+def _decision_dist(res) -> dict[str, int]:
+    from collections import Counter
+
+    # The decisions live in the per-run result.json; recompute from the workflow
+    # result object is not available here, so readers use the run dir. Placeholder
+    # is replaced by _decision_dist_from_runs at render time.
+    return {}
+
+
+def _decision_dist_from_runs(summary: dict[str, Any]) -> dict[str, dict[str, int]]:
+    from collections import Counter
+
+    out: dict[str, dict[str, int]] = {}
+    for t in summary["tasks"]:
+        for arm in ("A3_local", "A3_whole"):
+            rec = (t.get("arms") or {}).get(arm) or {}
+            path = rec.get("final_cir")
+            if not path:
+                continue
+            result_path = Path(path).parent / "result.json"
+            if not result_path.is_file():
+                continue
+            data = json.loads(result_path.read_text(encoding="utf-8"))
+            counter = Counter(v.get("decision") for v in data.get("versions", []))
+            out[f"{t['task']}|{arm}"] = dict(counter)
+    return out
+
+
+def render_smoke_v3_md(summary: dict[str, Any]) -> str:
+    lines = ["# flash-repair-smoke-v3 — SUMMARY", "",
+             f"- batch: `{summary['batch_dir']}`",
+             f"- protocol sha256: `{summary['protocol_sha256']}`",
+             f"- binary sha256: `{summary.get('binary_sha256')}`",
+             f"- requests used: {summary.get('requests_used')} / {summary.get('max_requests')}",
+             f"- stop reason: {summary.get('stop_reason')}", "",
+             "## Main table", "",
+             "| task | arm | accepted | round | tokens | llm_ms | tool_ms | oracle.build | "
+             "oracle.behavior | oracle.miri | oracle.model | false_accept |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for t in summary["tasks"]:
+        for arm in ("A0_direct", "A1_self_iter", "A2_tools_iter_ml", "A3_local", "A3_whole"):
+            r = (t.get("arms") or {}).get(arm)
+            if not r:
+                continue
+            o = r.get("oracle") or {}
+            c = r.get("consumption") or {}
+            if arm in ("A3_local", "A3_whole"):
+                mv = o.get("verify_pass")
+                fa = bool(r.get("accepted") and mv is False)
+                lines.append(f"| {t['task']} | {arm} | {r.get('accepted')} | "
+                             f"{r.get('accepted_round')} | {c.get('total_tokens')} | "
+                             f"{c.get('llm_wall_ms')} | {c.get('tool_wall_ms')} | — | — | — | "
+                             f"{'PASS' if mv else ('FAIL' if mv is False else 'n/a')} | {fa} |")
+            else:
+                statuses = o.get("miri_statuses") or []
+                miri = _status_counts(statuses) if statuses else str(o.get("miri_detected"))
+                model = o.get("model") or {}
+                ms = (f"validated:{model.get('model_verdict')}"
+                      if model.get("extract_validated") else "inconclusive")
+                fa = bool(r.get("accepted") and o.get("bug_present") is True)
+                lines.append(f"| {t['task']} | {arm} | {r.get('accepted')} | "
+                             f"{r.get('accepted_round')} | {c.get('total_tokens')} | "
+                             f"{c.get('llm_wall_ms')} | {c.get('tool_wall_ms')} | "
+                             f"{o.get('build_ok')} | {o.get('behavior_status')} | {miri} | "
+                             f"{ms} | {fa} |")
+    # per-arm aggregates
+    lines += ["", "## Per-arm aggregates", "",
+              "| arm | cells | accepted | accept_rate | false_accept | inconclusive | "
+              "mean_round | mean_tokens |", "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for arm in SMOKE_V3_ARMS:
+        cells = [ (t.get("arms") or {}).get(arm) for t in summary["tasks"] ]
+        cells = [c for c in cells if c]
+        if not cells:
+            continue
+        accepted = sum(1 for c in cells if c.get("accepted"))
+        fa = sum(1 for c in cells if c.get("accepted") and (c.get("oracle") or {}).get("bug_present") is True)
+        inc = sum(1 for c in cells if (c.get("oracle") or {}).get("model") is None
+                  and arm not in ("A3_local", "A3_whole"))
+        rounds = [c.get("accepted_round") for c in cells if c.get("accepted_round")]
+        toks = [ (c.get("consumption") or {}).get("total_tokens") or 0 for c in cells ]
+        lines.append(f"| {arm} | {len(cells)} | {accepted} | {accepted/len(cells):.2f} | {fa} | "
+                     f"{inc} | {(sum(rounds)/len(rounds)) if rounds else 0:.2f} | "
+                     f"{(sum(toks)/len(toks)) if toks else 0:.0f} |")
+    lines += ["", "## A3 decision distribution", "",
+              "| task | arm | decisions |", "| --- | --- | --- |"]
+    for key, dist in sorted(_decision_dist_from_runs(summary).items()):
+        task, arm = key.split("|")
+        lines.append(f"| {task} | {arm} | {dist} |")
+    lines += ["", "`oracle.behavior`: terminated_ok / terminated_wrong_state / hang / "
+                  "no_output / no_build. `oracle.model` for Rust arms is `inconclusive` "
+                  "in this batch (deviation D-19: the batch is not gated on Rust-arm "
+                  "oracle completeness; extraction/expert labels are filled in later)."]
+    return "\n".join(lines) + "\n"

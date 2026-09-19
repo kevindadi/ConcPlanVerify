@@ -1,0 +1,81 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E208",
+      "severity": "error",
+      "message": "resource 'done_a' init value does not match base type Int",
+      "path": "modules[0].resources[3].init",
+      "fix_hint": "change init value to match the declared base type"
+    },
+    {
+      "code": "E208",
+      "severity": "error",
+      "message": "resource 'done_b' init value does not match base type Int",
+      "path": "modules[0].resources[4].init",
+      "fix_hint": "change init value to match the declared base type"
+    },
+    {
+      "code": "E208",
+      "severity": "error",
+      "message": "resource 'out' init value does not match base type Int",
+      "path": "modules[0].resources[5].init",
+      "fix_hint": "change init value to match the declared base type"
+    },
+    {
+      "code": "E931",
+      "severity": "error",
+      "message": "trailing input after expression: '&& db == 1'",
+      "location": "main::main.s4",
+      "path": "modules[0].functions[0].body[3]",
+      "fix_hint": "fix the expression syntax, or use a declared slot or enum variant"
+    },
+    {
+      "code": "E932",
+      "severity": "error",
+      "message": "type mismatch: expected Int, found String",
+      "location": "main::main.s5",
+      "path": "modules[0].functions[0].body[4]",
+      "fix_hint": "change the value to match the expected type"
+    },
+    {
+      "code": "E704",
+      "severity": "warning",
+      "message": "Var resource 'out' has no protection mapping",
+      "path": "modules[0].resources[5]",
+      "fix_hint": "add a protection mapping or change to Atomic type"
+    },
+    {
+      "code": "E309",
+      "severity": "error",
+      "message": "access to protected Var 'main::out' without holding lock 'main::a' in function 'main'",
+      "location": "main::main.s5",
+      "path": "modules[0].functions[0].body[4]",
+      "fix_hint": "acquire the lock before accessing this variable"
+    },
+    {
+      "code": "E912",
+      "severity": "warning",
+      "message": "'da' in function 'main' is modeled: false; the value is Unknown in the net",
+      "location": "main::main",
+      "path": "modules[0].functions[0]",
+      "fix_hint": "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled"
+    },
+    {
+      "code": "E912",
+      "severity": "warning",
+      "message": "'db' in function 'main' is modeled: false; the value is Unknown in the net",
+      "location": "main::main",
+      "path": "modules[0].functions[0]",
+      "fix_hint": "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled"
+    },
+    {
+      "code": "E912",
+      "severity": "warning",
+      "message": "'i' in function 'bystander' is modeled: false; the value is Unknown in the net",
+      "location": "main::bystander",
+      "path": "modules[0].functions[3]",
+      "fix_hint": "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled"
+    }
+  ]
+}
