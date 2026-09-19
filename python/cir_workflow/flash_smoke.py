@@ -256,6 +256,16 @@ def run_flash_smoke(manifest_path: Path | str, out_dir: Path | str, *, binary: P
 REPAIR_TASKS = ("lock-order/abba_2lock", "lock-order/partial_deadlock_bystander",
                 "condvar/bare_wait_no_predicate")
 
+# Observable terminal line per task (kept in sync with benchmarks/build_families).
+TASK_TERMINAL = {
+    "lock-order/abba_2lock": "DONE t1=1 t2=1",
+    "lock-order/partial_deadlock_bystander": "DONE a=1 b=1",
+    "condvar/bare_wait_no_predicate": "DONE ready=true",
+    "condvar/lost_wakeup_notify_before_wait": "DONE ready=true",
+    "semaphore/permit_leak": "DONE permits=1",
+    "condvar/notify_one_multi_waiter_wrong_pick": "DONE waiters=0",
+}
+
 
 def run_repair_smoke(manifest_path: Path | str, out_dir: Path | str, *, binary: Path | str,
                      api_key: str, protocol_path: Path | str, protocol_sha256: str,
@@ -329,7 +339,8 @@ def run_repair_smoke(manifest_path: Path | str, out_dir: Path | str, *, binary: 
                     if run.final_artifact_path:
                         arm_record["oracle"] = rust_oracle(
                             run.final_artifact_path, run_miri=True, timeout_s=8.0,
-                            run_miri_many_seeds=False, miri_seed_count=16)
+                            run_miri_many_seeds=False, miri_seed_count=16,
+                            expected_terminal=TASK_TERMINAL.get(task_id))
                         # Extraction oracle (<=2 requests per candidate).
                         if (not budget.exhausted()
                                 and arm_record["oracle"].get("build_ok")):
@@ -403,15 +414,35 @@ def render_repair_md(summary: dict[str, Any]) -> str:
             if model.get("extract_validated") is True:
                 model_str = f"validated:{model.get('model_verdict')}"
             elif model:
-                model_str = f"unverified:{model.get('reason', '')}"[:60]
+                model_str = "unverified"
             else:
                 model_str = "inconclusive"
+            statuses = oracle.get("miri_statuses") or []
+            miri_str = _status_counts(statuses) if statuses else str(oracle.get("miri_detected"))
             lines.append(
                 f"| {task['task']} | {arm} | {run.get('accepted')} | "
                 f"{run.get('accepted_round')} | {oracle.get('build_ok')} | "
-                f"{oracle.get('behavior_status')} | {oracle.get('miri_detected')} | "
+                f"{oracle.get('behavior_status')} | {miri_str} | "
                 f"{model_str} | {fa} |")
+    # footnotes for long model reasons
+    notes = []
+    for task in summary["tasks"]:
+        for arm, run in (task.get("arms") or {}).items():
+            model = (run.get("oracle") or {}).get("model") or {}
+            if model and model.get("extract_validated") is not True:
+                notes.append(f"- {task['task']} / {arm}: {model.get('reason')}")
+    if notes:
+        lines += ["", "## oracle.model reasons", ""] + notes
+    lines += ["", "`behavior_status`: terminated_ok / terminated_wrong_state / hang / "
+                  "no_output / no_build. `oracle.model` is not truncated (see reasons "
+                  "section above)."]
     return "\n".join(lines) + "\n"
+
+
+def _status_counts(statuses: list[Any]) -> str:
+    from collections import Counter
+
+    return ", ".join(f"{k} {v}" for k, v in sorted(Counter(statuses).items()))
 
 
 def render_smoke_markdown(summary: dict[str, Any]) -> str:

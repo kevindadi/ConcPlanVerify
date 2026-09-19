@@ -136,6 +136,24 @@ SANITIZED_REQUIREMENTS = {
 }
 
 
+# Observable terminal line per case (F-3): the program must print exactly this
+# line when it completes, so the watchdog can tell "finished" from "finished
+# with the right result", without inspecting internals.
+TERMINAL = {
+    "lock-order/abba_2lock": "DONE t1=1 t2=1",
+    "lock-order/partial_deadlock_bystander": "DONE a=1 b=1",
+    "condvar/bare_wait_no_predicate": "DONE ready=true",
+    "condvar/lost_wakeup_notify_before_wait": "DONE ready=true",
+    "semaphore/permit_leak": "DONE permits=1",
+    "condvar/notify_one_multi_waiter_wrong_pick": "DONE waiters=0",
+}
+DEFAULT_TERMINAL = "DONE done=1"
+
+TERMINAL_SENTENCE = (
+    "On completion the program must print exactly one line `{line}` and then exit; "
+    "it must terminate.")
+
+
 def strip_comments(source: str) -> str:
     out: list[str] = []
     i, n = 0, len(source)
@@ -220,9 +238,12 @@ def sanitize_case(family: str, case: str, task_dir: Path, seq: int,
         program["program"] = program_name
         write_json(input_cir, program)
 
-    requirements = SANITIZED_REQUIREMENTS.get(f"{family}/{case}")
+    key = f"{family}/{case}"
+    requirements = SANITIZED_REQUIREMENTS.get(key)
     if requirements is None:
         raise KeyError(f"no sanitized requirements for {family}/{case}")
+    line = TERMINAL.get(key, DEFAULT_TERMINAL)
+    requirements = requirements.rstrip() + " " + TERMINAL_SENTENCE.format(line=line)
     (rin / "requirements.txt").write_text(requirements + "\n", encoding="utf-8")
 
     base = base_rel or f"families/{family}/{case}"

@@ -6,18 +6,34 @@
 
 | task | arm | accepted | round | oracle.build | oracle.behavior | oracle.miri | oracle.model | false_accept |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| lock-order/abba_2lock | A0_direct | True | 1 | True | terminated | False | unverified:reply not a {cir,rust} object | False |
-| lock-order/abba_2lock | A1_self_iter | True | 2 | True | terminated | False | unverified:reply not a {cir,rust} object | False |
-| lock-order/abba_2lock | A2_tools_iter_m | True | 1 | True | terminated | False | unverified:reply not a {cir,rust} object | False |
-| lock-order/abba_2lock | A2_tools_iter_ml | True | 1 | True | terminated | False | unverified:extracted CIR not codegen-able: codegen failed: J | False |
+| lock-order/abba_2lock | A0_direct | True | 1 | True | no_output | clean 16 | unverified | False |
+| lock-order/abba_2lock | A1_self_iter | True | 2 | True | no_output | clean 16 | unverified | False |
+| lock-order/abba_2lock | A2_tools_iter_m | True | 1 | True | no_output | clean 16 | unverified | False |
+| lock-order/abba_2lock | A2_tools_iter_ml | True | 1 | True | no_output | clean 16 | unverified | False |
 | lock-order/abba_2lock | A3_ours_revision | True | 2 | None | None | None | validated:PASS | False |
-| lock-order/partial_deadlock_bystander | A0_direct | True | 1 | True | hang | False | unverified:extracted CIR has invalid sids | True |
+| lock-order/partial_deadlock_bystander | A0_direct | True | 1 | True | hang | timeout 16 | unverified | True |
 | lock-order/partial_deadlock_bystander | A1_self_iter | False | None | False | no_build | False | inconclusive | False |
-| lock-order/partial_deadlock_bystander | A2_tools_iter_m | True | 4 | True | terminated | False | unverified:reply not a {cir,rust} object | False |
-| lock-order/partial_deadlock_bystander | A2_tools_iter_ml | True | 4 | True | terminated | False | unverified:extracted CIR has invalid sids | False |
+| lock-order/partial_deadlock_bystander | A2_tools_iter_m | True | 4 | True | no_output | clean 16 | unverified | False |
+| lock-order/partial_deadlock_bystander | A2_tools_iter_ml | True | 4 | True | no_output | clean 16 | unverified | False |
 | lock-order/partial_deadlock_bystander | A3_ours_revision | True | 3 | None | None | None | validated:PASS | False |
-| condvar/bare_wait_no_predicate | A0_direct | True | 1 | True | terminated | False | unverified:extracted CIR has invalid sids | False |
-| condvar/bare_wait_no_predicate | A1_self_iter | True | 2 | True | terminated | False | unverified:extracted CIR has invalid sids | False |
-| condvar/bare_wait_no_predicate | A2_tools_iter_m | True | 1 | True | terminated | False | unverified:extracted CIR has invalid sids | False |
-| condvar/bare_wait_no_predicate | A2_tools_iter_ml | True | 1 | True | terminated | False | unverified:extracted CIR has invalid sids | False |
+| condvar/bare_wait_no_predicate | A0_direct | True | 1 | True | no_output | clean 16 | unverified | False |
+| condvar/bare_wait_no_predicate | A1_self_iter | True | 2 | True | no_output | clean 16 | unverified | False |
+| condvar/bare_wait_no_predicate | A2_tools_iter_m | True | 1 | True | no_output | clean 16 | unverified | False |
+| condvar/bare_wait_no_predicate | A2_tools_iter_ml | True | 1 | True | no_output | clean 16 | unverified | False |
 | condvar/bare_wait_no_predicate | A3_ours_revision | True | 4 | None | None | None | validated:PASS | False |
+
+## oracle.model reasons
+
+- lock-order/abba_2lock / A0_direct: reply not a {cir,rust} object
+- lock-order/abba_2lock / A1_self_iter: reply not a {cir,rust} object
+- lock-order/abba_2lock / A2_tools_iter_m: reply not a {cir,rust} object
+- lock-order/abba_2lock / A2_tools_iter_ml: extracted CIR not codegen-able: codegen failed: JSON parse error in '/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-smoke-v2/run-20260919T042328-54287-47223d/extraction/run-20260919T051554-70190-f76cb8/lock-order__abba_2lock/A2_tools_iter_ml/extracted.cir.json': missing field `kind` at line 54 column 9
+- lock-order/partial_deadlock_bystander / A0_direct: extracted CIR has invalid sids
+- lock-order/partial_deadlock_bystander / A2_tools_iter_m: reply not a {cir,rust} object
+- lock-order/partial_deadlock_bystander / A2_tools_iter_ml: extracted CIR has invalid sids
+- condvar/bare_wait_no_predicate / A0_direct: extracted CIR has invalid sids
+- condvar/bare_wait_no_predicate / A1_self_iter: extracted CIR has invalid sids
+- condvar/bare_wait_no_predicate / A2_tools_iter_m: extracted CIR has invalid sids
+- condvar/bare_wait_no_predicate / A2_tools_iter_ml: extracted CIR has invalid sids
+
+`behavior_status`: terminated_ok / terminated_wrong_state / hang / no_output / no_build. `oracle.model` is not truncated (see reasons section above).

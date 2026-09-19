@@ -316,7 +316,8 @@ def run_cir_arm(client: ConcirClient, provider: CandidateProvider, *, arm: str,
 
 def rust_oracle(source_path: Path | str, *, run_miri: bool = True,
                 timeout_s: float = 60.0, run_miri_many_seeds: bool = True,
-                miri_seed_count: int | None = None) -> dict[str, Any]:
+                miri_seed_count: int | None = None,
+                expected_terminal: str | None = None) -> dict[str, Any]:
     """Terminal Rust verdict: build / behavior test / miri / bug rule.
 
     ``bug_present`` stays ``None`` unless a task-specific rule is available; it is
@@ -343,15 +344,20 @@ def rust_oracle(source_path: Path | str, *, run_miri: bool = True,
     elif behavior.timed_out:
         behavior_ok = False
         behavior_status = "hang"
-    elif behavior.exit_code == 0:
-        behavior_ok = True
-        behavior_status = "terminated"
-    else:
+    elif behavior.exit_code != 0:
         behavior_ok = False
         behavior_status = "crash"
-    # Per-task bug rule available without model extraction: a program that hangs
-    # when it must terminate still contains the defect.
-    bug_present = behavior_ok is False
+    elif expected_terminal is not None and expected_terminal not in behavior.stdout:
+        behavior_ok = False
+        behavior_status = ("no_output" if not behavior.stdout.strip()
+                           else "terminated_wrong_state")
+    else:
+        behavior_ok = True
+        behavior_status = "terminated_ok"
+    # F-3: only non-termination is a defect signal here; a terminated program
+    # that does not print the (newly required) terminal line is recorded as its
+    # status but not counted as a bug, and model extraction is reported apart.
+    bug_present = behavior_status == "hang"
     return {
         "build_ok": record.get("build_ok"),
         "behavior_status": behavior_status,

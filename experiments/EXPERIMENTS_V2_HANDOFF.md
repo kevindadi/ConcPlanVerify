@@ -498,7 +498,8 @@ Highlights (full table in `SUMMARY.md`, incl. the v1→v2 comparison):
   partial `explore_fail ×2 → accepted`; bare_wait `explore_fail → check_invalid ×2
   → accepted` (the schema normaliser rescued the `check_invalid` rounds).
 - A2-m/A2-ml on partial need 4 rounds after de-leaking (v1 needed 1), and all
-  end `terminated` (bug fixed).
+  end `terminated` (recorded as `terminated, unverified`; the old candidates
+  predate the observable-terminal requirement, so they print no terminal line).
 - `oracle.model` is `extract_unverified` for most Rust arms (the extracted CIR did
   not codegen); `oracle.miri` detected nothing. `inconclusive` cells are those
   where build succeeded but extraction failed — recorded as is.
