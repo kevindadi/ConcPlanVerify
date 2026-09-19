@@ -313,3 +313,20 @@ Registered deviations (must be repeated in the handoff):
 - **Channel.** codegen maps channels to `cir_trace::Channel`; its rendezvous
   completion order is reported as a violation where it diverges from the model,
   without loosening `conform`.
+
+## Revision 2026-09-18g — contract strength, observability, channel
+
+- **D-13 (design-intent contracts).** `PredicateSpec` gains `holds_all`,
+  `mutex_exclusive`, `never_holds_all`. Every buggy case's `preserved` now
+  includes a design-intent predicate (a nested `holds_all`, a `var_eq` terminal,
+  or completion), so an empty fix that removes the critical section fails the
+  contract. `build_families.py` enforces buggy FAIL / fixed PASS.
+- **D-14 (observable terminal state).** `repair_input/requirements.txt` requires
+  a single terminal line (`DONE ...`); the behaviour oracle is a 10 s watchdog run
+  that parses that line, giving `terminated_ok` / `terminated_wrong_state` /
+  `hang` / `no_output` / `no_build`. This replaces the injected
+  `rust/tests/behavior.rs` (the earlier substitute).
+- **D-15 (rendezvous step).** `channel_send`/`channel_recv` are modelled and
+  instrumented as *attempt* events: `ev` is emitted before the call, so a cap-0
+  rendezvous that consumes two completion events in either order conforms
+  without a special composite rule. Channel fixed/correct cases are 100%.

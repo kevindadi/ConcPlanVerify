@@ -546,3 +546,88 @@ ConcPlanVerify benchmark rebuild.
   free prompt should demand the call.
 - Injected `rust/tests/behavior.rs` was substituted by the watchdog-run behaviour
   oracle (deviation D-12).
+
+---
+
+# Round 2026-09-18g — contract strength and complete 12-cell oracle
+
+## F-1..F-6
+
+| item | status | evidence |
+| --- | --- | --- |
+| F-1 contract under-specification | fixed | `holds_all` + `mutex_exclusive`/`never_holds_all`; 21 buggy contracts carry design intent; `contract-strength-v1`. ConcIR `b829b72`. |
+| F-2 extraction oracle | partly | `normalize` drops top-level fields; v2 prompt + parse retry aligned with conform. 12 candidates re-extracted (23 requests): **0 validated**, reasons below. |
+| F-3 "terminated ⇒ bug fixed" | fixed | observable `DONE ...` requirement; `behavior_status` enum; wording purged. |
+| F-4 SUMMARY hid evidence | fixed | `oracle.miri` shows status counts (`clean 16`/`timeout 16`); `oracle.model` not truncated (reasons section). |
+| F-5 channel conformance | fixed | channel ops are attempt-events; `conformance-v4` channel fixed/correct 100%. |
+| F-6 A3_free | fixed | free program now uses the injected runtime; `A3_free` produced 66 non-missing traces (all violations — its annotation does not match the CIR). |
+
+## Contract strength (F-1, main result)
+
+`experiments/contract-strength-v1/CONTRACT_STRENGTH.{md,json}`: 14 accepted A3
+CIRs replayed offline against a strengthened contract derived from each CIR's own
+names (deadlock_free + scope-member completion + `holds_all` per >=2-lock function
++ `var_eq ready`). **12 PASS, 2 FAIL**:
+
+- v2 `partial_deadlock_bystander` accepted v3 → **FAIL** on
+  `preserved: main::a holds [main::a, main::b]` (and the symmetric items): the
+  "fix" removed the nested critical section — exactly the empty repair F-1 warns
+  about.
+- smoke-c `partial_deadlock_bystander` accepted v4 → FAIL on
+  `preserved: main::bystander completes` (its revision stalled the bystander).
+
+## Conformance v4
+
+`experiments/conformance-v4/CONFORMANCE.{json,md}` — binary
+`7cad5515…`, git_rev `b829b72…` (offline part):
+
+| case | traces | conformant | violation | timeout | coverage |
+| --- | --- | --- | --- | --- | --- |
+| abba / lost_wakeup / permit_leak / scope_bound | 58 | 58 | 0 | 0 | 9/9, 7/7, 5/5, 7/7 |
+| cross_module_cycle (fixed) | 58 | 58 | 0 | 0 | 9/9 |
+| rendezvous_both_send (fixed) | 58 | 58 | 0 | 0 | 3/3 |
+| bounded_backpressure (fixed) | 58 | 58 | 0 | 0 | 5/5 |
+| send_while_holding_mutex (fixed) | 58 | 58 | 0 | 0 | 3/3 |
+| rmw-zenoh-998 (buggy) | 58 | 27 | 0 | 31 | 9/9 |
+
+`worker_with_payload` skeleton_fill **66/66, coverage 5/5**; `A3_free` built and
+produced 66 non-missing traces but **66 violations** (free annotation is
+inconsistent with the CIR) — the concrete reason the skeleton arm is needed.
+
+## 12-cell Rust oracle (v2 batch, updated)
+
+Wording is now state-only. `behavior_status`: `no_output` 10, `hang` 1,
+`no_build` 1 (the 10 candidates predate the terminal requirement, so they print
+no `DONE` line; recorded as `no_output`, not as defects). `oracle.miri`: raw
+counts (`clean 16` / `timeout 16`). `oracle.model` is `unverified` for all 12
+(reason distribution: invalid/missing sids 6, not a `{cir,rust}` object 4, codegen
+1, not run 1). `false_accept` 1 (A0 `partial_deadlock_bystander`, `hang`).
+
+## Extraction (F-2) reason distribution
+
+23 requests across the 12 candidates + 4 retries: 0 `extract_validated`. The
+model omits statement `sid`s (`invalid sids` 6), returns no `{cir,rust}` object
+(4), or malformed CIR (1). The fixes (drop top-level fields, v2 prompt, parse
+retry) are in place; the remaining gap is model compliance, recorded honestly.
+
+## Section 6 (optional): A3 under the strengthened contract
+
+`experiments/contract-strength-v1/a3-partial-rerun/`, 3 requests (K=4): A3 on
+`partial_deadlock_bystander` from `repair_input/` under the new contract is
+**not accepted** — decisions `explore_fail`, `sid_invalid`, `check_invalid`,
+`check_invalid`. The strengthened contract blocks the empty fix, and the model
+did not produce a design-preserving repair within 4 rounds.
+
+## Commits
+
+- ConcIR `b829b72` (contract predicates), `a65971f` (channel attempt semantics).
+- ConcPlanVerify `98f58c1` (design-intent contracts + strength), `92d3953`
+  (extraction fixes), `8bdfabb` (terminal behaviour oracle), `2bded64`
+  (conformance-v4, A3_free, A3 rerun).
+
+## Not done
+
+- Extraction oracle validated 0 (model compliance); a stronger prompt or a
+  sid-assignment normalisation is needed.
+- The v2 candidates cannot satisfy the new terminal requirement (they predate
+  it); a live repair-smoke-v3 would give `terminated_ok` numbers.
