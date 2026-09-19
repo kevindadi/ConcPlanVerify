@@ -330,3 +330,22 @@ Registered deviations (must be repeated in the handoff):
   instrumented as *attempt* events: `ev` is emitted before the call, so a cap-0
   rendezvous that consumes two completion events in either order conforms
   without a special composite rule. Channel fixed/correct cases are 100%.
+
+## Revision 2026-09-18h — frozen-contract strength, A3_local, extraction v3
+
+- **D-16 (A3 main mode).** `A3_local` is the primary CIR-repair arm: the LLM
+  returns only `{"functions": {...}, "new_resources": [...], "removed_resources":
+  [...]}` and the harness merges it into the previous program (unmentioned
+  functions/resources preserved). Whole-artifact resend becomes the `A3_whole`
+  ablation. New functions must be reachable; unknown resources are returned as
+  feedback.
+- **D-17 (sid normalization).** Missing sids are filled as `s1, s2, ...` and
+  malformed sids are deterministically renamed, with `goto`/`branch`/`switch`
+  targets rewritten and every change recorded in `normalizations[]` (`rule:
+  sid_rename`). This replaces the earlier "never rewrite sids" restriction.
+- **D-18 (extraction two-fence).** The extraction prompt asks for a ```json CIR
+  block and a separate ```rust annotated block (write the CIR first); sids may be
+  omitted and are filled by the normalizer.
+- Contract strength is recomputed from the **frozen** `benchmarks/families/<task>/
+  contract.json` by `python -m cir_workflow contract-strength` (no derived
+  contracts).

@@ -631,3 +631,73 @@ did not produce a design-preserving repair within 4 rounds.
   sid-assignment normalisation is needed.
 - The v2 candidates cannot satisfy the new terminal requirement (they predate
   it); a live repair-smoke-v3 would give `terminated_ok` numbers.
+
+---
+
+# Round 2026-09-18h — frozen-contract strength and A3_local
+
+## Stop point
+
+Sections 1–3 were completed and committed; **section 3's acceptance metric was
+not met** (extraction `extract_validated` = 0 and no per-cell violation
+locations, because the failures happen at CIR codegen / Rust build before any
+conformance run). Per the "stop at the current section" rule, section 4
+(`flash-repair-smoke-v3`) was **not started**. No ConcIR change was needed this
+round; Rust tests **238 passed**, binary `6d498c8a…` at `a65971f`.
+
+## G-1 frozen-contract strength (reproducible)
+
+`python/cir_workflow/contract_strength.py` + CLI
+`python -m cir_workflow contract-strength --batches ...` regenerated
+`experiments/contract-strength-v1/CONTRACT_STRENGTH.{json,md}` from the **frozen**
+contracts. The previous derived-contract table is kept as
+`CONTRACT_STRENGTH.derived-v0.md` (marked superseded). Every record now carries
+`old_contract_sha256`, `frozen_contract_sha256`, `binary_sha256`, `git_rev`.
+
+Result over 14 accepted A3 versions: **v2 `partial_deadlock_bystander` v3 → FAIL
+under the frozen contract** on the symmetric
+`preserved: main::a holds [main::a, main::b]` / `b` items — the empty fix is
+rejected. Some old `abba` accepted versions are `INVALID` under the frozen
+contract because they use resource names (`A`/`B`) that the frozen contract does
+not declare (recorded, with both contract hashes). Unit tests:
+`python/tests/test_contract_strength.py`.
+
+## G-2 A3_local
+
+- `prompts/concir_local_revision_v1.md`; `reply_format="local"` in
+  `WholeArtifactRevisionWorkflow`; `_merge_local` merges function bodies and
+  resources, preserving everything unmentioned; unreachable new functions are
+  rejected.
+- `normalize.py` now fills/renames sids and rewrites jump targets (D-17);
+  `E208`/`E931` feedback carries the declared base/init example and the
+  function's declared params/locals.
+- Offline normalizer regression (`experiments/contract-strength-v1/
+  NORMALIZATION_REGRESSION.{json,md}`): historical `check_invalid`/`sid_invalid`
+  candidates → **3/13 valid** after normalization; the rest carry semantic
+  errors.
+- Unit tests cover merge-preserves-others, unreachable-new-function rejection, and
+  the local undeclared-resource path (`check_invalid` feedback, no crash).
+
+## G-3 extraction v3
+
+Two-fence protocol (`prompts/rust_to_cir_extract_v3.md`) + `parse_extraction`
+double-fence handling + expansion of `normalize` (entry FQN, version, function
+`kind`). Re-run over the 12 stored candidates (24 requests, at the budget cap):
+**0 validated**. Reasons: the extracted CIR still fails `concir-backend` parse for
+some shapes, and where it parses the annotated Rust does not build. The v3 prompt
+and parser are in place; the remaining gap is model compliance (it does not emit
+a codegen-valid CIR plus a matching annotated Rust). This is the section-3
+acceptance miss.
+
+## Per-section commits
+
+- `817fd62` contract-strength script + CLI + tests
+- `8fc5b7f` A3_local mode, sid fill/rename, E208/E931 feedback, normalizer regression
+- `7bdc44d` extraction two-fence v3 + normalization
+
+## Not done
+
+- Section 4 `flash-repair-smoke-v3` (8 tasks × {A0, A1, A2-ml, A3_local,
+  A3_whole}) — not started because section 3's acceptance was not met.
+- Extraction oracle validated 0 (model compliance).
+- The optional `A3_free` extraction (G-5) was not run.
