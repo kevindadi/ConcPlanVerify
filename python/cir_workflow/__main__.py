@@ -131,6 +131,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--max-tokens", type=int, default=4096)
     p.add_argument("--llm-timeout", type=float, default=90.0)
 
+    p = sub.add_parser("contract-strength",
+                       help="replay A3 accepted CIRs against frozen contracts (offline)")
+    p.add_argument("--batches", required=True,
+                   help="comma-separated batch directories to scan")
+    p.add_argument("--report", help="output directory (default: --out)")
+
     p = sub.add_parser("fill-smoke", help="Flash hole-fill + A3_free conformance smoke")
     p.add_argument("--program", required=True)
     p.add_argument("--contract", required=True)
@@ -260,6 +266,17 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"batch_dir": summary["batch_dir"],
                               "requests_used": summary["requests_used"],
                               "stop_reason": summary["stop_reason"]}, indent=2))
+            return 0
+
+        if args.command == "contract-strength":
+            from .contract_strength import recompute, write_report
+
+            batches = [Path(p) for p in args.batches.split(",") if p]
+            records = recompute(batches, repo_root, binary=args.binary)
+            report_dir = Path(args.report) if args.report else Path(args.out)
+            write_report(records, report_dir)
+            print(json.dumps({"records": len(records),
+                              "new_outcomes": {r.new_outcome: 1 for r in records}}, indent=2))
             return 0
 
         if args.command == "fill-smoke":
