@@ -156,8 +156,9 @@
         "families/lock-order/cross_module_cycle/spec.md": "5eba047a2c5d5c018c3647dff6a7d7c4490126d06c570836ff848d26d9dc4d35",
         "families/lock-order/cross_module_cycle/contract.json": "a53d94331df2a2502865dde5cbcd869942ea5614836ed4c18a8ea79ada073ef4",
         "families/lock-order/cross_module_cycle/buggy.cir.json": "a513fadc58079ab1e36af412e56adf01c78bcc0776b55dcfecb65007ccc23d5d",
-        "families/lock-order/cross_module_cycle/ground_truth.json": "127a69d47a68c1d6389fa6060a71c1a3c34c135e085bf9cc6d646a75214badd0",
-        "families/lock-order/cross_module_cycle/repair_task.json": "866a95045101681389a773d07341fcb97c1923da49c4f3e8f20b8d2faa11aeb5",
+        "families/lock-order/cross_module_cycle/fixed.cir.json": "c3b6a5cc109e7e5d46359f0fa9b4b3f2c584ebc277c671c95952a711418a12fd",
+        "families/lock-order/cross_module_cycle/ground_truth.json": "6bc2588610a682fe0b70504c3c3f333cac3ec80a0984df42e4eda06c4577e3eb",
+        "families/lock-order/cross_module_cycle/repair_task.json": "71b95dbd0289c76821877f85686e313a40fc7d2117cab2972f334514708d5817",
         "families/lock-order/cross_module_cycle/repair_input/requirements.txt": "4292404b27a975036343d710919d844c8950d5e907793f8c7c0725cb46a83f63",
         "families/lock-order/cross_module_cycle/repair_input/input.cir.json": "0ac61d99049c04fbf9872924951e0321f50b6a0336172c3b8c3d5818560811ac"
       },
@@ -173,6 +174,16 @@
           "interp_complete": true,
           "states": 49,
           "wall_ms": null
+        },
+        "fixed": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 39,
+          "wall_ms": null
         }
       },
       "status": "ready",
@@ -187,12 +198,13 @@
           "other::t2.l1"
         ],
         "expected_outcome_buggy": "FAIL",
+        "expected_outcome_fixed": "PASS",
         "expected_repair": "unify cross-module lock order",
-        "provenance": "LLM-generated pilot-v1 t3_cross_module_abba (frozen), declared llm_generated"
+        "provenance": "LLM-generated pilot-v1 t3_cross_module_abba (frozen) + authored fixed twin, declared llm_generated"
       },
       "id": "lock-order/cross_module_cycle",
       "buggy_cir": "families/lock-order/cross_module_cycle/buggy.cir.json",
-      "fixed_cir": null,
+      "fixed_cir": "families/lock-order/cross_module_cycle/fixed.cir.json",
       "correct_cir": null,
       "buggy_rs": null,
       "fixed_rs": null,

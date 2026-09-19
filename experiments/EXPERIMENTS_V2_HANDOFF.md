@@ -441,7 +441,7 @@ future ConcIR fix.
 | N-3 channel conformance | recorded | codegen emits completion events; the runtime rendezvous order (receiver-first) diverges from the model's second-arriver attribution; channel cases are violations, not excused. ConcIR `f9df7fa`. |
 | N-4 version binding | fixed | `binary_sha256` + `git_rev` in `explore`/`codegen`/`conform` output; build.rs watches the branch ref; conformance JSON carries `binary_sha256`. |
 | R-3 diagnostics | fixed | `counterexample_names`, `doom_state` (holds/waiting_on FQN, free_resources), templated loop hints. ConcIR `1f7cb07`. |
-| R-6 multi-module codegen | not done | single-module only. |
+| R-6 multi-module codegen | fixed | `mod <name> { pub(crate) fn ... }` + `crate::`-qualified refs; authored a `fixed` twin for `cross_module_cycle` (unified cross-module order). ConcIR `79c9440`. |
 | VI.1 behavior.rs x6 | substituted | behaviour column is a bounded run of the built candidate (deviation D). |
 | VI.2 arm Miri many-seeds | fixed | per-seed 0..15 in the arm oracle. |
 | VI.3 extraction oracle | implemented, weak | prompt + `extract.py`; most extractions fail codegen validation and are `extract_unverified` (honest). |
@@ -503,6 +503,12 @@ Highlights (full table in `SUMMARY.md`, incl. the v1→v2 comparison):
   not codegen); `oracle.miri` detected nothing. `inconclusive` cells are those
   where build succeeded but extraction failed — recorded as is.
 
+Exact tallies over the 12 Rust-arm cells (3 tasks × 4 arms): accepted **11/12**,
+behaviour `terminated` **10**, `hang` **1**, `false_accept` **1**,
+`oracle.model` validated **0/12 → inconclusive ratio 100%** (the extraction CIRs
+failed codegen, which is the concrete reason to add multi-module codegen), and
+`oracle.miri` detected **0**.
+
 ## Commits this round
 
 - ConcIR: `722f271` (N-1 + E114 + engine_agreement + version fields),
@@ -521,11 +527,21 @@ Highlights (full table in `SUMMARY.md`, incl. the v1→v2 comparison):
   (`b12c813e…`) with git_rev `f9df7fa…`.
 - Rust tests **238 passed**; Python **100 passed**.
 
+## Section 6 (optional) — multi-module codegen
+
+`cross_module_cycle` now has a `fixed` twin (main::t1 and other::t2 both acquire in
+the global order a then b) and validates FAIL/PASS in both engines. Codegen emits
+one `pub(crate) mod <module>` per CIR module with `crate::`-qualified functions and
+module-scoped `Shared` fields. The fixed program codegens, builds, and conforms
+**conformant 5/5 runs, coverage 9/9**. Commits ConcIR `79c9440`, and the
+ConcPlanVerify benchmark rebuild.
+
 ## Not done
 
-- Multi-module codegen (R-6).
-- The extraction oracle rarely validates (extracted CIRs fail codegen) — needs a
-  stronger extraction prompt or codegen coverage.
-- `A3_free`'s program did not call `cir_trace::finish`, so its conformance is
-  all-missing; the free prompt should demand the call.
-- Injected `rust/tests/behavior.rs` (substituted by the watchdog run).
+- The extraction oracle validated 0/12 in smoke-v2 (extracted CIRs failed
+  codegen). Multi-module codegen now exists but the extraction was not re-run
+  live; a stronger extraction prompt is still wanted.
+- `A3_free`'s program did not call `cir_trace::finish` (all traces missing); the
+  free prompt should demand the call.
+- Injected `rust/tests/behavior.rs` was substituted by the watchdog-run behaviour
+  oracle (deviation D-12).

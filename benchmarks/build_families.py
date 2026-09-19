@@ -396,8 +396,21 @@ def case_cycle3() -> dict:
 
 def case_cross_module() -> dict:
     buggy = json.loads((FROZEN / "t3_cross_module_abba_frozen.cir.json").read_text())
+    # Fixed twin: the cross-module task acquires in a single global order.
+    fixed = json.loads(json.dumps(buggy))
+    for mod in fixed["modules"]:
+        for fn in mod.get("functions", []):
+            if fn["name"] == "t2":
+                body = fn["body"]
+                locks = [s for s in body if "lock" in s.get("kind", "") and
+                         "unlock" not in s.get("kind", "")]
+                if len(locks) >= 2 and locks[0]["resource"] == "other::b":
+                    locks[0]["resource"], locks[1]["resource"] = "main::a", "other::b"
+                unlocks = [s for s in body if s.get("kind") == "mutex_unlock"]
+                if len(unlocks) >= 2 and unlocks[0]["resource"] == "main::a":
+                    unlocks[0]["resource"], unlocks[1]["resource"] = "other::b", "main::a"
     c = json.loads((FROZEN / "t3_cross_module_abba_contract.json").read_text())
-    return {"buggy": buggy, "contract": c, "fixed": None,
+    return {"buggy": buggy, "contract": c, "fixed": fixed,
             "spec": "Design two modules that share cross-module resources. Module main "
                     "owns resource a, module other owns resource b. Two tasks each "
                     "acquire both resources (declared in requires.resources) and "
@@ -407,9 +420,11 @@ def case_cross_module() -> dict:
                              "resources": ["main::a", "other::b"],
                              "statements": ["main::t1.l1", "other::t2.l1"],
                              "expected_outcome_buggy": "FAIL",
+                             "expected_outcome_fixed": "PASS",
                              "expected_repair": "unify cross-module lock order",
                              "provenance": "LLM-generated pilot-v1 t3_cross_module_abba "
-                                           "(frozen), declared llm_generated"}}
+                                           "(frozen) + authored fixed twin, declared "
+                                           "llm_generated"}}
 
 
 def case_partial_bystander() -> dict:
