@@ -303,11 +303,18 @@ def render(summaries: list[dict[str, Any]], rows: list[dict[str, Any]],
             task = rec.get("task") or rec.get("id")
             concir = rec.get("concir") or {}
             for side in ("buggy", "fixed"):
-                entry = concir.get(side) or {}
-                petri = (entry.get("petri") or {}).get("outcome")
-                interp = (entry.get("interp") or {}).get("outcome")
-                miri = rec.get(f"miri_{side}")
-                lockbud = rec.get(f"lockbud_{side}")
+                if side in rec and isinstance(rec[side], dict) and "concir_petri" in rec[side]:
+                    entry = rec[side]
+                    petri = entry.get("concir_petri")
+                    interp = entry.get("concir_interp")
+                    miri = (entry.get("miri") or {}).get("detected")
+                    lockbud = (entry.get("lockbud") or {}).get("status")
+                else:
+                    entry = concir.get(side) or {}
+                    petri = (entry.get("petri") or {}).get("outcome")
+                    interp = (entry.get("interp") or {}).get("outcome")
+                    miri = rec.get(f"miri_{side}")
+                    lockbud = rec.get(f"lockbud_{side}")
                 L.append(f"| {task} | {side} | {petri} | {interp} | {miri} | {lockbud} |")
         L.append("")
         lockbud = trackd.get("lockbud") or {}
