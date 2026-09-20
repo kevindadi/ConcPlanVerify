@@ -796,3 +796,48 @@ it. This is the paper's central "tool-green ≠ correct" evidence.
 - §8 second-model probe: not run (optional).
 - Native schedules are random, so extraction `validated` is not perfectly
   reproducible run to run.
+
+# Round 2026-09-20k — A3 to Rust, per-candidate oracle, reference audit
+
+## J-1..J-7 status
+
+| item | status |
+| --- | --- |
+| J-1 extraction counting | §1: CELLS.json single source; validated = explore ∧ contract evaluated ∧ verdict∈{PASS,FAIL}; INVALID → contract_invalid; reasons filled (E-code/panic); RESULTS per (task,arm,rep) + stage×reason. |
+| J-2 expert per candidate | §4: rubric v2, per-sha labels with `cells` and `evidence`, `design_loss`; unsure 0/49; agreement 95/104. |
+| J-3 reference audit | §2: `cycle_3lock` Lockbud DoubleLock = false positive; `partial_deadlock` Miri "detected" = classification bug (path token), fixed with word boundary + `deadlocked` stem; all 8 fixed refs re-run (Miri 16). |
+| J-4 aggregation columns | §1: per-rep counts, `llm_ms/tool_ms/verify_ms`, `tokens_per_correct_accept`, A3 decision distribution fixed. |
+| J-5 A3_tiered | §5: local→whole escalation, 24 cells, 21 accepted, escalation 3/24, not worse than A3_local. |
+| J-6 extraction termination | §6: backend panic → E102; v6 label prompt; validated 0/63 < 5 → `extraction-v6/EXTRACTION_LIMITS.md`, track frozen. |
+| J-7 A3 Rust oracle | §3: all 19 unique accepted CIRs codegen (0 holes) + strict conform PASS + behavior + Miri 16; 0 LLM requests. |
+
+## Budgets
+
+| section | requests |
+| --- | --- |
+| §3 a3-to-rust | 0 / 110 |
+| §5 A3_tiered | 27 / 90 |
+| §6 extraction v6 | 15 / 40 |
+| total | 42 / 260 |
+
+## Binary
+
+- Main batch `BIN_MAIN 4bec943d` (ConcIR `d3d59ed`).
+- ConcIR `f42764f` (E102 instead of panic) → new binary `03d343e5`;
+  `experiments/REBASE_03d343e5.md` = 0 verdict changes (the change is an error
+  path only). The expensive conformance-v4 Miri rebase was not repeated.
+
+## Per-section commits
+
+- ConcIR `f42764f` sem: E102 instead of panic.
+- ConcPV `f42c4a0` §1; `ef2c60a` §2; `5ca6ed3` §3; `250ada7` §4; `150e541` §5;
+  `88c35fa` §6.
+
+## Not done
+
+- §4 human review: `HUMAN_REVIEW_QUEUE.md` (13 rows) left blank for the owner.
+- §5 `A3_tiered` did not help `partial_deadlock_bystander` (2 whole rounds were
+  insufficient; A3_whole needed 3).
+- conformance-v4 Miri not re-run on the new binary (0-change expectation only).
+- A2-ml acceptance was not re-run after the detection-classifier fix (the fix
+  only makes detection stricter; noted as a deviation).
