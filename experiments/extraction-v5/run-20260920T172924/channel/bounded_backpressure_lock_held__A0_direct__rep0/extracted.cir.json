@@ -1,0 +1,164 @@
+{
+  "program": "channel_mutex_sync",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "tx",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 1
+        },
+        {
+          "name": "rx",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 1
+        },
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "s",
+              "type": "Int"
+            },
+            {
+              "name": "r",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "stmt": "spawn",
+              "func": "main::t1",
+              "handle": "s",
+              "args": []
+            },
+            {
+              "sid": "L1",
+              "stmt": "spawn",
+              "func": "main::t1",
+              "handle": "s",
+              "args": []
+            },
+            {
+              "sid": "s2",
+              "stmt": "spawn",
+              "func": "main::t2",
+              "handle": "r",
+              "args": []
+            },
+            {
+              "sid": "L5",
+              "stmt": "spawn",
+              "func": "main::t2",
+              "handle": "r",
+              "args": []
+            },
+            {
+              "sid": "L9",
+              "stmt": "join",
+              "handle": "s"
+            },
+            {
+              "sid": "L10",
+              "stmt": "join",
+              "handle": "r"
+            },
+            {
+              "sid": "s3",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "t1",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L2",
+              "stmt": "channel_send",
+              "channel": "main::tx",
+              "value": "1"
+            },
+            {
+              "sid": "L3",
+              "stmt": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s4",
+              "stmt": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "L4",
+              "stmt": "channel_send",
+              "channel": "main::tx",
+              "value": "2"
+            },
+            {
+              "sid": "s5",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "t2",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L6",
+              "stmt": "channel_recv",
+              "channel": "main::rx",
+              "dst": "s6"
+            },
+            {
+              "sid": "L7",
+              "stmt": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s7",
+              "stmt": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "L8",
+              "stmt": "channel_recv",
+              "channel": "main::rx",
+              "dst": "s8"
+            },
+            {
+              "sid": "s9",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

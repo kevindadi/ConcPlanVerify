@@ -1,0 +1,126 @@
+{
+  "program": "mutex_ordered",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "t1",
+              "type": "Int"
+            },
+            {
+              "name": "t2",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "stmt": "spawn",
+              "func": "main::task1",
+              "handle": "t1"
+            },
+            {
+              "sid": "L1",
+              "stmt": "spawn",
+              "func": "main::task1",
+              "handle": "t1"
+            },
+            {
+              "sid": "s2",
+              "stmt": "spawn",
+              "func": "main::task2",
+              "handle": "t2"
+            },
+            {
+              "sid": "L4",
+              "stmt": "spawn",
+              "func": "main::task2",
+              "handle": "t2"
+            },
+            {
+              "sid": "L7",
+              "stmt": "join",
+              "handle": "t1"
+            },
+            {
+              "sid": "L8",
+              "stmt": "join",
+              "handle": "t2"
+            },
+            {
+              "sid": "s3",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "task1",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L2",
+              "stmt": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "L3",
+              "stmt": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s4",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "task2",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L5",
+              "stmt": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "L6",
+              "stmt": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s5",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

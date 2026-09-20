@@ -1,0 +1,231 @@
+{
+  "program": "condvar_waiters",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "cv",
+          "kind": "sync",
+          "type": "Condvar",
+          "mode": "Sync"
+        },
+        {
+          "name": "g",
+          "kind": "var",
+          "type": "Var",
+          "base": "Bool",
+          "init": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "hs",
+              "type": "Int"
+            },
+            {
+              "name": "q",
+              "type": "Int"
+            },
+            {
+              "name": "n",
+              "type": "Int"
+            },
+            {
+              "name": "h",
+              "type": "Int"
+            },
+            {
+              "name": "i",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "target": "hs",
+              "expr": "[]",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s2",
+              "target": "i",
+              "expr": "0",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s3",
+              "cond": "i < 2",
+              "then": "s4",
+              "else": "s7",
+              "kind": "branch"
+            },
+            {
+              "sid": "s4",
+              "target": "q",
+              "expr": "p",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "L1",
+              "func": "main::waiter",
+              "handle": "h",
+              "kind": "spawn"
+            },
+            {
+              "sid": "s5",
+              "target": "hs",
+              "expr": "hs + [h]",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s6",
+              "target": "i",
+              "expr": "i + 1",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s7",
+              "target": "q",
+              "expr": "p",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "L4",
+              "func": "main::setter",
+              "handle": "n",
+              "kind": "spawn"
+            },
+            {
+              "sid": "L7",
+              "handle": "n",
+              "kind": "join"
+            },
+            {
+              "sid": "s8",
+              "target": "i",
+              "expr": "0",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s9",
+              "cond": "i < len(hs)",
+              "then": "s10",
+              "else": "s13",
+              "kind": "branch"
+            },
+            {
+              "sid": "s10",
+              "target": "h",
+              "expr": "hs[i]",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "L8",
+              "handle": "h",
+              "kind": "join"
+            },
+            {
+              "sid": "s11",
+              "target": "i",
+              "expr": "i + 1",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s12",
+              "target": "s9",
+              "kind": "goto"
+            },
+            {
+              "sid": "s13",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "waiter",
+          "params": [],
+          "locals": [
+            {
+              "name": "g",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L2",
+              "resource": "main::m",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s14",
+              "resource": "main::g",
+              "dst": "g",
+              "kind": "read_shared"
+            },
+            {
+              "sid": "s15",
+              "cond": "!g",
+              "then": "L3",
+              "else": "s16",
+              "kind": "branch"
+            },
+            {
+              "sid": "L3",
+              "condvar": "main::cv",
+              "lock": "main::m",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "s16",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "setter",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L5",
+              "resource": "main::m",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s17",
+              "resource": "main::g",
+              "expr": "true",
+              "kind": "write_shared"
+            },
+            {
+              "sid": "L6",
+              "condvar": "main::cv",
+              "kind": "condvar_notify"
+            },
+            {
+              "sid": "s18",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

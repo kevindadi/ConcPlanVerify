@@ -1,0 +1,76 @@
+{
+  "labels": [
+    {
+      "label": "L1",
+      "line": 12,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { // Sender takes the lock, signals readiness, then releases it // before blocking on the channel send. { let (lock, cvar) = &*shared_s; let mut ready = lock.lock().unwrap(); *ready = true; cvar.notify_all(); } // Send after releasing the lock so the receiver can proceed. tx1.send(1).unwrap(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L2",
+      "line": 17,
+      "op": "mutex_lock",
+      "receiver": "lock",
+      "thread": "tL1"
+    },
+    {
+      "label": "L3",
+      "line": 19,
+      "op": "condvar_notify",
+      "receiver": "cvar",
+      "thread": "tL1"
+    },
+    {
+      "label": "L4",
+      "line": 22,
+      "op": "channel_send",
+      "receiver": "tx1",
+      "thread": "tL1"
+    },
+    {
+      "label": "L5",
+      "line": 26,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { // Receiver waits for the sender's readiness signal while holding // the lock, then releases it before blocking on the channel recv. { let (lock, cvar) = &*shared_r; let mut ready = lock.lock().unwrap(); while !*ready { ready = cvar.wait(ready).unwrap(); } } // Receive after releasing the lock, so the sender is never blocked // on the lock while the receiver waits on the channel. let _ = rx1.recv().unwrap(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L6",
+      "line": 31,
+      "op": "mutex_lock",
+      "receiver": "lock",
+      "thread": "tL5"
+    },
+    {
+      "label": "L7",
+      "line": 33,
+      "op": "condvar_wait",
+      "receiver": "cvar",
+      "thread": "tL5"
+    },
+    {
+      "label": "L8",
+      "line": 38,
+      "op": "channel_recv",
+      "receiver": "rx1",
+      "thread": "tL5"
+    },
+    {
+      "label": "L9",
+      "line": 41,
+      "op": "join",
+      "receiver": "s",
+      "thread": "t0"
+    },
+    {
+      "label": "L10",
+      "line": 42,
+      "op": "join",
+      "receiver": "r",
+      "thread": "t0"
+    }
+  ],
+  "schema_version": "cir-labels-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v5/run-20260920T172924/channel/send_while_holding_mutex__A2_tools_iter_ml__rep2/instrument/input.rs"
+}

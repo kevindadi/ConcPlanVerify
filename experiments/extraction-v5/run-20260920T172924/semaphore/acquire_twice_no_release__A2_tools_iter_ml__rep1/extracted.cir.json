@@ -1,0 +1,396 @@
+{
+  "program": "sem_reentrant",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "state",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "cv",
+          "kind": "sync",
+          "type": "Condvar",
+          "mode": "Sync"
+        },
+        {
+          "name": "available",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 1
+        },
+        {
+          "name": "owner",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        },
+        {
+          "name": "count",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "functions": [
+        {
+          "name": "acq",
+          "params": [],
+          "locals": [
+            {
+              "name": "s",
+              "type": "Int"
+            },
+            {
+              "name": "me",
+              "type": "Int"
+            },
+            {
+              "name": "available",
+              "type": "Int"
+            },
+            {
+              "name": "count",
+              "type": "Int"
+            },
+            {
+              "name": "me",
+              "type": "Int"
+            },
+            {
+              "name": "owner",
+              "type": "Int"
+            },
+            {
+              "name": "s",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "me",
+              "expr": "thread_id()"
+            },
+            {
+              "sid": "L1",
+              "kind": "mutex_lock",
+              "resource": "main::state"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "s",
+              "expr": "state"
+            },
+            {
+              "sid": "s3",
+              "kind": "branch",
+              "cond": "owner == me",
+              "then": "s4",
+              "else": "s6"
+            },
+            {
+              "sid": "s4",
+              "kind": "assign_local",
+              "target": "count",
+              "expr": "count + 1"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            },
+            {
+              "sid": "s6",
+              "kind": "branch",
+              "cond": "available > 0",
+              "then": "s7",
+              "else": "s10"
+            },
+            {
+              "sid": "s7",
+              "kind": "assign_local",
+              "target": "available",
+              "expr": "available - 1"
+            },
+            {
+              "sid": "s8",
+              "kind": "assign_local",
+              "target": "owner",
+              "expr": "me"
+            },
+            {
+              "sid": "s9",
+              "kind": "assign_local",
+              "target": "count",
+              "expr": "1"
+            },
+            {
+              "sid": "s10",
+              "kind": "return"
+            },
+            {
+              "sid": "L2",
+              "kind": "condvar_wait",
+              "condvar": "main::cv",
+              "lock": "main::state"
+            },
+            {
+              "sid": "s11",
+              "kind": "assign_local",
+              "target": "s",
+              "expr": "state"
+            },
+            {
+              "sid": "s12",
+              "kind": "goto",
+              "target": "s3"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "rel",
+          "params": [],
+          "locals": [
+            {
+              "name": "s",
+              "type": "Int"
+            },
+            {
+              "name": "me",
+              "type": "Int"
+            },
+            {
+              "name": "available",
+              "type": "Int"
+            },
+            {
+              "name": "count",
+              "type": "Int"
+            },
+            {
+              "name": "me",
+              "type": "Int"
+            },
+            {
+              "name": "owner",
+              "type": "Int"
+            },
+            {
+              "name": "s",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s13",
+              "kind": "assign_local",
+              "target": "me",
+              "expr": "thread_id()"
+            },
+            {
+              "sid": "L3",
+              "kind": "mutex_lock",
+              "resource": "main::state"
+            },
+            {
+              "sid": "s14",
+              "kind": "assign_local",
+              "target": "s",
+              "expr": "state"
+            },
+            {
+              "sid": "s15",
+              "kind": "assign_local",
+              "target": "count",
+              "expr": "count - 1"
+            },
+            {
+              "sid": "s16",
+              "kind": "branch",
+              "cond": "count == 0",
+              "then": "s17",
+              "else": "s20"
+            },
+            {
+              "sid": "s17",
+              "kind": "assign_local",
+              "target": "owner",
+              "expr": "0"
+            },
+            {
+              "sid": "s18",
+              "kind": "assign_local",
+              "target": "available",
+              "expr": "available + 1"
+            },
+            {
+              "sid": "L4",
+              "kind": "condvar_notify",
+              "condvar": "main::cv"
+            },
+            {
+              "sid": "s19",
+              "kind": "nop"
+            },
+            {
+              "sid": "s20",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker1",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "s21",
+              "kind": "call",
+              "func": "main::acq"
+            },
+            {
+              "sid": "s22",
+              "kind": "call",
+              "func": "main::acq"
+            },
+            {
+              "sid": "s23",
+              "kind": "call",
+              "func": "main::rel"
+            },
+            {
+              "sid": "s24",
+              "kind": "call",
+              "func": "main::rel"
+            },
+            {
+              "sid": "s25",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker2",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "s26",
+              "kind": "call",
+              "func": "main::acq"
+            },
+            {
+              "sid": "s27",
+              "kind": "call",
+              "func": "main::rel"
+            },
+            {
+              "sid": "s28",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "s",
+              "type": "Int"
+            },
+            {
+              "name": "s1",
+              "type": "Int"
+            },
+            {
+              "name": "s2",
+              "type": "Int"
+            },
+            {
+              "name": "w1",
+              "type": "Int"
+            },
+            {
+              "name": "w2",
+              "type": "Int"
+            },
+            {
+              "name": "s",
+              "type": "Int"
+            },
+            {
+              "name": "s1",
+              "type": "Int"
+            },
+            {
+              "name": "s2",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s29",
+              "kind": "assign_local",
+              "target": "s",
+              "expr": "Sem::new(1)"
+            },
+            {
+              "sid": "s30",
+              "kind": "assign_local",
+              "target": "s1",
+              "expr": "s"
+            },
+            {
+              "sid": "L5",
+              "kind": "spawn",
+              "func": "main::worker1",
+              "handle": "w1"
+            },
+            {
+              "sid": "s31",
+              "kind": "assign_local",
+              "target": "s2",
+              "expr": "s"
+            },
+            {
+              "sid": "L6",
+              "kind": "spawn",
+              "func": "main::worker2",
+              "handle": "w2"
+            },
+            {
+              "sid": "L7",
+              "kind": "join",
+              "handle": "w1"
+            },
+            {
+              "sid": "L8",
+              "kind": "join",
+              "handle": "w2"
+            },
+            {
+              "sid": "s32",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

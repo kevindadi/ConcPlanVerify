@@ -1,0 +1,245 @@
+{
+  "program": "channel_condvar_handshake",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "tx1",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        },
+        {
+          "name": "rx1",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        },
+        {
+          "name": "tx2",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        },
+        {
+          "name": "rx2",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        },
+        {
+          "name": "shared_lock",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "shared_cvar",
+          "kind": "sync",
+          "type": "Condvar",
+          "mode": "Sync"
+        },
+        {
+          "name": "shared_val",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "s",
+              "type": "Int"
+            },
+            {
+              "name": "r",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L1",
+              "func": "main::sender",
+              "handle": "s",
+              "kind": "spawn"
+            },
+            {
+              "sid": "L6",
+              "func": "main::receiver",
+              "handle": "r",
+              "kind": "spawn"
+            },
+            {
+              "sid": "L11",
+              "handle": "s",
+              "kind": "join"
+            },
+            {
+              "sid": "L12",
+              "handle": "r",
+              "kind": "join"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "sender",
+          "params": [],
+          "locals": [
+            {
+              "name": "guard",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L2",
+              "resource": "main::shared_lock",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s4",
+              "resource": "main::shared_val",
+              "dst": "guard",
+              "kind": "read_shared"
+            },
+            {
+              "sid": "s5",
+              "target": "guard",
+              "expr": "guard + 1",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s6",
+              "resource": "main::shared_val",
+              "expr": "guard",
+              "kind": "write_shared"
+            },
+            {
+              "sid": "L3",
+              "condvar": "main::shared_cvar",
+              "kind": "condvar_notify_all"
+            },
+            {
+              "sid": "s7",
+              "resource": "main::shared_lock",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "L4",
+              "channel": "main::tx1",
+              "value": "1",
+              "kind": "channel_send"
+            },
+            {
+              "sid": "L5",
+              "channel": "main::rx2",
+              "dst": "guard",
+              "kind": "channel_recv"
+            },
+            {
+              "sid": "s8",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "receiver",
+          "params": [],
+          "locals": [
+            {
+              "name": "guard",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L7",
+              "channel": "main::rx1",
+              "dst": "guard",
+              "kind": "channel_recv"
+            },
+            {
+              "sid": "L8",
+              "resource": "main::shared_lock",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s9",
+              "resource": "main::shared_val",
+              "dst": "guard",
+              "kind": "read_shared"
+            },
+            {
+              "sid": "s10",
+              "cond": "guard == 0",
+              "then": "s11",
+              "else": "s12",
+              "kind": "branch"
+            },
+            {
+              "sid": "s11",
+              "target": "s13",
+              "kind": "goto"
+            },
+            {
+              "sid": "s12",
+              "target": "s14",
+              "kind": "goto"
+            },
+            {
+              "sid": "s13",
+              "condvar": "main::shared_cvar",
+              "lock": "main::shared_lock",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "L9",
+              "condvar": "main::shared_cvar",
+              "lock": "main::shared_lock",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "s14",
+              "resource": "main::shared_lock",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "L10",
+              "channel": "main::tx2",
+              "value": "1",
+              "kind": "channel_send"
+            },
+            {
+              "sid": "s15",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

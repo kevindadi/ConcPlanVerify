@@ -1,0 +1,196 @@
+{
+  "program": "condvar_waiters",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "cv",
+          "kind": "sync",
+          "type": "Condvar",
+          "mode": "Sync"
+        },
+        {
+          "name": "g",
+          "kind": "var",
+          "type": "Var",
+          "base": "Bool",
+          "init": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "waiter",
+          "params": [],
+          "locals": [
+            {
+              "name": "g",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "resource": "main::m",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s2",
+              "cond": "!g",
+              "then": "s3",
+              "else": "s5",
+              "kind": "branch"
+            },
+            {
+              "sid": "s3",
+              "condvar": "main::cv",
+              "lock": "main::m",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "s4",
+              "target": "s2",
+              "kind": "goto"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "notifier",
+          "params": [],
+          "locals": [
+            {
+              "name": "g",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s6",
+              "resource": "main::m",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s7",
+              "target": "g",
+              "expr": "true",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s8",
+              "condvar": "main::cv",
+              "kind": "condvar_notify"
+            },
+            {
+              "sid": "s9",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "hs",
+              "type": "Int"
+            },
+            {
+              "name": "n",
+              "type": "Int"
+            },
+            {
+              "name": "h",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s10",
+              "target": "hs",
+              "expr": "[]",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s11",
+              "target": "n",
+              "expr": "0",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s12",
+              "cond": "n < 2",
+              "then": "s13",
+              "else": "s16",
+              "kind": "branch"
+            },
+            {
+              "sid": "L1",
+              "func": "main::waiter",
+              "handle": "h",
+              "kind": "spawn"
+            },
+            {
+              "sid": "s14",
+              "target": "hs",
+              "expr": "hs + [h]",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s15",
+              "target": "n",
+              "expr": "n + 1",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s16",
+              "target": "s12",
+              "kind": "goto"
+            },
+            {
+              "sid": "L4",
+              "func": "main::notifier",
+              "handle": "n",
+              "kind": "spawn"
+            },
+            {
+              "sid": "L7",
+              "handle": "n",
+              "kind": "join"
+            },
+            {
+              "sid": "s17",
+              "target": "h",
+              "expr": "hs[0]",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "L8",
+              "handle": "h",
+              "kind": "join"
+            },
+            {
+              "sid": "s18",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

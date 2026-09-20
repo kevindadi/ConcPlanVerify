@@ -1,0 +1,160 @@
+{
+  "labels": [
+    {
+      "label": "L1",
+      "line": 18,
+      "op": "mutex_lock",
+      "receiver": "self.permits",
+      "thread": "t0"
+    },
+    {
+      "label": "L2",
+      "line": 20,
+      "op": "condvar_wait",
+      "receiver": "self.cv",
+      "thread": "t0"
+    },
+    {
+      "label": "L3",
+      "line": 26,
+      "op": "mutex_lock",
+      "receiver": "self.permits",
+      "thread": "t0"
+    },
+    {
+      "label": "L4",
+      "line": 27,
+      "op": "condvar_notify",
+      "receiver": "self.cv",
+      "thread": "t0"
+    },
+    {
+      "label": "L5",
+      "line": 43,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let ga = ma.lock().unwrap(); sa.release(); sb.acquire(); let gb = mb.lock().unwrap(); drop(gb); drop(ga); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L6",
+      "line": 44,
+      "op": "mutex_lock",
+      "receiver": "ma",
+      "thread": "tL5"
+    },
+    {
+      "label": "L7",
+      "line": 45,
+      "op": "sem_release",
+      "receiver": "sa",
+      "thread": "tL5"
+    },
+    {
+      "label": "L8",
+      "line": 46,
+      "op": "sem_acquire",
+      "receiver": "sb",
+      "thread": "tL5"
+    },
+    {
+      "label": "L9",
+      "line": 47,
+      "op": "mutex_lock",
+      "receiver": "mb",
+      "thread": "tL5"
+    },
+    {
+      "label": "L10",
+      "line": 58,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let gb = mb2.lock().unwrap(); sb2.release(); sa2.acquire(); let ga = ma2.lock().unwrap(); drop(ga); drop(gb); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L11",
+      "line": 59,
+      "op": "mutex_lock",
+      "receiver": "mb2",
+      "thread": "tL10"
+    },
+    {
+      "label": "L12",
+      "line": 60,
+      "op": "sem_release",
+      "receiver": "sb2",
+      "thread": "tL10"
+    },
+    {
+      "label": "L13",
+      "line": 61,
+      "op": "sem_acquire",
+      "receiver": "sa2",
+      "thread": "tL10"
+    },
+    {
+      "label": "L14",
+      "line": 62,
+      "op": "mutex_lock",
+      "receiver": "ma2",
+      "thread": "tL10"
+    },
+    {
+      "label": "L15",
+      "line": 69,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let (lock, cv) = &*done_clone; let mut finished = lock.lock().unwrap(); while !*finished { finished = cv.wait(finished).unwrap(); } })",
+      "thread": "t0"
+    },
+    {
+      "label": "L16",
+      "line": 71,
+      "op": "mutex_lock",
+      "receiver": "lock",
+      "thread": "tL15"
+    },
+    {
+      "label": "L17",
+      "line": 73,
+      "op": "condvar_wait",
+      "receiver": "cv",
+      "thread": "tL15"
+    },
+    {
+      "label": "L18",
+      "line": 77,
+      "op": "join",
+      "receiver": "worker_a",
+      "thread": "t0"
+    },
+    {
+      "label": "L19",
+      "line": 78,
+      "op": "join",
+      "receiver": "worker_b",
+      "thread": "t0"
+    },
+    {
+      "label": "L20",
+      "line": 82,
+      "op": "mutex_lock",
+      "receiver": "lock",
+      "thread": "t0"
+    },
+    {
+      "label": "L21",
+      "line": 84,
+      "op": "condvar_notify",
+      "receiver": "cv",
+      "thread": "t0"
+    },
+    {
+      "label": "L22",
+      "line": 86,
+      "op": "join",
+      "receiver": "third",
+      "thread": "t0"
+    }
+  ],
+  "schema_version": "cir-labels-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v5/run-20260920T172924/lock-order/partial_deadlock_bystander__A0_direct__rep0/instrument/input.rs"
+}

@@ -114,6 +114,33 @@ def parse_extraction(text: str) -> dict[str, Any] | None:
 LINE_RE = __import__("re").compile(r"line (\d+)")
 
 
+def cir_statement_sids(program: dict[str, Any]) -> list[str]:
+    """All statement sids in a CIR program (including non-observable ones)."""
+
+    out: list[str] = []
+    for module in program.get("modules", []) or []:
+        if not isinstance(module, dict):
+            continue
+        for function in module.get("functions", []) or []:
+            if not isinstance(function, dict):
+                continue
+            for stmt in function.get("body", []) or []:
+                if isinstance(stmt, dict) and isinstance(stmt.get("sid"), str):
+                    out.append(stmt["sid"])
+    return out
+
+
+def check_labels(program: dict[str, Any], required: list[str]) -> dict[str, list[str]]:
+    """Every required label must appear exactly once as a statement sid."""
+
+    from collections import Counter
+
+    counts = Counter(cir_statement_sids(program))
+    missing = [label for label in required if counts.get(label, 0) == 0]
+    duplicate = [label for label in required if counts.get(label, 0) > 1]
+    return {"missing": missing, "duplicate": duplicate}
+
+
 def write_extraction_result(work_dir: Path | str, record: dict[str, Any]) -> dict[str, Any]:
     """Persist a per-cell extraction record (used for parse/transport stages)."""
 
@@ -141,7 +168,8 @@ def validate_extraction(extracted_cir: dict, annotated_rust: str, contract_path:
                         work_dir: Path, *, binary: Path | str,
                         native_runs: int = 20, miri_seeds: int = 8,
                         client=None, lenient_unlock: bool = False,
-                        attempt_events: bool = False) -> dict[str, Any]:
+                        attempt_events: bool = False,
+                        required_labels: list[str] | None = None) -> dict[str, Any]:
     """Build the annotated Rust, trace it, and require every trace conformant.
 
     Every exit writes ``extraction_result.json`` in ``work_dir`` with a
@@ -181,6 +209,17 @@ def validate_extraction(extracted_cir: dict, annotated_rust: str, contract_path:
         return emit({"stage": "normalize", "reason": "extracted CIR failed normalisation",
                      "pointer": first.get("pointer"), "detail": first,
                      "normalizations": records})
+
+    # v5: labels.json is a mandatory checklist — each label must appear exactly
+    # once as a statement sid before codegen.
+    if required_labels:
+        problems = check_labels(normalized, required_labels)
+        if problems["missing"] or problems["duplicate"]:
+            return emit({"stage": "labels",
+                         "reason": "CIR does not use every required label exactly once",
+                         "missing_labels": problems["missing"],
+                         "duplicate_labels": problems["duplicate"],
+                         "normalizations": records})
 
     rust_source, added_mod = _ensure_cir_trace_mod(annotated_rust)
     normalizations = list(records)

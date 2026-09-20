@@ -1,0 +1,199 @@
+{
+  "program": "mutex_chain",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "mtx_a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "mtx_b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "mtx_c",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "w1",
+              "type": "Int"
+            },
+            {
+              "name": "w2",
+              "type": "Int"
+            },
+            {
+              "name": "w3",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "stmt": "spawn",
+              "func": "main::worker1",
+              "handle": "w1",
+              "label": "L1"
+            },
+            {
+              "sid": "s2",
+              "stmt": "spawn",
+              "func": "main::worker2",
+              "handle": "w2",
+              "label": "L4"
+            },
+            {
+              "sid": "s3",
+              "stmt": "spawn",
+              "func": "main::worker3",
+              "handle": "w3",
+              "label": "L7"
+            },
+            {
+              "sid": "s4",
+              "stmt": "join",
+              "handle": "w1",
+              "label": "L10"
+            },
+            {
+              "sid": "s5",
+              "stmt": "join",
+              "handle": "w2",
+              "label": "L11"
+            },
+            {
+              "sid": "s6",
+              "stmt": "join",
+              "handle": "w3",
+              "label": "L12"
+            },
+            {
+              "sid": "s7",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker1",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "s8",
+              "stmt": "mutex_lock",
+              "resource": "main::mtx_a",
+              "label": "L2"
+            },
+            {
+              "sid": "s9",
+              "stmt": "mutex_lock",
+              "resource": "main::mtx_b",
+              "label": "L3"
+            },
+            {
+              "sid": "s10",
+              "stmt": "mutex_unlock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "s11",
+              "stmt": "mutex_unlock",
+              "resource": "main::mtx_a"
+            },
+            {
+              "sid": "s12",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker2",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "s13",
+              "stmt": "mutex_lock",
+              "resource": "main::mtx_b",
+              "label": "L5"
+            },
+            {
+              "sid": "s14",
+              "stmt": "mutex_lock",
+              "resource": "main::mtx_c",
+              "label": "L6"
+            },
+            {
+              "sid": "s15",
+              "stmt": "mutex_unlock",
+              "resource": "main::mtx_c"
+            },
+            {
+              "sid": "s16",
+              "stmt": "mutex_unlock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "s17",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker3",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "s18",
+              "stmt": "mutex_lock",
+              "resource": "main::mtx_c",
+              "label": "L8"
+            },
+            {
+              "sid": "s19",
+              "stmt": "mutex_lock",
+              "resource": "main::mtx_a",
+              "label": "L9"
+            },
+            {
+              "sid": "s20",
+              "stmt": "mutex_unlock",
+              "resource": "main::mtx_a"
+            },
+            {
+              "sid": "s21",
+              "stmt": "mutex_unlock",
+              "resource": "main::mtx_c"
+            },
+            {
+              "sid": "s22",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

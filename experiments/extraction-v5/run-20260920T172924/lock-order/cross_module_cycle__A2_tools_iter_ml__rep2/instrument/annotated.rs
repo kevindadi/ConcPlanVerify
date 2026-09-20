@@ -1,0 +1,27 @@
+mod cir_trace;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    // Both tasks acquire the locks in the same global order (a then b)
+    // to prevent deadlock. The cross-module dependency is declared by
+    // having each task lock both resources in a consistent order.
+    let (a1, b1) = (Arc::clone(&a), Arc::clone(&b));
+    cir_trace::ev(&cir_trace::tag_str(), "L1"); let t1 = thread::spawn(move || {cir_trace::set_tag("tL1"); 
+        cir_trace::ev(&cir_trace::tag_str(), "L2"); let _ga = a1.lock().unwrap();
+        cir_trace::ev(&cir_trace::tag_str(), "L3"); let _gb = b1.lock().unwrap();
+    });
+
+    let (a2, b2) = (Arc::clone(&a), Arc::clone(&b));
+    cir_trace::ev(&cir_trace::tag_str(), "L4"); let t2 = thread::spawn(move || {cir_trace::set_tag("tL4"); 
+        cir_trace::ev(&cir_trace::tag_str(), "L5"); let _ga = a2.lock().unwrap();
+        cir_trace::ev(&cir_trace::tag_str(), "L6"); let _gb = b2.lock().unwrap();
+    });
+
+    cir_trace::ev(&cir_trace::tag_str(), "L7"); t1.join().unwrap();
+    cir_trace::ev(&cir_trace::tag_str(), "L8"); t2.join().unwrap();
+    println!("DONE done=1");
+cir_trace::finish(); }

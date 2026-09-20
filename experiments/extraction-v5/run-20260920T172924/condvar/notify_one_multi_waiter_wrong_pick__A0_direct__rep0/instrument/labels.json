@@ -1,0 +1,62 @@
+{
+  "labels": [
+    {
+      "label": "L1",
+      "line": 9,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let (m, cv) = &*q; let mut g = m.lock().unwrap(); while !*g { g = cv.wait(g).unwrap(); } })",
+      "thread": "t0"
+    },
+    {
+      "label": "L2",
+      "line": 11,
+      "op": "mutex_lock",
+      "receiver": "m",
+      "thread": "tL1"
+    },
+    {
+      "label": "L3",
+      "line": 13,
+      "op": "condvar_wait",
+      "receiver": "cv",
+      "thread": "tL1"
+    },
+    {
+      "label": "L4",
+      "line": 18,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let (m, cv) = &*q; let mut g = m.lock().unwrap(); *g = true; cv.notify_one(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L5",
+      "line": 20,
+      "op": "mutex_lock",
+      "receiver": "m",
+      "thread": "tL4"
+    },
+    {
+      "label": "L6",
+      "line": 22,
+      "op": "condvar_notify",
+      "receiver": "cv",
+      "thread": "tL4"
+    },
+    {
+      "label": "L7",
+      "line": 24,
+      "op": "join",
+      "receiver": "n",
+      "thread": "t0"
+    },
+    {
+      "label": "L8",
+      "line": 26,
+      "op": "join",
+      "receiver": "h",
+      "thread": "t0"
+    }
+  ],
+  "schema_version": "cir-labels-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v5/run-20260920T172924/condvar/notify_one_multi_waiter_wrong_pick__A0_direct__rep0/instrument/input.rs"
+}

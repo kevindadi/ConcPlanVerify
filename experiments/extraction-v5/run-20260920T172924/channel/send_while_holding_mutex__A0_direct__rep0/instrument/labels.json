@@ -1,0 +1,90 @@
+{
+  "labels": [
+    {
+      "label": "L1",
+      "line": 11,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { // Sender needs the shared mutex. { let (lock, cvar) = &*shared_s; let mut ready = lock.lock().unwrap(); *ready = true; cvar.notify_all(); } // Send on the channel. tx1.send(1).unwrap(); // Wait for the receiver to acknowledge completion. let _ = rx2.recv(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L2",
+      "line": 15,
+      "op": "mutex_lock",
+      "receiver": "lock",
+      "thread": "tL1"
+    },
+    {
+      "label": "L3",
+      "line": 17,
+      "op": "condvar_notify",
+      "receiver": "cvar",
+      "thread": "tL1"
+    },
+    {
+      "label": "L4",
+      "line": 21,
+      "op": "channel_send",
+      "receiver": "tx1",
+      "thread": "tL1"
+    },
+    {
+      "label": "L5",
+      "line": 24,
+      "op": "channel_recv",
+      "receiver": "rx2",
+      "thread": "tL1"
+    },
+    {
+      "label": "L6",
+      "line": 28,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { // Wait until the sender has released the shared mutex before // blocking on the channel, so the receiver never blocks on the // channel while holding the lock the sender needs. { let (lock, cvar) = &*shared_r; let mut ready = lock.lock().unwrap(); while !*ready { ready = cvar.wait(ready).unwrap(); } } // Receive from the channel without holding the shared lock. let _ = rx1.recv(); // Acknowledge completion to the sender. let _ = tx2.send(1); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L7",
+      "line": 34,
+      "op": "mutex_lock",
+      "receiver": "lock",
+      "thread": "tL6"
+    },
+    {
+      "label": "L8",
+      "line": 36,
+      "op": "condvar_wait",
+      "receiver": "cvar",
+      "thread": "tL6"
+    },
+    {
+      "label": "L9",
+      "line": 41,
+      "op": "channel_recv",
+      "receiver": "rx1",
+      "thread": "tL6"
+    },
+    {
+      "label": "L10",
+      "line": 44,
+      "op": "channel_send",
+      "receiver": "tx2",
+      "thread": "tL6"
+    },
+    {
+      "label": "L11",
+      "line": 47,
+      "op": "join",
+      "receiver": "s",
+      "thread": "t0"
+    },
+    {
+      "label": "L12",
+      "line": 48,
+      "op": "join",
+      "receiver": "r",
+      "thread": "t0"
+    }
+  ],
+  "schema_version": "cir-labels-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v5/run-20260920T172924/channel/send_while_holding_mutex__A0_direct__rep0/instrument/input.rs"
+}

@@ -1,0 +1,62 @@
+{
+  "labels": [
+    {
+      "label": "L1",
+      "line": 12,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let _ga = a1.lock().unwrap(); let _gb = b1.lock().unwrap(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L2",
+      "line": 13,
+      "op": "mutex_lock",
+      "receiver": "a1",
+      "thread": "tL1"
+    },
+    {
+      "label": "L3",
+      "line": 14,
+      "op": "mutex_lock",
+      "receiver": "b1",
+      "thread": "tL1"
+    },
+    {
+      "label": "L4",
+      "line": 18,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let _ga = a2.lock().unwrap(); let _gb = b2.lock().unwrap(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L5",
+      "line": 19,
+      "op": "mutex_lock",
+      "receiver": "a2",
+      "thread": "tL4"
+    },
+    {
+      "label": "L6",
+      "line": 20,
+      "op": "mutex_lock",
+      "receiver": "b2",
+      "thread": "tL4"
+    },
+    {
+      "label": "L7",
+      "line": 23,
+      "op": "join",
+      "receiver": "t1",
+      "thread": "t0"
+    },
+    {
+      "label": "L8",
+      "line": 24,
+      "op": "join",
+      "receiver": "t2",
+      "thread": "t0"
+    }
+  ],
+  "schema_version": "cir-labels-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v5/run-20260920T172924/lock-order/cross_module_cycle__A2_tools_iter_ml__rep0/instrument/input.rs"
+}

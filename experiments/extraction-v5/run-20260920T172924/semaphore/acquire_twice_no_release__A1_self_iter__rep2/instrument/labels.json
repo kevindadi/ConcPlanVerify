@@ -1,0 +1,69 @@
+{
+  "labels": [
+    {
+      "label": "L1",
+      "line": 32,
+      "op": "mutex_lock",
+      "receiver": "self.n",
+      "thread": "t0"
+    },
+    {
+      "label": "L2",
+      "line": 39,
+      "op": "condvar_wait",
+      "receiver": "self.cv",
+      "thread": "t0"
+    },
+    {
+      "label": "L3",
+      "line": 48,
+      "op": "mutex_lock",
+      "receiver": "self.n",
+      "thread": "t0"
+    },
+    {
+      "label": "L4",
+      "line": 54,
+      "op": "condvar_notify",
+      "receiver": "self.cv",
+      "thread": "t0"
+    },
+    {
+      "label": "L5",
+      "line": 59,
+      "op": "condvar_notify",
+      "receiver": "self.cv",
+      "thread": "t0"
+    },
+    {
+      "label": "L6",
+      "line": 69,
+      "op": "spawn",
+      "receiver": "std::thread::spawn(move || { s1.acq(); s1.acq(); s1.rel(); s1.rel(); let _ = tx1; let _ = rx; })",
+      "thread": "t0"
+    },
+    {
+      "label": "L7",
+      "line": 78,
+      "op": "spawn",
+      "receiver": "std::thread::spawn(move || { s2.acq(); s2.rel(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L8",
+      "line": 82,
+      "op": "join",
+      "receiver": "w1",
+      "thread": "t0"
+    },
+    {
+      "label": "L9",
+      "line": 83,
+      "op": "join",
+      "receiver": "w2",
+      "thread": "t0"
+    }
+  ],
+  "schema_version": "cir-labels-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v5/run-20260920T172924/semaphore/acquire_twice_no_release__A1_self_iter__rep2/instrument/input.rs"
+}

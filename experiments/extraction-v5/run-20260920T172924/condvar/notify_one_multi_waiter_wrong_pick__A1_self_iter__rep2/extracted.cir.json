@@ -1,0 +1,181 @@
+{
+  "program": "condvar_waiters",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "cv",
+          "kind": "sync",
+          "type": "Condvar",
+          "mode": "Sync"
+        },
+        {
+          "name": "g",
+          "kind": "var",
+          "type": "Var",
+          "base": "Bool",
+          "init": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "hs",
+              "type": "Int"
+            },
+            {
+              "name": "q",
+              "type": "Int"
+            },
+            {
+              "name": "n",
+              "type": "Int"
+            },
+            {
+              "name": "h",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "stmt": "assign_local",
+              "target": "hs",
+              "expr": "[]"
+            },
+            {
+              "sid": "s2",
+              "stmt": "assign_local",
+              "target": "q",
+              "expr": "p"
+            },
+            {
+              "sid": "L1",
+              "stmt": "spawn",
+              "func": "main::waiter",
+              "handle": "h"
+            },
+            {
+              "sid": "s3",
+              "stmt": "assign_local",
+              "target": "q",
+              "expr": "p"
+            },
+            {
+              "sid": "L4",
+              "stmt": "spawn",
+              "func": "main::setter",
+              "handle": "n"
+            },
+            {
+              "sid": "L7",
+              "stmt": "join",
+              "handle": "n"
+            },
+            {
+              "sid": "L8",
+              "stmt": "join",
+              "handle": "h"
+            },
+            {
+              "sid": "s4",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "waiter",
+          "params": [],
+          "locals": [
+            {
+              "name": "g",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L2",
+              "stmt": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s5",
+              "stmt": "read_shared",
+              "resource": "main::g",
+              "dst": "g"
+            },
+            {
+              "sid": "s6",
+              "stmt": "branch",
+              "cond": "!g",
+              "then": "s7",
+              "else": "s8"
+            },
+            {
+              "sid": "s7",
+              "stmt": "nop"
+            },
+            {
+              "sid": "L3",
+              "stmt": "condvar_wait",
+              "condvar": "main::cv",
+              "lock": "main::m"
+            },
+            {
+              "sid": "s8",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "setter",
+          "params": [],
+          "locals": [
+            {
+              "name": "g",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L5",
+              "stmt": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s9",
+              "stmt": "write_shared",
+              "resource": "main::g",
+              "expr": "true"
+            },
+            {
+              "sid": "L6",
+              "stmt": "condvar_notify",
+              "condvar": "main::cv"
+            },
+            {
+              "sid": "s10",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "labels": [
+    {
+      "label": "L1",
+      "line": 16,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let (lock, cvar) = &*s1; let mut guard = lock.lock().unwrap(); // Task 1: acquire a then b. while guard.a_held { guard = cvar.wait(guard).unwrap(); } guard.a_held = true; while guard.b_held { guard = cvar.wait(guard).unwrap(); } guard.b_held = true; // Both held; release. guard.a_held = false; guard.b_held = false; cvar.notify_all(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L2",
+      "line": 18,
+      "op": "mutex_lock",
+      "receiver": "lock",
+      "thread": "tL1"
+    },
+    {
+      "label": "L3",
+      "line": 21,
+      "op": "condvar_wait",
+      "receiver": "cvar",
+      "thread": "tL1"
+    },
+    {
+      "label": "L4",
+      "line": 25,
+      "op": "condvar_wait",
+      "receiver": "cvar",
+      "thread": "tL1"
+    },
+    {
+      "label": "L5",
+      "line": 31,
+      "op": "condvar_notify",
+      "receiver": "cvar",
+      "thread": "tL1"
+    },
+    {
+      "label": "L6",
+      "line": 35,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let (lock, cvar) = &*s2; let mut guard = lock.lock().unwrap(); // Task 2: acquire b then a. while guard.b_held { guard = cvar.wait(guard).unwrap(); } guard.b_held = true; while guard.a_held { guard = cvar.wait(guard).unwrap(); } guard.a_held = true; // Both held; release. guard.a_held = false; guard.b_held = false; cvar.notify_all(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L7",
+      "line": 37,
+      "op": "mutex_lock",
+      "receiver": "lock",
+      "thread": "tL6"
+    },
+    {
+      "label": "L8",
+      "line": 40,
+      "op": "condvar_wait",
+      "receiver": "cvar",
+      "thread": "tL6"
+    },
+    {
+      "label": "L9",
+      "line": 44,
+      "op": "condvar_wait",
+      "receiver": "cvar",
+      "thread": "tL6"
+    },
+    {
+      "label": "L10",
+      "line": 50,
+      "op": "condvar_notify",
+      "receiver": "cvar",
+      "thread": "tL6"
+    },
+    {
+      "label": "L11",
+      "line": 53,
+      "op": "join",
+      "receiver": "t1",
+      "thread": "t0"
+    },
+    {
+      "label": "L12",
+      "line": 54,
+      "op": "join",
+      "receiver": "t2",
+      "thread": "t0"
+    }
+  ],
+  "schema_version": "cir-labels-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v5/run-20260920T172924/lock-order/cross_module_cycle__A0_direct__rep2/instrument/input.rs"
+}

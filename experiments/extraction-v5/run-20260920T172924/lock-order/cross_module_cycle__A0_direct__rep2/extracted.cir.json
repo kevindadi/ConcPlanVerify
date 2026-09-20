@@ -1,0 +1,262 @@
+{
+  "program": "condvar_two_tasks",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "lock",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "cvar",
+          "kind": "sync",
+          "type": "Condvar",
+          "mode": "Sync"
+        },
+        {
+          "name": "a_held",
+          "kind": "var",
+          "type": "Var",
+          "base": "Bool",
+          "init": false
+        },
+        {
+          "name": "b_held",
+          "kind": "var",
+          "type": "Var",
+          "base": "Bool",
+          "init": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "t1",
+              "type": "Int"
+            },
+            {
+              "name": "t2",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L1",
+              "func": "main::task1",
+              "handle": "t1",
+              "kind": "spawn"
+            },
+            {
+              "sid": "L6",
+              "func": "main::task2",
+              "handle": "t2",
+              "kind": "spawn"
+            },
+            {
+              "sid": "L11",
+              "handle": "t1",
+              "kind": "join"
+            },
+            {
+              "sid": "L12",
+              "handle": "t2",
+              "kind": "join"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "task1",
+          "params": [],
+          "locals": [
+            {
+              "name": "guard",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L2",
+              "resource": "main::lock",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s4",
+              "cond": "a_held",
+              "then": "s5",
+              "else": "s6",
+              "kind": "branch"
+            },
+            {
+              "sid": "s5",
+              "condvar": "main::cvar",
+              "lock": "main::lock",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "L3",
+              "condvar": "main::cvar",
+              "lock": "main::lock",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "s6",
+              "resource": "main::a_held",
+              "expr": "true",
+              "kind": "write_shared"
+            },
+            {
+              "sid": "s7",
+              "cond": "b_held",
+              "then": "s8",
+              "else": "s9",
+              "kind": "branch"
+            },
+            {
+              "sid": "s8",
+              "condvar": "main::cvar",
+              "lock": "main::lock",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "L4",
+              "condvar": "main::cvar",
+              "lock": "main::lock",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "s9",
+              "resource": "main::b_held",
+              "expr": "true",
+              "kind": "write_shared"
+            },
+            {
+              "sid": "s10",
+              "resource": "main::a_held",
+              "expr": "false",
+              "kind": "write_shared"
+            },
+            {
+              "sid": "s11",
+              "resource": "main::b_held",
+              "expr": "false",
+              "kind": "write_shared"
+            },
+            {
+              "sid": "L5",
+              "condvar": "main::cvar",
+              "kind": "condvar_notify_all"
+            },
+            {
+              "sid": "s12",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "task2",
+          "params": [],
+          "locals": [
+            {
+              "name": "guard",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L7",
+              "resource": "main::lock",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s13",
+              "cond": "b_held",
+              "then": "s14",
+              "else": "s15",
+              "kind": "branch"
+            },
+            {
+              "sid": "s14",
+              "condvar": "main::cvar",
+              "lock": "main::lock",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "L8",
+              "condvar": "main::cvar",
+              "lock": "main::lock",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "s15",
+              "resource": "main::b_held",
+              "expr": "true",
+              "kind": "write_shared"
+            },
+            {
+              "sid": "s16",
+              "cond": "a_held",
+              "then": "s17",
+              "else": "s18",
+              "kind": "branch"
+            },
+            {
+              "sid": "s17",
+              "condvar": "main::cvar",
+              "lock": "main::lock",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "L9",
+              "condvar": "main::cvar",
+              "lock": "main::lock",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "s18",
+              "resource": "main::a_held",
+              "expr": "true",
+              "kind": "write_shared"
+            },
+            {
+              "sid": "s19",
+              "resource": "main::a_held",
+              "expr": "false",
+              "kind": "write_shared"
+            },
+            {
+              "sid": "s20",
+              "resource": "main::b_held",
+              "expr": "false",
+              "kind": "write_shared"
+            },
+            {
+              "sid": "L10",
+              "condvar": "main::cvar",
+              "kind": "condvar_notify_all"
+            },
+            {
+              "sid": "s21",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

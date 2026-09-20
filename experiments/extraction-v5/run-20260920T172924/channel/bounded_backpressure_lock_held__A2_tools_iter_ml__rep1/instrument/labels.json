@@ -1,0 +1,76 @@
+{
+  "labels": [
+    {
+      "label": "L1",
+      "line": 9,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { // Send first value without holding the lock. tx.send(1).unwrap(); // Briefly take the lock, then release before the second send. { let _g = m1.lock().unwrap(); } tx.send(2).unwrap(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L2",
+      "line": 11,
+      "op": "channel_send",
+      "receiver": "tx",
+      "thread": "tL1"
+    },
+    {
+      "label": "L3",
+      "line": 14,
+      "op": "mutex_lock",
+      "receiver": "m1",
+      "thread": "tL1"
+    },
+    {
+      "label": "L4",
+      "line": 16,
+      "op": "channel_send",
+      "receiver": "tx",
+      "thread": "tL1"
+    },
+    {
+      "label": "L5",
+      "line": 19,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { // Receive first value without holding the lock. rx.recv().unwrap(); // Briefly take the lock, then release before the second receive. { let _g = m.lock().unwrap(); } rx.recv().unwrap(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L6",
+      "line": 21,
+      "op": "channel_recv",
+      "receiver": "rx",
+      "thread": "tL5"
+    },
+    {
+      "label": "L7",
+      "line": 24,
+      "op": "mutex_lock",
+      "receiver": "m",
+      "thread": "tL5"
+    },
+    {
+      "label": "L8",
+      "line": 26,
+      "op": "channel_recv",
+      "receiver": "rx",
+      "thread": "tL5"
+    },
+    {
+      "label": "L9",
+      "line": 29,
+      "op": "join",
+      "receiver": "s",
+      "thread": "t0"
+    },
+    {
+      "label": "L10",
+      "line": 30,
+      "op": "join",
+      "receiver": "r",
+      "thread": "t0"
+    }
+  ],
+  "schema_version": "cir-labels-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v5/run-20260920T172924/channel/bounded_backpressure_lock_held__A2_tools_iter_ml__rep1/instrument/input.rs"
+}

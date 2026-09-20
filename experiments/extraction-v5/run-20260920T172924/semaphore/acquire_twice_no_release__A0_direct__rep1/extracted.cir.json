@@ -1,0 +1,232 @@
+{
+  "program": "semaphore_condvar",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "n",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "cv",
+          "kind": "sync",
+          "type": "Condvar",
+          "mode": "Sync"
+        },
+        {
+          "name": "tx",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        }
+      ],
+      "functions": [
+        {
+          "name": "acq",
+          "params": [],
+          "locals": [
+            {
+              "name": "c",
+              "type": "Int"
+            },
+            {
+              "name": "c",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::n"
+            },
+            {
+              "sid": "s2",
+              "kind": "read_shared",
+              "resource": "main::n",
+              "dst": "c"
+            },
+            {
+              "sid": "s3",
+              "kind": "branch",
+              "cond": "c == 0",
+              "then": "s4",
+              "else": "s7"
+            },
+            {
+              "sid": "s4",
+              "kind": "condvar_wait",
+              "condvar": "main::cv",
+              "lock": "main::n"
+            },
+            {
+              "sid": "s5",
+              "kind": "read_shared",
+              "resource": "main::n",
+              "dst": "c"
+            },
+            {
+              "sid": "s6",
+              "kind": "goto",
+              "target": "s3"
+            },
+            {
+              "sid": "s7",
+              "kind": "write_shared",
+              "resource": "main::n",
+              "expr": "c - 1"
+            },
+            {
+              "sid": "s8",
+              "kind": "mutex_unlock",
+              "resource": "main::n"
+            },
+            {
+              "sid": "s9",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "rel",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "s10",
+              "kind": "mutex_lock",
+              "resource": "main::n"
+            },
+            {
+              "sid": "s11",
+              "kind": "read_shared",
+              "resource": "main::n"
+            },
+            {
+              "sid": "s12",
+              "kind": "write_shared",
+              "resource": "main::n",
+              "expr": "n + 1"
+            },
+            {
+              "sid": "s13",
+              "kind": "mutex_unlock",
+              "resource": "main::n"
+            },
+            {
+              "sid": "s14",
+              "kind": "condvar_notify",
+              "condvar": "main::cv"
+            },
+            {
+              "sid": "s15",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker1",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "s16",
+              "kind": "call",
+              "func": "main::acq"
+            },
+            {
+              "sid": "s17",
+              "kind": "call",
+              "func": "main::acq"
+            },
+            {
+              "sid": "s18",
+              "kind": "call",
+              "func": "main::rel"
+            },
+            {
+              "sid": "s19",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker2",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "s20",
+              "kind": "call",
+              "func": "main::acq"
+            },
+            {
+              "sid": "s21",
+              "kind": "call",
+              "func": "main::rel"
+            },
+            {
+              "sid": "s22",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "w1",
+              "type": "Int"
+            },
+            {
+              "name": "w2",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s23",
+              "kind": "spawn",
+              "func": "main::worker1",
+              "handle": "w1"
+            },
+            {
+              "sid": "s24",
+              "kind": "spawn",
+              "func": "main::worker2",
+              "handle": "w2"
+            },
+            {
+              "sid": "s25",
+              "kind": "join",
+              "handle": "w1"
+            },
+            {
+              "sid": "s26",
+              "kind": "join",
+              "handle": "w2"
+            },
+            {
+              "sid": "s27",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

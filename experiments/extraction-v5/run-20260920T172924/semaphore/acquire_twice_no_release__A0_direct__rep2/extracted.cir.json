@@ -1,0 +1,277 @@
+{
+  "program": "semaphore_condvar",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "n",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "cv",
+          "kind": "sync",
+          "type": "Condvar",
+          "mode": "Sync"
+        }
+      ],
+      "functions": [
+        {
+          "name": "acq",
+          "params": [],
+          "locals": [
+            {
+              "name": "c",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "resource": "main::n",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "L1",
+              "resource": "main::n",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s2",
+              "target": "c",
+              "expr": "read_shared(main::n)",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s3",
+              "cond": "c == 0",
+              "then": "s4",
+              "else": "s6",
+              "kind": "branch"
+            },
+            {
+              "sid": "s4",
+              "condvar": "main::cv",
+              "lock": "main::n",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "L2",
+              "condvar": "main::cv",
+              "lock": "main::n",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "s5",
+              "target": "c",
+              "expr": "read_shared(main::n)",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s6",
+              "resource": "main::n",
+              "expr": "c - 1",
+              "kind": "write_shared"
+            },
+            {
+              "sid": "s7",
+              "resource": "main::n",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "s8",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "rel",
+          "params": [],
+          "locals": [
+            {
+              "name": "c",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s9",
+              "resource": "main::n",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "L3",
+              "resource": "main::n",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s10",
+              "target": "c",
+              "expr": "read_shared(main::n)",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s11",
+              "resource": "main::n",
+              "expr": "c + 1",
+              "kind": "write_shared"
+            },
+            {
+              "sid": "s12",
+              "condvar": "main::cv",
+              "kind": "condvar_notify"
+            },
+            {
+              "sid": "L4",
+              "condvar": "main::cv",
+              "kind": "condvar_notify"
+            },
+            {
+              "sid": "s13",
+              "resource": "main::n",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "s14",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "s",
+              "type": "Int"
+            },
+            {
+              "name": "s1",
+              "type": "Int"
+            },
+            {
+              "name": "s2",
+              "type": "Int"
+            },
+            {
+              "name": "w1",
+              "type": "Int"
+            },
+            {
+              "name": "w2",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s15",
+              "target": "s",
+              "expr": "Sem::new(1)",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s16",
+              "target": "s1",
+              "expr": "s",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "L5",
+              "func": "main::worker1",
+              "handle": "w1",
+              "kind": "spawn"
+            },
+            {
+              "sid": "s17",
+              "target": "s2",
+              "expr": "s",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "L6",
+              "func": "main::worker2",
+              "handle": "w2",
+              "kind": "spawn"
+            },
+            {
+              "sid": "L7",
+              "handle": "w1",
+              "kind": "join"
+            },
+            {
+              "sid": "L8",
+              "handle": "w2",
+              "kind": "join"
+            },
+            {
+              "sid": "s18",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker1",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "s19",
+              "func": "main::acq",
+              "kind": "call"
+            },
+            {
+              "sid": "s20",
+              "func": "main::acq",
+              "kind": "call"
+            },
+            {
+              "sid": "s21",
+              "func": "main::rel",
+              "kind": "call"
+            },
+            {
+              "sid": "s22",
+              "func": "main::rel",
+              "kind": "call"
+            },
+            {
+              "sid": "s23",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker2",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "s24",
+              "func": "main::acq",
+              "kind": "call"
+            },
+            {
+              "sid": "s25",
+              "func": "main::rel",
+              "kind": "call"
+            },
+            {
+              "sid": "s26",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

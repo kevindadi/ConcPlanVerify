@@ -65,6 +65,31 @@ TYPE_ALIASES = {
 }
 
 
+def _canonical_resource_type(value: Any) -> tuple[Any, bool, str | None]:
+    """Map a Rust-ish resource type to the CIR type name, or report it."""
+
+    if not isinstance(value, str):
+        return value, False, None
+    compact = value.replace(" ", "")
+    if "Mutex" in compact:
+        return "Mutex", compact != "Mutex", None
+    if "Condvar" in compact:
+        return "Condvar", compact != "Condvar", None
+    if "Semaphore" in compact:
+        return "Semaphore", compact != "Semaphore", None
+    if "mpsc" in compact or "channel" in compact.lower() or "Channel" in compact:
+        return "Channel", compact != "Channel", None
+    if "Atomic" in compact:
+        return "Atomic", compact != "Atomic", None
+    if compact in ("Var", "Int", "Bool", "String", "Float"):
+        return value, False, None
+    return value, False, compact
+
+
+# Rust expressions that must never appear as a CIR type or value.
+NON_CIR_TOKENS = ("Arc::new", "vec!", "Vec<", "Arc<")
+
+
 def _canonical_type(value: Any) -> tuple[Any, bool]:
     if not isinstance(value, str):
         return value, False
@@ -186,6 +211,34 @@ def _fix_fqn(name: Any, module_name: str | None,
     return name
 
 
+def _normalize_locals(locals_: Any, function: dict,
+                      records: list[dict], location: str) -> None:
+    """Rewrite a ``locals`` string array into ``[{name, type}, ...]``."""
+
+    if not isinstance(locals_, list):
+        return
+    changed = False
+    fixed = []
+    for i, item in enumerate(locals_):
+        if isinstance(item, str):
+            fixed.append({"name": item, "type": DEFAULT_PARAM_TYPE})
+            records.append({"rule": "local_string", "location": f"{location}/{i}",
+                            "from": item, "to": {"name": item,
+                                                 "type": DEFAULT_PARAM_TYPE}})
+            changed = True
+        elif isinstance(item, dict) and item.get("name") and "type" not in item:
+            new = dict(item)
+            new["type"] = DEFAULT_PARAM_TYPE
+            fixed.append(new)
+            records.append({"rule": "local_missing_type", "location": f"{location}/{i}",
+                            "to": DEFAULT_PARAM_TYPE})
+            changed = True
+        else:
+            fixed.append(item)
+    if changed:
+        function["locals"] = fixed
+
+
 def _normalize_params(params: Any, function: dict,
                       records: list[dict], location: str) -> None:
     """Rewrite ``params`` into ``[{name, type}, ...]`` where unambiguous."""
@@ -299,9 +352,23 @@ def normalize(program: dict, *, strict_arrays: bool = False
     for module_idx, module in enumerate(out.get("modules", []) or []):
         if not isinstance(module, dict):
             continue
-        for resource in module.get("resources", []) or []:
+        for res_idx, resource in enumerate(module.get("resources", []) or []):
             if not isinstance(resource, dict):
                 continue
+            canon_type, type_changed, type_problem = _canonical_resource_type(
+                resource.get("type"))
+            if type_changed:
+                records.append({"rule": "resource_type", "scope": "resource",
+                                "resource": resource.get("name"),
+                                "location": f"/modules/{module_idx}/resources/{res_idx}/type",
+                                "from": resource.get("type"), "to": canon_type})
+                resource["type"] = canon_type
+            elif type_problem and strict_arrays:
+                sid_issues.append({
+                    "stage": "normalize",
+                    "pointer": f"/modules/{module_idx}/resources/{res_idx}/type",
+                    "reason": f"non-cir resource type '{type_problem}'",
+                    "rule": "reject_non_cir_type"})
             rtype = resource.get("type")
             if rtype in VALUE_TYPES:
                 inferred_kind = "var"
@@ -328,6 +395,19 @@ def normalize(program: dict, *, strict_arrays: bool = False
                 canon, _ = _canonical_type(resource["base"])
                 if canon in ("Int", "Bool", "Float", "String"):
                     resource["base"] = canon
+            if resource.get("kind") == "var" and isinstance(resource.get("init"), str):
+                base = resource.get("base")
+                if base == "Int":
+                    try:
+                        resource["init"] = int(resource["init"])
+                        records.append({"rule": "init_int", "resource": resource.get("name"),
+                                        "location": f"/modules/{module_idx}/resources/{res_idx}/init"})
+                    except ValueError:
+                        pass
+                elif base == "Bool" and resource["init"].lower() in ("true", "false"):
+                    resource["init"] = resource["init"].lower() == "true"
+                    records.append({"rule": "init_bool", "resource": resource.get("name"),
+                                    "location": f"/modules/{module_idx}/resources/{res_idx}/init"})
             if resource.get("kind") == "var":
                 for field in DROP_ON_VALUE_RESOURCE:
                     if field in resource:
@@ -358,6 +438,8 @@ def normalize(program: dict, *, strict_arrays: bool = False
                                 "location": _pointer(module_idx, fn_idx)})
             _normalize_params(function.get("params"), function, records,
                               _pointer(module_idx, fn_idx, None, "params"))
+            _normalize_locals(function.get("locals"), function, records,
+                              _pointer(module_idx, fn_idx, None, "locals"))
             for local in function.get("locals", []) or []:
                 if isinstance(local, dict) and "type" in local:
                     canon, changed = _canonical_type(local["type"])
@@ -367,6 +449,33 @@ def normalize(program: dict, *, strict_arrays: bool = False
                         local["type"] = canon
             slot_names: set[str] = set()
             body = function.get("body", []) or []
+            for stmt in body:
+                if isinstance(stmt, dict) and "kind" not in stmt and "op" in stmt:
+                    stmt["kind"] = stmt.pop("op")
+            # Models sometimes emit both an unlabeled and a labeled copy of the
+            # same spawn/join/scope statement; keep the label-sid copy.
+            deduped: list = []
+            seen_ctrl: dict[tuple, dict] = {}
+            for stmt in body:
+                if isinstance(stmt, dict) and stmt.get("kind") in ("spawn", "join", "scope"):
+                    key = (stmt.get("kind"), stmt.get("func"), stmt.get("handle"),
+                           tuple(stmt.get("funcs") or []))
+                    if key in seen_ctrl:
+                        prev = seen_ctrl[key]
+                        new_is_label = str(stmt.get("sid", "")).startswith("L")
+                        prev_is_label = str(prev.get("sid", "")).startswith("L")
+                        if new_is_label and not prev_is_label:
+                            deduped[deduped.index(prev)] = stmt
+                            seen_ctrl[key] = stmt
+                        records.append({"rule": "dedup_statement",
+                                        "function": function.get("name"),
+                                        "kept": (stmt if new_is_label else prev).get("sid"),
+                                        "dropped": (prev if new_is_label else stmt).get("sid")})
+                        continue
+                    seen_ctrl[key] = stmt
+                deduped.append(stmt)
+            body = deduped
+            function["body"] = body
             # Deterministic sid repair: fill missing / rename malformed sids and
             # rewrite goto/branch/switch targets accordingly.
             sid_map: dict[str, str] = {}
@@ -405,6 +514,10 @@ def normalize(program: dict, *, strict_arrays: bool = False
                 if not isinstance(stmt, dict):
                     continue
                 sid = str(stmt.get("sid", ""))
+                if "kind" not in stmt and "op" in stmt:
+                    stmt["kind"] = stmt.pop("op")
+                    records.append({"rule": "statement_kind_alias", "function": function.get("name"),
+                                    "sid": sid, "from": "op", "to": "kind"})
                 kind = str(stmt.get("kind", ""))
                 for wrong, right in list(FIELD_ALIASES.items()):
                     (alias_kind, bad) = wrong
@@ -445,8 +558,8 @@ def normalize(program: dict, *, strict_arrays: bool = False
                     if field not in stmt:
                         continue
                     value = stmt[field]
+                    location = _pointer(module_idx, fn_idx, stmt_idx, field)
                     if isinstance(value, list):
-                        location = _pointer(module_idx, fn_idx, stmt_idx, field)
                         if (len(value) == 1 and isinstance(value[0], str)):
                             stmt[field] = value[0]
                             records.append({"rule": "array_unwrap", "function": function.get("name"),
@@ -462,6 +575,15 @@ def normalize(program: dict, *, strict_arrays: bool = False
                                 "stage": "normalize", "pointer": location,
                                 "reason": "expected a string, got an array",
                                 "rule": "reject_array_field", "field": field})
+                        continue
+                    if (isinstance(value, str) and field in ("expr", "cond", "value",
+                                                              "expected", "desired")
+                            and any(tok in value for tok in NON_CIR_TOKENS)):
+                        if strict_arrays:
+                            sid_issues.append({
+                                "stage": "normalize", "pointer": location,
+                                "reason": f"non-cir expression in '{field}'",
+                                "rule": "reject_non_cir_type", "field": field})
                         continue
                     if field in ("expr", "cond", "value", "expected", "desired"):
                         new_value, record = _expr_string(value)

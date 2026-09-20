@@ -1,0 +1,76 @@
+{
+  "labels": [
+    {
+      "label": "L1",
+      "line": 8,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { tx.send(1).unwrap(); { let _g = m1.lock().unwrap(); } tx.send(2).unwrap(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L2",
+      "line": 9,
+      "op": "channel_send",
+      "receiver": "tx",
+      "thread": "tL1"
+    },
+    {
+      "label": "L3",
+      "line": 11,
+      "op": "mutex_lock",
+      "receiver": "m1",
+      "thread": "tL1"
+    },
+    {
+      "label": "L4",
+      "line": 13,
+      "op": "channel_send",
+      "receiver": "tx",
+      "thread": "tL1"
+    },
+    {
+      "label": "L5",
+      "line": 15,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { rx.recv().unwrap(); { let _g = m.lock().unwrap(); } rx.recv().unwrap(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L6",
+      "line": 16,
+      "op": "channel_recv",
+      "receiver": "rx",
+      "thread": "tL5"
+    },
+    {
+      "label": "L7",
+      "line": 18,
+      "op": "mutex_lock",
+      "receiver": "m",
+      "thread": "tL5"
+    },
+    {
+      "label": "L8",
+      "line": 20,
+      "op": "channel_recv",
+      "receiver": "rx",
+      "thread": "tL5"
+    },
+    {
+      "label": "L9",
+      "line": 22,
+      "op": "join",
+      "receiver": "s",
+      "thread": "t0"
+    },
+    {
+      "label": "L10",
+      "line": 23,
+      "op": "join",
+      "receiver": "r",
+      "thread": "t0"
+    }
+  ],
+  "schema_version": "cir-labels-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v5/run-20260920T172924/channel/bounded_backpressure_lock_held__A0_direct__rep0/instrument/input.rs"
+}
