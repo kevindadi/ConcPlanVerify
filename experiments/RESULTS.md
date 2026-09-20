@@ -68,7 +68,7 @@
 
 | arm | cells | accepted | accept_rate | false_accept | conform_pass_rate | tokens/correct_accept | by source |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| A0_direct | 24 | 24 | 1.00 | 12 | — | 593 | {'behavior': 8, 'expert': 9, 'by_construction': 3} |
+| A0_direct | 24 | 24 | 1.00 | 12 | — | 593 | {'expert': 9, 'behavior': 8, 'by_construction': 3} |
 | A1_self_iter | 24 | 17 | 0.71 | 2 | — | 1747 | {'expert': 2} |
 | A2_tools_iter_ml | 24 | 22 | 0.92 | 3 | — | 869 | {'expert': 3} |
 | A3_local | 24 | 21 | 0.88 | 0 | — | 683 | — |
@@ -209,7 +209,7 @@ Agreement with the automatic oracle: **11/11 = 1.000** (unsure 11); `design_loss
 | lock-order/cross_module_cycle | buggy | FAIL | FAIL | clean 16 | detected |
 | lock-order/cross_module_cycle | fixed | PASS | PASS | clean 16 | clean |
 | lock-order/partial_deadlock_bystander | buggy | FAIL | FAIL | timeout 16 | clean |
-| lock-order/partial_deadlock_bystander | fixed | PASS | PASS | detected 16 | clean |
+| lock-order/partial_deadlock_bystander | fixed | PASS | PASS | thread_leak 16 | clean |
 | semaphore/acquire_twice_no_release | buggy | FAIL | FAIL | detected 16 | clean |
 | semaphore/acquire_twice_no_release | fixed | PASS | PASS | clean 16 | clean |
 | condvar/bare_wait_no_predicate | buggy | FAIL | FAIL | clean 16 | clean |

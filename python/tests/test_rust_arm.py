@@ -71,6 +71,14 @@ class ParseTests(unittest.TestCase):
         self.assertIn("data_race", classify_detection("found a data race here"))
         self.assertEqual(classify_detection("all good"), [])
 
+    def test_task_name_in_path_is_not_a_detection(self):
+        # The cargo warning prints the probe path, which contains the task name
+        # `partial_deadlock_bystander`; that must not count as a deadlock.
+        text = ("warning: binary `cir_arm_probe`\n"
+                "1 | .../partial_deadlock_bystander_fixed/probe/target/miri/.../x\n"
+                "error: the main thread terminated without waiting for all remaining threads")
+        self.assertEqual(classify_detection(text), [])
+
 
 @unittest.skipUnless(shutil.which("cargo"), "cargo not available")
 class RustArmTests(unittest.TestCase):

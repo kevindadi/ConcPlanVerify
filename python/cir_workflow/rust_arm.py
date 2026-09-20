@@ -47,6 +47,13 @@ DETECTION_TOKENS = {
     "deadlock": ("deadlock",),
     "data_race": ("data race", "data-race", "data race detected"),
 }
+# A token only counts when it is a standalone word: the task name appears in the
+# cargo warning path (e.g. `.../partial_deadlock_bystander/...`), which must not
+# be read as a detection.
+DETECTION_RE = {
+    "deadlock": re.compile(r"(?<![A-Za-z0-9_])deadlock", re.I),
+    "data_race": re.compile(r"(?<![A-Za-z0-9_])data[- ]race", re.I),
+}
 
 LOCKBUD_UNAVAILABLE = "lockbud_unavailable"
 LOCKBUD_TOOLCHAIN = "nightly-2026-02-07"
@@ -97,10 +104,9 @@ class ToolRun:
 def classify_detection(text: str) -> list[str]:
     """Return the bug kinds suggested by a tool's raw output (heuristic)."""
 
-    low = text.lower()
     found = []
-    for kind, needles in DETECTION_TOKENS.items():
-        if any(n in low for n in needles):
+    for kind, pattern in DETECTION_RE.items():
+        if pattern.search(text):
             found.append(kind)
     return found
 
