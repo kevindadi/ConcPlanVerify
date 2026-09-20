@@ -740,3 +740,59 @@ no `sN:`/deadlock/bug/fix tokens) reports **0 leak-token lines** for all six.
 - A0/A1 "claims no defect" was misrecorded as `no_build`; A1 accepted one
   unbuilt candidate (fixed in round j §1).
 - Binary was not unified (`6d498c8a` for the batch, `88c3217d` for the rest).
+
+# Round 2026-09-20j — making the main table stand up
+
+## I-1..I-9 status (round j)
+
+| item | status |
+| --- | --- |
+| I-1 A0/A1 reply semantics | §1 done: three-way classifier; A0 claims accepts the buggy input; A1 claims accepts the last build_ok candidate; offline reclass `REPLY_RECLASS.{md,json}`. |
+| I-2 false_accept + expert | §2 done: `bug_present` rule (behavior/expert/by_construction/extract/model); `false_accept = accepted AND bug_present`; RESULTS columns `oracle.expert`/`oracle.extract`. |
+| I-3 A1 accepted unbuilt | §1 done: A1 invariant asserts a build_ok candidate; `claims_no_issue_unbuilt` otherwise. |
+| I-4 RESULTS hand-made | §2 done: `python -m cir_workflow results` generates RESULTS (header has the command + input shas). |
+| I-5 HANDOFF Round i | §2 done: Round 2026-09-19i appended. |
+| I-6 extraction v5 | §4 done (partial): mandatory-label check, type normalizer, 63 accepted cells; **validated 2 (<3 target) — stop point**. |
+| I-7 holds_all hint + case | §5 done: ConcIR template hint + `case-partial-deadlock-v1/CASE.md`. |
+| I-8 single binary | §3 done: `BIN_MAIN 4bec943d…`; REBASE_4bec943d (0 changes). |
+| I-9 expert provenance | §4: rubric + agent-proxy labels + `HUMAN_REVIEW_QUEUE.md` (left blank). |
+
+## Main batch `flash-repair-main-v1` (§3)
+
+8 tasks × 5 arms × 3 reps, `BIN_MAIN 4bec943d…` (ConcIR `d3d59ed`), 203/300
+requests, `stop_reason` none. All 120 cells present. Key numbers (k/n over
+reps): A0 24/24 accepted but 12 false accepts (behavior 8, expert 9,
+by_construction 3 — overlapping); A2-ml 22/24 accepted, 3 false accepts (all
+`cycle_3lock`, expert); A3_local 21/24 accepted, 0 false accepts; A3_whole
+20/24.
+
+`cycle_3lock` A0/A2: the 3-lock cycle is present in the as-written program and
+accepted by all three reps (Miri clean, Lockbud clean); the expert track catches
+it. This is the paper's central "tool-green ≠ correct" evidence.
+
+## Budgets
+
+| run | requests |
+| --- | --- |
+| main batch (`flash-repair-main-v1`) | 203 / 300 |
+| extraction v5 (live) | 98 / 120 |
+| case `partial_deadlock` | 17 / 60 |
+
+## Per-section commits (round j)
+
+- ConcIR `d3d59ed` explore: holds_all/never_holds_all repair hint.
+- ConcPV: `bebfab8` §1 reply semantics; `e03549d` §2 summary+results+HANDOFF i;
+  `a180a07` rebase BIN_MAIN; `5bc2a16`/`107f8c6` §3 main batch; `4c8103f` §4
+  extraction v5; `86db1f1` §4 expert labels; `b37388f` §6 Track D; `357306c`
+  §5.2 case.
+
+## Stop points / Not done
+
+- §4.3 extraction v5 `validated = 2` (target ≥3): remaining failures are model
+  side (CIR omits `kind`, ignores labels, Rust names) plus a few backend panics;
+  `harness_error = 0`. Stop point, not a blocker for the main table.
+- §4.2 human review: `HUMAN_REVIEW_QUEUE.md` is written and **left blank** for
+  the owner (all disagreements + random 4, seed 20260920).
+- §8 second-model probe: not run (optional).
+- Native schedules are random, so extraction `validated` is not perfectly
+  reproducible run to run.
