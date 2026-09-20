@@ -1,0 +1,105 @@
+{
+  "status": "accepted",
+  "task": "channel/send_while_holding_mutex",
+  "requirements": "A sender and a receiver communicate over a channel, and both occasionally need a shared mutex. Every interleaving must terminate; the receiver must not block on the channel while holding the lock the sender needs. On completion the program must print exactly one line `DONE done=1` and then exit; it must terminate.\n",
+  "contract_sha256": "0e2cf45274ebf9175ae37b498cb62227063c8ebc9391185d843ea6eeac90d054",
+  "out_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/channel__send_while_holding_mutex/A3_tiered/local/run-20260920T120844-11405-86c73e",
+  "max_rounds": 2,
+  "engine": "petri",
+  "diagnostics": true,
+  "check_fidelity": true,
+  "fidelity_name": null,
+  "versions": [
+    {
+      "version": 1,
+      "source": "frozen",
+      "raw_text": null,
+      "program_sha256": "c4f3c8138543d4403089e732c602f6128f20a7b800b0b36ad5a3cc2ea7225818",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/channel__send_while_holding_mutex/A3_tiered/local/run-20260920T120844-11405-86c73e/revision-1.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "valid",
+      "support_status": "supported",
+      "explore_outcome": "FAIL",
+      "explore_complete": true,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "explore_fail",
+      "request_sha256": null,
+      "feedback_sha256": "1c8d30c249bb72d79c2d27c309bbf5932cd71c12578c849726550362db7c6f7c",
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "llm_wall_ms": 0,
+      "tool_wall_ms": 23,
+      "tool_output_sha256": "ff7335fd9aec1a1d44ead226c6c96b69a244cb336e904e1df7e01586cde8e081",
+      "normalizations": [
+        {
+          "rule": "fqn_prefix",
+          "function": "main",
+          "sid": "s1",
+          "field": "funcs",
+          "from": "s",
+          "to": "main::s"
+        },
+        {
+          "rule": "fqn_prefix",
+          "function": "main",
+          "sid": "s1",
+          "field": "funcs",
+          "from": "r",
+          "to": "main::r"
+        },
+        {
+          "rule": "add_local",
+          "function": "r",
+          "names": [
+            "_"
+          ]
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    },
+    {
+      "version": 2,
+      "source": "llm",
+      "raw_text": "{\"functions\": {\"main::s\": [{\"sid\": \"s1\", \"kind\": \"channel_send\", \"channel\": \"ch1\", \"value\": \"1\"}, {\"sid\": \"s2\", \"kind\": \"return\"}], \"main::r\": [{\"sid\": \"s1\", \"kind\": \"channel_recv\", \"channel\": \"ch1\", \"dst\": \"_\"}, {\"sid\": \"s2\", \"kind\": \"return\"}]}, \"new_resources\": [], \"removed_resources\": []}",
+      "program_sha256": "941a9d3838d971f1a9fbcfe91bc381bba998b07d1106f3b71639aa1494073b02",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/channel__send_while_holding_mutex/A3_tiered/local/run-20260920T120844-11405-86c73e/revision-2.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "valid",
+      "support_status": "supported",
+      "explore_outcome": "PASS",
+      "explore_complete": true,
+      "fidelity": null,
+      "accepted": true,
+      "decision": "accepted",
+      "request_sha256": "ed836937b09f5415e9820aa99ad5b0d578b47b71616df076983234595a30d22d",
+      "feedback_sha256": null,
+      "prompt_tokens": 1406,
+      "completion_tokens": 113,
+      "llm_wall_ms": 859,
+      "tool_wall_ms": 26,
+      "tool_output_sha256": "8ab7fedcbd276c0e66c765968cbff67cd74053d9d9e6c2a004eb6c22e950caf4",
+      "normalizations": [],
+      "sid_issues": [],
+      "local_patch_function": null
+    }
+  ],
+  "accepted_version": 2,
+  "repair_mode": "llm_revision",
+  "candidate_source": "llm",
+  "consumption": {
+    "http_requests": 1,
+    "prompt_tokens": 1406,
+    "completion_tokens": 113,
+    "total_tokens": 1519,
+    "llm_wall_ms": 859,
+    "tool_wall_ms": 49,
+    "rounds": 1,
+    "first_correct_round": 2
+  },
+  "error": null,
+  "accepted": true
+}
