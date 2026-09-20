@@ -43,15 +43,36 @@ RESOURCE_SYNC_MODE = "Sync"
 # string is an unambiguous model serialisation slip and is unwrapped; any other
 # list is a genuine error and is reported (and, in strict mode, rejected).
 SCALAR_FIELDS = ("expr", "cond", "value", "expected", "desired", "resource",
-                 "channel", "lock", "condvar", "func", "var", "dst", "src")
+                 "channel", "lock", "condvar", "func", "var", "dst", "src",
+                 "then", "else", "default", "target", "handle")
+DROP_EMPTY_STRING_LIST = ("else", "default")
 FUNC_FIELDS = {"spawn": ("func",), "call": ("func",), "scope": ("funcs",)}
-DEFAULT_PARAM_TYPE = "int"
+DEFAULT_PARAM_TYPE = "Int"
 
 # protection entry aliases: {wrong} -> {var|lock}
 PROTECTION_ALIASES = {"resource": "var", "protected_by": "lock", "mutex": "lock",
                       "lock_var": "lock", "variable": "var"}
 PRIMITIVE_BASE_CASE = {"bool": "Bool", "int": "Int", "float": "Float",
                        "string": "String"}
+# Rust-ish type spellings the model may use -> canonical CIR primitive names.
+TYPE_ALIASES = {
+    "bool": "Bool", "boolean": "Bool",
+    "i8": "Int", "i16": "Int", "i32": "Int", "i64": "Int", "i128": "Int",
+    "u8": "Int", "u16": "Int", "u32": "Int", "u64": "Int", "u128": "Int",
+    "usize": "Int", "isize": "Int", "int": "Int",
+    "f32": "Float", "f64": "Float", "float": "Float",
+    "str": "String", "string": "String", "String": "String", "&str": "String",
+}
+
+
+def _canonical_type(value: Any) -> tuple[Any, bool]:
+    if not isinstance(value, str):
+        return value, False
+    if value in ("Int", "Bool", "Float", "String"):
+        return value, False
+    if value in TYPE_ALIASES:
+        return TYPE_ALIASES[value], TYPE_ALIASES[value] != value
+    return "Int", True
 # fields that are meaningless (and rejected) on a var/atomic resource
 DROP_ON_VALUE_RESOURCE = ("mode",)
 
@@ -101,6 +122,39 @@ def _pointer(module_idx: int, function_idx: int | None = None,
     if field:
         pointer += f"/{field}"
     return pointer
+
+
+def _as_list(value: Any, name_key: str = "name") -> list | None:
+    """Coerce a mapping-keyed collection into a list of items.
+
+    Models frequently serialise `modules`/`resources`/`functions` as an object
+    keyed by name; each value keeps its own `name` field or inherits the key.
+    """
+
+    if isinstance(value, list):
+        return value
+    if not isinstance(value, dict):
+        return None
+    items = []
+    for key, item in value.items():
+        if isinstance(item, dict):
+            item = dict(item)
+            item.setdefault(name_key, key)
+            items.append(item)
+        else:
+            items.append({name_key: key, "value": item})
+    return items
+
+
+def _strip_module_prefix(name: Any, module_name: str | None) -> Any:
+    """`main::main` inside module `main` is really the function `main`."""
+
+    if not isinstance(name, str) or not module_name:
+        return name
+    prefix = f"{module_name}::"
+    while name.startswith(prefix):
+        name = name[len(prefix):]
+    return name
 
 
 def _function_fqns(modules: list) -> dict[str, list[str]]:
@@ -154,6 +208,15 @@ def _normalize_params(params: Any, function: dict,
             records.append({"rule": "param_missing_type", "location": f"{location}/{i}",
                             "to": DEFAULT_PARAM_TYPE})
             changed = True
+        elif isinstance(param, dict) and "type" in param:
+            new = dict(param)
+            canon, was = _canonical_type(new["type"])
+            if was:
+                new["type"] = canon
+                records.append({"rule": "param_type", "location": f"{location}/{i}",
+                                "from": param["type"], "to": canon})
+                changed = True
+            fixed.append(new)
         else:
             fixed.append(param)
     if changed:
@@ -172,7 +235,6 @@ def normalize(program: dict, *, strict_arrays: bool = False
     out = copy.deepcopy(program)
     records: list[dict] = []
     sid_issues: list[dict] = []
-    fn_fqns = _function_fqns(out.get("modules", []) or [])
 
     # Top-level fields the verifier rejects: drop and record.
     allowed = {"program", "version", "entry", "modules"}
@@ -184,6 +246,40 @@ def normalize(program: dict, *, strict_arrays: bool = False
     if out.get("version") != "3.5.0":
         records.append({"rule": "version", "from": out.get("version"), "to": "3.5.0"})
         out["version"] = "3.5.0"
+
+    # Coerce name-keyed maps into lists (models often serialise collections as
+    # objects) and strip a redundant `module::` prefix from function names.
+    if isinstance(out.get("modules"), dict):
+        coerced = _as_list(out.get("modules"))
+        if coerced is not None:
+            out["modules"] = coerced
+            records.append({"rule": "collection_map_to_list", "scope": "modules"})
+    for mi, module in enumerate(out.get("modules", []) or []):
+        if not isinstance(module, dict):
+            continue
+        for coll in ("resources", "functions", "protection"):
+            if isinstance(module.get(coll), dict):
+                coerced = _as_list(module[coll])
+                if coerced is not None:
+                    module[coll] = coerced
+                    records.append({"rule": "collection_map_to_list", "scope": coll,
+                                    "location": _pointer(mi)})
+        for fi, function in enumerate(module.get("functions", []) or []):
+            if not isinstance(function, dict):
+                continue
+            stripped = _strip_module_prefix(function.get("name"), module.get("name"))
+            if stripped != function.get("name"):
+                records.append({"rule": "strip_module_prefix",
+                                "location": _pointer(mi, fi),
+                                "from": function.get("name"), "to": stripped})
+                function["name"] = stripped
+            if isinstance(function.get("body"), dict):
+                coerced = _as_list(function["body"], name_key="sid")
+                if coerced is not None:
+                    function["body"] = coerced
+                    records.append({"rule": "collection_map_to_list", "scope": "body",
+                                    "location": _pointer(mi, fi)})
+    fn_fqns = _function_fqns(out.get("modules", []) or [])
 
     # Entry must be a `module::function` FQN.
     entry = out.get("entry")
@@ -224,6 +320,14 @@ def normalize(program: dict, *, strict_arrays: bool = False
                                 "resource": resource.get("name"),
                                 "location": _pointer(module_idx),
                                 "to": RESOURCE_SYNC_MODE})
+            if resource.get("kind") == "sync" and "init" in resource:
+                resource.pop("init", None)
+                records.append({"rule": "drop_sync_init", "resource": resource.get("name"),
+                                "location": _pointer(module_idx)})
+            if isinstance(resource.get("base"), str):
+                canon, _ = _canonical_type(resource["base"])
+                if canon in ("Int", "Bool", "Float", "String"):
+                    resource["base"] = canon
             if resource.get("kind") == "var":
                 for field in DROP_ON_VALUE_RESOURCE:
                     if field in resource:
@@ -254,6 +358,14 @@ def normalize(program: dict, *, strict_arrays: bool = False
                                 "location": _pointer(module_idx, fn_idx)})
             _normalize_params(function.get("params"), function, records,
                               _pointer(module_idx, fn_idx, None, "params"))
+            for local in function.get("locals", []) or []:
+                if isinstance(local, dict) and "type" in local:
+                    canon, changed = _canonical_type(local["type"])
+                    if changed:
+                        records.append({"rule": "local_type", "function": function.get("name"),
+                                        "from": local["type"], "to": canon})
+                        local["type"] = canon
+            slot_names: set[str] = set()
             body = function.get("body", []) or []
             # Deterministic sid repair: fill missing / rename malformed sids and
             # rewrite goto/branch/switch targets accordingly.
@@ -321,6 +433,14 @@ def normalize(program: dict, *, strict_arrays: bool = False
                                             "function": function.get("name"),
                                             "sid": sid, "field": ffield, "from": value,
                                             "to": fixed})
+                dst_field = None
+                if kind == "assign_local":
+                    dst_field = "target"
+                elif kind in ("read_shared", "atomic_load", "atomic_cas",
+                              "channel_recv"):
+                    dst_field = "dst"
+                if dst_field and isinstance(stmt.get(dst_field), str):
+                    slot_names.add(stmt[dst_field])
                 for field in SCALAR_FIELDS:
                     if field not in stmt:
                         continue
@@ -332,6 +452,11 @@ def normalize(program: dict, *, strict_arrays: bool = False
                             records.append({"rule": "array_unwrap", "function": function.get("name"),
                                             "sid": sid, "field": field,
                                             "location": location, "to": value[0]})
+                        elif not value and field in DROP_EMPTY_STRING_LIST:
+                            stmt.pop(field, None)
+                            records.append({"rule": "drop_empty_field",
+                                            "function": function.get("name"), "sid": sid,
+                                            "field": field, "location": location})
                         elif strict_arrays:
                             sid_issues.append({
                                 "stage": "normalize", "pointer": location,
@@ -345,6 +470,15 @@ def normalize(program: dict, *, strict_arrays: bool = False
                             record.update({"function": function.get("name"), "sid": sid,
                                            "field": field})
                             records.append(record)
+            declared = {l.get("name") for l in (function.get("locals") or [])
+                        if isinstance(l, dict)}
+            new_locals = [{"name": name, "type": DEFAULT_PARAM_TYPE}
+                          for name in sorted(slot_names) if name not in declared]
+            if new_locals:
+                function.setdefault("locals", [])
+                function["locals"].extend(new_locals)
+                records.append({"rule": "add_local", "function": function.get("name"),
+                                "names": [l["name"] for l in new_locals]})
     return out, records, sid_issues
 
 

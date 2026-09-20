@@ -1,0 +1,111 @@
+{
+  "labels": [
+    {
+      "label": "L1",
+      "line": 15,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let ga = a1.lock().unwrap(); // s1: lock mtx_a let gb = b1.lock().unwrap(); // s2: lock mtx_b drop(gb); // s3 drop(ga); // s4 })",
+      "thread": "t0"
+    },
+    {
+      "label": "L2",
+      "line": 16,
+      "op": "mutex_lock",
+      "receiver": "a1",
+      "thread": "tL1"
+    },
+    {
+      "label": "L3",
+      "line": 17,
+      "op": "mutex_lock",
+      "receiver": "b1",
+      "thread": "tL1"
+    },
+    {
+      "label": "L4",
+      "line": 27,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let ga = a2.lock().unwrap(); // s1: lock mtx_a let gb = b2.lock().unwrap(); // s2: lock mtx_b drop(gb); // s3 drop(ga); // s4 let gb = b2.lock().unwrap(); // s5: lock mtx_b let gc = c2.lock().unwrap(); // s6: lock mtx_c drop(gc); // s7 drop(gb); // s8 })",
+      "thread": "t0"
+    },
+    {
+      "label": "L5",
+      "line": 28,
+      "op": "mutex_lock",
+      "receiver": "a2",
+      "thread": "tL4"
+    },
+    {
+      "label": "L6",
+      "line": 29,
+      "op": "mutex_lock",
+      "receiver": "b2",
+      "thread": "tL4"
+    },
+    {
+      "label": "L7",
+      "line": 32,
+      "op": "mutex_lock",
+      "receiver": "b2",
+      "thread": "tL4"
+    },
+    {
+      "label": "L8",
+      "line": 33,
+      "op": "mutex_lock",
+      "receiver": "c2",
+      "thread": "tL4"
+    },
+    {
+      "label": "L9",
+      "line": 43,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let ga = a3.lock().unwrap(); // s1: lock mtx_a let gb = b3.lock().unwrap(); // s2: lock mtx_b let gc = c3.lock().unwrap(); // s3: lock mtx_c drop(gc); // s4 drop(gb); // s5 drop(ga); // s6 })",
+      "thread": "t0"
+    },
+    {
+      "label": "L10",
+      "line": 44,
+      "op": "mutex_lock",
+      "receiver": "a3",
+      "thread": "tL9"
+    },
+    {
+      "label": "L11",
+      "line": 45,
+      "op": "mutex_lock",
+      "receiver": "b3",
+      "thread": "tL9"
+    },
+    {
+      "label": "L12",
+      "line": 46,
+      "op": "mutex_lock",
+      "receiver": "c3",
+      "thread": "tL9"
+    },
+    {
+      "label": "L13",
+      "line": 52,
+      "op": "join",
+      "receiver": "w1",
+      "thread": "t0"
+    },
+    {
+      "label": "L14",
+      "line": 53,
+      "op": "join",
+      "receiver": "w2",
+      "thread": "t0"
+    },
+    {
+      "label": "L15",
+      "line": 54,
+      "op": "join",
+      "receiver": "w3",
+      "thread": "t0"
+    }
+  ],
+  "schema_version": "cir-labels-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v4/run-20260920T155544/lock-order__cycle_3lock/instrument/input.rs"
+}

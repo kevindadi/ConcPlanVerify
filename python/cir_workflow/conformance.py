@@ -254,7 +254,9 @@ def collect_traces(filled_dir: Path | str, *, native_runs: int = 50,
     import time
 
     root = Path(filled_dir).expanduser().resolve()
-    calls = Path(calls_dir) if calls_dir else root / "calls"
+    # Resolve so CIR_TRACE_OUT is absolute: the child runs with cwd=root, so a
+    # relative trace path would be written under the skeleton instead.
+    calls = Path(calls_dir).expanduser().resolve() if calls_dir else root / "calls"
     calls.mkdir(parents=True, exist_ok=True)
     build = _run(["cargo", "build", "--offline", "--quiet"], cwd=root, timeout=300.0)
     (calls / "build.stdout.txt").write_text(build.stdout, encoding="utf-8")

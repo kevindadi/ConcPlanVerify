@@ -1,0 +1,252 @@
+{
+  "program": "three_way_deadlock_fixed",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "mtx_a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "mtx_b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "mtx_c",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "w1",
+              "type": "Int"
+            },
+            {
+              "name": "w2",
+              "type": "Int"
+            },
+            {
+              "name": "w3",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::w1",
+              "handle": "w1"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "main::w2",
+              "handle": "w2"
+            },
+            {
+              "sid": "s3",
+              "kind": "spawn",
+              "func": "main::w3",
+              "handle": "w3"
+            },
+            {
+              "sid": "L13",
+              "kind": "join",
+              "handle": "w1"
+            },
+            {
+              "sid": "L14",
+              "kind": "join",
+              "handle": "w2"
+            },
+            {
+              "sid": "L15",
+              "kind": "join",
+              "handle": "w3"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "w1",
+          "params": [],
+          "locals": [
+            {
+              "name": "ga",
+              "type": "Int"
+            },
+            {
+              "name": "gb",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L2",
+              "kind": "mutex_lock",
+              "resource": "main::mtx_a"
+            },
+            {
+              "sid": "L3",
+              "kind": "mutex_lock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "s1",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx_a"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "w2",
+          "params": [],
+          "locals": [
+            {
+              "name": "ga",
+              "type": "Int"
+            },
+            {
+              "name": "gb",
+              "type": "Int"
+            },
+            {
+              "name": "gc",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L5",
+              "kind": "mutex_lock",
+              "resource": "main::mtx_a"
+            },
+            {
+              "sid": "L6",
+              "kind": "mutex_lock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "s1",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx_a"
+            },
+            {
+              "sid": "L7",
+              "kind": "mutex_lock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "L8",
+              "kind": "mutex_lock",
+              "resource": "main::mtx_c"
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx_c"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "w3",
+          "params": [],
+          "locals": [
+            {
+              "name": "ga",
+              "type": "Int"
+            },
+            {
+              "name": "gb",
+              "type": "Int"
+            },
+            {
+              "name": "gc",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L10",
+              "kind": "mutex_lock",
+              "resource": "main::mtx_a"
+            },
+            {
+              "sid": "L11",
+              "kind": "mutex_lock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "L12",
+              "kind": "mutex_lock",
+              "resource": "main::mtx_c"
+            },
+            {
+              "sid": "s1",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx_c"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx_a"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

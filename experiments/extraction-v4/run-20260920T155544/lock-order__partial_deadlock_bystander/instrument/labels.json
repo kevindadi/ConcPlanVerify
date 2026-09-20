@@ -1,0 +1,69 @@
+{
+  "labels": [
+    {
+      "label": "L1",
+      "line": 14,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let ga = ma.lock().unwrap(); // s1: lock mtx_a let gb = mb.lock().unwrap(); // s2: lock mtx_b drop(gb); // s3 drop(ga); // s4 })",
+      "thread": "t0"
+    },
+    {
+      "label": "L2",
+      "line": 15,
+      "op": "mutex_lock",
+      "receiver": "ma",
+      "thread": "tL1"
+    },
+    {
+      "label": "L3",
+      "line": 16,
+      "op": "mutex_lock",
+      "receiver": "mb",
+      "thread": "tL1"
+    },
+    {
+      "label": "L4",
+      "line": 22,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let ga = ma2.lock().unwrap(); // s1: lock mtx_a (same order) let gb = mb2.lock().unwrap(); // s2: lock mtx_b drop(gb); // s3 drop(ga); // s4 })",
+      "thread": "t0"
+    },
+    {
+      "label": "L5",
+      "line": 23,
+      "op": "mutex_lock",
+      "receiver": "ma2",
+      "thread": "tL4"
+    },
+    {
+      "label": "L6",
+      "line": 24,
+      "op": "mutex_lock",
+      "receiver": "mb2",
+      "thread": "tL4"
+    },
+    {
+      "label": "L7",
+      "line": 30,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || loop { thread::sleep(Duration::from_millis(10)); // s1/s2: nop loop })",
+      "thread": "t0"
+    },
+    {
+      "label": "L8",
+      "line": 35,
+      "op": "join",
+      "receiver": "worker_a",
+      "thread": "t0"
+    },
+    {
+      "label": "L9",
+      "line": 36,
+      "op": "join",
+      "receiver": "worker_b",
+      "thread": "t0"
+    }
+  ],
+  "schema_version": "cir-labels-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v4/run-20260920T155544/lock-order__partial_deadlock_bystander/instrument/input.rs"
+}

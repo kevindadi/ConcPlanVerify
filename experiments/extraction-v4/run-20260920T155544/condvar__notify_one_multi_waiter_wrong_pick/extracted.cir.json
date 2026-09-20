@@ -1,0 +1,181 @@
+{
+  "program": "condvar_waiters",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "cv",
+          "kind": "sync",
+          "type": "Condvar",
+          "mode": "Sync"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "hs",
+              "type": "Int"
+            },
+            {
+              "name": "h",
+              "type": "Int"
+            },
+            {
+              "name": "n",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "hs",
+              "expr": "vec![]"
+            },
+            {
+              "sid": "L1",
+              "kind": "spawn",
+              "func": "main::waiter",
+              "handle": "h"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "hs",
+              "expr": "hs.push(h)"
+            },
+            {
+              "sid": "L1",
+              "kind": "spawn",
+              "func": "main::waiter",
+              "handle": "h"
+            },
+            {
+              "sid": "s3",
+              "kind": "assign_local",
+              "target": "hs",
+              "expr": "hs.push(h)"
+            },
+            {
+              "sid": "L4",
+              "kind": "spawn",
+              "func": "main::notifier",
+              "handle": "n"
+            },
+            {
+              "sid": "L7",
+              "kind": "join",
+              "handle": "n"
+            },
+            {
+              "sid": "L8",
+              "kind": "join",
+              "handle": "h"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "waiter",
+          "params": [],
+          "locals": [
+            {
+              "name": "g",
+              "type": "Bool"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L2",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s5",
+              "kind": "branch",
+              "cond": "!*g",
+              "then": "s6",
+              "else": "s7"
+            },
+            {
+              "sid": "L3",
+              "kind": "condvar_wait",
+              "condvar": "main::cv",
+              "lock": "main::m"
+            },
+            {
+              "sid": "s6",
+              "kind": "goto",
+              "target": "s5"
+            },
+            {
+              "sid": "s7",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s8",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "notifier",
+          "params": [],
+          "locals": [
+            {
+              "name": "g",
+              "type": "Bool"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L5",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s9",
+              "kind": "assign_local",
+              "target": "g",
+              "expr": "true"
+            },
+            {
+              "sid": "L6",
+              "kind": "condvar_notify",
+              "condvar": "main::cv"
+            },
+            {
+              "sid": "s10",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s11",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

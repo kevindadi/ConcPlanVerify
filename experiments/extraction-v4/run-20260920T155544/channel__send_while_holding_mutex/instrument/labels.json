@@ -1,0 +1,48 @@
+{
+  "labels": [
+    {
+      "label": "L1",
+      "line": 6,
+      "op": "spawn",
+      "receiver": "thread::spawn(move||{ tx1.send(1).unwrap(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L2",
+      "line": 6,
+      "op": "channel_send",
+      "receiver": "tx1",
+      "thread": "tL1"
+    },
+    {
+      "label": "L3",
+      "line": 7,
+      "op": "spawn",
+      "receiver": "thread::spawn(move||{ rx1.recv().unwrap(); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L4",
+      "line": 7,
+      "op": "channel_recv",
+      "receiver": "rx1",
+      "thread": "tL3"
+    },
+    {
+      "label": "L5",
+      "line": 8,
+      "op": "join",
+      "receiver": "s",
+      "thread": "t0"
+    },
+    {
+      "label": "L6",
+      "line": 8,
+      "op": "join",
+      "receiver": "r",
+      "thread": "t0"
+    }
+  ],
+  "schema_version": "cir-labels-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v4/run-20260920T155544/channel__send_while_holding_mutex/instrument/input.rs"
+}

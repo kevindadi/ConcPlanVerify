@@ -1,0 +1,52 @@
+{
+  "stage": "codegen",
+  "reason": "extracted CIR not codegen-able: codegen failed: cannot lower program: invalid [E301]: mutex_lock requires a Mutex, found 'main::s'",
+  "stderr_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v4/run-20260920T155544/semaphore__acquire_twice_no_release/codegen.stderr.txt",
+  "normalizations": [
+    {
+      "rule": "function_kind",
+      "function": "acq",
+      "location": "/modules/0/functions/0"
+    },
+    {
+      "rule": "local_type",
+      "function": "acq",
+      "from": "u32",
+      "to": "Int"
+    },
+    {
+      "rule": "function_kind",
+      "function": "rel",
+      "location": "/modules/0/functions/1"
+    },
+    {
+      "rule": "function_kind",
+      "function": "worker1",
+      "location": "/modules/0/functions/2"
+    },
+    {
+      "rule": "function_kind",
+      "function": "worker2",
+      "location": "/modules/0/functions/3"
+    },
+    {
+      "rule": "function_kind",
+      "function": "main",
+      "location": "/modules/0/functions/4"
+    },
+    {
+      "rule": "local_type",
+      "function": "main",
+      "from": "JoinHandle",
+      "to": "Int"
+    },
+    {
+      "rule": "local_type",
+      "function": "main",
+      "from": "JoinHandle",
+      "to": "Int"
+    }
+  ],
+  "extract_validated": false,
+  "model_verdict": null
+}

@@ -1,0 +1,157 @@
+{
+  "program": "partial_deadlock_fixed",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "mtx_a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "mtx_b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        }
+      ],
+      "functions": [
+        {
+          "name": "worker_a",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L2",
+              "kind": "mutex_lock",
+              "resource": "main::mtx_a"
+            },
+            {
+              "sid": "L3",
+              "kind": "mutex_lock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx_a"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker_b",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L5",
+              "kind": "mutex_lock",
+              "resource": "main::mtx_a"
+            },
+            {
+              "sid": "L6",
+              "kind": "mutex_lock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "s6",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "s7",
+              "kind": "mutex_unlock",
+              "resource": "main::mtx_a"
+            },
+            {
+              "sid": "s8",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "bystander",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "s9",
+              "kind": "nop"
+            },
+            {
+              "sid": "s10",
+              "kind": "goto",
+              "target": "s9"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "worker_a",
+              "type": "Int"
+            },
+            {
+              "name": "worker_b",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L1",
+              "kind": "spawn",
+              "func": "main::worker_a",
+              "handle": "worker_a"
+            },
+            {
+              "sid": "L4",
+              "kind": "spawn",
+              "func": "main::worker_b",
+              "handle": "worker_b"
+            },
+            {
+              "sid": "L7",
+              "kind": "spawn",
+              "func": "main::bystander",
+              "handle": "bystander"
+            },
+            {
+              "sid": "L8",
+              "kind": "join",
+              "handle": "worker_a"
+            },
+            {
+              "sid": "L9",
+              "kind": "join",
+              "handle": "worker_b"
+            },
+            {
+              "sid": "s11",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

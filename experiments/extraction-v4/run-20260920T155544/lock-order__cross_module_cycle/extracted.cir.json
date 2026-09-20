@@ -1,0 +1,114 @@
+{
+  "program": "mutex_pair",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "t1",
+              "type": "Int"
+            },
+            {
+              "name": "t2",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::worker1",
+              "handle": "t1"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "main::worker2",
+              "handle": "t2"
+            },
+            {
+              "sid": "L7",
+              "kind": "join",
+              "handle": "t1"
+            },
+            {
+              "sid": "L8",
+              "kind": "join",
+              "handle": "t2"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker1",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L2",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "L3",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker2",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L5",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "L6",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

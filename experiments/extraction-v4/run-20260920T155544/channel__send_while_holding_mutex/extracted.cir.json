@@ -1,0 +1,115 @@
+{
+  "program": "channel_sync",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "tx1",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        },
+        {
+          "name": "rx1",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "s",
+              "type": "Int"
+            },
+            {
+              "name": "r",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::tL1",
+              "handle": "s"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "main::tL3",
+              "handle": "r"
+            },
+            {
+              "sid": "L5",
+              "kind": "join",
+              "handle": "s"
+            },
+            {
+              "sid": "L6",
+              "kind": "join",
+              "handle": "r"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "tL1",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L2",
+              "kind": "channel_send",
+              "channel": "main::tx1",
+              "value": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "tL3",
+          "params": [],
+          "locals": [
+            {
+              "name": "v",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L4",
+              "kind": "channel_recv",
+              "channel": "main::rx1",
+              "dst": "v"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

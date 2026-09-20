@@ -152,7 +152,7 @@ def validate_extraction(extracted_cir: dict, annotated_rust: str, contract_path:
     from . import conformance
     from .concir_client import ConcirClient  # lazy: avoids cycles at import time
 
-    work_dir = Path(work_dir)
+    work_dir = Path(work_dir).expanduser().resolve()
     work_dir.mkdir(parents=True, exist_ok=True)
     program_path = work_dir / "extracted.cir.json"
     result_path = work_dir / "extraction_result.json"

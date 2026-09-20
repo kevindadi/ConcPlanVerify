@@ -8,7 +8,16 @@ inserted before every concurrency operation, and each call carries a label
 Rules:
 
 - Top level only `program` / `version` / `entry` / `modules` (no `contract`,
-  `description`, or `notes`).
+  `description`, or `notes`); `version` is exactly `"3.5.0"`.
+- `modules`, each module's `resources` / `functions` / `protection`, and each
+  function's `body` are **JSON arrays**, never objects keyed by name.
+- `branch.then`, `branch.else` and `switch.default` are single `sid` strings
+  (the `else` branch may be omitted), not statement arrays.
+- Declare every local you assign to in the function's `locals`
+  (`[{"name": ..., "type": ...}]`); `assign_local.target` and `read_shared.dst`
+  must name one of those locals or a parameter.
+- Never use a sync resource (Mutex / Condvar / Channel / Semaphore) or an
+  atomic as an `assign_local` destination or a `write_shared` target.
 - Use only the schema's statement kinds and field names. Resource references and
   spawned/scope function references are `module::name` FQNs.
 - Every concurrency statement's `sid` **must** be exactly one of the labels from

@@ -1,0 +1,216 @@
+{
+  "program": "mutex_pair",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "a",
+              "type": "Int"
+            },
+            {
+              "name": "b",
+              "type": "Int"
+            },
+            {
+              "name": "a1",
+              "type": "Int"
+            },
+            {
+              "name": "b1",
+              "type": "Int"
+            },
+            {
+              "name": "x1",
+              "type": "Int"
+            },
+            {
+              "name": "a2",
+              "type": "Int"
+            },
+            {
+              "name": "b2",
+              "type": "Int"
+            },
+            {
+              "name": "x2",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "a",
+              "expr": "Arc::new(Mutex::new(()))"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "b",
+              "expr": "Arc::new(Mutex::new(()))"
+            },
+            {
+              "sid": "s3",
+              "kind": "assign_local",
+              "target": "a1",
+              "expr": "Arc::clone(&a)"
+            },
+            {
+              "sid": "s4",
+              "kind": "assign_local",
+              "target": "b1",
+              "expr": "Arc::clone(&b)"
+            },
+            {
+              "sid": "L1",
+              "kind": "spawn",
+              "func": "main::t1",
+              "handle": "x1"
+            },
+            {
+              "sid": "s5",
+              "kind": "assign_local",
+              "target": "a2",
+              "expr": "Arc::clone(&a)"
+            },
+            {
+              "sid": "s6",
+              "kind": "assign_local",
+              "target": "b2",
+              "expr": "Arc::clone(&b)"
+            },
+            {
+              "sid": "L4",
+              "kind": "spawn",
+              "func": "main::t2",
+              "handle": "x2"
+            },
+            {
+              "sid": "L7",
+              "kind": "join",
+              "handle": "x1"
+            },
+            {
+              "sid": "L8",
+              "kind": "join",
+              "handle": "x2"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "t1",
+          "params": [],
+          "locals": [
+            {
+              "name": "_ga",
+              "type": "Int"
+            },
+            {
+              "name": "_gb",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L2",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s8",
+              "kind": "assign_local",
+              "target": "_ga",
+              "expr": "a1.lock().unwrap()"
+            },
+            {
+              "sid": "L3",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s9",
+              "kind": "assign_local",
+              "target": "_gb",
+              "expr": "b1.lock().unwrap()"
+            },
+            {
+              "sid": "s10",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "t2",
+          "params": [],
+          "locals": [
+            {
+              "name": "_ga",
+              "type": "Int"
+            },
+            {
+              "name": "_gb",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L5",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s11",
+              "kind": "assign_local",
+              "target": "_ga",
+              "expr": "a2.lock().unwrap()"
+            },
+            {
+              "sid": "L6",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s12",
+              "kind": "assign_local",
+              "target": "_gb",
+              "expr": "b2.lock().unwrap()"
+            },
+            {
+              "sid": "s13",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}
