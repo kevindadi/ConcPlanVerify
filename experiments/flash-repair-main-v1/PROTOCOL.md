@@ -57,3 +57,12 @@ on another binary is listed as a deviation in RESULTS.
 `python -m cir_workflow results …` (see its header for the exact command and the
 sha256 of every input). Do not edit RESULTS by hand; a SUMMARY/RESULTS mismatch
 is a bug.
+
+## A3_tiered escalation triggers (K-2 addendum)
+
+- **T1 (original)**: escalate when the local phase does not accept within its
+  rounds (stalled / repeated `explore_fail`).
+- **T2 (early)**: escalate after the **first** local round when its diagnostic
+  carries a `holds_all` / `never_holds_all` preservation hint and the candidate
+  diff against the input only releases or reorders locks. Evidence:
+  `case-partial-deadlock-v1/CASE.md` "Tiered escalation".

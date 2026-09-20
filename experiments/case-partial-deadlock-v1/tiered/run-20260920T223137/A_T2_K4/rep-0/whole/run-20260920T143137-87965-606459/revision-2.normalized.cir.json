@@ -1,0 +1,223 @@
+{
+  "program": "partial_bystander",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "a",
+          "b",
+          "hs",
+          "done_a",
+          "done_b",
+          "out"
+        ],
+        "functions": [
+          "main",
+          "a",
+          "b",
+          "c"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "hs",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 1
+        },
+        {
+          "name": "done_a",
+          "kind": "var",
+          "type": "Atomic"
+        },
+        {
+          "name": "done_b",
+          "kind": "var",
+          "type": "Atomic"
+        },
+        {
+          "name": "out",
+          "kind": "var",
+          "type": "Var"
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::a",
+                "main::b",
+                "main::c"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "a",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s3",
+              "kind": "semaphore_acquire",
+              "resource": "main::hs"
+            },
+            {
+              "sid": "s4",
+              "kind": "semaphore_release",
+              "resource": "main::hs"
+            },
+            {
+              "sid": "s5",
+              "kind": "atomic_store",
+              "resource": "main::done_a",
+              "value": "1"
+            },
+            {
+              "sid": "s6",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s7",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s8",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s3",
+              "kind": "semaphore_acquire",
+              "resource": "main::hs"
+            },
+            {
+              "sid": "s4",
+              "kind": "semaphore_release",
+              "resource": "main::hs"
+            },
+            {
+              "sid": "s5",
+              "kind": "atomic_store",
+              "resource": "main::done_b",
+              "value": "1"
+            },
+            {
+              "sid": "s6",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s7",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s8",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "c",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "i",
+              "expr": "0"
+            },
+            {
+              "sid": "s2",
+              "kind": "branch",
+              "cond": "i < 3",
+              "then": "s3",
+              "else": "s5"
+            },
+            {
+              "sid": "s3",
+              "kind": "assign_local",
+              "target": "i",
+              "expr": "i + 1"
+            },
+            {
+              "sid": "s4",
+              "kind": "goto",
+              "target": "s2"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "i",
+              "type": "Int"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

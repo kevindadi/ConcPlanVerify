@@ -1,0 +1,271 @@
+{
+  "status": "accepted",
+  "task": "lock-order/partial_deadlock_bystander",
+  "requirements": "Two workers A and B use two mutexes with an intermediate semaphore handshake, and an independent third task keeps making progress. Main starts all three. Every reachable state must still allow A and B to complete, and both workers must complete. On completion the program must print exactly one line `DONE a=1 b=1` and then exit; it must terminate.\n",
+  "contract_sha256": "753eb1c81fb8c87aa560e2ed5cca88cfa307c10df1ce6f4d93debeebcf02f304",
+  "out_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/case-partial-deadlock-v1/tiered/run-20260920T223137/B_orig_K6/rep-2/whole/run-20260920T143213-87965-97fe1d",
+  "max_rounds": 4,
+  "engine": "petri",
+  "diagnostics": true,
+  "check_fidelity": true,
+  "fidelity_name": null,
+  "versions": [
+    {
+      "version": 1,
+      "source": "frozen",
+      "raw_text": null,
+      "program_sha256": "bf4ddfc703b5fefdbea548a1d2336b6a0eefbcf51cb2f3c7fa314d13abae5b2e",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/case-partial-deadlock-v1/tiered/run-20260920T223137/B_orig_K6/rep-2/whole/run-20260920T143213-87965-97fe1d/revision-1.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "valid",
+      "support_status": "supported",
+      "explore_outcome": "FAIL",
+      "explore_complete": true,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "explore_fail",
+      "request_sha256": null,
+      "feedback_sha256": "5934c2434909541a3c5bb80e252488426da17a8f42345ac6f4160fcc7b332ddf",
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "llm_wall_ms": 0,
+      "tool_wall_ms": 25,
+      "tool_output_sha256": "9ad705493fb5fa31ad65fca3e9a5846928fd5839d58e5f7a8b6cd7c1c7489126",
+      "normalizations": [],
+      "sid_issues": [],
+      "local_patch_function": null
+    },
+    {
+      "version": 2,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"partial_bystander\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"a\", \"b\", \"handshake\", \"done_a\", \"done_b\", \"print_lock\"],\n        \"functions\": [\"main\", \"a\", \"b\", \"bystander\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"a\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"b\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"handshake\", \"kind\": \"sync\", \"type\": \"Semaphore\", \"mode\": \"Sync\", \"count\": 1 },\n        { \"name\": \"done_a\", \"kind\": \"var\", \"type\": \"Atomic\", \"mode\": \"Sync\" },\n        { \"name\": \"done_b\", \"kind\": \"var\", \"type\": \"Atomic\", \"mode\": \"Sync\" },\n        { \"name\": \"print_lock\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            { \"sid\": \"m1\", \"kind\": \"scope\", \"funcs\": [\"main::a\", \"main::b\", \"main::bystander\"] },\n            { \"sid\": \"m2\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"a\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"a1\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"a2\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"a3\", \"kind\": \"semaphore_release\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"a4\", \"kind\": \"atomic_store\", \"resource\": \"main::done_a\", \"value\": \"1\" },\n            { \"sid\": \"a5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"a6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"a7\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"b\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"b1\", \"kind\": \"semaphore_acquire\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"b2\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"b3\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"b4\", \"kind\": \"atomic_store\", \"resource\": \"main::done_b\", \"value\": \"1\" },\n            { \"sid\": \"b5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"b6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"b7\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"bystander\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"c1\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"0\" },\n            { \"sid\": \"c2\", \"kind\": \"branch\", \"cond\": \"i < 3\", \"then\": \"c3\", \"else\": \"c5\" },\n            { \"sid\": \"c3\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"i + 1\" },\n            { \"sid\": \"c4\", \"kind\": \"goto\", \"target\": \"c2\" },\n            { \"sid\": \"c5\", \"kind\": \"return\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "7d9f1266c0b030187f81f69ec96179e58af37df8899ddd8200d62db91dd72a1f",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/case-partial-deadlock-v1/tiered/run-20260920T223137/B_orig_K6/rep-2/whole/run-20260920T143213-87965-97fe1d/revision-2.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "invalid",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "check_invalid",
+      "request_sha256": "17c4b46ff3528b197787d7d7622c5f975e060410825b5dd907e472d4913d9ea2",
+      "feedback_sha256": "d30c99411f617f9d2809bf132d07a4256a300e077a4539f766a7f0c3c08688d0",
+      "prompt_tokens": 3575,
+      "completion_tokens": 993,
+      "llm_wall_ms": 3069,
+      "tool_wall_ms": 5,
+      "tool_output_sha256": "4574eba2f6de7dc52ec586c6da80fae8f0dedcbe3bafa1ca05d601fb3125589f",
+      "normalizations": [
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "done_a",
+          "field": "mode"
+        },
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "done_b",
+          "field": "mode"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "main",
+          "from": "m1",
+          "to": "s1"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "main",
+          "from": "m2",
+          "to": "s2"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a1",
+          "to": "s1"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a2",
+          "to": "s2"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a3",
+          "to": "s3"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a4",
+          "to": "s4"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a5",
+          "to": "s5"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a6",
+          "to": "s6"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "a",
+          "from": "a7",
+          "to": "s7"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b1",
+          "to": "s1"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b2",
+          "to": "s2"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b3",
+          "to": "s3"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b4",
+          "to": "s4"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b5",
+          "to": "s5"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b6",
+          "to": "s6"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "b",
+          "from": "b7",
+          "to": "s7"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "bystander",
+          "from": "c1",
+          "to": "s1"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "bystander",
+          "from": "c2",
+          "to": "s2"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "bystander",
+          "from": "c3",
+          "to": "s3"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "bystander",
+          "from": "c4",
+          "to": "s4"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "bystander",
+          "from": "c5",
+          "to": "s5"
+        },
+        {
+          "rule": "add_local",
+          "function": "bystander",
+          "names": [
+            "i"
+          ]
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": "main::bystander"
+    },
+    {
+      "version": 3,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"partial_bystander\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"a\", \"b\", \"handshake\", \"done_a\", \"done_b\", \"print_lock\"],\n        \"functions\": [\"main\", \"a\", \"b\", \"bystander\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"a\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"b\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"handshake\", \"kind\": \"sync\", \"type\": \"Semaphore\", \"mode\": \"Sync\", \"count\": 1 },\n        { \"name\": \"done_a\", \"kind\": \"var\", \"type\": \"Atomic\", \"base\": \"Int\", \"init\": \"0\" },\n        { \"name\": \"done_b\", \"kind\": \"var\", \"type\": \"Atomic\", \"base\": \"Int\", \"init\": \"0\" },\n        { \"name\": \"print_lock\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"scope\", \"funcs\": [\"main::a\", \"main::b\", \"main::bystander\"] },\n            { \"sid\": \"s2\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"a\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s3\", \"kind\": \"semaphore_release\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s4\", \"kind\": \"atomic_store\", \"resource\": \"main::done_a\", \"value\": \"1\" },\n            { \"sid\": \"s5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s7\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"b\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"semaphore_acquire\", \"resource\": \"main::handshake\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s3\", \"kind\": \"mutex_lock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s4\", \"kind\": \"atomic_store\", \"resource\": \"main::done_b\", \"value\": \"1\" },\n            { \"sid\": \"s5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::b\" },\n            { \"sid\": \"s6\", \"kind\": \"mutex_unlock\", \"resource\": \"main::a\" },\n            { \"sid\": \"s7\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"bystander\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"0\" },\n            { \"sid\": \"s2\", \"kind\": \"branch\", \"cond\": \"i < 3\", \"then\": \"s3\", \"else\": \"s5\" },\n            { \"sid\": \"s3\", \"kind\": \"assign_local\", \"target\": \"i\", \"expr\": \"i + 1\" },\n            { \"sid\": \"s4\", \"kind\": \"goto\", \"target\": \"s2\" },\n            { \"sid\": \"s5\", \"kind\": \"return\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "e03c2c09f8c8ad4716f32b1435a6d6007c4ba402160f63c4201eddd0ecbcd587",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/case-partial-deadlock-v1/tiered/run-20260920T223137/B_orig_K6/rep-2/whole/run-20260920T143213-87965-97fe1d/revision-3.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "valid",
+      "support_status": "supported",
+      "explore_outcome": "PASS",
+      "explore_complete": true,
+      "fidelity": null,
+      "accepted": true,
+      "decision": "accepted",
+      "request_sha256": "b342412c213c594c2d80fec84463b1aabb2c9b5c7cdd4581b3c8c4433b7ba6ca",
+      "feedback_sha256": null,
+      "prompt_tokens": 4519,
+      "completion_tokens": 1005,
+      "llm_wall_ms": 2917,
+      "tool_wall_ms": 48,
+      "tool_output_sha256": "bcd7fc0fab656c5127bd41467c5f94e593cffa6d79fbc2f20436fba5a4bda152",
+      "normalizations": [
+        {
+          "rule": "init_int",
+          "resource": "done_a",
+          "location": "/modules/0/resources/3/init"
+        },
+        {
+          "rule": "init_int",
+          "resource": "done_b",
+          "location": "/modules/0/resources/4/init"
+        },
+        {
+          "rule": "add_local",
+          "function": "bystander",
+          "names": [
+            "i"
+          ]
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    }
+  ],
+  "accepted_version": 3,
+  "repair_mode": "llm_revision",
+  "candidate_source": "llm",
+  "consumption": {
+    "http_requests": 2,
+    "prompt_tokens": 8094,
+    "completion_tokens": 1998,
+    "total_tokens": 10092,
+    "llm_wall_ms": 5986,
+    "tool_wall_ms": 78,
+    "rounds": 2,
+    "first_correct_round": 3
+  },
+  "error": null,
+  "accepted": true
+}

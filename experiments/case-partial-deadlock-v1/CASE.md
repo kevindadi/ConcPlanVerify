@@ -55,3 +55,24 @@ second mutex: it builds, Miri is clean, Lockbud is clean, and the automatic
 oracle accepts it — but it is **not** design-preserving (`holds_all` is gone).
 A3_whole is the only arm that both passes the contract and keeps the nested
 acquisition. This is the running example for "tool-green is not design-preserving".
+
+## Tiered escalation (K-2)
+
+Two tiered settings were run on this task (3 reps each, 15 requests):
+
+| config | local rounds | whole rounds | accepted | accepted round | tokens |
+| --- | --- | --- | --- | --- | --- |
+| A `T2` (early escalation) | 1 | 3 | 3/3 | 3 | 10654–10676 |
+| B original trigger | 2 | 4 | 3/3 | 3 | 13198–13582 |
+
+Both accept 3/3. The earlier `A3_tiered` failure (0/3) was therefore a **budget
+split**, not a strategy failure: with only 2 whole rounds after the local phase
+the whole-artifact prompt could not reach its round-3 fix; giving it 3 whole
+rounds (config A) is enough, and early escalation costs fewer tokens (10.7k vs
+13.2k) because it skips the second stalled local round.
+
+Trigger `T2` in `flash-repair-main-v1/PROTOCOL.md`: if the round-1 local
+diagnostic carries a `holds_all`/`never_holds_all` hint and the candidate diff is
+only a release/reorder, escalate immediately. (The hint-detection from stored
+call metadata was inconclusive here, so config A effectively escalates after one
+local round; the outcome is the same.)
