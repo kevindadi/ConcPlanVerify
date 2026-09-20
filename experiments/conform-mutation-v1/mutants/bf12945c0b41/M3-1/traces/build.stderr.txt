@@ -1,0 +1,191 @@
+warning: binary `cir_generated` should have a kebab-case name
+  |
+1 | /Users/kevin/local-repos/ConcPlanVerify/experiments/conform-mutation-v1/mutants/bf12945c0b41/M3-1/target/.../cir_generated
+  |                                                                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-generated`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_generated"
+2 + name = "cir-generated"
+  |
+help: to change the binary name to `cir-generated`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-generated"
+9 + path = "src/main.rs"
+  |
+warning: unnecessary parentheses around `if` condition
+  --> src/main.rs:70:25
+   |
+70 |                 pc = if (shared.r_main__done.lock().unwrap().clone() == true) { 4 } else { 2 };
+   |                         ^                                                   ^
+   |
+   = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+   |
+70 -                 pc = if (shared.r_main__done.lock().unwrap().clone() == true) { 4 } else { 2 };
+70 +                 pc = if shared.r_main__done.lock().unwrap().clone() == true { 4 } else { 2 };
+   |
+
+warning: unnecessary parentheses around `if` condition
+  --> src/main.rs:80:25
+   |
+80 |                 pc = if (shared.r_main__done.lock().unwrap().clone() == true) { 4 } else { 2 };
+   |                         ^                                                   ^
+   |
+help: remove these parentheses
+   |
+80 -                 pc = if (shared.r_main__done.lock().unwrap().clone() == true) { 4 } else { 2 };
+80 +                 pc = if shared.r_main__done.lock().unwrap().clone() == true { 4 } else { 2 };
+   |
+
+warning: unnecessary parentheses around assigned value
+  --> src/main.rs:95:29
+   |
+95 |                 { let __v = (_l0 - 1); *shared.r_main__remaining.lock().unwrap() = __v; }
+   |                             ^       ^
+   |
+help: remove these parentheses
+   |
+95 -                 { let __v = (_l0 - 1); *shared.r_main__remaining.lock().unwrap() = __v; }
+95 +                 { let __v = _l0 - 1; *shared.r_main__remaining.lock().unwrap() = __v; }
+   |
+
+warning: unnecessary parentheses around `if` condition
+   --> src/main.rs:120:25
+    |
+120 |                 pc = if (shared.r_main__done.lock().unwrap().clone() == true) { 4 } else { 2 };
+    |                         ^                                                   ^
+    |
+help: remove these parentheses
+    |
+120 -                 pc = if (shared.r_main__done.lock().unwrap().clone() == true) { 4 } else { 2 };
+120 +                 pc = if shared.r_main__done.lock().unwrap().clone() == true { 4 } else { 2 };
+    |
+
+warning: unnecessary parentheses around `if` condition
+   --> src/main.rs:130:25
+    |
+130 |                 pc = if (shared.r_main__done.lock().unwrap().clone() == true) { 4 } else { 2 };
+    |                         ^                                                   ^
+    |
+help: remove these parentheses
+    |
+130 -                 pc = if (shared.r_main__done.lock().unwrap().clone() == true) { 4 } else { 2 };
+130 +                 pc = if shared.r_main__done.lock().unwrap().clone() == true { 4 } else { 2 };
+    |
+
+warning: unnecessary parentheses around assigned value
+   --> src/main.rs:145:29
+    |
+145 |                 { let __v = (_l0 - 1); *shared.r_main__remaining.lock().unwrap() = __v; }
+    |                             ^       ^
+    |
+help: remove these parentheses
+    |
+145 -                 { let __v = (_l0 - 1); *shared.r_main__remaining.lock().unwrap() = __v; }
+145 +                 { let __v = _l0 - 1; *shared.r_main__remaining.lock().unwrap() = __v; }
+    |
+
+warning: function `tag_str` is never used
+ --> src/cir_trace.rs:9:8
+  |
+9 | pub fn tag_str() -> String {
+  |        ^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `set_tag` is never used
+  --> src/cir_trace.rs:13:8
+   |
+13 | pub fn set_tag(tag: &str) {
+   |        ^^^^^^^
+
+warning: struct `Semaphore` is never constructed
+  --> src/cir_trace.rs:36:12
+   |
+36 | pub struct Semaphore {
+   |            ^^^^^^^^^
+
+warning: associated items `new`, `acquire`, and `release` are never used
+  --> src/cir_trace.rs:42:12
+   |
+41 | impl Semaphore {
+   | -------------- associated items in this implementation
+42 |     pub fn new(n: i64) -> Arc<Self> {
+   |            ^^^
+...
+45 |     pub fn acquire(&self, n: i64) {
+   |            ^^^^^^^
+...
+52 |     pub fn release(&self, n: i64) {
+   |            ^^^^^^^
+
+warning: associated items `new`, `send`, and `recv` are never used
+  --> src/cir_trace.rs:68:12
+   |
+67 | impl<T: Send> Channel<T> {
+   | ------------------------ associated items in this implementation
+68 |     pub fn new(cap: usize) -> Arc<Self> {
+   |            ^^^
+...
+76 |     pub fn send(&self, v: T) {
+   |            ^^^^
+...
+92 |     pub fn recv(&self) -> T {
+   |            ^^^^
+
+warning: structure field `r_main__m` should have a snake case name
+ --> src/main.rs:6:5
+  |
+6 |     r_main__m: Arc<Mutex<()>>,
+  |     ^^^^^^^^^ help: convert the identifier to snake case: `r_main_m`
+  |
+  = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: structure field `r_main__cv` should have a snake case name
+ --> src/main.rs:7:5
+  |
+7 |     r_main__cv: Arc<Condvar>,
+  |     ^^^^^^^^^^ help: convert the identifier to snake case: `r_main_cv`
+
+warning: structure field `r_main__done` should have a snake case name
+ --> src/main.rs:8:5
+  |
+8 |     r_main__done: Arc<Mutex<bool>>,
+  |     ^^^^^^^^^^^^ help: convert the identifier to snake case: `r_main_done`
+
+warning: structure field `r_main__remaining` should have a snake case name
+ --> src/main.rs:9:5
+  |
+9 |     r_main__remaining: Arc<Mutex<i64>>,
+  |     ^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `r_main_remaining`
+
+warning: variable `_g_r_main__m` should have a snake case name
+  --> src/main.rs:13:34
+   |
+13 |     #[allow(unused_mut)] let mut _g_r_main__m: Option<std::sync::MutexGuard<'_, ()>> = None;
+   |                                  ^^^^^^^^^^^^ help: convert the identifier to snake case: `_g_r_main_m`
+
+warning: variable `_g_r_main__m` should have a snake case name
+  --> src/main.rs:58:34
+   |
+58 |     #[allow(unused_mut)] let mut _g_r_main__m: Option<std::sync::MutexGuard<'_, ()>> = None;
+   |                                  ^^^^^^^^^^^^ help: convert the identifier to snake case: `_g_r_main_m`
+
+warning: variable `_g_r_main__m` should have a snake case name
+   --> src/main.rs:108:34
+    |
+108 |     #[allow(unused_mut)] let mut _g_r_main__m: Option<std::sync::MutexGuard<'_, ()>> = None;
+    |                                  ^^^^^^^^^^^^ help: convert the identifier to snake case: `_g_r_main_m`
+
+warning: variable `_g_r_main__m` should have a snake case name
+   --> src/main.rs:157:34
+    |
+157 |     #[allow(unused_mut)] let mut _g_r_main__m: Option<std::sync::MutexGuard<'_, ()>> = None;
+    |                                  ^^^^^^^^^^^^ help: convert the identifier to snake case: `_g_r_main_m`
+

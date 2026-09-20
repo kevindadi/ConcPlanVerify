@@ -1,0 +1,191 @@
+warning: binary `cir_generated` should have a kebab-case name
+  |
+1 | /Users/kevin/local-repos/ConcPlanVerify/experiments/conform-mutation-v1/mutants/8942393e8cc5/M1-0/target/.../cir_generated
+  |                                                                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-generated`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_generated"
+2 + name = "cir-generated"
+  |
+help: to change the binary name to `cir-generated`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-generated"
+9 + path = "src/main.rs"
+  |
+warning: unused import: `Condvar`
+ --> src/main.rs:3:22
+  |
+3 | use std::sync::{Arc, Condvar, Mutex};
+  |                      ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary parentheses around `if` condition
+   --> src/main.rs:173:25
+    |
+173 |                 pc = if (_l0 < 3) { 2 } else { 4 };
+    |                         ^       ^
+    |
+    = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+    |
+173 -                 pc = if (_l0 < 3) { 2 } else { 4 };
+173 +                 pc = if _l0 < 3 { 2 } else { 4 };
+    |
+
+warning: unnecessary parentheses around assigned value
+   --> src/main.rs:177:23
+    |
+177 |                 _l0 = (_l0 + 1);
+    |                       ^       ^
+    |
+help: remove these parentheses
+    |
+177 -                 _l0 = (_l0 + 1);
+177 +                 _l0 = _l0 + 1;
+    |
+
+warning: unused variable: `shared`
+   --> src/main.rs:159:24
+    |
+159 |     pub(crate) fn cf_c(shared: crate::Shared, tag: &str) {
+    |                        ^^^^^^ help: if this is intentional, prefix it with an underscore: `_shared`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `tag`
+   --> src/main.rs:159:47
+    |
+159 |     pub(crate) fn cf_c(shared: crate::Shared, tag: &str) {
+    |                                               ^^^ help: if this is intentional, prefix it with an underscore: `_tag`
+
+warning: field `r_main__out` is never read
+  --> src/main.rs:11:5
+   |
+ 5 | struct Shared {
+   |        ------ field in this struct
+...
+11 |     r_main__out: Arc<Mutex<i64>>,
+   |     ^^^^^^^^^^^
+   |
+   = note: `Shared` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `tag_str` is never used
+ --> src/cir_trace.rs:9:8
+  |
+9 | pub fn tag_str() -> String {
+  |        ^^^^^^^
+
+warning: function `set_tag` is never used
+  --> src/cir_trace.rs:13:8
+   |
+13 | pub fn set_tag(tag: &str) {
+   |        ^^^^^^^
+
+warning: associated items `new`, `send`, and `recv` are never used
+  --> src/cir_trace.rs:68:12
+   |
+67 | impl<T: Send> Channel<T> {
+   | ------------------------ associated items in this implementation
+68 |     pub fn new(cap: usize) -> Arc<Self> {
+   |            ^^^
+...
+76 |     pub fn send(&self, v: T) {
+   |            ^^^^
+...
+92 |     pub fn recv(&self) -> T {
+   |            ^^^^
+
+warning: structure field `r_main__a` should have a snake case name
+ --> src/main.rs:6:5
+  |
+6 |     r_main__a: Arc<Mutex<()>>,
+  |     ^^^^^^^^^ help: convert the identifier to snake case: `r_main_a`
+  |
+  = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: structure field `r_main__b` should have a snake case name
+ --> src/main.rs:7:5
+  |
+7 |     r_main__b: Arc<Mutex<()>>,
+  |     ^^^^^^^^^ help: convert the identifier to snake case: `r_main_b`
+
+warning: structure field `r_main__hs` should have a snake case name
+ --> src/main.rs:8:5
+  |
+8 |     r_main__hs: Arc<cir_trace::Semaphore>,
+  |     ^^^^^^^^^^ help: convert the identifier to snake case: `r_main_hs`
+
+warning: structure field `r_main__done_a` should have a snake case name
+ --> src/main.rs:9:5
+  |
+9 |     r_main__done_a: Arc<Mutex<i64>>,
+  |     ^^^^^^^^^^^^^^ help: convert the identifier to snake case: `r_main_done_a`
+
+warning: structure field `r_main__done_b` should have a snake case name
+  --> src/main.rs:10:5
+   |
+10 |     r_main__done_b: Arc<Mutex<i64>>,
+   |     ^^^^^^^^^^^^^^ help: convert the identifier to snake case: `r_main_done_b`
+
+warning: structure field `r_main__out` should have a snake case name
+  --> src/main.rs:11:5
+   |
+11 |     r_main__out: Arc<Mutex<i64>>,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `r_main_out`
+
+warning: variable `_g_r_main__a` should have a snake case name
+  --> src/main.rs:15:34
+   |
+15 |     #[allow(unused_mut)] let mut _g_r_main__a: Option<std::sync::MutexGuard<'_, ()>> = None;
+   |                                  ^^^^^^^^^^^^ help: convert the identifier to snake case: `_g_r_main_a`
+
+warning: variable `_g_r_main__b` should have a snake case name
+  --> src/main.rs:16:34
+   |
+16 |     #[allow(unused_mut)] let mut _g_r_main__b: Option<std::sync::MutexGuard<'_, ()>> = None;
+   |                                  ^^^^^^^^^^^^ help: convert the identifier to snake case: `_g_r_main_b`
+
+warning: variable `_g_r_main__a` should have a snake case name
+  --> src/main.rs:50:34
+   |
+50 |     #[allow(unused_mut)] let mut _g_r_main__a: Option<std::sync::MutexGuard<'_, ()>> = None;
+   |                                  ^^^^^^^^^^^^ help: convert the identifier to snake case: `_g_r_main_a`
+
+warning: variable `_g_r_main__b` should have a snake case name
+  --> src/main.rs:51:34
+   |
+51 |     #[allow(unused_mut)] let mut _g_r_main__b: Option<std::sync::MutexGuard<'_, ()>> = None;
+   |                                  ^^^^^^^^^^^^ help: convert the identifier to snake case: `_g_r_main_b`
+
+warning: variable `_g_r_main__a` should have a snake case name
+   --> src/main.rs:105:34
+    |
+105 |     #[allow(unused_mut)] let mut _g_r_main__a: Option<std::sync::MutexGuard<'_, ()>> = None;
+    |                                  ^^^^^^^^^^^^ help: convert the identifier to snake case: `_g_r_main_a`
+
+warning: variable `_g_r_main__b` should have a snake case name
+   --> src/main.rs:106:34
+    |
+106 |     #[allow(unused_mut)] let mut _g_r_main__b: Option<std::sync::MutexGuard<'_, ()>> = None;
+    |                                  ^^^^^^^^^^^^ help: convert the identifier to snake case: `_g_r_main_b`
+
+warning: variable `_g_r_main__a` should have a snake case name
+   --> src/main.rs:161:34
+    |
+161 |     #[allow(unused_mut)] let mut _g_r_main__a: Option<std::sync::MutexGuard<'_, ()>> = None;
+    |                                  ^^^^^^^^^^^^ help: convert the identifier to snake case: `_g_r_main_a`
+
+warning: variable `_g_r_main__b` should have a snake case name
+   --> src/main.rs:162:34
+    |
+162 |     #[allow(unused_mut)] let mut _g_r_main__b: Option<std::sync::MutexGuard<'_, ()>> = None;
+    |                                  ^^^^^^^^^^^^ help: convert the identifier to snake case: `_g_r_main_b`
+
