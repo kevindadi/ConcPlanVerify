@@ -1,53 +1,38 @@
 {
- "schema_version": "trackd-v1",
+ "schema_version": "trackd-v2",
  "binary_sha256": "88c3217d4b8f6549c8f7e07787e384ea3b065dc99abab47a27766beb958b42a3",
+ "miri_seeds": 16,
  "lockbud": {
   "available": true,
-  "path": "/Users/kevin/local-repos/ConcPlanVerify/tools/lockbud/target/release/lockbud",
-  "commit": "cc78cb72cb85cb80e596717339cca95ef50c8fe0",
-  "binary_sha256": "a6cc62c0eb02f8df9905642dd6a3717f31baf7d3731b9e56680a309409f20c56",
-  "toolchain": "nightly-2026-02-07"
+  "path": "/Users/kevin/local-repos/ConcPlanVerify/tools/lockbud/target/release/lockbud"
  },
- "miri_combos": [
-  {
-   "seed": 0,
-   "preemption_rate": 0.01
-  },
-  {
-   "seed": 1,
-   "preemption_rate": 0.05
-  },
-  {
-   "seed": 2,
-   "preemption_rate": 0.1
-  },
-  {
-   "seed": 3,
-   "preemption_rate": 0.2
-  },
-  {
-   "seed": 4,
-   "preemption_rate": 0.5
-  }
- ],
- "caveats": [
-  "Miri is dynamic and schedule-dependent: a miss is not proof of absence, and is not evidence of safety.",
-  "The deadlock fixtures are lock-order bugs that only manifest on some interleavings; each Miri seed runs one schedule, so a miss here is expected rather than surprising.",
-  "The ConcIR arm consumes human-written CIR, not Rust source; the comparison is capability-level, not same-input.",
-  "Lockbud is a static RUSTC_WRAPPER pinned to nightly-2026-02-07; its reports are 'possibly' over-approximations and cover double-lock / conflicting-lock-order / condvar misuse only."
- ],
  "tasks": [
   {
    "task": "lock-order/abba_2lock",
-   "family": "lock_order",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
     "concir_petri_ms": 16,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": false,
+     "thread_leak": false,
      "statuses": [
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
       "clean"
      ]
     },
@@ -63,9 +48,25 @@
     "concir_interp": "PASS",
     "concir_petri_ms": 15,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": false,
+     "thread_leak": false,
      "statuses": [
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
       "clean"
      ]
     },
@@ -77,15 +78,30 @@
   },
   {
    "task": "lock-order/cycle_3lock",
-   "family": "lock_order",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
     "concir_petri_ms": 21,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": false,
+     "thread_leak": false,
      "statuses": [
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
       "clean"
      ]
     },
@@ -99,9 +115,25 @@
     "concir_interp": "PASS",
     "concir_petri_ms": 20,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": false,
+     "thread_leak": false,
      "statuses": [
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
       "clean"
      ]
     },
@@ -115,15 +147,30 @@
   },
   {
    "task": "lock-order/cross_module_cycle",
-   "family": "lock_order",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
     "concir_petri_ms": 16,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": false,
+     "thread_leak": false,
      "statuses": [
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
       "clean"
      ]
     },
@@ -139,9 +186,25 @@
     "concir_interp": "PASS",
     "concir_petri_ms": 16,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": false,
+     "thread_leak": false,
      "statuses": [
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
       "clean"
      ]
     },
@@ -153,15 +216,30 @@
   },
   {
    "task": "lock-order/partial_deadlock_bystander",
-   "family": "goal_layer",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
     "concir_petri_ms": 18,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": true,
+     "thread_leak": false,
      "statuses": [
+      "timeout",
+      "timeout",
+      "timeout",
+      "timeout",
+      "timeout",
+      "timeout",
+      "timeout",
+      "timeout",
+      "timeout",
+      "timeout",
+      "timeout",
+      "timeout",
+      "timeout",
+      "timeout",
+      "timeout",
       "timeout"
      ]
     },
@@ -175,9 +253,25 @@
     "concir_interp": "PASS",
     "concir_petri_ms": 19,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": true,
+     "thread_leak": true,
      "statuses": [
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
       "detected"
      ]
     },
@@ -189,7 +283,6 @@
   },
   {
    "task": "condvar/lost_wakeup_notify_before_wait",
-   "family": "condvar",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
@@ -207,7 +300,6 @@
   },
   {
    "task": "channel/rendezvous_both_send",
-   "family": "channel",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
@@ -225,7 +317,6 @@
   },
   {
    "task": "semaphore/permit_leak",
-   "family": "semaphore",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
@@ -243,15 +334,30 @@
   },
   {
    "task": "semaphore/acquire_twice_no_release",
-   "family": "semaphore",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
     "concir_petri_ms": 16,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": true,
+     "thread_leak": false,
      "statuses": [
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
       "detected"
      ]
     },
@@ -265,9 +371,25 @@
     "concir_interp": "PASS",
     "concir_petri_ms": 17,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": false,
+     "thread_leak": false,
      "statuses": [
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
       "clean"
      ]
     },
@@ -279,7 +401,6 @@
   },
   {
    "task": "semaphore/throttle_n_permits",
-   "family": "semaphore",
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -297,15 +418,30 @@
   },
   {
    "task": "condvar/bare_wait_no_predicate",
-   "family": "condvar",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
     "concir_petri_ms": 16,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": false,
+     "thread_leak": false,
      "statuses": [
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
       "clean"
      ]
     },
@@ -319,9 +455,25 @@
     "concir_interp": "PASS",
     "concir_petri_ms": 17,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": false,
+     "thread_leak": false,
      "statuses": [
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
       "clean"
      ]
     },
@@ -333,15 +485,30 @@
   },
   {
    "task": "channel/bounded_backpressure_lock_held",
-   "family": "channel",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
     "concir_petri_ms": 16,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": true,
+     "thread_leak": false,
      "statuses": [
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
       "detected"
      ]
     },
@@ -355,9 +522,25 @@
     "concir_interp": "PASS",
     "concir_petri_ms": 16,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": false,
+     "thread_leak": false,
      "statuses": [
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
       "clean"
      ]
     },
@@ -369,7 +552,6 @@
   },
   {
    "task": "atomic-data/bounded_counter_invariant",
-   "family": "atomic_data",
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -387,7 +569,6 @@
   },
   {
    "task": "atomic-data/counter_overflow_safety",
-   "family": "atomic_data",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
@@ -405,7 +586,6 @@
   },
   {
    "task": "atomic-data/atomic_lost_update",
-   "family": "atomic_data",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
@@ -423,7 +603,6 @@
   },
   {
    "task": "structure/scope_bound_k_workers",
-   "family": "structure",
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -441,15 +620,30 @@
   },
   {
    "task": "structure/nested_scope_lock_order",
-   "family": "structure",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
     "concir_petri_ms": 16,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": false,
+     "thread_leak": false,
      "statuses": [
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
       "clean"
      ]
     },
@@ -465,9 +659,25 @@
     "concir_interp": "PASS",
     "concir_petri_ms": 16,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": false,
+     "thread_leak": false,
      "statuses": [
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
       "clean"
      ]
     },
@@ -479,7 +689,6 @@
   },
   {
    "task": "structure/scope_worker_abba",
-   "family": "structure",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
@@ -497,7 +706,6 @@
   },
   {
    "task": "structure/worker_with_payload",
-   "family": "structure",
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -515,7 +723,6 @@
   },
   {
    "task": "boundary/unbounded_int_unknown",
-   "family": "boundary",
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -533,7 +740,6 @@
   },
   {
    "task": "lock-order/two_independent_cycles",
-   "family": "lock-order",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
@@ -551,7 +757,6 @@
   },
   {
    "task": "condvar/same_cv_different_locks",
-   "family": "condvar",
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -569,15 +774,30 @@
   },
   {
    "task": "condvar/notify_one_multi_waiter_wrong_pick",
-   "family": "condvar",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
     "concir_petri_ms": 17,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": true,
+     "thread_leak": false,
      "statuses": [
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
       "detected"
      ]
     },
@@ -591,9 +811,25 @@
     "concir_interp": "PASS",
     "concir_petri_ms": 17,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": false,
+     "thread_leak": false,
      "statuses": [
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
       "clean"
      ]
     },
@@ -605,15 +841,30 @@
   },
   {
    "task": "channel/send_while_holding_mutex",
-   "family": "channel",
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
     "concir_petri_ms": 16,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": true,
+     "thread_leak": false,
      "statuses": [
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
+      "detected",
       "detected"
      ]
     },
@@ -627,9 +878,25 @@
     "concir_interp": "PASS",
     "concir_petri_ms": 16,
     "miri": {
-     "seeds": 6,
+     "seeds": 16,
      "detected": false,
+     "thread_leak": false,
      "statuses": [
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
+      "clean",
       "clean"
      ]
     },
@@ -641,7 +908,6 @@
   },
   {
    "task": "structure/finite_call_loop",
-   "family": "structure",
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -659,7 +925,6 @@
   },
   {
    "task": "structure/spawn_join_loop_finite",
-   "family": "structure",
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -677,7 +942,6 @@
   },
   {
    "task": "boundary/rwlock_unsupported",
-   "family": "boundary",
    "buggy": {
     "concir_petri": "UNSUPPORTED",
     "concir_interp": "UNSUPPORTED",
@@ -695,7 +959,6 @@
   },
   {
    "task": "boundary/async_select_unsupported",
-   "family": "boundary",
    "buggy": {
     "concir_petri": "UNSUPPORTED",
     "concir_interp": "UNSUPPORTED",
@@ -713,7 +976,6 @@
   },
   {
    "task": "P1",
-   "family": null,
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -731,7 +993,6 @@
   },
   {
    "task": "P2",
-   "family": null,
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -749,7 +1010,6 @@
   },
   {
    "task": "P3",
-   "family": null,
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -767,7 +1027,6 @@
   },
   {
    "task": "P4",
-   "family": null,
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -785,7 +1044,6 @@
   },
   {
    "task": "P5",
-   "family": null,
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -803,7 +1061,6 @@
   },
   {
    "task": "P6",
-   "family": null,
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -821,7 +1078,6 @@
   },
   {
    "task": "P7",
-   "family": null,
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -839,7 +1095,6 @@
   },
   {
    "task": "P8",
-   "family": null,
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -857,7 +1112,6 @@
   },
   {
    "task": "P9",
-   "family": null,
    "buggy": {
     "concir_petri": null,
     "concir_interp": null,
@@ -875,7 +1129,6 @@
   },
   {
    "task": "real-cases/rmw-zenoh-998",
-   "family": null,
    "buggy": {
     "concir_petri": "FAIL",
     "concir_interp": "FAIL",
@@ -893,7 +1146,6 @@
   },
   {
    "task": "real-cases/dashmap-369",
-   "family": null,
    "buggy": {
     "concir_petri": "UNSUPPORTED",
     "concir_interp": "UNSUPPORTED",
