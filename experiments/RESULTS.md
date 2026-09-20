@@ -22,45 +22,45 @@
 | task | arm | accepted | round | tokens | llm_ms | tool_ms | verify_ms | false_accept | build | behavior | miri | conform | expert | extract |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | lock-order/partial_deadlock_bystander | A0_direct | 3/3 | 1 | 1417±99 | 2285±496 | 833±324 | — | 3/3 | True 3/3 | hang 3/3 | detected 2/3 · clean 1/3 | — | yes 3/3 | — 3/3 |
-| lock-order/partial_deadlock_bystander | A1_self_iter | 2/3 | 1 | 12574±6516 | 42330±26791 | 902±341 | — | 2/3 | True 2/2 | terminated_ok 2/2 | clean 2/2 | — | yes 3/3 | — 2/2 |
+| lock-order/partial_deadlock_bystander | A1_self_iter | 2/3 | 1 | 12574±6516 | 42330±26791 | 902±341 | — | 1/3 | True 2/2 | terminated_ok 2/2 | clean 2/2 | — | yes 2/3 · no 1/3 | — 2/2 |
 | lock-order/partial_deadlock_bystander | A2_tools_iter_ml | 1/3 | 2 | 7957 | 16521 | 43901 | — | 0/3 | True 2/3 · False 1/3 | terminated_ok 2/3 · no_build 1/3 | clean 3/3 | — | no 3/3 | — 1/1 |
 | lock-order/partial_deadlock_bystander | A3_local | 0/3 | — | — | — | — | 25±11 | 0/3 | — | — | — | — | — | — |
-| lock-order/partial_deadlock_bystander | A3_whole | 2/3 | 4 | 15255±30 | 389630±760819 | 97±2 | 34±17 | 0/3 | True 2/2 | terminated_ok 2/2 | clean 2/2 | PASS 2/2 | — | — |
-| lock-order/cross_module_cycle | A0_direct | 3/3 | 1 | 898±242 | 1937±88 | 911±433 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | unsure 3/3 | — 3/3 |
+| lock-order/partial_deadlock_bystander | A3_whole | 2/3 | 4 | 15255±30 | 389630±760819 | 97±2 | 34±17 | 0/3 | True 2/2 | terminated_ok 2/2 | clean 2/2 | PASS 2/2 | no 3/3 | — |
+| lock-order/cross_module_cycle | A0_direct | 3/3 | 1 | 898±242 | 1937±88 | 911±433 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
 | lock-order/cross_module_cycle | A1_self_iter | 3/3 | 1 | 1247±66 | 3333±1910 | 699±29 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
 | lock-order/cross_module_cycle | A2_tools_iter_ml | 3/3 | 1 | 693 | 1709±1170 | 2188±469 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
-| lock-order/cross_module_cycle | A3_local | 3/3 | 2 | 1912 | 1228±318 | 55±13 | 18±2 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
-| lock-order/cross_module_cycle | A3_whole | 3/3 | 2 | 3580 | 3171±2607 | 59±15 | 18±3 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
+| lock-order/cross_module_cycle | A3_local | 3/3 | 2 | 1912 | 1228±318 | 55±13 | 18±2 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
+| lock-order/cross_module_cycle | A3_whole | 3/3 | 2 | 3580 | 3171±2607 | 59±15 | 18±3 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
 | lock-order/cycle_3lock | A0_direct | 3/3 | 1 | 1001 | 1720±215 | 695±25 | — | 3/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | yes 3/3 | — 2/3 · INVALID 1/3 |
 | lock-order/cycle_3lock | A1_self_iter | 0/3 | — | — | — | — | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | — | — |
 | lock-order/cycle_3lock | A2_tools_iter_ml | 3/3 | 1 | 911 | 1810±1051 | 2190±21 | — | 3/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | yes 3/3 | — 2/3 · INVALID 1/3 |
-| lock-order/cycle_3lock | A3_local | 3/3 | 2 | 2100±13 | 1211±359 | 67±14 | 23 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
-| lock-order/cycle_3lock | A3_whole | 2/3 | 3 | 8524 | 5739±1052 | 96±19 | 22±1 | 0/3 | True 2/2 | terminated_ok 2/2 | clean 2/2 | PASS 2/2 | — | — |
+| lock-order/cycle_3lock | A3_local | 3/3 | 2 | 2100±13 | 1211±359 | 67±14 | 23 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
+| lock-order/cycle_3lock | A3_whole | 2/3 | 3 | 8524 | 5739±1052 | 96±19 | 22±1 | 0/3 | True 2/2 | terminated_ok 2/2 | clean 2/2 | PASS 2/2 | no 3/3 | — |
 | structure/nested_scope_lock_order | A0_direct | 3/3 | 1 | 736 | 1407±487 | 717±107 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
 | structure/nested_scope_lock_order | A1_self_iter | 3/3 | 1 | 1105 | 2167±1067 | 759±44 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
 | structure/nested_scope_lock_order | A2_tools_iter_ml | 3/3 | 1 | 646 | 1558±859 | 2291±394 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
-| structure/nested_scope_lock_order | A3_local | 3/3 | 2 | 2054 | 1213±379 | 57±15 | 18 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
-| structure/nested_scope_lock_order | A3_whole | 2/3 | 4 | 10713 | 8348±1931 | 67±22 | 13±14 | 0/3 | True 2/2 | terminated_ok 2/2 | clean 2/2 | PASS 2/2 | — | — |
-| condvar/notify_one_multi_waiter_wrong_pick | A0_direct | 3/3 | 1 | 623±213 | 1309±1119 | 241±724 | — | 3/3 | True 3/3 | hang 2/3 · terminated_ok 1/3 | detected 2/3 · clean 1/3 | — | yes 3/3 | — 3/3 |
-| condvar/notify_one_multi_waiter_wrong_pick | A1_self_iter | 3/3 | 1 | 1334±34 | 3100±1394 | 762±127 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | unsure 3/3 | — 3/3 |
-| condvar/notify_one_multi_waiter_wrong_pick | A2_tools_iter_ml | 3/3 | 1 | 675 | 6829±16936 | 2575±684 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | unsure 3/3 | — 3/3 |
-| condvar/notify_one_multi_waiter_wrong_pick | A3_local | 3/3 | 2 | 2841±29 | 2142±374 | 63±29 | 19±2 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
-| condvar/notify_one_multi_waiter_wrong_pick | A3_whole | 2/3 | 4 | 13930 | 12192±2559 | 70±2 | 20±24 | 0/3 | True 2/2 | terminated_ok 2/2 | clean 2/2 | PASS 2/2 | — | — |
-| channel/bounded_backpressure_lock_held | A0_direct | 3/3 | 1 | 707 | 1486±732 | 744±23 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | unsure 3/3 | — 3/3 |
-| channel/bounded_backpressure_lock_held | A1_self_iter | 3/3 | 1 | 1523±730 | 4045±1730 | 773±63 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | unsure 3/3 | — 3/3 |
-| channel/bounded_backpressure_lock_held | A2_tools_iter_ml | 3/3 | 1 | 670±15 | 1657±953 | 2742±310 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | unsure 3/3 | — 3/3 |
-| channel/bounded_backpressure_lock_held | A3_local | 3/3 | 2 | 2165 | 1435±772 | 53±14 | 18±2 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
-| channel/bounded_backpressure_lock_held | A3_whole | 3/3 | 4 | 11127±530 | 7991±2005 | 71±27 | 19±5 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
-| channel/send_while_holding_mutex | A0_direct | 3/3 | 1 | 859±22 | 1929±337 | 759±57 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | unsure 3/3 | — 3/3 |
+| structure/nested_scope_lock_order | A3_local | 3/3 | 2 | 2054 | 1213±379 | 57±15 | 18 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
+| structure/nested_scope_lock_order | A3_whole | 2/3 | 4 | 10713 | 8348±1931 | 67±22 | 13±14 | 0/3 | True 2/2 | terminated_ok 2/2 | clean 2/2 | PASS 2/2 | no 3/3 | — |
+| condvar/notify_one_multi_waiter_wrong_pick | A0_direct | 3/3 | 1 | 623±213 | 1309±1119 | 241±724 | — | 2/3 | True 3/3 | hang 2/3 · terminated_ok 1/3 | detected 2/3 · clean 1/3 | — | yes 2/3 · no 1/3 | — 3/3 |
+| condvar/notify_one_multi_waiter_wrong_pick | A1_self_iter | 3/3 | 1 | 1334±34 | 3100±1394 | 762±127 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
+| condvar/notify_one_multi_waiter_wrong_pick | A2_tools_iter_ml | 3/3 | 1 | 675 | 6829±16936 | 2575±684 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
+| condvar/notify_one_multi_waiter_wrong_pick | A3_local | 3/3 | 2 | 2841±29 | 2142±374 | 63±29 | 19±2 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
+| condvar/notify_one_multi_waiter_wrong_pick | A3_whole | 2/3 | 4 | 13930 | 12192±2559 | 70±2 | 20±24 | 0/3 | True 2/2 | terminated_ok 2/2 | clean 2/2 | PASS 2/2 | no 3/3 | — |
+| channel/bounded_backpressure_lock_held | A0_direct | 3/3 | 1 | 707 | 1486±732 | 744±23 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
+| channel/bounded_backpressure_lock_held | A1_self_iter | 3/3 | 1 | 1523±730 | 4045±1730 | 773±63 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
+| channel/bounded_backpressure_lock_held | A2_tools_iter_ml | 3/3 | 1 | 670±15 | 1657±953 | 2742±310 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
+| channel/bounded_backpressure_lock_held | A3_local | 3/3 | 2 | 2165 | 1435±772 | 53±14 | 18±2 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
+| channel/bounded_backpressure_lock_held | A3_whole | 3/3 | 4 | 11127±530 | 7991±2005 | 71±27 | 19±5 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
+| channel/send_while_holding_mutex | A0_direct | 3/3 | 1 | 859±22 | 1929±337 | 759±57 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
 | channel/send_while_holding_mutex | A1_self_iter | 0/3 | — | — | — | — | — | 0/3 | — | — | — | — | — | — |
-| channel/send_while_holding_mutex | A2_tools_iter_ml | 3/3 | 1 | 760±27 | 1929±351 | 2526±373 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | unsure 3/3 | — 3/3 |
-| channel/send_while_holding_mutex | A3_local | 3/3 | 2 | 1506±38 | 1167±333 | 53±13 | 18±3 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
-| channel/send_while_holding_mutex | A3_whole | 3/3 | 3 | 5983 | 4272±332 | 58±20 | 18±3 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
-| semaphore/acquire_twice_no_release | A0_direct | 3/3 | 1 | 877±287 | 1492±984 | 452±694 | — | 3/3 | True 3/3 | hang 3/3 | detected 3/3 | — | unsure 3/3 | — 3/3 |
-| semaphore/acquire_twice_no_release | A1_self_iter | 3/3 | 1 | 8415±10091 | 26215±30739 | 780±136 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | unsure 3/3 | — 3/3 |
-| semaphore/acquire_twice_no_release | A2_tools_iter_ml | 3/3 | 2 | 4196±419 | 5364±298 | 4057±105 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | unsure 3/3 | — 3/3 |
-| semaphore/acquire_twice_no_release | A3_local | 3/3 | 2 | 1759±11 | 1268±383 | 53±16 | 18±3 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
-| semaphore/acquire_twice_no_release | A3_whole | 3/3 | 2 | 3432 | 2434±493 | 53±14 | 19±2 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
+| channel/send_while_holding_mutex | A2_tools_iter_ml | 3/3 | 1 | 760±27 | 1929±351 | 2526±373 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
+| channel/send_while_holding_mutex | A3_local | 3/3 | 2 | 1506±38 | 1167±333 | 53±13 | 18±3 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
+| channel/send_while_holding_mutex | A3_whole | 3/3 | 3 | 5983 | 4272±332 | 58±20 | 18±3 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
+| semaphore/acquire_twice_no_release | A0_direct | 3/3 | 1 | 877±287 | 1492±984 | 452±694 | — | 3/3 | True 3/3 | hang 3/3 | detected 3/3 | — | no 2/3 · yes 1/3 | — 3/3 |
+| semaphore/acquire_twice_no_release | A1_self_iter | 3/3 | 1 | 8415±10091 | 26215±30739 | 780±136 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
+| semaphore/acquire_twice_no_release | A2_tools_iter_ml | 3/3 | 2 | 4196±419 | 5364±298 | 4057±105 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — 3/3 |
+| semaphore/acquire_twice_no_release | A3_local | 3/3 | 2 | 1759±11 | 1268±383 | 53±16 | 18±3 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
+| semaphore/acquire_twice_no_release | A3_whole | 3/3 | 2 | 3432 | 2434±493 | 53±14 | 19±2 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
 
 `accepted`/`false_accept` are k/n over repeats; `round`/`tokens`/`*_ms` are mean±range over accepted cells; oracle columns are per-rep counts. `verify_ms` is the ConcIR `explore`/`conform` time. **A0's `accepted` only means it produced a parseable program** (a single round with no rejection); it is not a correctness claim. `extract` is the validated extraction verdict (`INVALID` = contract could not be evaluated).
 
@@ -68,8 +68,8 @@
 
 | arm | cells | accepted | accept_rate | false_accept | conform_pass_rate | tokens/correct_accept | by source |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| A0_direct | 24 | 24 | 1.00 | 12 | — | 593 | {'expert': 9, 'behavior': 8, 'by_construction': 3} |
-| A1_self_iter | 24 | 17 | 0.71 | 2 | — | 1747 | {'expert': 2} |
+| A0_direct | 24 | 24 | 1.00 | 11 | — | 548 | {'expert': 9, 'behavior': 8, 'by_construction': 3} |
+| A1_self_iter | 24 | 17 | 0.71 | 1 | — | 1637 | {'expert': 1} |
 | A2_tools_iter_ml | 24 | 22 | 0.92 | 3 | — | 869 | {'expert': 3} |
 | A3_local | 24 | 21 | 0.88 | 0 | 21/21 = 1.00 | 683 | — |
 | A3_whole | 24 | 20 | 0.83 | 0 | 20/20 = 1.00 | 3627 | — |
@@ -101,30 +101,99 @@
 
 | task | arm | bug_present | design_preserved | design_loss | auto | agree |
 | --- | --- | --- | --- | --- | --- | --- |
-| channel/bounded_backpressure_lock_held | A0_direct | unsure | yes | False | False | None |
-| channel/bounded_backpressure_lock_held | A1_self_iter | unsure | yes | False | False | None |
-| channel/bounded_backpressure_lock_held | A2_tools_iter_ml | unsure | yes | False | False | None |
-| channel/send_while_holding_mutex | A0_direct | unsure | yes | False | False | None |
-| channel/send_while_holding_mutex | A2_tools_iter_ml | unsure | yes | False | False | None |
+| channel/bounded_backpressure_lock_held | A0_direct | no | yes | False | False | True |
+| channel/bounded_backpressure_lock_held | A1_self_iter | no | yes | False | False | True |
+| channel/bounded_backpressure_lock_held | A2_tools_iter_ml | no | yes | False | False | True |
+| channel/bounded_backpressure_lock_held | A3_local | no | no | True | False | True |
+| channel/bounded_backpressure_lock_held | A3_whole | no | no | True | False | True |
+| channel/send_while_holding_mutex | A0_direct | no | yes | False | False | True |
+| channel/send_while_holding_mutex | A2_tools_iter_ml | no | yes | False | False | True |
+| channel/send_while_holding_mutex | A3_local | no | no | True | False | True |
+| channel/send_while_holding_mutex | A3_whole | no | no | True | False | True |
 | condvar/notify_one_multi_waiter_wrong_pick | A0_direct | yes | yes | False | True | True |
-| condvar/notify_one_multi_waiter_wrong_pick | A1_self_iter | unsure | yes | False | False | None |
-| condvar/notify_one_multi_waiter_wrong_pick | A2_tools_iter_ml | unsure | yes | False | False | None |
-| lock-order/cross_module_cycle | A0_direct | unsure | no | True | False | None |
+| condvar/notify_one_multi_waiter_wrong_pick | A1_self_iter | no | yes | False | False | True |
+| condvar/notify_one_multi_waiter_wrong_pick | A2_tools_iter_ml | no | yes | False | False | True |
+| condvar/notify_one_multi_waiter_wrong_pick | A3_local | no | yes | False | False | True |
+| condvar/notify_one_multi_waiter_wrong_pick | A3_whole | no | yes | False | False | True |
+| lock-order/cross_module_cycle | A0_direct | no | no | True | False | True |
 | lock-order/cross_module_cycle | A1_self_iter | no | yes | False | False | True |
 | lock-order/cross_module_cycle | A2_tools_iter_ml | no | yes | False | False | True |
+| lock-order/cross_module_cycle | A3_local | no | yes | False | False | True |
+| lock-order/cross_module_cycle | A3_whole | no | yes | False | False | True |
 | lock-order/cycle_3lock | A0_direct | yes | yes | False | True | True |
 | lock-order/cycle_3lock | A2_tools_iter_ml | yes | yes | False | True | True |
+| lock-order/cycle_3lock | A3_local | no | yes | False | False | True |
+| lock-order/cycle_3lock | A3_whole | no | yes | False | False | True |
 | lock-order/partial_deadlock_bystander | A0_direct | yes | yes | False | True | True |
-| lock-order/partial_deadlock_bystander | A1_self_iter | yes | yes | False | True | True |
+| lock-order/partial_deadlock_bystander | A1_self_iter | yes | no | True | True | True |
 | lock-order/partial_deadlock_bystander | A2_tools_iter_ml | no | yes | False | False | True |
-| semaphore/acquire_twice_no_release | A0_direct | unsure | yes | False | True | None |
-| semaphore/acquire_twice_no_release | A1_self_iter | unsure | yes | False | False | None |
-| semaphore/acquire_twice_no_release | A2_tools_iter_ml | unsure | yes | False | False | None |
+| lock-order/partial_deadlock_bystander | A3_whole | no | yes | False | False | True |
+| semaphore/acquire_twice_no_release | A0_direct | yes | yes | False | True | True |
+| semaphore/acquire_twice_no_release | A1_self_iter | no | yes | False | False | True |
+| semaphore/acquire_twice_no_release | A2_tools_iter_ml | no | yes | False | False | True |
+| semaphore/acquire_twice_no_release | A3_local | no | yes | False | False | True |
+| semaphore/acquire_twice_no_release | A3_whole | no | yes | False | False | True |
 | structure/nested_scope_lock_order | A0_direct | no | yes | False | False | True |
 | structure/nested_scope_lock_order | A1_self_iter | no | yes | False | False | True |
 | structure/nested_scope_lock_order | A2_tools_iter_ml | no | yes | False | False | True |
+| structure/nested_scope_lock_order | A3_local | no | yes | False | False | True |
+| structure/nested_scope_lock_order | A3_whole | no | yes | False | False | True |
 
-Agreement with the automatic oracle: **11/11 = 1.000** (unsure 11); `design_loss` (accepted ∧ design_preserved=no): **1**.
+Agreement with the automatic oracle: **37/37 = 1.000** (unsure 0); `design_loss` (accepted ∧ design_preserved=no): **6** {'A0_direct': 2, 'A3_local': 6, 'A3_whole': 6, 'A1_self_iter': 1}.
+
+#### Expert labels (per candidate)
+
+| sha256 | task | arm | kind | bug_present | design_preserved | cells |
+| --- | --- | --- | --- | --- | --- | --- |
+| `13d1b761aaca` | channel/bounded_backpressure_lock_held | A0_direct | rust | no | yes | 6 |
+| `1c28ef235a06` | channel/bounded_backpressure_lock_held | A2_tools_iter_ml | rust | no | yes | 2 |
+| `98eed6be2b32` | channel/bounded_backpressure_lock_held | A2_tools_iter_ml | rust | no | yes | 1 |
+| `6c87085c602a` | channel/bounded_backpressure_lock_held | A3_local | a3-rust | no | no | 3 |
+| `7f182a8fd554` | channel/bounded_backpressure_lock_held | A3_whole | a3-rust | no | no | 1 |
+| `e443cf0e3e70` | channel/bounded_backpressure_lock_held | A3_whole | a3-rust | no | no | 1 |
+| `6d7602ab8549` | channel/bounded_backpressure_lock_held | A3_whole | a3-rust | no | no | 1 |
+| `8f09cd79b48c` | channel/send_while_holding_mutex | A0_direct | rust | no | yes | 1 |
+| `b607a97d0ac7` | channel/send_while_holding_mutex | A0_direct | rust | no | yes | 2 |
+| `05b2f4c77462` | channel/send_while_holding_mutex | A2_tools_iter_ml | rust | no | yes | 1 |
+| `1bb2c14dc515` | channel/send_while_holding_mutex | A2_tools_iter_ml | rust | no | yes | 1 |
+| `ae1e465a6fbb` | channel/send_while_holding_mutex | A2_tools_iter_ml | rust | no | yes | 1 |
+| `aa0668f905d8` | channel/send_while_holding_mutex | A3_local | a3-rust | no | no | 3 |
+| `459df3234540` | channel/send_while_holding_mutex | A3_whole | a3-rust | no | no | 3 |
+| `daa46ba4c2ba` | condvar/notify_one_multi_waiter_wrong_pick | A0_direct | rust | yes | yes | 2 |
+| `0e3cdb53c009` | condvar/notify_one_multi_waiter_wrong_pick | A1_self_iter | rust | no | yes | 7 |
+| `7de135daa5ad` | condvar/notify_one_multi_waiter_wrong_pick | A3_local | a3-rust | no | yes | 1 |
+| `c6e9a78ee029` | condvar/notify_one_multi_waiter_wrong_pick | A3_local | a3-rust | no | yes | 2 |
+| `be85c5f756ec` | condvar/notify_one_multi_waiter_wrong_pick | A3_whole | a3-rust | no | yes | 2 |
+| `05fcb391ea81` | lock-order/cross_module_cycle | A0_direct | rust | no | no | 2 |
+| `9bab819deee2` | lock-order/cross_module_cycle | A0_direct | rust | no | yes | 1 |
+| `1fc6e7c5ea43` | lock-order/cross_module_cycle | A1_self_iter | rust | no | yes | 3 |
+| `a7983b7f5fbe` | lock-order/cross_module_cycle | A2_tools_iter_ml | rust | no | yes | 3 |
+| `e7adea20e72f` | lock-order/cross_module_cycle | A3_local | a3-rust | no | yes | 3 |
+| `34835028c1d2` | lock-order/cross_module_cycle | A3_whole | a3-rust | no | yes | 3 |
+| `c7d11e854196` | lock-order/cycle_3lock | A0_direct | rust | yes | yes | 6 |
+| `970be001ab1e` | lock-order/cycle_3lock | A3_local | a3-rust | no | yes | 5 |
+| `d9c02a69c650` | lock-order/partial_deadlock_bystander | A0_direct | rust | yes | yes | 1 |
+| `a4503ffe4461` | lock-order/partial_deadlock_bystander | A0_direct | rust | yes | yes | 1 |
+| `574a7804dc4d` | lock-order/partial_deadlock_bystander | A0_direct | rust | yes | yes | 1 |
+| `1ff1454288bf` | lock-order/partial_deadlock_bystander | A1_self_iter | rust | yes | yes | 1 |
+| `a08bd1a020fa` | lock-order/partial_deadlock_bystander | A1_self_iter | rust | no | no | 1 |
+| `fbeb211c0ac0` | lock-order/partial_deadlock_bystander | A2_tools_iter_ml | rust | no | yes | 1 |
+| `f4db34f1644d` | lock-order/partial_deadlock_bystander | A3_whole | a3-rust | no | yes | 1 |
+| `0951c33394bd` | lock-order/partial_deadlock_bystander | A3_whole | a3-rust | no | yes | 1 |
+| `f42afd77e7a9` | semaphore/acquire_twice_no_release | A0_direct | rust | no | yes | 2 |
+| `691d644c986c` | semaphore/acquire_twice_no_release | A0_direct | rust | yes | yes | 1 |
+| `8f59f2055f41` | semaphore/acquire_twice_no_release | A1_self_iter | rust | no | yes | 1 |
+| `c42fa5ece43f` | semaphore/acquire_twice_no_release | A1_self_iter | rust | no | yes | 1 |
+| `b6f7d6651e0e` | semaphore/acquire_twice_no_release | A1_self_iter | rust | no | yes | 1 |
+| `12cfc7f3617e` | semaphore/acquire_twice_no_release | A2_tools_iter_ml | rust | no | yes | 1 |
+| `d463f5f9f603` | semaphore/acquire_twice_no_release | A2_tools_iter_ml | rust | no | yes | 1 |
+| `0501dcb3a49d` | semaphore/acquire_twice_no_release | A2_tools_iter_ml | rust | no | yes | 1 |
+| `1901bf15e784` | semaphore/acquire_twice_no_release | A3_local | a3-rust | no | yes | 3 |
+| `84f0ae3ead6e` | semaphore/acquire_twice_no_release | A3_whole | a3-rust | no | yes | 3 |
+| `4e6e1cdc7910` | structure/nested_scope_lock_order | A0_direct | rust | no | yes | 6 |
+| `c9c01200389d` | structure/nested_scope_lock_order | A1_self_iter | rust | no | yes | 3 |
+| `70525c67bb7c` | structure/nested_scope_lock_order | A3_local | a3-rust | no | yes | 3 |
+| `77459d011aae` | structure/nested_scope_lock_order | A3_whole | a3-rust | no | yes | 2 |
 
 ### Extraction oracle
 

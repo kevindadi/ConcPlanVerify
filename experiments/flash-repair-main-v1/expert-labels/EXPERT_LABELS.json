@@ -1,187 +1,1227 @@
 {
- "rubric_version": "expert-label-rubric-v1",
+ "rubric_version": "expert-label-rubric-v2",
  "labeler": "agent-proxy",
  "seed": 20260920,
+ "candidates": 49,
+ "unsure": 0,
+ "unsure_rate": 0.0,
  "agreement": {
-  "compared": 29,
-  "agree": 22
+  "compared": 104,
+  "agree": 95,
+  "rate": 0.913
+ },
+ "design_loss": {
+  "A0_direct": 1,
+  "A3_local": 2,
+  "A3_whole": 4,
+  "A1_self_iter": 1
  },
  "labels": [
   {
+   "sha256": "d9c02a69c6503dadc2d9e10b6f021c90617aee90f646f9154c141a8ac275d391",
+   "kind": "rust",
    "task": "lock-order/partial_deadlock_bystander",
    "arm": "A0_direct",
    "bug_present": "yes",
+   "evidence": "lock sequences: ma->mb; mb->ma; lock; cycle among ['ma', 'mb']",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/partial_deadlock_bystander",
+     "arm": "A0_direct",
+     "rep": 0
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "fbeb211c0ac0997bc61dba4a3b481b1f30a7087567ed251370fb07b39cf7abee",
+   "kind": "rust",
    "task": "lock-order/partial_deadlock_bystander",
    "arm": "A2_tools_iter_ml",
    "bug_present": "no",
+   "evidence": "lock sequences: ma->mb; ma->mb; no cycle",
    "design_preserved": "yes",
-   "reps": 1,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/partial_deadlock_bystander",
+     "arm": "A2_tools_iter_ml",
+     "rep": 0
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "05fcb391ea81b88580e0ff5a3975a5c05fd6f9a4d2c0b043218ff0dc13ae3d3a",
+   "kind": "rust",
    "task": "lock-order/cross_module_cycle",
    "arm": "A0_direct",
-   "bug_present": "unsure",
+   "bug_present": "no",
+   "evidence": "lock sequences: lock; lock; no cycle",
    "design_preserved": "no",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A0_direct",
+     "rep": 0
+    },
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A0_direct",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "1fc6e7c5ea434471732f70b4352e6f4f284550e6b6b1f451ce4cbbe9316388b6",
+   "kind": "rust",
    "task": "lock-order/cross_module_cycle",
    "arm": "A1_self_iter",
    "bug_present": "no",
+   "evidence": "lock sequences: a->b; a->b; no cycle",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A1_self_iter",
+     "rep": 0
+    },
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A1_self_iter",
+     "rep": 1
+    },
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A1_self_iter",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "a7983b7f5fbe5f59f9864bc3a2e6d9816ee5dab64bab089b9fffa8f8f7b1e9e0",
+   "kind": "rust",
    "task": "lock-order/cross_module_cycle",
    "arm": "A2_tools_iter_ml",
    "bug_present": "no",
+   "evidence": "lock sequences: a->b; a->b; no cycle",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A2_tools_iter_ml",
+     "rep": 0
+    },
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A2_tools_iter_ml",
+     "rep": 1
+    },
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A2_tools_iter_ml",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "e7adea20e72f8af767fac12bf1ea1871c5020ba9fe57d2cf839c6486449f3498",
+   "kind": "a3-rust",
+   "task": "lock-order/cross_module_cycle",
+   "arm": "A3_local",
+   "bug_present": "no",
+   "evidence": "lock sequences: r_other__b->r_main__a; r_other__b->r_main__a; no cycle",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A3_local",
+     "rep": 0
+    },
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A3_local",
+     "rep": 1
+    },
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A3_local",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "34835028c1d2a6359c72d45eb1153a362688dc378cb63a02ebffe9b908c6f74f",
+   "kind": "a3-rust",
+   "task": "lock-order/cross_module_cycle",
+   "arm": "A3_whole",
+   "bug_present": "no",
+   "evidence": "lock sequences: r_main__a->r_other__b; r_main__a->r_other__b; no cycle",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A3_whole",
+     "rep": 0
+    },
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A3_whole",
+     "rep": 1
+    },
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A3_whole",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "c7d11e854196fb3cf47a56ba80b1f459c71f4e88401071aa94ec02d75f663b4b",
+   "kind": "rust",
    "task": "lock-order/cycle_3lock",
    "arm": "A0_direct",
    "bug_present": "yes",
+   "evidence": "lock sequences: a->b; b->c; c->a; cycle among ['a', 'b', 'c']",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/cycle_3lock",
+     "arm": "A0_direct",
+     "rep": 0
+    },
+    {
+     "task": "lock-order/cycle_3lock",
+     "arm": "A2_tools_iter_ml",
+     "rep": 0
+    },
+    {
+     "task": "lock-order/cycle_3lock",
+     "arm": "A0_direct",
+     "rep": 1
+    },
+    {
+     "task": "lock-order/cycle_3lock",
+     "arm": "A2_tools_iter_ml",
+     "rep": 1
+    },
+    {
+     "task": "lock-order/cycle_3lock",
+     "arm": "A0_direct",
+     "rep": 2
+    },
+    {
+     "task": "lock-order/cycle_3lock",
+     "arm": "A2_tools_iter_ml",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "970be001ab1eb1c00713a3e98f1d13fe7c24c0afa1ec26286e43358970ba6dca",
+   "kind": "a3-rust",
    "task": "lock-order/cycle_3lock",
-   "arm": "A2_tools_iter_ml",
-   "bug_present": "yes",
+   "arm": "A3_local",
+   "bug_present": "no",
+   "evidence": "lock sequences: r_main__a->r_main__b; r_main__b->r_main__c; r_main__a->r_main__c; no cycle",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/cycle_3lock",
+     "arm": "A3_local",
+     "rep": 0
+    },
+    {
+     "task": "lock-order/cycle_3lock",
+     "arm": "A3_whole",
+     "rep": 0
+    },
+    {
+     "task": "lock-order/cycle_3lock",
+     "arm": "A3_local",
+     "rep": 1
+    },
+    {
+     "task": "lock-order/cycle_3lock",
+     "arm": "A3_whole",
+     "rep": 1
+    },
+    {
+     "task": "lock-order/cycle_3lock",
+     "arm": "A3_local",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "4e6e1cdc7910b0bcb049c8a1cd697c35a3cd3ff58d34d9dae55a6ccaa8e82cd4",
+   "kind": "rust",
    "task": "structure/nested_scope_lock_order",
    "arm": "A0_direct",
    "bug_present": "no",
+   "evidence": "lock sequences: a->b; a->b; no cycle",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "structure/nested_scope_lock_order",
+     "arm": "A0_direct",
+     "rep": 0
+    },
+    {
+     "task": "structure/nested_scope_lock_order",
+     "arm": "A2_tools_iter_ml",
+     "rep": 0
+    },
+    {
+     "task": "structure/nested_scope_lock_order",
+     "arm": "A0_direct",
+     "rep": 1
+    },
+    {
+     "task": "structure/nested_scope_lock_order",
+     "arm": "A2_tools_iter_ml",
+     "rep": 1
+    },
+    {
+     "task": "structure/nested_scope_lock_order",
+     "arm": "A0_direct",
+     "rep": 2
+    },
+    {
+     "task": "structure/nested_scope_lock_order",
+     "arm": "A2_tools_iter_ml",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "c9c01200389da216dab6ff5968cb8db5543227fe73b9db446e54de118077b6a9",
+   "kind": "rust",
    "task": "structure/nested_scope_lock_order",
    "arm": "A1_self_iter",
    "bug_present": "no",
+   "evidence": "lock sequences: a->b; a->b; no cycle",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "structure/nested_scope_lock_order",
+     "arm": "A1_self_iter",
+     "rep": 0
+    },
+    {
+     "task": "structure/nested_scope_lock_order",
+     "arm": "A1_self_iter",
+     "rep": 1
+    },
+    {
+     "task": "structure/nested_scope_lock_order",
+     "arm": "A1_self_iter",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "70525c67bb7ce31816c6265f630f1704c6a2bc063a74f326b2372f3b8d15bedd",
+   "kind": "a3-rust",
    "task": "structure/nested_scope_lock_order",
-   "arm": "A2_tools_iter_ml",
+   "arm": "A3_local",
    "bug_present": "no",
+   "evidence": "lock sequences: r_main__a->r_main__b; r_main__a->r_main__b; no cycle",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "structure/nested_scope_lock_order",
+     "arm": "A3_local",
+     "rep": 0
+    },
+    {
+     "task": "structure/nested_scope_lock_order",
+     "arm": "A3_local",
+     "rep": 1
+    },
+    {
+     "task": "structure/nested_scope_lock_order",
+     "arm": "A3_local",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "77459d011aaeb700fc56d4ac2da3876f0f183b04718b2c1f5035339ee253ba83",
+   "kind": "a3-rust",
+   "task": "structure/nested_scope_lock_order",
+   "arm": "A3_whole",
+   "bug_present": "no",
+   "evidence": "lock sequences: r_main__done; r_main__a->r_main__b; r_main__a->r_main__b; no cycle",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "structure/nested_scope_lock_order",
+     "arm": "A3_whole",
+     "rep": 0
+    },
+    {
+     "task": "structure/nested_scope_lock_order",
+     "arm": "A3_whole",
+     "rep": 1
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "daa46ba4c2babc35e1fc082b3655126f23d252a289c478aaacb0bae701dd3d54",
+   "kind": "rust",
    "task": "condvar/notify_one_multi_waiter_wrong_pick",
    "arm": "A0_direct",
    "bug_present": "yes",
+   "evidence": "waiters=2; notify_one=yes; notify_all=no",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "condvar/notify_one_multi_waiter_wrong_pick",
+     "arm": "A0_direct",
+     "rep": 0
+    },
+    {
+     "task": "condvar/notify_one_multi_waiter_wrong_pick",
+     "arm": "A0_direct",
+     "rep": 1
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "0e3cdb53c009651e933c24c9ec93dd47414b7fa190ccd2252d314b0a8e8c84de",
+   "kind": "rust",
    "task": "condvar/notify_one_multi_waiter_wrong_pick",
    "arm": "A1_self_iter",
-   "bug_present": "unsure",
+   "bug_present": "no",
+   "evidence": "waiters=2; notify_one=no; notify_all=yes",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "condvar/notify_one_multi_waiter_wrong_pick",
+     "arm": "A1_self_iter",
+     "rep": 0
+    },
+    {
+     "task": "condvar/notify_one_multi_waiter_wrong_pick",
+     "arm": "A2_tools_iter_ml",
+     "rep": 0
+    },
+    {
+     "task": "condvar/notify_one_multi_waiter_wrong_pick",
+     "arm": "A1_self_iter",
+     "rep": 1
+    },
+    {
+     "task": "condvar/notify_one_multi_waiter_wrong_pick",
+     "arm": "A2_tools_iter_ml",
+     "rep": 1
+    },
+    {
+     "task": "condvar/notify_one_multi_waiter_wrong_pick",
+     "arm": "A0_direct",
+     "rep": 2
+    },
+    {
+     "task": "condvar/notify_one_multi_waiter_wrong_pick",
+     "arm": "A1_self_iter",
+     "rep": 2
+    },
+    {
+     "task": "condvar/notify_one_multi_waiter_wrong_pick",
+     "arm": "A2_tools_iter_ml",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "7de135daa5ad7fc03649579a6ed6fcd31544f4a6e7b96c0dabcda012381a9d9a",
+   "kind": "a3-rust",
    "task": "condvar/notify_one_multi_waiter_wrong_pick",
-   "arm": "A2_tools_iter_ml",
-   "bug_present": "unsure",
+   "arm": "A3_local",
+   "bug_present": "no",
+   "evidence": "waiters=2; notify_one=no; notify_all=yes",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "condvar/notify_one_multi_waiter_wrong_pick",
+     "arm": "A3_local",
+     "rep": 0
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "13d1b761aacaefe874d5c0799b0c9ce0f8a384306576a1a6908cf10068365373",
+   "kind": "rust",
    "task": "channel/bounded_backpressure_lock_held",
    "arm": "A0_direct",
-   "bug_present": "unsure",
+   "bug_present": "no",
+   "evidence": "channel ops with a lock held: none",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A0_direct",
+     "rep": 0
+    },
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A1_self_iter",
+     "rep": 0
+    },
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A0_direct",
+     "rep": 1
+    },
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A1_self_iter",
+     "rep": 1
+    },
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A0_direct",
+     "rep": 2
+    },
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A1_self_iter",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
-   "task": "channel/bounded_backpressure_lock_held",
-   "arm": "A1_self_iter",
-   "bug_present": "unsure",
-   "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
-  },
-  {
+   "sha256": "1c28ef235a0679a3aedf45046119b112f6ed65670f643899d5434fc96a6f7385",
+   "kind": "rust",
    "task": "channel/bounded_backpressure_lock_held",
    "arm": "A2_tools_iter_ml",
-   "bug_present": "unsure",
+   "bug_present": "no",
+   "evidence": "channel ops with a lock held: none",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A2_tools_iter_ml",
+     "rep": 0
+    },
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A2_tools_iter_ml",
+     "rep": 1
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "6c87085c602a161a3f4414e1da2413c1bb6bc5cff3d13fd4120b240e01ab7a22",
+   "kind": "a3-rust",
+   "task": "channel/bounded_backpressure_lock_held",
+   "arm": "A3_local",
+   "bug_present": "no",
+   "evidence": "channel ops with a lock held: none",
+   "design_preserved": "no",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A3_local",
+     "rep": 0
+    },
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A3_local",
+     "rep": 1
+    },
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A3_local",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "7f182a8fd55488e3186404e7b23418b4798f811239f29b7ff6ea615a7ba0a4ed",
+   "kind": "a3-rust",
+   "task": "channel/bounded_backpressure_lock_held",
+   "arm": "A3_whole",
+   "bug_present": "no",
+   "evidence": "channel ops with a lock held: none",
+   "design_preserved": "no",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A3_whole",
+     "rep": 0
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "8f09cd79b48c571f71280ad2cff7268d0d83770e9156f105f81e987a85595a4e",
+   "kind": "rust",
    "task": "channel/send_while_holding_mutex",
    "arm": "A0_direct",
-   "bug_present": "unsure",
+   "bug_present": "no",
+   "evidence": "channel ops with a lock held: none",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "channel/send_while_holding_mutex",
+     "arm": "A0_direct",
+     "rep": 0
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "05b2f4c77462d2b624d7548bebb7d72d82453e53a1ab7ec666383f56e89e9c5e",
+   "kind": "rust",
    "task": "channel/send_while_holding_mutex",
    "arm": "A2_tools_iter_ml",
-   "bug_present": "unsure",
+   "bug_present": "no",
+   "evidence": "channel ops with a lock held: none",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "channel/send_while_holding_mutex",
+     "arm": "A2_tools_iter_ml",
+     "rep": 0
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "aa0668f905d8753efb1db3e2e3e41c1249e45815b13ee11f772ddbbdaa093dd1",
+   "kind": "a3-rust",
+   "task": "channel/send_while_holding_mutex",
+   "arm": "A3_local",
+   "bug_present": "no",
+   "evidence": "channel ops with a lock held: none",
+   "design_preserved": "no",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "channel/send_while_holding_mutex",
+     "arm": "A3_local",
+     "rep": 0
+    },
+    {
+     "task": "channel/send_while_holding_mutex",
+     "arm": "A3_local",
+     "rep": 1
+    },
+    {
+     "task": "channel/send_while_holding_mutex",
+     "arm": "A3_local",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "459df3234540a961923bf2cd9c616d83f443fa70b352482dcf029bfa7ae44b69",
+   "kind": "a3-rust",
+   "task": "channel/send_while_holding_mutex",
+   "arm": "A3_whole",
+   "bug_present": "no",
+   "evidence": "channel ops with a lock held: none",
+   "design_preserved": "no",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "channel/send_while_holding_mutex",
+     "arm": "A3_whole",
+     "rep": 0
+    },
+    {
+     "task": "channel/send_while_holding_mutex",
+     "arm": "A3_whole",
+     "rep": 1
+    },
+    {
+     "task": "channel/send_while_holding_mutex",
+     "arm": "A3_whole",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "f42afd77e7a90afba7225bfa4678f3e37ce918e4265b7dd7d815045ceee3270e",
+   "kind": "rust",
    "task": "semaphore/acquire_twice_no_release",
    "arm": "A0_direct",
-   "bug_present": "unsure",
+   "bug_present": "no",
+   "evidence": "acq=2,rel=2; acq=1,rel=1",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A0_direct",
+     "rep": 0
+    },
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A0_direct",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "8f59f2055f4160fedbf2d5775f6565ccec476b6a0496007a00865f7245894a81",
+   "kind": "rust",
    "task": "semaphore/acquire_twice_no_release",
    "arm": "A1_self_iter",
-   "bug_present": "unsure",
+   "bug_present": "no",
+   "evidence": "acq=2,rel=2; acq=1,rel=1",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A1_self_iter",
+     "rep": 0
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "12cfc7f3617e50cf23a7b624f1a78abc195399c7f9b06d280dfdc38069b2a142",
+   "kind": "rust",
    "task": "semaphore/acquire_twice_no_release",
    "arm": "A2_tools_iter_ml",
-   "bug_present": "unsure",
+   "bug_present": "no",
+   "evidence": "acq=2,rel=2; acq=1,rel=1",
    "design_preserved": "yes",
-   "reps": 3,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A2_tools_iter_ml",
+     "rep": 0
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "1901bf15e78409a14976e67ee415bffb84a0101f7698e07b6481cb2c8f667928",
+   "kind": "a3-rust",
+   "task": "semaphore/acquire_twice_no_release",
+   "arm": "A3_local",
+   "bug_present": "no",
+   "evidence": "acq=0,rel=0; acq=0,rel=0",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A3_local",
+     "rep": 0
+    },
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A3_local",
+     "rep": 1
+    },
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A3_local",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "84f0ae3ead6edd9fdc2e3e70cc657fba6d3402b2851c9a90e1467b8cb51e2480",
+   "kind": "a3-rust",
+   "task": "semaphore/acquire_twice_no_release",
+   "arm": "A3_whole",
+   "bug_present": "no",
+   "evidence": "acq=0,rel=0; acq=0,rel=0",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A3_whole",
+     "rep": 0
+    },
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A3_whole",
+     "rep": 1
+    },
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A3_whole",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "a4503ffe446102b65c3ac5c466e6451ffb3afd6e09f54b93ed1666de86986a2f",
+   "kind": "rust",
+   "task": "lock-order/partial_deadlock_bystander",
+   "arm": "A0_direct",
+   "bug_present": "yes",
+   "evidence": "lock sequences: ma->mb; mb->ma; cycle among ['ma', 'mb']",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/partial_deadlock_bystander",
+     "arm": "A0_direct",
+     "rep": 1
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "1ff1454288bf85b29d56516766b0aa8e46efee13f37af8c1b003413a16b8bc05",
+   "kind": "rust",
    "task": "lock-order/partial_deadlock_bystander",
    "arm": "A1_self_iter",
    "bug_present": "yes",
+   "evidence": "lock sequences: ma->mb; mb->ma; cycle among ['ma', 'mb']",
    "design_preserved": "yes",
-   "reps": 2,
-   "labeler": "agent-proxy"
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/partial_deadlock_bystander",
+     "arm": "A1_self_iter",
+     "rep": 1
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "f4db34f1644df3f8e1771015f5a0468e0e220e64736a4cda03966934d6469f7f",
+   "kind": "a3-rust",
+   "task": "lock-order/partial_deadlock_bystander",
+   "arm": "A3_whole",
+   "bug_present": "no",
+   "evidence": "lock sequences: r_main__a->r_main__b->r_main__done_a; r_main__a->r_main__b->r_main__done_b; no cycle",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/partial_deadlock_bystander",
+     "arm": "A3_whole",
+     "rep": 1
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "9bab819deee29927d39ccf1856824fc1f14f8db3deeadf4dc7043149bd2e61c0",
+   "kind": "rust",
+   "task": "lock-order/cross_module_cycle",
+   "arm": "A0_direct",
+   "bug_present": "no",
+   "evidence": "lock sequences: a->b; a->b; no cycle",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/cross_module_cycle",
+     "arm": "A0_direct",
+     "rep": 1
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "c6e9a78ee0290617672d718157defb234d25cb67daf0d101f9448617079ac93f",
+   "kind": "a3-rust",
+   "task": "condvar/notify_one_multi_waiter_wrong_pick",
+   "arm": "A3_local",
+   "bug_present": "no",
+   "evidence": "waiters=2; notify_one=yes; notify_all=yes",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "condvar/notify_one_multi_waiter_wrong_pick",
+     "arm": "A3_local",
+     "rep": 1
+    },
+    {
+     "task": "condvar/notify_one_multi_waiter_wrong_pick",
+     "arm": "A3_local",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "be85c5f756ec2482d556ca4fec213b7e1291f80fd935f91484af9720eff54fdd",
+   "kind": "a3-rust",
+   "task": "condvar/notify_one_multi_waiter_wrong_pick",
+   "arm": "A3_whole",
+   "bug_present": "no",
+   "evidence": "waiters=2; notify_one=no; notify_all=yes",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "condvar/notify_one_multi_waiter_wrong_pick",
+     "arm": "A3_whole",
+     "rep": 1
+    },
+    {
+     "task": "condvar/notify_one_multi_waiter_wrong_pick",
+     "arm": "A3_whole",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "e443cf0e3e701c0326a21632c00051c965acda5a5477e2ed52ff8ba7f7831cb6",
+   "kind": "a3-rust",
+   "task": "channel/bounded_backpressure_lock_held",
+   "arm": "A3_whole",
+   "bug_present": "no",
+   "evidence": "channel ops with a lock held: none",
+   "design_preserved": "no",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A3_whole",
+     "rep": 1
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "b607a97d0ac70fd657bc58fc9f914e6cbbfbb172ccfdc6c44ef90166ade167f0",
+   "kind": "rust",
+   "task": "channel/send_while_holding_mutex",
+   "arm": "A0_direct",
+   "bug_present": "no",
+   "evidence": "channel ops with a lock held: none",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "channel/send_while_holding_mutex",
+     "arm": "A0_direct",
+     "rep": 1
+    },
+    {
+     "task": "channel/send_while_holding_mutex",
+     "arm": "A0_direct",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "1bb2c14dc5153ca39b7c359c5ddafd02b7c4961aa60f4e1b4e95c2c31e900f85",
+   "kind": "rust",
+   "task": "channel/send_while_holding_mutex",
+   "arm": "A2_tools_iter_ml",
+   "bug_present": "no",
+   "evidence": "channel ops with a lock held: none",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "channel/send_while_holding_mutex",
+     "arm": "A2_tools_iter_ml",
+     "rep": 1
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "691d644c986c297877714735a8fcc3aaa6f57e2a89c28c5500731564142856a7",
+   "kind": "rust",
+   "task": "semaphore/acquire_twice_no_release",
+   "arm": "A0_direct",
+   "bug_present": "yes",
+   "evidence": "acq=2,rel=1",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A0_direct",
+     "rep": 1
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "c42fa5ece43f4525a8449c2fc3c9789ac9f769092a7fb957fded4c2f71ebe25f",
+   "kind": "rust",
+   "task": "semaphore/acquire_twice_no_release",
+   "arm": "A1_self_iter",
+   "bug_present": "no",
+   "evidence": "acq=2,rel=2; acq=1,rel=1",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A1_self_iter",
+     "rep": 1
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "d463f5f9f603a8e069eb24106c2b5212128cdadde7139cf66e0f8b3bccf1a88b",
+   "kind": "rust",
+   "task": "semaphore/acquire_twice_no_release",
+   "arm": "A2_tools_iter_ml",
+   "bug_present": "no",
+   "evidence": "acq=2,rel=2; acq=1,rel=1",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A2_tools_iter_ml",
+     "rep": 1
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "574a7804dc4d1e1c69814f21d220127ae1e8ca75a815d671eb5d977a4e85a388",
+   "kind": "rust",
+   "task": "lock-order/partial_deadlock_bystander",
+   "arm": "A0_direct",
+   "bug_present": "yes",
+   "evidence": "lock sequences: ma->mb; mb->ma; cycle among ['ma', 'mb']",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/partial_deadlock_bystander",
+     "arm": "A0_direct",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "a08bd1a020faf86af6fcb0bd254d2cc86d81d681851f56fb38f8ff24d873838e",
+   "kind": "rust",
+   "task": "lock-order/partial_deadlock_bystander",
+   "arm": "A1_self_iter",
+   "bug_present": "no",
+   "evidence": "lock sequences: ma->mb; mb->ma; no cycle",
+   "design_preserved": "no",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/partial_deadlock_bystander",
+     "arm": "A1_self_iter",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "0951c33394bd7397e34a8ed9df0827387412cd5b8497f36b8a4c337f584d9086",
+   "kind": "a3-rust",
+   "task": "lock-order/partial_deadlock_bystander",
+   "arm": "A3_whole",
+   "bug_present": "no",
+   "evidence": "lock sequences: r_main__a->r_main__b->r_main__done_a; r_main__a->r_main__b->r_main__done_b; no cycle",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/partial_deadlock_bystander",
+     "arm": "A3_whole",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "98eed6be2b32d6010d45612ac243670505dc59da99e67cc98450d2647810cafa",
+   "kind": "rust",
+   "task": "channel/bounded_backpressure_lock_held",
+   "arm": "A2_tools_iter_ml",
+   "bug_present": "no",
+   "evidence": "channel ops with a lock held: none",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A2_tools_iter_ml",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "6d7602ab8549caa92b4a777745484567dc09a19c4945d48d03feee2374654c83",
+   "kind": "a3-rust",
+   "task": "channel/bounded_backpressure_lock_held",
+   "arm": "A3_whole",
+   "bug_present": "no",
+   "evidence": "channel ops with a lock held: none",
+   "design_preserved": "no",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "channel/bounded_backpressure_lock_held",
+     "arm": "A3_whole",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "ae1e465a6fbbbbf65ffc3d4a8e15eed8d58bb0cf958d9f33fec1f83b20c9ab1e",
+   "kind": "rust",
+   "task": "channel/send_while_holding_mutex",
+   "arm": "A2_tools_iter_ml",
+   "bug_present": "no",
+   "evidence": "channel ops with a lock held: none",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "channel/send_while_holding_mutex",
+     "arm": "A2_tools_iter_ml",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "b6f7d6651e0e6c553a5f2b5080d521e301a47ff0d17d39c50d7073d9a62ecf96",
+   "kind": "rust",
+   "task": "semaphore/acquire_twice_no_release",
+   "arm": "A1_self_iter",
+   "bug_present": "no",
+   "evidence": "acq=2,rel=2; acq=1,rel=1",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A1_self_iter",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "0501dcb3a49d3ce9a5d5fd4847b78b713ee486156801c77776252ef6b9a5ef93",
+   "kind": "rust",
+   "task": "semaphore/acquire_twice_no_release",
+   "arm": "A2_tools_iter_ml",
+   "bug_present": "no",
+   "evidence": "acq=2,rel=2; acq=1,rel=1",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "semaphore/acquire_twice_no_release",
+     "arm": "A2_tools_iter_ml",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
   }
  ]
 }

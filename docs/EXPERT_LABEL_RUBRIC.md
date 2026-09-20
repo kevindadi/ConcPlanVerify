@@ -1,31 +1,36 @@
-# Expert label rubric (v1)
+# Expert label rubric (v2)
 
-Used for the Rust-arm oracle's expert track. A label is attached to a **specific
-candidate artefact** (sha256), by a named labeler.
+A label is attached to a **specific candidate artefact** (sha256); several cells
+may share one artefact (deduplicated), recorded in `cells:
+[(task, arm, rep) …]`.
 
 ## Fields
 
-- `bug_present ∈ {yes, no, unsure}`: is a concurrency defect present in the
-  program **as written**? Judge the code, not the intent, and not whether the
-  tool chain happened to catch it.
-- `defect_lines`: the source lines that carry the defect (empty if none).
-- `design_preserved ∈ {yes, no}`: does the program keep the original
-  design (same resources / modules / thread structure), as opposed to replacing
-  it with a different mechanism?
-- `reason`: one sentence.
+- `bug_present ∈ {yes, no, unsure}` — is a concurrency defect present in the
+  program **as written**? Judge the code, not the intent, and not whether a tool
+  happened to catch it.
+- `evidence` — the **reasoning**: for each thread the acquisition sequence of
+  locks / semaphores / channels / condvars, and whether a cycle or a lost wakeup
+  exists. Required for every label.
+- `design_preserved ∈ {yes, no}` — does the program keep the original design
+  (resources, modules, thread structure) judged against `requirements.txt` and
+  the frozen contract's `preserved` list? For lock-order tasks this means the
+  nested `holds_all` acquisition is retained.
+- `unsure_reason ∈ {needs_execution, unfamiliar_api, ambiguous_spec}` — required
+  when `bug_present = unsure`. Target: `unsure ≤ 15%`.
 
 ## Labelers
 
-- `agent-proxy`: an independent static reading of the candidate by the analysis
-  agent (not the automatic oracle). For lock-order tasks it reconstructs the
-  per-statement lock order and looks for a cycle; for condvar tasks it checks
-  the notify/waiter relation; otherwise it returns `unsure`.
-- `human`: the project owner. `HUMAN_REVIEW_QUEUE.md` lists the cells that need
-  it: **every** expert/automatic disagreement, plus a random sample; the random
-  seed is recorded. Human labels are left blank for the owner to fill.
+- `agent-proxy` — an independent static reading by the analysis agent (not the
+  automatic oracle): per-thread lock-order cycle detection (guard-drop and
+  brace-scope aware), the condvar notify/waiter relation, lock-held-across-
+  channel detection, and semaphore acquire/release balance.
+- `human` — the project owner. `HUMAN_REVIEW_QUEUE.md` lists every
+  expert/automatic disagreement, every `unsure`, and a random sample (seed
+  recorded); the human columns are left blank.
 
-## Agreement
+## Metrics
 
-Reported against the automatic oracle's `false_accept` (accepted AND
-bug_present). `unsure` labels are excluded from the agreement denominator and
-counted separately.
+- **agreement** against the automatic oracle's `false_accept`, at cell level.
+- **design_loss** = accepted cells whose candidate has `design_preserved = no`,
+  counted by arm.

@@ -43,27 +43,45 @@ def load_summaries(paths: list[Path]) -> list[dict[str, Any]]:
     return out
 
 
-def expert_index(paths: list[Path]) -> tuple[dict[str, dict], dict[str, dict]]:
-    """Return (per-(task|arm), per-(task|arm|rep)) expert label maps."""
+def expert_index(paths: list[Path]
+                 ) -> tuple[dict[str, dict], dict[str, dict], list[dict]]:
+    """Return (per-(task|arm), per-(task|arm|rep), per-candidate) expert maps.
+
+    Per-candidate labels (rubric v2) carry `cells`; the (task|arm) map is the
+    union (bug_present=yes if any candidate is yes, design_preserved=no if any
+    candidate loses the design).
+    """
 
     agg: dict[str, dict] = {}
     cell: dict[str, dict] = {}
+    candidates: list[dict] = []
     for path in paths:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
         labels = data.get("labels", data if isinstance(data, list) else [])
         for item in labels:
-            key = f"{item['task']}|{item['arm']}"
-            agg[key] = item
+            candidates.append(item)
             cells = item.get("cells")
             if cells:
                 for c in cells:
                     task, arm, rep = (c if isinstance(c, list)
                                       else (c.get("task"), c.get("arm"), c.get("rep")))
-                    cell[f"{task}|{arm}|{rep}"] = item
+                    key = f"{task}|{arm}"
+                    cell[f"{key}|{rep}"] = item
+                    slot = agg.setdefault(key, {"task": task, "arm": arm,
+                                                "bug_present": "no",
+                                                "design_preserved": "yes"})
+                    if item.get("bug_present") == "yes":
+                        slot["bug_present"] = "yes"
+                    elif item.get("bug_present") == "unsure" and slot["bug_present"] == "no":
+                        slot["bug_present"] = "unsure"
+                    if item.get("design_preserved") == "no":
+                        slot["design_preserved"] = "no"
             else:
+                key = f"{item['task']}|{item['arm']}"
+                agg[key] = item
                 for rep in range(3):
                     cell[f"{key}|{rep}"] = item
-    return agg, cell
+    return agg, cell, candidates
 
 
 def extract_index(dirs: list[Path]) -> dict[str, dict[str, Any]]:
@@ -230,7 +248,8 @@ def aggregate(summaries: list[dict[str, Any]], expert_agg: dict[str, dict],
 
 
 def render(rows: list[dict[str, Any]], expert_agg: dict[str, dict],
-           extract: dict[str, dict], trackd: dict[str, Any] | None,
+           candidates: list[dict], extract: dict[str, dict],
+           trackd: dict[str, Any] | None,
            scale: dict[str, Any] | None, header: dict[str, Any],
            deviations: list[str]) -> str:
     L: list[str] = ["# RESULTS — ConcIR repair/extraction benchmark", "",
@@ -322,8 +341,26 @@ def render(rows: list[dict[str, Any]], expert_agg: dict[str, dict],
         if match is False:
             disagreements.append((task, arm, item.get("bug_present"), auto))
     rate = f"{agree}/{compared} = {agree / compared:.3f}" if compared else "n/a"
+    design_loss_by_arm: Counter = Counter()
+    for cand in candidates:
+        if cand.get("design_preserved") == "no":
+            for c in cand.get("cells", []) or []:
+                arm = c.get("arm") if isinstance(c, dict) else c[1]
+                design_loss_by_arm[arm] += 1
     L += ["", f"Agreement with the automatic oracle: **{rate}** (unsure {unsure}); "
-              f"`design_loss` (accepted ∧ design_preserved=no): **{design_loss}**.", ""]
+              f"`design_loss` (accepted ∧ design_preserved=no): **{design_loss}** "
+              f"{dict(design_loss_by_arm)}.", ""]
+    if candidates:
+        L += ["#### Expert labels (per candidate)",
+              "", "| sha256 | task | arm | kind | bug_present | design_preserved | cells |",
+              "| --- | --- | --- | --- | --- | --- | --- |"]
+        for cand in sorted(candidates, key=lambda c: (c.get("task", ""), c.get("arm", ""))):
+            cells = cand.get("cells", []) or []
+            L.append(f"| `{str(cand.get('sha256',''))[:12]}` | {cand.get('task')} | "
+                     f"{cand.get('arm')} | {cand.get('kind','—')} | "
+                     f"{cand.get('bug_present')} | {cand.get('design_preserved')} | "
+                     f"{len(cells)} |")
+        L.append("")
     if disagreements:
         L += ["### Oracle disagreements", "",
               "| task | arm | expert bug_present | automatic false_accept |",
@@ -465,7 +502,7 @@ def build(batch_paths: list[Path], expert_paths: list[Path], extract_dirs: list[
           trackd_path: Path | None, scale_path: Path | None,
           reclass_path: Path | None, command: str) -> str:
     summaries = load_summaries(batch_paths)
-    expert_agg, expert_cell = expert_index(expert_paths)
+    expert_agg, expert_cell, candidates = expert_index(expert_paths)
     extract = extract_index(extract_dirs)
     reclass = json.loads(reclass_path.read_text()) if reclass_path and reclass_path.is_file() else None
     trackd = json.loads(trackd_path.read_text()) if trackd_path and trackd_path.is_file() else None
@@ -488,7 +525,8 @@ def build(batch_paths: list[Path], expert_paths: list[Path], extract_dirs: list[
     shas += [(f"protocol[{i}]", s.get("protocol_sha256") or "unknown")
              for i, s in enumerate(summaries)]
     header = {"command": command, "inputs": inputs, "shas": shas}
-    return render(rows, expert_agg, extract, trackd, scale, header, DEFAULT_DEVIATIONS)
+    return render(rows, expert_agg, candidates, extract, trackd, scale, header,
+                  DEFAULT_DEVIATIONS)
 
 
 def main(argv: list[str]) -> int:

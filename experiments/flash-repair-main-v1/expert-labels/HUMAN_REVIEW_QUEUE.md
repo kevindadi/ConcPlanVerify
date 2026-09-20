@@ -1,19 +1,20 @@
 # Human review queue (leave blank for the owner)
 
-All expert/automatic disagreements plus a random sample (seed `20260920`).
-Fill `human_label` (`yes`/`no`/`unsure`) and one reason; do not let an
-agent fill it.
+All expert/automatic disagreements, all `unsure`, plus a random 4 (seed `20260920`).
+Fill `human_label` (`yes`/`no`/`unsure`) and one reason; do not let an agent fill it.
 
-| task | arm | rep | sha256 | agent bug_present | auto | human_label | reason |
+| task | arm | rep | sha256 | agent | auto | human_label | reason |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | lock-order/cycle_3lock | A0_direct | 0 | `c7d11e854196` | yes | False | | |
 | lock-order/cycle_3lock | A2_tools_iter_ml | 0 | `c7d11e854196` | yes | False | | |
-| lock-order/partial_deadlock_bystander | A1_self_iter | 1 | `1ff1454288bf` | yes | False | | |
 | lock-order/cycle_3lock | A0_direct | 1 | `c7d11e854196` | yes | False | | |
 | lock-order/cycle_3lock | A2_tools_iter_ml | 1 | `c7d11e854196` | yes | False | | |
 | lock-order/cycle_3lock | A0_direct | 2 | `c7d11e854196` | yes | False | | |
 | lock-order/cycle_3lock | A2_tools_iter_ml | 2 | `c7d11e854196` | yes | False | | |
-| lock-order/partial_deadlock_bystander | A0_direct | 2 | `574a7804dc4d` | yes | True | | |
-| lock-order/cross_module_cycle | A1_self_iter | 2 | `1fc6e7c5ea43` | no | False | | |
-| condvar/notify_one_multi_waiter_wrong_pick | A0_direct | 2 | `0e3cdb53c009` | unsure | False | | |
-| semaphore/acquire_twice_no_release | A1_self_iter | 0 | `8f59f2055f41` | unsure | False | | |
+| semaphore/acquire_twice_no_release | A0_direct | 0 | `f42afd77e7a9` | no | True | | |
+| semaphore/acquire_twice_no_release | A0_direct | 2 | `f42afd77e7a9` | no | True | | |
+| lock-order/partial_deadlock_bystander | A1_self_iter | 1 | `1ff1454288bf` | yes | False | | |
+| semaphore/acquire_twice_no_release | A2_tools_iter_ml | 1 | `d463f5f9f603` | no | False | | |
+| lock-order/partial_deadlock_bystander | A3_whole | 2 | `0951c33394bd` | no | False | | |
+| semaphore/acquire_twice_no_release | A2_tools_iter_ml | 2 | `0501dcb3a49d` | no | False | | |
+| channel/bounded_backpressure_lock_held | A3_local | 0 | `6c87085c602a` | no | False | | |

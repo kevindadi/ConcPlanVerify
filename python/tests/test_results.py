@@ -48,7 +48,7 @@ class AggregateTests(unittest.TestCase):
                                     "oracle": {"behavior_status": "no_build"},
                                     "consumption": {}},
         })]
-        rows = aggregate(summaries, {}, {})
+        rows = aggregate(summaries, {}, {}, {})
         a0 = next(r for r in rows if r["arm"] == "A0_direct")
         self.assertEqual(a0["accepted_display"], "1/1")
         self.assertEqual(a0["false_accept"], 1)
@@ -64,7 +64,7 @@ class AggregateTests(unittest.TestCase):
         })]
         reclass = {"cells": {"t|A0_direct": {"accepted": True, "accepted_round": 1,
                                              "by_construction": True}}}
-        rows = aggregate(summaries, {}, {}, reclass)
+        rows = aggregate(summaries, {}, {}, {}, reclass)
         row = rows[0]
         self.assertEqual(row["accepted_display"], "1/1")
         self.assertEqual(row["false_accept"], 1)
