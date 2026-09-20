@@ -65,23 +65,29 @@ class ArmTests(unittest.TestCase):
             self.assertIsNotNone(record.request_sha256)
             self.assertIsNotNone(record.tool_output_sha256)
 
-    def test_a1_no_issues_accepts_without_compiling_sentinel(self):
+    def test_a1_no_issues_accepts_last_built_candidate(self):
+        # A1 NO_ISSUES accepts the most recent build_ok candidate, not the sentinel
+        # round (I-1/I-3).
         provider = ScriptedProvider([{"text": GOOD_RUST}, {"text": "NO_ISSUES"}])
         run = run_rust_arm(provider, arm="A1_self_iter", task="P1", spec=self.spec,
                            contract=self.contract, out_dir=self.root / "a1", k=4)
         self.assertTrue(run.accepted)
-        self.assertEqual(run.accepted_round, 2)
+        self.assertEqual(run.accepted_round, 1)
         self.assertEqual(len(run.rounds), 2)
-        self.assertEqual(run.rounds[1].decision, "self_no_issues")
-        self.assertTrue(run.notes.get("self_no_issues"))
+        self.assertEqual(run.rounds[1].decision, "claims_no_issue")
+        self.assertTrue(run.notes.get("claims_no_issue_rounds"))
+        self.assertIn(1, run.notes.get("build_ok_rounds", []))
 
-    def test_a1_fragment_is_format_error(self):
+    def test_a1_fragment_retries_once_then_accepts_program(self):
+        # A malformed reply gets one format retry within the round; the retry is
+        # a program, so the round is not a format_error.
         fragment = "let _g1 = a.lock().unwrap(); let _g2 = b.lock().unwrap();"
         provider = ScriptedProvider([{"text": fragment}, {"text": GOOD_RUST}])
         run = run_rust_arm(provider, arm="A1_self_iter", task="P1", spec=self.spec,
-                           contract=self.contract, out_dir=self.root / "a1f", k=2)
-        self.assertEqual(run.rounds[0].decision, "format_error")
-        self.assertIsNotNone(run.rounds[0].feedback_sha256)
+                           contract=self.contract, out_dir=self.root / "a1f", k=1)
+        self.assertEqual(len(run.rounds), 1)
+        self.assertEqual(run.rounds[0].decision, "continue")
+        self.assertEqual(len(provider.calls), 2)
 
     def test_a2_accepts_when_tools_are_clean(self):
         fixed_rs = (PATTERNS / "P1/fixed.rs").read_text(encoding="utf-8")

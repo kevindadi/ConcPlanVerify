@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import tempfile
 import time
 from dataclasses import dataclass, field
@@ -33,6 +34,67 @@ from .providers import CandidateProvider, CandidateRequest, ScriptedProvider
 from .structural import run_structural_check
 
 SELF_REPORT_TOKENS = ("no problems", "no_problems", "no concurrency")
+
+# Word list for the prose branch of the three-way reply classifier. A reply with
+# no code fence that matches any of these is a *claim of no defect*. Written to
+# the batch PROTOCOL.md; keep in sync.
+CLAIMS_NO_ISSUE_PATTERNS = (
+    r"no issue", r"no defect", r"no bug", r"is correct", r"already correct",
+    r"does not (have|contain) (a )?(bug|deadlock)",
+    r"there is no (bug|deadlock|defect)", r"same order", r"no deadlock",
+)
+
+
+def _is_no_issues(text: str) -> bool:
+    return "".join(ch for ch in text.strip().upper() if ch.isalpha()) == "NOISSUES"
+
+
+def classify_reply(text: str) -> dict[str, Any]:
+    """Three-way classification of an A0/A1 reply.
+
+    ``program``: contains (exactly) one complete Rust program (fenced or raw).
+    ``claims_no_issue``: the ``NO_ISSUES`` sentinel, or fence-free prose that
+    matches the no-defect word list.
+    ``other``: neither; one format retry is owed.
+    """
+
+    stripped = text.strip()
+    if _is_no_issues(stripped):
+        return {"kind": "claims_no_issue", "program": None, "matched": ["NO_ISSUES"]}
+    program = _program_source(stripped)
+    if program is not None and "fn main" in program:
+        return {"kind": "program", "program": program, "matched": []}
+    if "```" not in stripped:
+        matched = [p for p in CLAIMS_NO_ISSUE_PATTERNS
+                   if re.search(p, stripped, re.IGNORECASE)]
+        if matched:
+            return {"kind": "claims_no_issue", "program": None, "matched": matched}
+    return {"kind": "other", "program": None, "matched": []}
+
+
+def _program_source(text: str) -> str | None:
+    """Return the Rust source from a fenced block or a raw reply, if any."""
+
+    if "```" in text:
+        candidates = text.split("```")[1::2]
+        if not candidates:
+            return None
+        best = max(candidates, key=len)
+        lines = best.splitlines()
+        if lines and lines[0].strip().lower() in ("rust", "rs"):
+            lines = lines[1:]
+        return "\n".join(lines).strip() + "\n"
+    return text.strip() + "\n" if text.strip() else None
+
+
+def _write_reply(round_dir: Path, round_no: int, text: str, classification: dict,
+                 decision: str | None) -> None:
+    round_dir.mkdir(parents=True, exist_ok=True)
+    (round_dir / "reply.json").write_text(json.dumps({
+        "round": round_no, "kind": classification["kind"],
+        "matched": classification.get("matched", []),
+        "decision": decision, "raw_text": text,
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 @dataclass
@@ -114,11 +176,16 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
                  miri_seed_count: int | None = None) -> ArmRun:
     """A0/A1/A2: LLM writes whole Rust programs; feedback differs by arm.
 
-    ``initial_source`` seeds a repair task with the buggy program. For A1 a
-    reply that is exactly ``NO_ISSUES`` accepts the current candidate
-    (``decision=self_no_issues``) without compiling the sentinel. Any other
-    reply must be a full program containing ``fn main`` or it is a
-    ``format_error`` fed back to the next round.
+    Replies are classified three ways (see :func:`classify_reply`):
+
+    - ``program``: a complete Rust program; tool analysis runs as before.
+    - ``claims_no_issue``: the sentinel or fence-free no-defect prose. For A0
+      this accepts the *buggy input* (``decision=claims_no_issue``,
+      ``bug_present=True`` by construction, ``false_accept=True``). For A1 it
+      accepts the most recent ``build_ok=True`` candidate, or records
+      ``claims_no_issue_unbuilt`` (not accepted) if none was ever built.
+    - ``other``: one format retry (counted); if still ``other`` the round is a
+      ``format_error``.
     """
 
     from .rust_arm import RustArmProject
@@ -127,41 +194,44 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
     base = _exclusive_run_dir(Path(out_dir))
     feedback: str | None = None
     previous: str | None = initial_source
-    last_path: Path | None = None
+    initial_path: Path | None = None
     if initial_source is not None:
-        last_path = base / "initial.rs"
-        last_path.write_text(initial_source, encoding="utf-8")
+        initial_path = base / "initial.rs"
+        initial_path.write_text(initial_source, encoding="utf-8")
+    last_path: Path | None = None
     wants_tools = arm.startswith("A2")
     if tools_tier == "ml" and arm.endswith("_m"):
         tools_tier = "m"
     run.notes["tools_tier"] = tools_tier
 
+    last_build_ok: tuple[int, str] | None = None
+    last_build_ok_path: Path | None = None
+    accepted_path: Path | None = None
 
     for round_no in range(1, k + 1):
-        response = provider.propose(CandidateRequest(
-            requirements=spec, contract=contract, feedback=feedback,
-            attempt=round_no, previous_candidate=previous))
-        _consume_response(run, response)
-        if response.error:
-            run.error = response.error
+        response = None
+        classification: dict[str, Any] | None = None
+        for attempt in (1, 2):
+            response = provider.propose(CandidateRequest(
+                requirements=spec, contract=contract, feedback=feedback,
+                attempt=round_no, previous_candidate=previous))
+            _consume_response(run, response)
+            if response.error:
+                run.error = response.error
+                break
+            classification = classify_reply(response.text)
+            if classification["kind"] != "other":
+                break
+            if attempt == 1:
+                feedback = ("Your reply was neither a complete Rust program nor a "
+                            "clear 'no issues' statement. Output the full program "
+                            "including `fn main` inside one ```rust fence, or reply "
+                            "exactly NO_ISSUES.")
+        if response is None or response.error:
             break
 
-        # C-1: a self-review that reports no issues accepts the current state.
-        if arm == ARM_SELF_ITER and _is_no_issues(response.text):
-            run.rounds.append(RoundRecord(
-                round=round_no, decision="self_no_issues",
-                request_sha256=sha256_text(response.text),
-                llm_wall_ms=int(getattr(response, "wall_ms", 0) or 0)))
-            run.accepted = True
-            run.notes["self_no_issues"] = True
-            break
-
-        source = extract_rust(response.text)
         round_dir = base / f"round-{round_no}"
         round_dir.mkdir(parents=True, exist_ok=True)
-        last_path = round_dir / "candidate.rs"
-        last_path.write_text(source, encoding="utf-8")
-
         rr = RoundRecord(
             round=round_no,
             request_sha256=sha256_text(json.dumps({"spec_sha256": sha256_text(spec),
@@ -174,17 +244,61 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
         run.rounds.append(rr)
         prompt_tokens, completion_tokens = _tokens(response)
         rr.prompt_tokens, rr.completion_tokens = prompt_tokens, completion_tokens
+        kind = classification["kind"]
 
-        # C-5: every non-sentinel reply must be a complete program.
-        if "fn main" not in source:
+        if kind == "claims_no_issue":
+            run.notes.setdefault("claims_no_issue_rounds", []).append(round_no)
+            if arm == ARM_DIRECT:
+                rr.decision = "claims_no_issue"
+                run.accepted = True
+                run.accepted_round = round_no
+                run.notes["accepted_artifact"] = "input"
+                run.notes["bug_present_reason"] = "by_construction"
+                accepted_path = initial_path
+                _write_reply(round_dir, round_no, response.text, classification, rr.decision)
+                break
+            if arm == ARM_SELF_ITER:
+                if last_build_ok is not None:
+                    built_round = last_build_ok[0]
+                    rr.decision = "claims_no_issue"
+                    run.accepted = True
+                    run.accepted_round = built_round
+                    run.notes["accepted_candidate_round"] = built_round
+                    accepted_path = last_build_ok_path
+                else:
+                    rr.decision = "claims_no_issue_unbuilt"
+                    run.accepted = False
+                    feedback = ("You reported no issues but no candidate has built "
+                                "successfully yet; output the complete program.")
+                    rr.feedback_sha256 = sha256_text(feedback)
+                _write_reply(round_dir, round_no, response.text, classification, rr.decision)
+                break
+            # A2: a no-issue claim is not a tool-green result; keep iterating.
+            rr.decision = "claims_no_issue"
+            feedback = ("You reported no issues, but the tool chain did not pass. "
+                        "Output the complete corrected program.")
+            rr.feedback_sha256 = sha256_text(feedback)
+            _write_reply(round_dir, round_no, response.text, classification, rr.decision)
+            continue
+
+        if kind == "other":
             rr.decision = "format_error"
             feedback = ("Your reply was not a complete Rust program. Output the full "
                         "program including `fn main` and every function, inside one "
                         "```rust fence, or reply exactly NO_ISSUES.")
             rr.feedback_sha256 = sha256_text(feedback)
+            _write_reply(round_dir, round_no, response.text, classification, rr.decision)
+            if arm == ARM_DIRECT:
+                break
             continue
 
+        # kind == "program"
+        source = classification["program"]
+        candidate_path = round_dir / "candidate.rs"
+        candidate_path.write_text(source, encoding="utf-8")
+        last_path = candidate_path
         previous = source
+
         project = RustArmProject(round_dir, source, name="probe")
         record = project.analyze(run_miri=wants_tools, run_lockbud=wants_tools,
                                  timeout_s=tool_timeout_s,
@@ -215,17 +329,24 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
             "lockbud_green": lockbud_green, "lockbud_detected": lockbud_detected,
             "lockbud_status": lockbud_status,
         })
+        run.notes.setdefault("build_ok_rounds", [])
+        if build_ok:
+            last_build_ok = (round_no, source)
+            last_build_ok_path = candidate_path
+            run.notes["build_ok_rounds"].append(round_no)
 
         if arm == ARM_DIRECT:
             run.accepted = build_ok
             rr.decision = "build_ok" if build_ok else "build_fail"
+            accepted_path = candidate_path if build_ok else None
+            _write_reply(round_dir, round_no, response.text, classification, rr.decision)
             break
         if arm == ARM_SELF_ITER:
-            # A1 without a sentinel continues; it never accepts on build alone.
             rr.decision = "continue"
             feedback = ("Review the program for concurrency defects and either fix it "
                         "(full program) or reply exactly NO_ISSUES.")
             rr.feedback_sha256 = sha256_text(feedback)
+            _write_reply(round_dir, round_no, response.text, classification, rr.decision)
             continue
         # A2-m (build + miri) vs A2-ml (build + miri + lockbud).
         accepted_m = bool(build_ok and miri_green and not miri_detected)
@@ -234,7 +355,9 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
         run.accepted = tier_ok
         rr.decision = ("tools_green_m" if tier_ok and tools_tier == "m"
                        else "tools_green_ml" if tier_ok else "tools_dirty")
+        _write_reply(round_dir, round_no, response.text, classification, rr.decision)
         if run.accepted:
+            accepted_path = candidate_path
             break
         feedback = _truncate(json.dumps({
             "build_ok": build_ok,
@@ -247,14 +370,21 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
         }, sort_keys=True))
         rr.feedback_sha256 = sha256_text(feedback)
 
-    if run.accepted:
+    if run.accepted and run.accepted_round is None:
         run.accepted_round = run.rounds[-1].round if run.rounds else None
+    if run.accepted:
         run.consumption.first_correct_round = run.accepted_round
-    if last_path is not None and last_path.is_file():
+    if accepted_path is not None and Path(accepted_path).is_file():
+        run.final_artifact_path = str(accepted_path)
+        run.final_artifact_sha256 = sha256_file(accepted_path)
+    elif last_path is not None and last_path.is_file():
         run.final_artifact_path = str(last_path)
         run.final_artifact_sha256 = sha256_file(last_path)
     elif initial_source is not None:
         run.notes["initial_source_sha256"] = sha256_text(initial_source)
+    # Invariant (I-3): any accepted A1 cell must have a successfully built candidate.
+    if arm == ARM_SELF_ITER and run.accepted and last_build_ok is None:
+        raise AssertionError("A1 accepted without a build_ok candidate")
     return run
 
 
