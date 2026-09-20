@@ -141,6 +141,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--llm-timeout", type=float, default=90.0)
     p.add_argument("--max-requests", type=int, default=200)
 
+    p = sub.add_parser("repair-main-v1", help="main 8-task x 5-arm x reps batch")
+    p.add_argument("--tasks", help="benchmarks/MANIFEST.json (default: repo manifest)")
+    p.add_argument("--protocol", required=True)
+    p.add_argument("--protocol-sha256", required=True)
+    p.add_argument("--api-key-env", default="DEEPSEEK_API_KEY")
+    p.add_argument("--reps", type=int, default=3)
+    p.add_argument("--max-tokens", type=int, default=4096)
+    p.add_argument("--llm-timeout", type=float, default=90.0)
+    p.add_argument("--max-requests", type=int, default=300)
+
     p = sub.add_parser("contract-strength",
                        help="replay A3 accepted CIRs against frozen contracts (offline)")
     p.add_argument("--batches", required=True,
@@ -285,6 +295,26 @@ def main(argv: list[str] | None = None) -> int:
                 manifest, args.out, binary=args.binary, api_key=api_key,
                 protocol_path=args.protocol, protocol_sha256=args.protocol_sha256,
                 timeout=args.llm_timeout, max_tokens=args.max_tokens)
+            print(json.dumps({"batch_dir": summary["batch_dir"],
+                              "requests_used": summary["requests_used"],
+                              "stop_reason": summary["stop_reason"]}, indent=2))
+            return 0
+
+        if args.command == "repair-main-v1":
+            from .flash_smoke import run_repair_main_v1
+
+            api_key = os.environ.get(args.api_key_env, "")
+            if not api_key:
+                print(json.dumps({"status": "error",
+                                  "error": f"missing API key: set {args.api_key_env}"},
+                                 indent=2))
+                return 2
+            manifest = args.tasks or str(repo_root / "benchmarks/MANIFEST.json")
+            summary = run_repair_main_v1(
+                manifest, args.out, binary=args.binary, api_key=api_key,
+                protocol_path=args.protocol, protocol_sha256=args.protocol_sha256,
+                reps=args.reps, timeout=args.llm_timeout, max_tokens=args.max_tokens,
+                max_requests=args.max_requests)
             print(json.dumps({"batch_dir": summary["batch_dir"],
                               "requests_used": summary["requests_used"],
                               "stop_reason": summary["stop_reason"]}, indent=2))
