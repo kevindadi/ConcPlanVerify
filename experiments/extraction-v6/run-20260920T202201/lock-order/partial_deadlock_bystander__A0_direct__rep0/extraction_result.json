@@ -1,0 +1,134 @@
+{
+  "stage": "codegen",
+  "reason": "extracted CIR not codegen-able: codegen failed: JSON parse error in '/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v6/run-20260920T202201/lock-order/partial_deadlock_bystander__A0_direct__rep0/extracted.cir.json': invalid type: string \"0\", expected i64 at line 26 column 22",
+  "stderr_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v6/run-20260920T202201/lock-order/partial_deadlock_bystander__A0_direct__rep0/codegen.stderr.txt",
+  "normalizations": [
+    {
+      "rule": "init_bool",
+      "resource": "done_flag",
+      "location": "/modules/0/resources/6/init"
+    },
+    {
+      "rule": "function_kind",
+      "function": "Semaphore::acquire",
+      "location": "/modules/0/functions/0"
+    },
+    {
+      "rule": "local_string",
+      "location": "/modules/0/functions/0/locals/0",
+      "from": "permits",
+      "to": {
+        "name": "permits",
+        "type": "Int"
+      }
+    },
+    {
+      "rule": "function_kind",
+      "function": "Semaphore::release",
+      "location": "/modules/0/functions/1"
+    },
+    {
+      "rule": "function_kind",
+      "function": "worker_a",
+      "location": "/modules/0/functions/2"
+    },
+    {
+      "rule": "local_string",
+      "location": "/modules/0/functions/2/locals/0",
+      "from": "ga",
+      "to": {
+        "name": "ga",
+        "type": "Int"
+      }
+    },
+    {
+      "rule": "local_string",
+      "location": "/modules/0/functions/2/locals/1",
+      "from": "gb",
+      "to": {
+        "name": "gb",
+        "type": "Int"
+      }
+    },
+    {
+      "rule": "function_kind",
+      "function": "worker_b",
+      "location": "/modules/0/functions/3"
+    },
+    {
+      "rule": "local_string",
+      "location": "/modules/0/functions/3/locals/0",
+      "from": "gb",
+      "to": {
+        "name": "gb",
+        "type": "Int"
+      }
+    },
+    {
+      "rule": "local_string",
+      "location": "/modules/0/functions/3/locals/1",
+      "from": "ga",
+      "to": {
+        "name": "ga",
+        "type": "Int"
+      }
+    },
+    {
+      "rule": "function_kind",
+      "function": "third",
+      "location": "/modules/0/functions/4"
+    },
+    {
+      "rule": "local_string",
+      "location": "/modules/0/functions/4/locals/0",
+      "from": "finished",
+      "to": {
+        "name": "finished",
+        "type": "Int"
+      }
+    },
+    {
+      "rule": "function_kind",
+      "function": "main",
+      "location": "/modules/0/functions/5"
+    },
+    {
+      "rule": "local_string",
+      "location": "/modules/0/functions/5/locals/0",
+      "from": "worker_a",
+      "to": {
+        "name": "worker_a",
+        "type": "Int"
+      }
+    },
+    {
+      "rule": "local_string",
+      "location": "/modules/0/functions/5/locals/1",
+      "from": "worker_b",
+      "to": {
+        "name": "worker_b",
+        "type": "Int"
+      }
+    },
+    {
+      "rule": "local_string",
+      "location": "/modules/0/functions/5/locals/2",
+      "from": "third",
+      "to": {
+        "name": "third",
+        "type": "Int"
+      }
+    },
+    {
+      "rule": "local_string",
+      "location": "/modules/0/functions/5/locals/3",
+      "from": "finished",
+      "to": {
+        "name": "finished",
+        "type": "Int"
+      }
+    }
+  ],
+  "extract_validated": false,
+  "model_verdict": null
+}

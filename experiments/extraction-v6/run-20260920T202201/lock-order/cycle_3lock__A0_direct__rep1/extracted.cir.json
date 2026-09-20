@@ -1,0 +1,187 @@
+{
+  "program": "mutex_chain",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "mtx_a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "mtx_b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "mtx_c",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "w1",
+              "type": "Int"
+            },
+            {
+              "name": "w2",
+              "type": "Int"
+            },
+            {
+              "name": "w3",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L1",
+              "func": "main::worker1",
+              "handle": "w1",
+              "kind": "spawn"
+            },
+            {
+              "sid": "L4",
+              "func": "main::worker2",
+              "handle": "w2",
+              "kind": "spawn"
+            },
+            {
+              "sid": "L7",
+              "func": "main::worker3",
+              "handle": "w3",
+              "kind": "spawn"
+            },
+            {
+              "sid": "L10",
+              "handle": "w1",
+              "kind": "join"
+            },
+            {
+              "sid": "L11",
+              "handle": "w2",
+              "kind": "join"
+            },
+            {
+              "sid": "L12",
+              "handle": "w3",
+              "kind": "join"
+            },
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker1",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L2",
+              "resource": "main::mtx_a",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "L3",
+              "resource": "main::mtx_b",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s2",
+              "resource": "main::mtx_b",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "s3",
+              "resource": "main::mtx_a",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker2",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L5",
+              "resource": "main::mtx_b",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "L6",
+              "resource": "main::mtx_c",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s5",
+              "resource": "main::mtx_c",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "s6",
+              "resource": "main::mtx_b",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker3",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L8",
+              "resource": "main::mtx_c",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "L9",
+              "resource": "main::mtx_a",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s8",
+              "resource": "main::mtx_a",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "s9",
+              "resource": "main::mtx_c",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "s10",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

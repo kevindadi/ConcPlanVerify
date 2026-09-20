@@ -1,0 +1,424 @@
+{
+  "program": "semaphore_handshake",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "mtx_a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "mtx_b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "sem_a",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": "0"
+        },
+        {
+          "name": "sem_b",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": "0"
+        },
+        {
+          "name": "done_lock",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "done_cv",
+          "kind": "sync",
+          "type": "Condvar",
+          "mode": "Sync"
+        },
+        {
+          "name": "done_flag",
+          "kind": "var",
+          "type": "Var",
+          "base": "Bool",
+          "init": false
+        }
+      ],
+      "functions": [
+        {
+          "name": "Semaphore::acquire",
+          "params": [],
+          "locals": [
+            {
+              "name": "permits",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L1",
+              "resource": "main::sem_permits",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s1",
+              "target": "permits",
+              "expr": "0",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s2",
+              "cond": "permits == 0",
+              "then": "s3",
+              "else": "s5",
+              "kind": "branch"
+            },
+            {
+              "sid": "s3",
+              "kind": "nop"
+            },
+            {
+              "sid": "L2",
+              "condvar": "main::sem_cv",
+              "lock": "main::sem_permits",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "s4",
+              "target": "s2",
+              "kind": "goto"
+            },
+            {
+              "sid": "s5",
+              "target": "permits",
+              "expr": "permits - 1",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s6",
+              "resource": "main::sem_permits",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "Semaphore::release",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L3",
+              "resource": "main::sem_permits",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s1",
+              "resource": "main::sem_permits",
+              "expr": "1",
+              "kind": "write_shared"
+            },
+            {
+              "sid": "s2",
+              "resource": "main::sem_permits",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "L4",
+              "condvar": "main::sem_cv",
+              "kind": "condvar_notify"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker_a",
+          "params": [],
+          "locals": [
+            {
+              "name": "ga",
+              "type": "Int"
+            },
+            {
+              "name": "gb",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L6",
+              "resource": "main::mtx_a",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s1",
+              "target": "ga",
+              "expr": "0",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "L7",
+              "resource": "main::sem_a",
+              "kind": "semaphore_release"
+            },
+            {
+              "sid": "L8",
+              "resource": "main::sem_b",
+              "kind": "semaphore_acquire"
+            },
+            {
+              "sid": "L9",
+              "resource": "main::mtx_b",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s2",
+              "target": "gb",
+              "expr": "0",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s3",
+              "resource": "main::mtx_b",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "s4",
+              "resource": "main::mtx_a",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker_b",
+          "params": [],
+          "locals": [
+            {
+              "name": "gb",
+              "type": "Int"
+            },
+            {
+              "name": "ga",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L11",
+              "resource": "main::mtx_b",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s1",
+              "target": "gb",
+              "expr": "0",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "L12",
+              "resource": "main::sem_b",
+              "kind": "semaphore_release"
+            },
+            {
+              "sid": "L13",
+              "resource": "main::sem_a",
+              "kind": "semaphore_acquire"
+            },
+            {
+              "sid": "L14",
+              "resource": "main::mtx_a",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s2",
+              "target": "ga",
+              "expr": "0",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s3",
+              "resource": "main::mtx_a",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "s4",
+              "resource": "main::mtx_b",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "third",
+          "params": [],
+          "locals": [
+            {
+              "name": "finished",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L16",
+              "resource": "main::done_lock",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s1",
+              "target": "finished",
+              "expr": "false",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s2",
+              "cond": "finished == false",
+              "then": "s3",
+              "else": "s5",
+              "kind": "branch"
+            },
+            {
+              "sid": "s3",
+              "kind": "nop"
+            },
+            {
+              "sid": "L17",
+              "condvar": "main::done_cv",
+              "lock": "main::done_lock",
+              "kind": "condvar_wait"
+            },
+            {
+              "sid": "s4",
+              "target": "s2",
+              "kind": "goto"
+            },
+            {
+              "sid": "s5",
+              "resource": "main::done_lock",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "worker_a",
+              "type": "Int"
+            },
+            {
+              "name": "worker_b",
+              "type": "Int"
+            },
+            {
+              "name": "third",
+              "type": "Int"
+            },
+            {
+              "name": "finished",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L5",
+              "func": "main::worker_a",
+              "handle": "worker_a",
+              "kind": "spawn"
+            },
+            {
+              "sid": "L10",
+              "func": "main::worker_b",
+              "handle": "worker_b",
+              "kind": "spawn"
+            },
+            {
+              "sid": "L15",
+              "func": "main::third",
+              "handle": "third",
+              "kind": "spawn"
+            },
+            {
+              "sid": "L18",
+              "handle": "worker_a",
+              "kind": "join"
+            },
+            {
+              "sid": "L19",
+              "handle": "worker_b",
+              "kind": "join"
+            },
+            {
+              "sid": "L20",
+              "resource": "main::done_lock",
+              "kind": "mutex_lock"
+            },
+            {
+              "sid": "s1",
+              "target": "finished",
+              "expr": "true",
+              "kind": "assign_local"
+            },
+            {
+              "sid": "s2",
+              "resource": "main::done_flag",
+              "expr": "true",
+              "kind": "write_shared"
+            },
+            {
+              "sid": "L21",
+              "condvar": "main::done_cv",
+              "kind": "condvar_notify"
+            },
+            {
+              "sid": "s3",
+              "resource": "main::done_lock",
+              "kind": "mutex_unlock"
+            },
+            {
+              "sid": "L22",
+              "handle": "third",
+              "kind": "join"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

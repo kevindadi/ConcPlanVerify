@@ -1,0 +1,324 @@
+{
+  "program": "semaphore_handshake",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "resources": [
+        {
+          "name": "mtx_a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "mtx_b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "sem_a",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": "0"
+        },
+        {
+          "name": "sem_b",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": "0"
+        }
+      ],
+      "functions": [
+        {
+          "name": "Semaphore::new",
+          "params": [
+            {
+              "name": "count",
+              "type": "Int"
+            }
+          ],
+          "locals": [],
+          "body": [
+            {
+              "sid": "s1",
+              "stmt": "return",
+              "value": "count"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "Semaphore::acquire",
+          "params": [],
+          "locals": [
+            {
+              "name": "permits",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L1",
+              "stmt": "mutex_lock",
+              "resource": "main::sem_a"
+            },
+            {
+              "sid": "s1",
+              "stmt": "assign_local",
+              "target": "permits",
+              "expr": "0"
+            },
+            {
+              "sid": "s2",
+              "stmt": "branch",
+              "cond": "permits == 0",
+              "then": "s3",
+              "else": "s5"
+            },
+            {
+              "sid": "s3",
+              "stmt": "branch",
+              "cond": "true",
+              "then": "L2",
+              "else": "s5"
+            },
+            {
+              "sid": "L2",
+              "stmt": "condvar_wait",
+              "condvar": "main::sem_a",
+              "lock": "main::sem_a"
+            },
+            {
+              "sid": "s4",
+              "stmt": "goto",
+              "target": "s2"
+            },
+            {
+              "sid": "s5",
+              "stmt": "assign_local",
+              "target": "permits",
+              "expr": "permits - 1"
+            },
+            {
+              "sid": "s6",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "Semaphore::release",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "L3",
+              "stmt": "mutex_lock",
+              "resource": "main::sem_a"
+            },
+            {
+              "sid": "s1",
+              "stmt": "nop"
+            },
+            {
+              "sid": "L4",
+              "stmt": "condvar_notify",
+              "condvar": "main::sem_a"
+            },
+            {
+              "sid": "s2",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker_a",
+          "params": [],
+          "locals": [
+            {
+              "name": "ga",
+              "type": "Int"
+            },
+            {
+              "name": "gb",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L6",
+              "stmt": "mutex_lock",
+              "resource": "main::mtx_a"
+            },
+            {
+              "sid": "s1",
+              "stmt": "assign_local",
+              "target": "ga",
+              "expr": "0"
+            },
+            {
+              "sid": "L7",
+              "stmt": "semaphore_release",
+              "resource": "main::sem_a"
+            },
+            {
+              "sid": "L8",
+              "stmt": "semaphore_acquire",
+              "resource": "main::sem_b"
+            },
+            {
+              "sid": "s2",
+              "stmt": "nop"
+            },
+            {
+              "sid": "L9",
+              "stmt": "mutex_lock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "s3",
+              "stmt": "assign_local",
+              "target": "gb",
+              "expr": "0"
+            },
+            {
+              "sid": "s4",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "worker_b",
+          "params": [],
+          "locals": [
+            {
+              "name": "gb",
+              "type": "Int"
+            },
+            {
+              "name": "ga",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L11",
+              "stmt": "mutex_lock",
+              "resource": "main::mtx_b"
+            },
+            {
+              "sid": "s1",
+              "stmt": "assign_local",
+              "target": "gb",
+              "expr": "0"
+            },
+            {
+              "sid": "L12",
+              "stmt": "semaphore_release",
+              "resource": "main::sem_b"
+            },
+            {
+              "sid": "L13",
+              "stmt": "semaphore_acquire",
+              "resource": "main::sem_a"
+            },
+            {
+              "sid": "s2",
+              "stmt": "nop"
+            },
+            {
+              "sid": "L14",
+              "stmt": "mutex_lock",
+              "resource": "main::mtx_a"
+            },
+            {
+              "sid": "s3",
+              "stmt": "assign_local",
+              "target": "ga",
+              "expr": "0"
+            },
+            {
+              "sid": "s4",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "sleeper",
+          "params": [],
+          "locals": [],
+          "body": [
+            {
+              "sid": "s1",
+              "stmt": "goto",
+              "target": "s1"
+            }
+          ],
+          "kind": "normal"
+        },
+        {
+          "name": "main",
+          "params": [],
+          "locals": [
+            {
+              "name": "worker_a",
+              "type": "Int"
+            },
+            {
+              "name": "worker_b",
+              "type": "Int"
+            },
+            {
+              "name": "sleeper_handle",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "L5",
+              "stmt": "spawn",
+              "func": "main::worker_a",
+              "handle": "worker_a"
+            },
+            {
+              "sid": "L10",
+              "stmt": "spawn",
+              "func": "main::worker_b",
+              "handle": "worker_b"
+            },
+            {
+              "sid": "L15",
+              "stmt": "spawn",
+              "func": "main::sleeper",
+              "handle": "sleeper_handle"
+            },
+            {
+              "sid": "L16",
+              "stmt": "join",
+              "handle": "worker_a"
+            },
+            {
+              "sid": "L17",
+              "stmt": "join",
+              "handle": "worker_b"
+            },
+            {
+              "sid": "s1",
+              "stmt": "return"
+            }
+          ],
+          "kind": "normal"
+        }
+      ],
+      "protection": []
+    }
+  ]
+}

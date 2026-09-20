@@ -40,17 +40,15 @@ def main() -> int:
         key = f"{cell['task']}__{cell['arm']}__rep{cell['rep']}"
         cell_dir = run / key
         result_path = cell_dir / "extraction_result.json"
-        reason = ""
-        if result_path.is_file():
+        reason = cell.get("reason") or ""
+        if not reason and result_path.is_file():
             data = json.loads(result_path.read_text(encoding="utf-8"))
             reason = _short_reason(data.get("reason", ""))
             if not reason:
                 reason = _short_reason(str(data.get("detail", "")))
-            cell["stage"] = data.get("stage", cell.get("stage"))
-            cell["model_verdict"] = data.get("model_verdict")
         if not reason:
             reason = "unclassified"
-        cell["reason"] = reason
+        cell["reason"] = _short_reason(reason) or reason
         verdict = cell.get("model_verdict")
         cell["validated"] = bool(cell.get("stage") == "explore" and verdict in ("PASS", "FAIL"))
         cell["contract_invalid"] = bool(cell.get("stage") == "explore"

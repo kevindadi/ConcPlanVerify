@@ -1,5 +1,5 @@
 {
- "batch": "experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5",
+ "batch": "experiments/extraction-v5",
  "binary_sha256": "4bec943dd486473caab24b17233b536e31641fbbb1e3d8d505d499b3113fb3f2",
  "prompt_sha256": "34d5c22964bb0af395a8671c96f48126a1dafb6c5a6da6b8ba790a9952a0c8c4",
  "requests_used": 98,
@@ -7,17 +7,16 @@
  "validated": 0,
  "harness_errors": 0,
  "stage_distribution": {
-  "labels": 10,
-  "codegen": 29,
-  "conform": 22,
-  "explore": 2
+  "codegen": 34,
+  "conform": 25,
+  "explore": 4
  },
  "cells": [
   {
    "task": "lock-order/partial_deadlock_bystander",
    "arm": "A0_direct",
    "rep": 0,
-   "stage": "labels",
+   "stage": "codegen",
    "extract_validated": false,
    "model_verdict": null,
    "behavior": "hang",
@@ -29,7 +28,7 @@
     "L3",
     "L4"
    ],
-   "reason": "CIR does not use every required label exactly once",
+   "reason": "invalid type: string \"0\"",
    "validated": false,
    "contract_invalid": false
   },
@@ -44,7 +43,7 @@
    "miri": "clean",
    "normalizations": [],
    "missing_labels": null,
-   "reason": "panic at src/sem/program.rs:333",
+   "reason": "invalid type: string \"0\"",
    "validated": false,
    "contract_invalid": false
   },
@@ -67,7 +66,7 @@
    "task": "lock-order/cross_module_cycle",
    "arm": "A1_self_iter",
    "rep": 0,
-   "stage": "labels",
+   "stage": "conform",
    "extract_validated": false,
    "model_verdict": null,
    "behavior": "terminated_ok",
@@ -83,7 +82,7 @@
     "L7",
     "L8"
    ],
-   "reason": "CIR does not use every required label exactly once",
+   "reason": "traces not all conformant",
    "validated": false,
    "contract_invalid": false
   },
@@ -241,7 +240,7 @@
    "task": "channel/bounded_backpressure_lock_held",
    "arm": "A1_self_iter",
    "rep": 0,
-   "stage": "labels",
+   "stage": "conform",
    "extract_validated": false,
    "model_verdict": null,
    "behavior": "terminated_ok",
@@ -259,7 +258,7 @@
     "L9",
     "L10"
    ],
-   "reason": "CIR does not use every required label exactly once",
+   "reason": "traces not all conformant",
    "validated": false,
    "contract_invalid": false
   },
@@ -364,7 +363,7 @@
    "miri": "detected",
    "normalizations": [],
    "missing_labels": null,
-   "reason": "panic at src/sem/program.rs:333",
+   "reason": "invalid type: map",
    "validated": false,
    "contract_invalid": false
   },
@@ -379,7 +378,7 @@
    "miri": "clean",
    "normalizations": [],
    "missing_labels": null,
-   "reason": "panic at src/sem/program.rs:333",
+   "reason": "invalid type: string \"0\"",
    "validated": false,
    "contract_invalid": false
   },
@@ -432,7 +431,7 @@
    "task": "lock-order/cycle_3lock",
    "arm": "A0_direct",
    "rep": 1,
-   "stage": "labels",
+   "stage": "conform",
    "extract_validated": false,
    "model_verdict": null,
    "behavior": "terminated_ok",
@@ -452,7 +451,7 @@
     "L11",
     "L12"
    ],
-   "reason": "CIR does not use every required label exactly once",
+   "reason": "traces not all conformant",
    "validated": false,
    "contract_invalid": false
   },
@@ -460,9 +459,9 @@
    "task": "lock-order/cycle_3lock",
    "arm": "A2_tools_iter_ml",
    "rep": 1,
-   "stage": "labels",
+   "stage": "explore",
    "extract_validated": false,
-   "model_verdict": null,
+   "model_verdict": "INVALID",
    "behavior": "terminated_ok",
    "miri": "clean",
    "normalizations": [],
@@ -482,7 +481,7 @@
    ],
    "reason": "CIR does not use every required label exactly once",
    "validated": false,
-   "contract_invalid": false
+   "contract_invalid": true
   },
   {
    "task": "structure/nested_scope_lock_order",
@@ -533,7 +532,7 @@
    "task": "condvar/notify_one_multi_waiter_wrong_pick",
    "arm": "A0_direct",
    "rep": 1,
-   "stage": "labels",
+   "stage": "codegen",
    "extract_validated": false,
    "model_verdict": null,
    "behavior": "hang",
@@ -545,7 +544,7 @@
     "L5",
     "L6"
    ],
-   "reason": "CIR does not use every required label exactly once",
+   "reason": "missing field `kind`",
    "validated": false,
    "contract_invalid": false
   },
@@ -643,7 +642,7 @@
    "task": "channel/send_while_holding_mutex",
    "arm": "A2_tools_iter_ml",
    "rep": 1,
-   "stage": "labels",
+   "stage": "codegen",
    "extract_validated": false,
    "model_verdict": null,
    "behavior": "terminated_ok",
@@ -661,7 +660,7 @@
     "L9",
     "L10"
    ],
-   "reason": "CIR does not use every required label exactly once",
+   "reason": "E308: write_shared requires a Var, found 'main::shared'",
    "validated": false,
    "contract_invalid": false
   },
@@ -669,7 +668,7 @@
    "task": "semaphore/acquire_twice_no_release",
    "arm": "A0_direct",
    "rep": 1,
-   "stage": "labels",
+   "stage": "codegen",
    "extract_validated": false,
    "model_verdict": null,
    "behavior": "hang",
@@ -685,7 +684,7 @@
     "L7",
     "L8"
    ],
-   "reason": "CIR does not use every required label exactly once",
+   "reason": "E102: function 'main::Sem::new' is not registered (duplicate or empty name)",
    "validated": false,
    "contract_invalid": false
   },
@@ -730,7 +729,7 @@
    "miri": "clean",
    "normalizations": [],
    "missing_labels": null,
-   "reason": "panic at src/sem/program.rs:333",
+   "reason": "invalid type: string \"0\"",
    "validated": false,
    "contract_invalid": false
   },
@@ -738,7 +737,7 @@
    "task": "lock-order/partial_deadlock_bystander",
    "arm": "A1_self_iter",
    "rep": 2,
-   "stage": "labels",
+   "stage": "codegen",
    "extract_validated": false,
    "model_verdict": null,
    "behavior": "terminated_ok",
@@ -763,7 +762,7 @@
     "L16",
     "L17"
    ],
-   "reason": "CIR does not use every required label exactly once",
+   "reason": "invalid type: string \"0\"",
    "validated": false,
    "contract_invalid": false
   },
@@ -831,9 +830,9 @@
    "task": "lock-order/cycle_3lock",
    "arm": "A2_tools_iter_ml",
    "rep": 2,
-   "stage": "labels",
+   "stage": "explore",
    "extract_validated": false,
-   "model_verdict": null,
+   "model_verdict": "INVALID",
    "behavior": "terminated_ok",
    "miri": "clean",
    "normalizations": [],
@@ -853,7 +852,7 @@
    ],
    "reason": "CIR does not use every required label exactly once",
    "validated": false,
-   "contract_invalid": false
+   "contract_invalid": true
   },
   {
    "task": "structure/nested_scope_lock_order",
@@ -1067,19 +1066,27 @@
   }
  ],
  "replay": true,
- "contract_invalid": 2,
+ "contract_invalid": 4,
  "reason_distribution": {
-  "CIR does not use every required label exactly once": 10,
-  "panic at src/sem/program.rs:333": 4,
+  "invalid type: string \"0\"": 5,
   "E201: branch condition \"a_held\" is not a comparison": 2,
-  "traces not all conformant": 22,
-  "missing field `kind`": 9,
+  "traces not all conformant": 25,
+  "missing field `kind`": 10,
   "E931: expected expression, found '[]'": 3,
   "E931: expected expression, found '!ready'": 2,
   "E931: undefined name 'read_shared'": 2,
   "E931: undefined name 'thread_id'": 5,
+  "invalid type: map": 1,
+  "E308: write_shared requires a Var, found 'main::shared'": 1,
+  "E102: function 'main::Sem::new' is not registered (duplicate or empty name)": 1,
   "E308: read_shared requires a Var, found 'main::n'": 1,
   "E931: undefined name 'Mutex'": 1
  },
- "validated_definition": "stage=explore AND contract evaluation succeeded AND verdict in {PASS,FAIL}"
+ "validated_definition": "stage=explore AND contract evaluation succeeded AND verdict in {PASS,FAIL}",
+ "v6_rerun": {
+  "run": "experiments/extraction-v6/run-20260920T202201",
+  "cells": 14,
+  "requests_used": 15,
+  "binary_sha256": "b8d441e6eb619a690e07021b01d4166090c0a53292821998a84a9b32b4df2065"
+ }
 }

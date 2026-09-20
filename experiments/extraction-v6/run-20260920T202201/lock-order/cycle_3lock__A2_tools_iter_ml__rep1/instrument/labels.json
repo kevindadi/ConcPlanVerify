@@ -1,0 +1,90 @@
+{
+  "labels": [
+    {
+      "label": "L1",
+      "line": 10,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let ga = a1.lock().unwrap(); let gb = b1.lock().unwrap(); drop(gb); drop(ga); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L2",
+      "line": 11,
+      "op": "mutex_lock",
+      "receiver": "a1",
+      "thread": "tL1"
+    },
+    {
+      "label": "L3",
+      "line": 12,
+      "op": "mutex_lock",
+      "receiver": "b1",
+      "thread": "tL1"
+    },
+    {
+      "label": "L4",
+      "line": 18,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let gb = b2.lock().unwrap(); let gc = c2.lock().unwrap(); drop(gc); drop(gb); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L5",
+      "line": 19,
+      "op": "mutex_lock",
+      "receiver": "b2",
+      "thread": "tL4"
+    },
+    {
+      "label": "L6",
+      "line": 20,
+      "op": "mutex_lock",
+      "receiver": "c2",
+      "thread": "tL4"
+    },
+    {
+      "label": "L7",
+      "line": 26,
+      "op": "spawn",
+      "receiver": "thread::spawn(move || { let gc = c3.lock().unwrap(); let ga = a3.lock().unwrap(); drop(ga); drop(gc); })",
+      "thread": "t0"
+    },
+    {
+      "label": "L8",
+      "line": 27,
+      "op": "mutex_lock",
+      "receiver": "c3",
+      "thread": "tL7"
+    },
+    {
+      "label": "L9",
+      "line": 28,
+      "op": "mutex_lock",
+      "receiver": "a3",
+      "thread": "tL7"
+    },
+    {
+      "label": "L10",
+      "line": 33,
+      "op": "join",
+      "receiver": "w1",
+      "thread": "t0"
+    },
+    {
+      "label": "L11",
+      "line": 34,
+      "op": "join",
+      "receiver": "w2",
+      "thread": "t0"
+    },
+    {
+      "label": "L12",
+      "line": 35,
+      "op": "join",
+      "receiver": "w3",
+      "thread": "t0"
+    }
+  ],
+  "schema_version": "cir-labels-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/extraction-v5/run-20260920T172924/lock-order/cycle_3lock__A2_tools_iter_ml__rep1/instrument/input.rs"
+}

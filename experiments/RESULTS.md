@@ -35,7 +35,7 @@
 | lock-order/cross_module_cycle | A3_tiered | 3/3 | 2 | 1912 | 1033±360 | 51±12 | 18±2 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
 | lock-order/cycle_3lock | A0_direct | 3/3 | 1 | 1001 | 1720±215 | 695±25 | — | 3/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | yes 3/3 | — 2/3 · INVALID 1/3 |
 | lock-order/cycle_3lock | A1_self_iter | 0/3 | — | — | — | — | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | — | — |
-| lock-order/cycle_3lock | A2_tools_iter_ml | 3/3 | 1 | 911 | 1810±1051 | 2190±21 | — | 3/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | yes 3/3 | — 2/3 · INVALID 1/3 |
+| lock-order/cycle_3lock | A2_tools_iter_ml | 3/3 | 1 | 911 | 1810±1051 | 2190±21 | — | 3/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | yes 3/3 | INVALID 3/3 |
 | lock-order/cycle_3lock | A3_local | 3/3 | 2 | 2100±13 | 1211±359 | 67±14 | 23 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
 | lock-order/cycle_3lock | A3_whole | 2/3 | 3 | 8524 | 5739±1052 | 96±19 | 22±1 | 0/3 | True 2/2 | terminated_ok 2/2 | clean 2/2 | PASS 2/2 | no 3/3 | — |
 | lock-order/cycle_3lock | A3_tiered | 3/3 | 2 | 2096 | 1116±181 | 61±14 | 22±2 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
@@ -206,16 +206,16 @@ Agreement with the automatic oracle: **37/37 = 1.000** (unsure 0); `design_loss`
 
 ### Extraction oracle
 
-- cells: 63; **validated: 0**; contract_invalid: 2
-- stage distribution: `{'labels': 10, 'codegen': 29, 'conform': 22, 'explore': 2}`
-- failure reason distribution: `{'CIR does not use every required label exactly once': 10, 'panic at src/sem/program.rs:333': 4, 'E201: branch condition "a_held" is not a comparison': 2, 'traces not all conformant': 22, 'missing field `kind`': 9, "E931: expected expression, found '[]'": 3, "E931: expected expression, found '!ready'": 2, "E931: undefined name 'read_shared'": 2, "E931: undefined name 'thread_id'": 5, "E308: read_shared requires a Var, found 'main::n'": 1, "E931: undefined name 'Mutex'": 1}`
+- cells: 63; **validated: 0**; contract_invalid: 4
+- stage distribution: `{'codegen': 34, 'conform': 25, 'explore': 4}`
+- failure reason distribution: `{'invalid type: string "0"': 5, 'E201: branch condition "a_held" is not a comparison': 2, 'traces not all conformant': 25, 'missing field `kind`': 10, "E931: expected expression, found '[]'": 3, "E931: expected expression, found '!ready'": 2, "E931: undefined name 'read_shared'": 2, "E931: undefined name 'thread_id'": 5, 'invalid type: map': 1, "E308: write_shared requires a Var, found 'main::shared'": 1, "E102: function 'main::Sem::new' is not registered (duplicate or empty name)": 1, "E308: read_shared requires a Var, found 'main::n'": 1, "E931: undefined name 'Mutex'": 1}`
 
 | task | arm | rep | stage | validated | verdict | reason |
 | --- | --- | --- | --- | --- | --- | --- |
 | channel/bounded_backpressure_lock_held | A0_direct | 0 | codegen | False | — | missing field `kind` |
 | channel/bounded_backpressure_lock_held | A0_direct | 1 | conform | False | — | traces not all conformant |
 | channel/bounded_backpressure_lock_held | A0_direct | 2 | codegen | False | — | missing field `kind` |
-| channel/bounded_backpressure_lock_held | A1_self_iter | 0 | labels | False | — | CIR does not use every required label exactly once |
+| channel/bounded_backpressure_lock_held | A1_self_iter | 0 | conform | False | — | traces not all conformant |
 | channel/bounded_backpressure_lock_held | A1_self_iter | 1 | conform | False | — | traces not all conformant |
 | channel/bounded_backpressure_lock_held | A1_self_iter | 2 | conform | False | — | traces not all conformant |
 | channel/bounded_backpressure_lock_held | A2_tools_iter_ml | 0 | conform | False | — | traces not all conformant |
@@ -225,10 +225,10 @@ Agreement with the automatic oracle: **37/37 = 1.000** (unsure 0); `design_loss`
 | channel/send_while_holding_mutex | A0_direct | 1 | conform | False | — | traces not all conformant |
 | channel/send_while_holding_mutex | A0_direct | 2 | conform | False | — | traces not all conformant |
 | channel/send_while_holding_mutex | A2_tools_iter_ml | 0 | codegen | False | — | missing field `kind` |
-| channel/send_while_holding_mutex | A2_tools_iter_ml | 1 | labels | False | — | CIR does not use every required label exactly once |
+| channel/send_while_holding_mutex | A2_tools_iter_ml | 1 | codegen | False | — | E308: write_shared requires a Var, found 'main::shared' |
 | channel/send_while_holding_mutex | A2_tools_iter_ml | 2 | codegen | False | — | E931: expected expression, found '!ready' |
 | condvar/notify_one_multi_waiter_wrong_pick | A0_direct | 0 | codegen | False | — | missing field `kind` |
-| condvar/notify_one_multi_waiter_wrong_pick | A0_direct | 1 | labels | False | — | CIR does not use every required label exactly once |
+| condvar/notify_one_multi_waiter_wrong_pick | A0_direct | 1 | codegen | False | — | missing field `kind` |
 | condvar/notify_one_multi_waiter_wrong_pick | A0_direct | 2 | codegen | False | — | E931: expected expression, found '[]' |
 | condvar/notify_one_multi_waiter_wrong_pick | A1_self_iter | 0 | codegen | False | — | missing field `kind` |
 | condvar/notify_one_multi_waiter_wrong_pick | A1_self_iter | 1 | codegen | False | — | missing field `kind` |
@@ -239,26 +239,26 @@ Agreement with the automatic oracle: **37/37 = 1.000** (unsure 0); `design_loss`
 | lock-order/cross_module_cycle | A0_direct | 0 | codegen | False | — | E201: branch condition "a_held" is not a comparison |
 | lock-order/cross_module_cycle | A0_direct | 1 | conform | False | — | traces not all conformant |
 | lock-order/cross_module_cycle | A0_direct | 2 | codegen | False | — | E201: branch condition "a_held" is not a comparison |
-| lock-order/cross_module_cycle | A1_self_iter | 0 | labels | False | — | CIR does not use every required label exactly once |
+| lock-order/cross_module_cycle | A1_self_iter | 0 | conform | False | — | traces not all conformant |
 | lock-order/cross_module_cycle | A1_self_iter | 1 | conform | False | — | traces not all conformant |
 | lock-order/cross_module_cycle | A1_self_iter | 2 | codegen | False | — | E931: undefined name 'Mutex' |
 | lock-order/cross_module_cycle | A2_tools_iter_ml | 0 | conform | False | — | traces not all conformant |
 | lock-order/cross_module_cycle | A2_tools_iter_ml | 1 | codegen | False | — | missing field `kind` |
 | lock-order/cross_module_cycle | A2_tools_iter_ml | 2 | conform | False | — | traces not all conformant |
 | lock-order/cycle_3lock | A0_direct | 0 | conform | False | — | traces not all conformant |
-| lock-order/cycle_3lock | A0_direct | 1 | labels | False | — | CIR does not use every required label exactly once |
+| lock-order/cycle_3lock | A0_direct | 1 | conform | False | — | traces not all conformant |
 | lock-order/cycle_3lock | A0_direct | 2 | explore | False | INVALID | unclassified |
 | lock-order/cycle_3lock | A2_tools_iter_ml | 0 | explore | False | INVALID | unclassified |
-| lock-order/cycle_3lock | A2_tools_iter_ml | 1 | labels | False | — | CIR does not use every required label exactly once |
-| lock-order/cycle_3lock | A2_tools_iter_ml | 2 | labels | False | — | CIR does not use every required label exactly once |
-| lock-order/partial_deadlock_bystander | A0_direct | 0 | labels | False | — | CIR does not use every required label exactly once |
-| lock-order/partial_deadlock_bystander | A0_direct | 1 | codegen | False | — | panic at src/sem/program.rs:333 |
-| lock-order/partial_deadlock_bystander | A0_direct | 2 | codegen | False | — | panic at src/sem/program.rs:333 |
-| lock-order/partial_deadlock_bystander | A1_self_iter | 1 | codegen | False | — | panic at src/sem/program.rs:333 |
-| lock-order/partial_deadlock_bystander | A1_self_iter | 2 | labels | False | — | CIR does not use every required label exactly once |
-| lock-order/partial_deadlock_bystander | A2_tools_iter_ml | 0 | codegen | False | — | panic at src/sem/program.rs:333 |
+| lock-order/cycle_3lock | A2_tools_iter_ml | 1 | explore | False | INVALID | CIR does not use every required label exactly once |
+| lock-order/cycle_3lock | A2_tools_iter_ml | 2 | explore | False | INVALID | CIR does not use every required label exactly once |
+| lock-order/partial_deadlock_bystander | A0_direct | 0 | codegen | False | — | invalid type: string "0" |
+| lock-order/partial_deadlock_bystander | A0_direct | 1 | codegen | False | — | invalid type: map |
+| lock-order/partial_deadlock_bystander | A0_direct | 2 | codegen | False | — | invalid type: string "0" |
+| lock-order/partial_deadlock_bystander | A1_self_iter | 1 | codegen | False | — | invalid type: string "0" |
+| lock-order/partial_deadlock_bystander | A1_self_iter | 2 | codegen | False | — | invalid type: string "0" |
+| lock-order/partial_deadlock_bystander | A2_tools_iter_ml | 0 | codegen | False | — | invalid type: string "0" |
 | semaphore/acquire_twice_no_release | A0_direct | 0 | codegen | False | — | E931: undefined name 'read_shared' |
-| semaphore/acquire_twice_no_release | A0_direct | 1 | labels | False | — | CIR does not use every required label exactly once |
+| semaphore/acquire_twice_no_release | A0_direct | 1 | codegen | False | — | E102: function 'main::Sem::new' is not registered (duplicate or empty name) |
 | semaphore/acquire_twice_no_release | A0_direct | 2 | codegen | False | — | E931: undefined name 'read_shared' |
 | semaphore/acquire_twice_no_release | A1_self_iter | 0 | codegen | False | — | E931: undefined name 'thread_id' |
 | semaphore/acquire_twice_no_release | A1_self_iter | 1 | codegen | False | — | E308: read_shared requires a Var, found 'main::n' |
