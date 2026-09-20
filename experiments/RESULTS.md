@@ -2,7 +2,7 @@
 
 > **Generated file — do not edit by hand.** Regenerate with:
 > ```
-> python -m cir_workflow results --out /tmp results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --expert experiments/flash-repair-main-v1/expert-labels/EXPERT_LABELS.json --extraction experiments/extraction-v5 --trackd experiments/detection-v3/TRACKD.json --scale experiments/scale-v2/SCALE.json --output experiments/RESULTS.md
+> python -m cir_workflow results --out /tmp results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --expert experiments/flash-repair-main-v1/expert-labels/EXPERT_LABELS.json --extraction experiments/extraction-v5 --trackd experiments/detection-v3/TRACKD.json --scale experiments/scale-v2/SCALE.json --mutation experiments/conform-mutation-v1/SUMMARY.json --postedit experiments/post-edit-conform-v1/SUMMARY.json --latex experiments/tables --output experiments/RESULTS.md
 > ```
 
 ## Provenance

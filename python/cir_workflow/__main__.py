@@ -183,6 +183,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--trackd")
     p.add_argument("--scale")
     p.add_argument("--reclass")
+    p.add_argument("--mutation")
+    p.add_argument("--postedit")
+    p.add_argument("--latex")
     p.add_argument("--output", required=True)
 
     p = sub.add_parser("smoke", help="Flash smoke batch: validate the multi-arm chain")
@@ -393,18 +396,33 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "results":
-            from .results import build
+            from .results import (aggregate, build, expert_index, extract_index,
+                                  latex_tables, load_summaries)
 
             command = "python -m cir_workflow results " + " ".join(
                 shlex.quote(a) for a in sys.argv[1:])
-            text = build(
-                [Path(p) for p in args.batch], [Path(p) for p in args.expert],
-                [Path(p) for p in args.extraction],
-                Path(args.trackd) if args.trackd else None,
-                Path(args.scale) if args.scale else None,
-                Path(args.reclass) if args.reclass else None, command)
+            batch = [Path(p) for p in args.batch]
+            expert = [Path(p) for p in args.expert]
+            extraction = [Path(p) for p in args.extraction]
+            text = build(batch, expert, extraction,
+                         Path(args.trackd) if args.trackd else None,
+                         Path(args.scale) if args.scale else None,
+                         Path(args.reclass) if args.reclass else None, command)
             Path(args.output).write_text(text, encoding="utf-8")
-            print(json.dumps({"out": args.output, "bytes": len(text)}, indent=2))
+            written = []
+            if args.latex:
+                summaries = load_summaries(batch)
+                agg, cell, candidates = expert_index(expert)
+                rows = aggregate(summaries, agg, cell, extract_index(extraction))
+                trackd = json.loads(Path(args.trackd).read_text()) if args.trackd else None
+                scale = json.loads(Path(args.scale).read_text()) if args.scale else None
+                mutation = json.loads(Path(args.mutation).read_text()) if args.mutation else None
+                postedit = json.loads(Path(args.postedit).read_text()) if args.postedit else None
+                shas = [("binary", summaries[0].get("binary_sha256") if summaries else "unknown")]
+                written = latex_tables(rows, candidates, trackd, scale, mutation,
+                                       postedit, Path(args.latex), command, shas)
+            print(json.dumps({"out": args.output, "bytes": len(text),
+                              "latex": written}, indent=2))
             return 0
 
         if args.command == "scale":
