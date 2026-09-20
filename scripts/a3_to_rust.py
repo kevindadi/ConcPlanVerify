@@ -62,7 +62,7 @@ def main() -> int:
     cells: list[tuple[int, str, str, str]] = []
     for rep in summary["reps"]:
         for task in rep["tasks"]:
-            for arm in ("A3_local", "A3_whole"):
+            for arm in ("A3_local", "A3_whole", "A3_tiered"):
                 rec = (task.get("arms") or {}).get(arm) or {}
                 if not rec.get("accepted"):
                     continue
@@ -152,7 +152,7 @@ def main() -> int:
     # Write back into the main batch cells' oracle.*
     for rep in summary["reps"]:
         for task in rep["tasks"]:
-            for arm in ("A3_local", "A3_whole"):
+            for arm in ("A3_local", "A3_whole", "A3_tiered"):
                 rec = (task.get("arms") or {}).get(arm) or {}
                 if not rec.get("accepted"):
                     continue

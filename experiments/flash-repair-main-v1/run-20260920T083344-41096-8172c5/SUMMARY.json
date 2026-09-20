@@ -1124,6 +1124,84 @@
          "wall_ms": 23
         }
        }
+      },
+      "A3_tiered": {
+       "task": "lock-order/partial_deadlock_bystander",
+       "arm": "A3_tiered",
+       "accepted": false,
+       "accepted_round": null,
+       "status": "exhausted",
+       "escalated": true,
+       "decision_distribution": {
+        "explore_fail": 3,
+        "check_invalid": 1
+       },
+       "consumption": {
+        "http_requests": 2,
+        "total_tokens": 7769,
+        "rounds": 2,
+        "llm_wall_ms": 5496,
+        "tool_wall_ms": 89
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "bb01c083-4dde-4df5-89a3-06bae57d4cb0",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 344,
+          "prompt_tokens": 2762,
+          "total_tokens": 3106,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 2560
+          },
+          "prompt_cache_hit_tokens": 2560,
+          "prompt_cache_miss_tokens": 202
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "c8c1cc54a7eaa30d15e2eaee5cde148fb117aec51e4cf6aa72e9078e37ff6d44",
+         "wall_ms": 2094,
+         "had_feedback": true
+        },
+        {
+         "attempt": 2,
+         "request_id": "a6efeb57-89f4-4653-b116-30db34595280",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 1088,
+          "prompt_tokens": 3575,
+          "total_tokens": 4663,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 2432
+          },
+          "prompt_cache_hit_tokens": 2432,
+          "prompt_cache_miss_tokens": 1143
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "25b08d788932d0dcc68e2c0a9a24eeb2793fee0289c3b91557e84b6a70288928",
+         "wall_ms": 3402,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/lock-order__partial_deadlock_bystander/A3_tiered/whole/run-20260920T120834-11405-6c60c1/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": false,
+        "preserved_ok": false,
+        "fidelity_ok": null,
+        "bug_present": true,
+        "evidence": {
+         "outcome": "INVALID",
+         "complete": true,
+         "states_explored": 0,
+         "wall_ms": 23
+        }
+       }
       }
      },
      "rep": 0
@@ -2007,6 +2085,72 @@
         "miri_seeds": 16,
         "a3_to_rust": {
          "cir_sha256": "ee219afd4c9a4da150ef0ed04ba43f88c5663045671aea0fed83f64b893a2d42",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
+      },
+      "A3_tiered": {
+       "task": "lock-order/cross_module_cycle",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 1912,
+        "rounds": 1,
+        "llm_wall_ms": 899,
+        "tool_wall_ms": 58
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "444916b0-07e9-4a91-8b04-dbcb5f83da09",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 133,
+          "prompt_tokens": 1779,
+          "total_tokens": 1912,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1536
+          },
+          "prompt_cache_hit_tokens": 1536,
+          "prompt_cache_miss_tokens": 243
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "008a43bf94648863474ba70111c7f6caec16f0c55af19269bbd057f203ce51b8",
+         "wall_ms": 899,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/lock-order__cross_module_cycle/A3_tiered/local/run-20260920T120838-11405-8d7f34/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 39,
+         "wall_ms": 19
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "b6670dfe6687f5298d03bd03e6c6995107f0a84e5c9215e0bc94688f14c4ce49",
          "conform_traces": 36,
          "dedup_of": null
         }
@@ -3224,6 +3368,72 @@
          "dedup_of": null
         }
        }
+      },
+      "A3_tiered": {
+       "task": "lock-order/cycle_3lock",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 2096,
+        "rounds": 1,
+        "llm_wall_ms": 1194,
+        "tool_wall_ms": 70
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "903e9fbe-0ce6-49df-b504-a737b016cb55",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 133,
+          "prompt_tokens": 1963,
+          "total_tokens": 2096,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1792
+          },
+          "prompt_cache_hit_tokens": 1792,
+          "prompt_cache_miss_tokens": 171
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "0eecd52cde38e19b2587940c1209eecbf3998c5014ff841c5df08cd8ebdc4df2",
+         "wall_ms": 1194,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/lock-order__cycle_3lock/A3_tiered/local/run-20260920T120839-11405-61967f/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 286,
+         "wall_ms": 23
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "2973ea709269a0b6ad37f68e09af505a3b41fc3a79dcff4a602d71fe38334258",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
       }
      },
      "rep": 0
@@ -4155,6 +4365,72 @@
          "dedup_of": null
         }
        }
+      },
+      "A3_tiered": {
+       "task": "structure/nested_scope_lock_order",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 2054,
+        "rounds": 1,
+        "llm_wall_ms": 1339,
+        "tool_wall_ms": 55
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "db3f506a-4b70-43b3-bff8-5d0c6b32fd66",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 133,
+          "prompt_tokens": 1921,
+          "total_tokens": 2054,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1787
+          },
+          "prompt_cache_hit_tokens": 1787,
+          "prompt_cache_miss_tokens": 134
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "c6876a49cc899d2bb01f3fe46bab9628b96531baa1221c470b16eb3230cedf45",
+         "wall_ms": 1339,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/structure__nested_scope_lock_order/A3_tiered/local/run-20260920T120840-11405-08f04b/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 41,
+         "wall_ms": 19
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "d8d9b2cb5b6db6a7e8b2573908b63996383738796e90880e12f705aed6fd83ff",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
       }
      },
      "rep": 0
@@ -4991,6 +5267,72 @@
          "complete": null,
          "states_explored": null,
          "wall_ms": 4
+        }
+       }
+      },
+      "A3_tiered": {
+       "task": "condvar/notify_one_multi_waiter_wrong_pick",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 2851,
+        "rounds": 1,
+        "llm_wall_ms": 1581,
+        "tool_wall_ms": 60
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "26e13c82-259a-4eb9-ac2c-578ec1c115bb",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 463,
+          "prompt_tokens": 2388,
+          "total_tokens": 2851,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 2176
+          },
+          "prompt_cache_hit_tokens": 2176,
+          "prompt_cache_miss_tokens": 212
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "0f1fc70705cba7d5124b6d86a725a4897575eb16b134b37cc1d2be6c154178ac",
+         "wall_ms": 1581,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/condvar__notify_one_multi_waiter_wrong_pick/A3_tiered/local/run-20260920T120841-11405-bc3979/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 83,
+         "wall_ms": 20
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "555d3c7f72559dd9c6bf0c8166ae4d09a9fe828558743e3603d87acb94945712",
+         "conform_traces": 36,
+         "dedup_of": null
         }
        }
       }
@@ -5924,6 +6266,72 @@
          "dedup_of": null
         }
        }
+      },
+      "A3_tiered": {
+       "task": "channel/bounded_backpressure_lock_held",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 2165,
+        "rounds": 1,
+        "llm_wall_ms": 1074,
+        "tool_wall_ms": 54
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "034cf3c9-c401-4d0d-bbf4-53102f11e235",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 189,
+          "prompt_tokens": 1976,
+          "total_tokens": 2165,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1792
+          },
+          "prompt_cache_hit_tokens": 1792,
+          "prompt_cache_miss_tokens": 184
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "6a7195e57d60648aa182e95c2db7ef4b79e6b9c7a701e2bf0e35342fc49a59da",
+         "wall_ms": 1074,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/channel__bounded_backpressure_lock_held/A3_tiered/local/run-20260920T120843-11405-a91096/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 20,
+         "wall_ms": 21
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "6dee7d7f06cff0250c6f8379b99f84396d5ae4075dd2699e1be4cd7c371bcba3",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
       }
      },
      "rep": 0
@@ -6682,6 +7090,72 @@
         "miri_seeds": 16,
         "a3_to_rust": {
          "cir_sha256": "24fd4d02b94e1472b77d9e07c7bbbfe652505eedbba1bd267b6fee0aa679fc43",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
+      },
+      "A3_tiered": {
+       "task": "channel/send_while_holding_mutex",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 1519,
+        "rounds": 1,
+        "llm_wall_ms": 859,
+        "tool_wall_ms": 49
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "b6668f82-2e0b-46c4-9494-d121129ce28a",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 113,
+          "prompt_tokens": 1406,
+          "total_tokens": 1519,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1152
+          },
+          "prompt_cache_hit_tokens": 1152,
+          "prompt_cache_miss_tokens": 254
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "d719977c1ca2fae5cba8542b1b3ccfb7a01872b3f81218fe01272693ec5ae4c9",
+         "wall_ms": 859,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/channel__send_while_holding_mutex/A3_tiered/local/run-20260920T120844-11405-86c73e/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 9,
+         "wall_ms": 17
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "941a9d3838d971f1a9fbcfe91bc381bba998b07d1106f3b71639aa1494073b02",
          "conform_traces": 36,
          "dedup_of": null
         }
@@ -7973,6 +8447,72 @@
         "miri_seeds": 16,
         "a3_to_rust": {
          "cir_sha256": "b0a4ff3addefa50a78b2bd0b87e9af3aea7b4be54899e8aa4e17eb0aaa8ca487",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
+      },
+      "A3_tiered": {
+       "task": "semaphore/acquire_twice_no_release",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 1763,
+        "rounds": 1,
+        "llm_wall_ms": 827,
+        "tool_wall_ms": 48
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "71bcd645-7e46-4111-b870-2d1e2105e904",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 99,
+          "prompt_tokens": 1664,
+          "total_tokens": 1763,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1408
+          },
+          "prompt_cache_hit_tokens": 1408,
+          "prompt_cache_miss_tokens": 256
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "5fc27b8da5997d0ece96e4dd3fc8ad713c9b942807f6a95776e8a5c39a3133b8",
+         "wall_ms": 827,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/semaphore__acquire_twice_no_release/A3_tiered/local/run-20260920T120845-11405-a3262f/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 23,
+         "wall_ms": 17
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "fe3204a68c36586076b7db4b0c1678d2caf43b9dba96c83c183e03e3e8f97423",
          "conform_traces": 36,
          "dedup_of": null
         }
@@ -9284,6 +9824,84 @@
          "dedup_of": null
         }
        }
+      },
+      "A3_tiered": {
+       "task": "lock-order/partial_deadlock_bystander",
+       "arm": "A3_tiered",
+       "accepted": false,
+       "accepted_round": null,
+       "status": "exhausted",
+       "escalated": true,
+       "decision_distribution": {
+        "explore_fail": 3,
+        "check_invalid": 1
+       },
+       "consumption": {
+        "http_requests": 2,
+        "total_tokens": 7698,
+        "rounds": 2,
+        "llm_wall_ms": 4560,
+        "tool_wall_ms": 89
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "b5f50efc-774d-4cd0-8c79-66032a4bf2ee",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 368,
+          "prompt_tokens": 2762,
+          "total_tokens": 3130,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 2560
+          },
+          "prompt_cache_hit_tokens": 2560,
+          "prompt_cache_miss_tokens": 202
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "c8c1cc54a7eaa30d15e2eaee5cde148fb117aec51e4cf6aa72e9078e37ff6d44",
+         "wall_ms": 1642,
+         "had_feedback": true
+        },
+        {
+         "attempt": 2,
+         "request_id": "dce1632c-7ffa-4d47-b79d-63788178e912",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 993,
+          "prompt_tokens": 3575,
+          "total_tokens": 4568,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 3328
+          },
+          "prompt_cache_hit_tokens": 3328,
+          "prompt_cache_miss_tokens": 247
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "25b08d788932d0dcc68e2c0a9a24eeb2793fee0289c3b91557e84b6a70288928",
+         "wall_ms": 2918,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-1/lock-order__partial_deadlock_bystander/A3_tiered/whole/run-20260920T120848-11405-ee9427/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": false,
+        "preserved_ok": false,
+        "fidelity_ok": null,
+        "bug_present": true,
+        "evidence": {
+         "outcome": "INVALID",
+         "complete": true,
+         "states_explored": 0,
+         "wall_ms": 16
+        }
+       }
       }
      },
      "rep": 1
@@ -10167,6 +10785,72 @@
         "miri_seeds": 16,
         "a3_to_rust": {
          "cir_sha256": "ee219afd4c9a4da150ef0ed04ba43f88c5663045671aea0fed83f64b893a2d42",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
+      },
+      "A3_tiered": {
+       "task": "lock-order/cross_module_cycle",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 1912,
+        "rounds": 1,
+        "llm_wall_ms": 1259,
+        "tool_wall_ms": 46
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "40c67194-8dc7-42dd-8d62-7a7d7b355887",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 133,
+          "prompt_tokens": 1779,
+          "total_tokens": 1912,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1536
+          },
+          "prompt_cache_hit_tokens": 1536,
+          "prompt_cache_miss_tokens": 243
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "008a43bf94648863474ba70111c7f6caec16f0c55af19269bbd057f203ce51b8",
+         "wall_ms": 1259,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-1/lock-order__cross_module_cycle/A3_tiered/local/run-20260920T120851-11405-87f9a2/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 39,
+         "wall_ms": 17
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "b6670dfe6687f5298d03bd03e6c6995107f0a84e5c9215e0bc94688f14c4ce49",
          "conform_traces": 36,
          "dedup_of": null
         }
@@ -11384,6 +12068,72 @@
          "dedup_of": null
         }
        }
+      },
+      "A3_tiered": {
+       "task": "lock-order/cycle_3lock",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 2096,
+        "rounds": 1,
+        "llm_wall_ms": 1142,
+        "tool_wall_ms": 56
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "2ff6172a-5f4a-4382-8562-2b1cba8aa845",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 133,
+          "prompt_tokens": 1963,
+          "total_tokens": 2096,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1792
+          },
+          "prompt_cache_hit_tokens": 1792,
+          "prompt_cache_miss_tokens": 171
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "0eecd52cde38e19b2587940c1209eecbf3998c5014ff841c5df08cd8ebdc4df2",
+         "wall_ms": 1142,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-1/lock-order__cycle_3lock/A3_tiered/local/run-20260920T120852-11405-3b4f93/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 286,
+         "wall_ms": 21
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "2973ea709269a0b6ad37f68e09af505a3b41fc3a79dcff4a602d71fe38334258",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
       }
      },
      "rep": 1
@@ -12315,6 +13065,72 @@
          "dedup_of": null
         }
        }
+      },
+      "A3_tiered": {
+       "task": "structure/nested_scope_lock_order",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 2054,
+        "rounds": 1,
+        "llm_wall_ms": 985,
+        "tool_wall_ms": 47
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "e7ac5908-93a2-445a-aa26-acbd2c527022",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 133,
+          "prompt_tokens": 1921,
+          "total_tokens": 2054,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1787
+          },
+          "prompt_cache_hit_tokens": 1787,
+          "prompt_cache_miss_tokens": 134
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "c6876a49cc899d2bb01f3fe46bab9628b96531baa1221c470b16eb3230cedf45",
+         "wall_ms": 985,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-1/structure__nested_scope_lock_order/A3_tiered/local/run-20260920T120853-11405-4deca5/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 41,
+         "wall_ms": 17
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "d8d9b2cb5b6db6a7e8b2573908b63996383738796e90880e12f705aed6fd83ff",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
       }
      },
      "rep": 1
@@ -13159,6 +13975,72 @@
         "miri_seeds": 16,
         "a3_to_rust": {
          "cir_sha256": "bf12945c0b413dc8654d3146368b3bb9363d7ff6eef8a5855e0c3cc754fc3afb",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
+      },
+      "A3_tiered": {
+       "task": "condvar/notify_one_multi_waiter_wrong_pick",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 2851,
+        "rounds": 1,
+        "llm_wall_ms": 1576,
+        "tool_wall_ms": 50
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "aae19e0a-c7eb-4997-9f0d-fee4b93692e1",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 463,
+          "prompt_tokens": 2388,
+          "total_tokens": 2851,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 2176
+          },
+          "prompt_cache_hit_tokens": 2176,
+          "prompt_cache_miss_tokens": 212
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "0f1fc70705cba7d5124b6d86a725a4897575eb16b134b37cc1d2be6c154178ac",
+         "wall_ms": 1576,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-1/condvar__notify_one_multi_waiter_wrong_pick/A3_tiered/local/run-20260920T120854-11405-ce932c/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 83,
+         "wall_ms": 18
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "555d3c7f72559dd9c6bf0c8166ae4d09a9fe828558743e3603d87acb94945712",
          "conform_traces": 36,
          "dedup_of": null
         }
@@ -14094,6 +14976,72 @@
          "dedup_of": null
         }
        }
+      },
+      "A3_tiered": {
+       "task": "channel/bounded_backpressure_lock_held",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 2165,
+        "rounds": 1,
+        "llm_wall_ms": 1130,
+        "tool_wall_ms": 46
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "89357bef-0160-4767-9527-9a5721d3d275",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 189,
+          "prompt_tokens": 1976,
+          "total_tokens": 2165,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1792
+          },
+          "prompt_cache_hit_tokens": 1792,
+          "prompt_cache_miss_tokens": 184
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "6a7195e57d60648aa182e95c2db7ef4b79e6b9c7a701e2bf0e35342fc49a59da",
+         "wall_ms": 1130,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-1/channel__bounded_backpressure_lock_held/A3_tiered/local/run-20260920T120856-11405-ca3540/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 20,
+         "wall_ms": 16
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "6dee7d7f06cff0250c6f8379b99f84396d5ae4075dd2699e1be4cd7c371bcba3",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
       }
      },
      "rep": 1
@@ -14852,6 +15800,72 @@
         "miri_seeds": 16,
         "a3_to_rust": {
          "cir_sha256": "24fd4d02b94e1472b77d9e07c7bbbfe652505eedbba1bd267b6fee0aa679fc43",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
+      },
+      "A3_tiered": {
+       "task": "channel/send_while_holding_mutex",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 1519,
+        "rounds": 1,
+        "llm_wall_ms": 1069,
+        "tool_wall_ms": 44
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "5b827f93-0196-49cf-8a86-5976b1abfa23",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 113,
+          "prompt_tokens": 1406,
+          "total_tokens": 1519,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1152
+          },
+          "prompt_cache_hit_tokens": 1152,
+          "prompt_cache_miss_tokens": 254
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "d719977c1ca2fae5cba8542b1b3ccfb7a01872b3f81218fe01272693ec5ae4c9",
+         "wall_ms": 1069,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-1/channel__send_while_holding_mutex/A3_tiered/local/run-20260920T120857-11405-0ada3a/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 9,
+         "wall_ms": 17
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "941a9d3838d971f1a9fbcfe91bc381bba998b07d1106f3b71639aa1494073b02",
          "conform_traces": 36,
          "dedup_of": null
         }
@@ -15996,6 +17010,72 @@
         "miri_seeds": 16,
         "a3_to_rust": {
          "cir_sha256": "b0a4ff3addefa50a78b2bd0b87e9af3aea7b4be54899e8aa4e17eb0aaa8ca487",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
+      },
+      "A3_tiered": {
+       "task": "semaphore/acquire_twice_no_release",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 1763,
+        "rounds": 1,
+        "llm_wall_ms": 926,
+        "tool_wall_ms": 45
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "82e5b444-d876-49ce-9d7c-b328cd7d5232",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 99,
+          "prompt_tokens": 1664,
+          "total_tokens": 1763,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1408
+          },
+          "prompt_cache_hit_tokens": 1408,
+          "prompt_cache_miss_tokens": 256
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "5fc27b8da5997d0ece96e4dd3fc8ad713c9b942807f6a95776e8a5c39a3133b8",
+         "wall_ms": 926,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-1/semaphore__acquire_twice_no_release/A3_tiered/local/run-20260920T120858-11405-6bc877/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 23,
+         "wall_ms": 18
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "fe3204a68c36586076b7db4b0c1678d2caf43b9dba96c83c183e03e3e8f97423",
          "conform_traces": 36,
          "dedup_of": null
         }
@@ -17920,6 +19000,84 @@
          "dedup_of": null
         }
        }
+      },
+      "A3_tiered": {
+       "task": "lock-order/partial_deadlock_bystander",
+       "arm": "A3_tiered",
+       "accepted": false,
+       "accepted_round": null,
+       "status": "exhausted",
+       "escalated": true,
+       "decision_distribution": {
+        "explore_fail": 3,
+        "check_invalid": 1
+       },
+       "consumption": {
+        "http_requests": 2,
+        "total_tokens": 7603,
+        "rounds": 2,
+        "llm_wall_ms": 4802,
+        "tool_wall_ms": 79
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "b5fb6d74-8910-43d1-94d7-c3a1d11d8b50",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 344,
+          "prompt_tokens": 2762,
+          "total_tokens": 3106,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 2560
+          },
+          "prompt_cache_hit_tokens": 2560,
+          "prompt_cache_miss_tokens": 202
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "c8c1cc54a7eaa30d15e2eaee5cde148fb117aec51e4cf6aa72e9078e37ff6d44",
+         "wall_ms": 1679,
+         "had_feedback": true
+        },
+        {
+         "attempt": 2,
+         "request_id": "7090f7d4-6fd0-418a-8025-84c6e55b96a8",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 922,
+          "prompt_tokens": 3575,
+          "total_tokens": 4497,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 3328
+          },
+          "prompt_cache_hit_tokens": 3328,
+          "prompt_cache_miss_tokens": 247
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "25b08d788932d0dcc68e2c0a9a24eeb2793fee0289c3b91557e84b6a70288928",
+         "wall_ms": 3123,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-2/lock-order__partial_deadlock_bystander/A3_tiered/whole/run-20260920T120901-11405-e30a9a/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": false,
+        "preserved_ok": false,
+        "fidelity_ok": null,
+        "bug_present": true,
+        "evidence": {
+         "outcome": "INVALID",
+         "complete": true,
+         "states_explored": 0,
+         "wall_ms": 18
+        }
+       }
       }
      },
      "rep": 2
@@ -18803,6 +19961,72 @@
         "miri_seeds": 16,
         "a3_to_rust": {
          "cir_sha256": "ee219afd4c9a4da150ef0ed04ba43f88c5663045671aea0fed83f64b893a2d42",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
+      },
+      "A3_tiered": {
+       "task": "lock-order/cross_module_cycle",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 1912,
+        "rounds": 1,
+        "llm_wall_ms": 940,
+        "tool_wall_ms": 48
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "1e4c3b1f-9582-4bd3-ac2b-7a1802a69e51",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 133,
+          "prompt_tokens": 1779,
+          "total_tokens": 1912,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1536
+          },
+          "prompt_cache_hit_tokens": 1536,
+          "prompt_cache_miss_tokens": 243
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "008a43bf94648863474ba70111c7f6caec16f0c55af19269bbd057f203ce51b8",
+         "wall_ms": 940,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-2/lock-order__cross_module_cycle/A3_tiered/local/run-20260920T120904-11405-1751ce/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 39,
+         "wall_ms": 17
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "b6670dfe6687f5298d03bd03e6c6995107f0a84e5c9215e0bc94688f14c4ce49",
          "conform_traces": 36,
          "dedup_of": null
         }
@@ -20032,6 +21256,72 @@
          "wall_ms": 23
         }
        }
+      },
+      "A3_tiered": {
+       "task": "lock-order/cycle_3lock",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 2096,
+        "rounds": 1,
+        "llm_wall_ms": 1013,
+        "tool_wall_ms": 58
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "7da386a2-741b-467c-b85e-49e7908ce138",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 133,
+          "prompt_tokens": 1963,
+          "total_tokens": 2096,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1792
+          },
+          "prompt_cache_hit_tokens": 1792,
+          "prompt_cache_miss_tokens": 171
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "0eecd52cde38e19b2587940c1209eecbf3998c5014ff841c5df08cd8ebdc4df2",
+         "wall_ms": 1013,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-2/lock-order__cycle_3lock/A3_tiered/local/run-20260920T120905-11405-722d4a/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 286,
+         "wall_ms": 22
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "2973ea709269a0b6ad37f68e09af505a3b41fc3a79dcff4a602d71fe38334258",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
       }
      },
      "rep": 2
@@ -20951,6 +22241,72 @@
          "complete": null,
          "states_explored": null,
          "wall_ms": 4
+        }
+       }
+      },
+      "A3_tiered": {
+       "task": "structure/nested_scope_lock_order",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 2054,
+        "rounds": 1,
+        "llm_wall_ms": 906,
+        "tool_wall_ms": 51
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "76956c98-f849-4e9f-a4ca-8d51b5c4d947",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 133,
+          "prompt_tokens": 1921,
+          "total_tokens": 2054,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1787
+          },
+          "prompt_cache_hit_tokens": 1787,
+          "prompt_cache_miss_tokens": 134
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "c6876a49cc899d2bb01f3fe46bab9628b96531baa1221c470b16eb3230cedf45",
+         "wall_ms": 906,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-2/structure__nested_scope_lock_order/A3_tiered/local/run-20260920T120906-11405-88669a/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 41,
+         "wall_ms": 18
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "d8d9b2cb5b6db6a7e8b2573908b63996383738796e90880e12f705aed6fd83ff",
+         "conform_traces": 36,
+         "dedup_of": null
         }
        }
       }
@@ -21880,6 +23236,72 @@
         "miri_seeds": 16,
         "a3_to_rust": {
          "cir_sha256": "bf12945c0b413dc8654d3146368b3bb9363d7ff6eef8a5855e0c3cc754fc3afb",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
+      },
+      "A3_tiered": {
+       "task": "condvar/notify_one_multi_waiter_wrong_pick",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 2851,
+        "rounds": 1,
+        "llm_wall_ms": 1693,
+        "tool_wall_ms": 48
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "dfd3eb40-5846-47fe-aa61-f718086fa206",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 463,
+          "prompt_tokens": 2388,
+          "total_tokens": 2851,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 2176
+          },
+          "prompt_cache_hit_tokens": 2176,
+          "prompt_cache_miss_tokens": 212
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "0f1fc70705cba7d5124b6d86a725a4897575eb16b134b37cc1d2be6c154178ac",
+         "wall_ms": 1693,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-2/condvar__notify_one_multi_waiter_wrong_pick/A3_tiered/local/run-20260920T120907-11405-c714cc/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 83,
+         "wall_ms": 18
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "555d3c7f72559dd9c6bf0c8166ae4d09a9fe828558743e3603d87acb94945712",
          "conform_traces": 36,
          "dedup_of": null
         }
@@ -22835,6 +24257,72 @@
          "dedup_of": null
         }
        }
+      },
+      "A3_tiered": {
+       "task": "channel/bounded_backpressure_lock_held",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 2165,
+        "rounds": 1,
+        "llm_wall_ms": 892,
+        "tool_wall_ms": 47
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "dc2efcbf-0dde-4b0a-a546-e04a7a70b2f2",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 189,
+          "prompt_tokens": 1976,
+          "total_tokens": 2165,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1792
+          },
+          "prompt_cache_hit_tokens": 1792,
+          "prompt_cache_miss_tokens": 184
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "6a7195e57d60648aa182e95c2db7ef4b79e6b9c7a701e2bf0e35342fc49a59da",
+         "wall_ms": 892,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-2/channel__bounded_backpressure_lock_held/A3_tiered/local/run-20260920T120909-11405-e38885/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 20,
+         "wall_ms": 18
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "6dee7d7f06cff0250c6f8379b99f84396d5ae4075dd2699e1be4cd7c371bcba3",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
       }
      },
      "rep": 2
@@ -23593,6 +25081,72 @@
         "miri_seeds": 16,
         "a3_to_rust": {
          "cir_sha256": "24fd4d02b94e1472b77d9e07c7bbbfe652505eedbba1bd267b6fee0aa679fc43",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
+      },
+      "A3_tiered": {
+       "task": "channel/send_while_holding_mutex",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 1519,
+        "rounds": 1,
+        "llm_wall_ms": 900,
+        "tool_wall_ms": 48
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "3e134e3b-3c80-496a-9ee7-f01e30ee06dd",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 113,
+          "prompt_tokens": 1406,
+          "total_tokens": 1519,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1152
+          },
+          "prompt_cache_hit_tokens": 1152,
+          "prompt_cache_miss_tokens": 254
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "d719977c1ca2fae5cba8542b1b3ccfb7a01872b3f81218fe01272693ec5ae4c9",
+         "wall_ms": 900,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-2/channel__send_while_holding_mutex/A3_tiered/local/run-20260920T120910-11405-b38081/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 9,
+         "wall_ms": 17
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "941a9d3838d971f1a9fbcfe91bc381bba998b07d1106f3b71639aa1494073b02",
          "conform_traces": 36,
          "dedup_of": null
         }
@@ -24855,6 +26409,72 @@
          "dedup_of": null
         }
        }
+      },
+      "A3_tiered": {
+       "task": "semaphore/acquire_twice_no_release",
+       "arm": "A3_tiered",
+       "accepted": true,
+       "accepted_round": 2,
+       "status": "accepted",
+       "escalated": false,
+       "decision_distribution": {
+        "explore_fail": 1,
+        "accepted": 1
+       },
+       "consumption": {
+        "http_requests": 1,
+        "total_tokens": 1763,
+        "rounds": 1,
+        "llm_wall_ms": 1028,
+        "tool_wall_ms": 48
+       },
+       "llm_calls": [
+        {
+         "attempt": 2,
+         "request_id": "250f2568-5a58-415d-89e5-5bad8f762600",
+         "response_model": "deepseek-flash",
+         "finish_reason": "stop",
+         "usage": {
+          "completion_tokens": 99,
+          "prompt_tokens": 1664,
+          "total_tokens": 1763,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": {
+           "audio_tokens": null,
+           "cached_tokens": 1408
+          },
+          "prompt_cache_hit_tokens": 1408,
+          "prompt_cache_miss_tokens": 256
+         },
+         "transport_attempt": 1,
+         "prompt_sha256": "5fc27b8da5997d0ece96e4dd3fc8ad713c9b942807f6a95776e8a5c39a3133b8",
+         "wall_ms": 1028,
+         "had_feedback": true
+        }
+       ],
+       "final_cir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-2/semaphore__acquire_twice_no_release/A3_tiered/local/run-20260920T120911-11405-527c95/revision-2.normalized.cir.json",
+       "oracle": {
+        "verify_pass": true,
+        "preserved_ok": true,
+        "fidelity_ok": null,
+        "bug_present": false,
+        "evidence": {
+         "outcome": "PASS",
+         "complete": true,
+         "states_explored": 23,
+         "wall_ms": 17
+        },
+        "conform": "PASS",
+        "build_ok": true,
+        "behavior_status": "terminated_ok",
+        "miri_detected": false,
+        "miri_seeds": 16,
+        "a3_to_rust": {
+         "cir_sha256": "fe3204a68c36586076b7db4b0c1678d2caf43b9dba96c83c183e03e3e8f97423",
+         "conform_traces": 36,
+         "dedup_of": null
+        }
+       }
       }
      },
      "rep": 2
@@ -24863,6 +26483,12 @@
   }
  ],
  "stop_reason": null,
- "requests_used": 203,
- "requests_remaining": 97
+ "requests_used": 230,
+ "requests_remaining": 97,
+ "tiered": {
+  "requests_used": 27,
+  "cells": 24,
+  "accepted": 21,
+  "escalation_rate": 0.125
+ }
 }

@@ -17,7 +17,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-ARMS = ("A0_direct", "A1_self_iter", "A2_tools_iter_ml", "A3_local", "A3_whole")
+ARMS = ("A0_direct", "A1_self_iter", "A2_tools_iter_ml", "A3_local", "A3_whole",
+        "A3_tiered")
 RUST_ARMS = ("A0_direct", "A1_self_iter", "A2_tools_iter_ml")
 
 
@@ -184,7 +185,9 @@ def aggregate(summaries: list[dict[str, Any]], expert_agg: dict[str, dict],
         extract_c: Counter = Counter()
         conform_c: Counter = Counter()
         decisions: Counter = Counter()
+        escalated = 0
         for rep, rec in rep_recs:
+            escalated += 1 if rec.get("escalated") else 0
             accepted = bool(rec.get("accepted"))
             if overridden is not None and arm in ("A0_direct", "A1_self_iter"):
                 accepted = bool(overridden.get("accepted"))
@@ -243,6 +246,7 @@ def aggregate(summaries: list[dict[str, Any]], expert_agg: dict[str, dict],
             "conform": _counts_display(conform_c, n),
             "false_accept": fa_count, "fa_display": f"{fa_count}/{n}",
             "fa_sources": dict(fa_sources), "decisions": dict(decisions),
+            "escalated": escalated,
         })
     return rows
 
@@ -281,8 +285,8 @@ def render(rows: list[dict[str, Any]], expert_agg: dict[str, dict],
 
     L += ["### Per-arm aggregates", "",
           "| arm | cells | accepted | accept_rate | false_accept | conform_pass_rate | "
-          "tokens/correct_accept | by source |",
-          "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+          "escalation_rate | tokens/correct_accept | by source |",
+          "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for arm in ARMS:
         cells = [r for r in rows if r["arm"] == arm]
         if not cells:
@@ -304,7 +308,9 @@ def render(rows: list[dict[str, Any]], expert_agg: dict[str, dict],
                 if label == "PASS":
                     conf_pass += count
         cpr = f"{conf_pass}/{conf_n} = {conf_pass / conf_n:.2f}" if conf_n else "—"
-        L.append(f"| {arm} | {n} | {acc} | {acc / n:.2f} | {fa} | {cpr} | {tca} | "
+        esc = sum(r.get("escalated", 0) for r in cells)
+        er = f"{esc}/{n} = {esc / n:.2f}" if esc else "—"
+        L.append(f"| {arm} | {n} | {acc} | {acc / n:.2f} | {fa} | {cpr} | {er} | {tca} | "
                  f"{dict(src) or '—'} |")
     L += ["", "`tokens/correct_accept = Σ tokens / (accepted − false_accept)`; `∞` when "
               "the denominator is 0. `conform_pass_rate` is over A3 cells with a "
