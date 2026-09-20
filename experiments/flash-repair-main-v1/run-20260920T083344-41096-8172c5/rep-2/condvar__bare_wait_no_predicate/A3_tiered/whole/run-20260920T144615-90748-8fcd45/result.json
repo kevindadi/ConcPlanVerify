@@ -1,0 +1,154 @@
+{
+  "status": "exhausted",
+  "task": "condvar/bare_wait_no_predicate",
+  "requirements": "A waiter blocks on a condition variable until a predicate guarded by a mutex becomes true; a notifier makes it true and signals. The waiter must complete even if the signal arrives before it waits. On completion the program must print exactly one line `DONE ready=true` and then exit; it must terminate.\n",
+  "contract_sha256": "951beef3e911773d319b17bdc6111bc30f26551e2fa8ede26392581ccbe94320",
+  "out_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-2/condvar__bare_wait_no_predicate/A3_tiered/whole/run-20260920T144615-90748-8fcd45",
+  "max_rounds": 2,
+  "engine": "petri",
+  "diagnostics": true,
+  "check_fidelity": true,
+  "fidelity_name": null,
+  "versions": [
+    {
+      "version": 1,
+      "source": "frozen",
+      "raw_text": null,
+      "program_sha256": "bafd85b3314d059d85f85dd5f79624b7d767289e4bedd9511d9e31ccf1990e34",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-2/condvar__bare_wait_no_predicate/A3_tiered/whole/run-20260920T144615-90748-8fcd45/revision-1.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "usage_error",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "check_schema_error",
+      "request_sha256": null,
+      "feedback_sha256": "a05e046c49c82eaa4fa050cf03e1696a7ab38ac5db9f1773dd7e9742d8c0a7f6",
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "llm_wall_ms": 0,
+      "tool_wall_ms": 3,
+      "tool_output_sha256": "d3a2d8304169baf2bf4c24cdb773dacffaf9de6c669274f741555ec72b1486d5",
+      "normalizations": [],
+      "sid_issues": [],
+      "local_patch_function": null
+    },
+    {
+      "version": 2,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"bare_wait\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"mtx\", \"cv\", \"ready\"],\n        \"functions\": [\"main\", \"waiter\", \"notifier\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"mtx\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"cv\", \"kind\": \"sync\", \"type\": \"Condvar\", \"mode\": \"Sync\" },\n        { \"name\": \"ready\", \"kind\": \"var\", \"type\": \"Var\", \"mode\": \"Sync\" }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"scope\", \"funcs\": [\"main::waiter\", \"main::notifier\"] },\n            { \"sid\": \"s2\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"waiter\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"w1\", \"kind\": \"mutex_lock\", \"resource\": \"main::mtx\" },\n            { \"sid\": \"w2\", \"kind\": \"branch\", \"cond\": \"ready == true\", \"then\": \"w5\", \"else\": \"w3\" },\n            { \"sid\": \"w3\", \"kind\": \"condvar_wait\", \"condvar\": \"main::cv\", \"lock\": \"main::mtx\" },\n            { \"sid\": \"w4\", \"kind\": \"goto\", \"target\": \"w2\" },\n            { \"sid\": \"w5\", \"kind\": \"mutex_unlock\", \"resource\": \"main::mtx\" },\n            { \"sid\": \"w6\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"notifier\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"n1\", \"kind\": \"mutex_lock\", \"resource\": \"main::mtx\" },\n            { \"sid\": \"n2\", \"kind\": \"write_shared\", \"resource\": \"main::ready\", \"expr\": \"true\" },\n            { \"sid\": \"n3\", \"kind\": \"condvar_notify\", \"condvar\": \"main::cv\" },\n            { \"sid\": \"n4\", \"kind\": \"mutex_unlock\", \"resource\": \"main::mtx\" },\n            { \"sid\": \"n5\", \"kind\": \"return\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "29c18b2190f4b43b5e5d3628b62a1b4f27666a20b9bcbed2f857ebbf4e649863",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-2/condvar__bare_wait_no_predicate/A3_tiered/whole/run-20260920T144615-90748-8fcd45/revision-2.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "invalid",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "check_invalid",
+      "request_sha256": "84fa8ee0b09f9da3f35421556b3fb34c0f29497357e41c1e4a725c4f0ffb3146",
+      "feedback_sha256": "635619ca2f6abb372b9c8cb8ad9c91bf0c58ab34d7d500fd8dab2ef1ffee57de",
+      "prompt_tokens": 2101,
+      "completion_tokens": 645,
+      "llm_wall_ms": 2025,
+      "tool_wall_ms": 4,
+      "tool_output_sha256": "548ea2244226415b170182bb4b62a64e0df39fe52f90863b60cc86e121fe61bb",
+      "normalizations": [
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "ready",
+          "field": "mode"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "waiter",
+          "from": "w1",
+          "to": "s1"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "waiter",
+          "from": "w2",
+          "to": "s2"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "waiter",
+          "from": "w3",
+          "to": "s3"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "waiter",
+          "from": "w4",
+          "to": "s4"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "waiter",
+          "from": "w5",
+          "to": "s5"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "waiter",
+          "from": "w6",
+          "to": "s6"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "notifier",
+          "from": "n1",
+          "to": "s1"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "notifier",
+          "from": "n2",
+          "to": "s2"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "notifier",
+          "from": "n3",
+          "to": "s3"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "notifier",
+          "from": "n4",
+          "to": "s4"
+        },
+        {
+          "rule": "sid_rename",
+          "function": "notifier",
+          "from": "n5",
+          "to": "s5"
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    }
+  ],
+  "accepted_version": null,
+  "repair_mode": "llm_revision",
+  "candidate_source": "llm",
+  "consumption": {
+    "http_requests": 1,
+    "prompt_tokens": 2101,
+    "completion_tokens": 645,
+    "total_tokens": 2746,
+    "llm_wall_ms": 2025,
+    "tool_wall_ms": 7,
+    "rounds": 1,
+    "first_correct_round": null
+  },
+  "error": "no complete PASS within 2 rounds",
+  "accepted": false
+}

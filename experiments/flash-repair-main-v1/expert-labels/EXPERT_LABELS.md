@@ -1,6 +1,6 @@
 # Expert labels v2 (per candidate)
 
-- rubric `expert-label-rubric-v2`; candidates 49; unsure 0 (0.0); agreement 95/104
+- rubric `expert-label-rubric-v2`; candidates 54; unsure 4 (0.074); agreement 108/117
 - design_loss by arm: {'A0_direct': 1, 'A3_local': 2, 'A3_whole': 4, 'A1_self_iter': 1}
 
 | sha256 | task | arm | kind | bug_present | design_preserved | unsure_reason | evidence |
@@ -34,11 +34,15 @@
 | `12cfc7f3617e` | semaphore/acquire_twice_no_release | A2_tools_iter_ml | rust | no | yes |  | acq=2,rel=2; acq=1,rel=1 |
 | `1901bf15e784` | semaphore/acquire_twice_no_release | A3_local | a3-rust | no | yes |  | acq=0,rel=0; acq=0,rel=0 |
 | `84f0ae3ead6e` | semaphore/acquire_twice_no_release | A3_whole | a3-rust | no | yes |  | acq=0,rel=0; acq=0,rel=0 |
+| `12195b60e3cb` | lock-order/abba_2lock | A0_direct | rust | no | yes |  | lock sequences: a->b; a->b; no cycle |
+| `93eaf520459c` | lock-order/abba_2lock | A3_local | a3-rust | no | yes |  | lock sequences: r_main__a->r_main__b; r_main__a->r_main__b; no cycle |
+| `e53544b9c364` | condvar/bare_wait_no_predicate | A0_direct | rust | unsure | yes | ambiguous_spec | waiters=1; notify_one=no; notify_all=yes |
+| `394c5e1e06b6` | condvar/bare_wait_no_predicate | A1_self_iter | rust | unsure | yes | ambiguous_spec | waiters=1; notify_one=no; notify_all=yes |
+| `52b496de2a26` | condvar/bare_wait_no_predicate | A3_whole | a3-rust | unsure | yes | ambiguous_spec | waiters=1; notify_one=yes; notify_all=no |
 | `a4503ffe4461` | lock-order/partial_deadlock_bystander | A0_direct | rust | yes | yes |  | lock sequences: ma->mb; mb->ma; cycle among ['ma', 'mb'] |
 | `1ff1454288bf` | lock-order/partial_deadlock_bystander | A1_self_iter | rust | yes | yes |  | lock sequences: ma->mb; mb->ma; cycle among ['ma', 'mb'] |
 | `f4db34f1644d` | lock-order/partial_deadlock_bystander | A3_whole | a3-rust | no | yes |  | lock sequences: r_main__a->r_main__b->r_main__done_a; r_main__a->r_main__b->r_ma |
 | `9bab819deee2` | lock-order/cross_module_cycle | A0_direct | rust | no | yes |  | lock sequences: a->b; a->b; no cycle |
-| `c6e9a78ee029` | condvar/notify_one_multi_waiter_wrong_pick | A3_local | a3-rust | no | yes |  | waiters=2; notify_one=yes; notify_all=yes |
 | `be85c5f756ec` | condvar/notify_one_multi_waiter_wrong_pick | A3_whole | a3-rust | no | yes |  | waiters=2; notify_one=no; notify_all=yes |
 | `e443cf0e3e70` | channel/bounded_backpressure_lock_held | A3_whole | a3-rust | no | no |  | channel ops with a lock held: none |
 | `b607a97d0ac7` | channel/send_while_holding_mutex | A0_direct | rust | no | yes |  | channel ops with a lock held: none |
@@ -54,3 +58,4 @@
 | `ae1e465a6fbb` | channel/send_while_holding_mutex | A2_tools_iter_ml | rust | no | yes |  | channel ops with a lock held: none |
 | `b6f7d6651e0e` | semaphore/acquire_twice_no_release | A1_self_iter | rust | no | yes |  | acq=2,rel=2; acq=1,rel=1 |
 | `0501dcb3a49d` | semaphore/acquire_twice_no_release | A2_tools_iter_ml | rust | no | yes |  | acq=2,rel=2; acq=1,rel=1 |
+| `90aee29b3ffa` | condvar/bare_wait_no_predicate | A3_whole | a3-rust | unsure | yes | ambiguous_spec | waiters=1; notify_one=yes; notify_all=no |

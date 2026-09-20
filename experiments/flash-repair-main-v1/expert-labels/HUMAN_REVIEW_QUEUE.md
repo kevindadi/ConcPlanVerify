@@ -14,7 +14,11 @@ Fill `human_label` (`yes`/`no`/`unsure`) and one reason; do not let an agent fil
 | semaphore/acquire_twice_no_release | A0_direct | 0 | `f42afd77e7a9` | no | True | | |
 | semaphore/acquire_twice_no_release | A0_direct | 2 | `f42afd77e7a9` | no | True | | |
 | lock-order/partial_deadlock_bystander | A1_self_iter | 1 | `1ff1454288bf` | yes | False | | |
-| semaphore/acquire_twice_no_release | A2_tools_iter_ml | 1 | `d463f5f9f603` | no | False | | |
-| lock-order/partial_deadlock_bystander | A3_whole | 2 | `0951c33394bd` | no | False | | |
-| semaphore/acquire_twice_no_release | A2_tools_iter_ml | 2 | `0501dcb3a49d` | no | False | | |
+| condvar/bare_wait_no_predicate | A0_direct | 0 | `e53544b9c364` | unsure | False | | |
+| condvar/bare_wait_no_predicate | A1_self_iter | 0 | `394c5e1e06b6` | unsure | False | | |
+| condvar/bare_wait_no_predicate | A3_whole | 0 | `52b496de2a26` | unsure | False | | |
+| condvar/bare_wait_no_predicate | A3_whole | 2 | `90aee29b3ffa` | unsure | False | | |
+| semaphore/acquire_twice_no_release | A1_self_iter | 1 | `c42fa5ece43f` | no | False | | |
+| lock-order/partial_deadlock_bystander | A1_self_iter | 2 | `a08bd1a020fa` | no | False | | |
+| semaphore/acquire_twice_no_release | A1_self_iter | 2 | `b6f7d6651e0e` | no | False | | |
 | channel/bounded_backpressure_lock_held | A3_local | 0 | `6c87085c602a` | no | False | | |

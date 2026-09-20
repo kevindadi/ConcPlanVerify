@@ -69,6 +69,18 @@
 | semaphore/acquire_twice_no_release | A3_local | 3/3 | 2 | 1759±11 | 1268±383 | 53±16 | 18±3 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
 | semaphore/acquire_twice_no_release | A3_whole | 3/3 | 2 | 3432 | 2434±493 | 53±14 | 19±2 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
 | semaphore/acquire_twice_no_release | A3_tiered | 3/3 | 2 | 1763 | 927±201 | 47±3 | 17±1 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
+| lock-order/abba_2lock | A0_direct | 3/3 | 1 | 808 | 1366±115 | 796±306 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — |
+| lock-order/abba_2lock | A1_self_iter | 3/3 | 1 | 1235 | 1786±657 | 694±41 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — |
+| lock-order/abba_2lock | A2_tools_iter_ml | 3/3 | 1 | 718 | 1251±413 | 2229±422 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | no 3/3 | — |
+| lock-order/abba_2lock | A3_local | 3/3 | 2 | 1868 | 915±364 | 52±5 | 18±1 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
+| lock-order/abba_2lock | A3_whole | 3/3 | 2 | 3466 | 2039±361 | 51±6 | 19±5 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | no 3/3 | — |
+| lock-order/abba_2lock | A3_tiered | 3/3 | 2 | 1868 | — | — | 18±2 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | — | — |
+| condvar/bare_wait_no_predicate | A0_direct | 3/3 | 1 | 746±28 | 1288±287 | 799±245 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | unsure 3/3 | — |
+| condvar/bare_wait_no_predicate | A1_self_iter | 3/3 | 1 | 1504±582 | 3520±2887 | 714±67 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | unsure 3/3 | — |
+| condvar/bare_wait_no_predicate | A2_tools_iter_ml | 3/3 | 1 | 647 | 1219±718 | 2239±497 | — | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | — | unsure 3/3 | — |
+| condvar/bare_wait_no_predicate | A3_local | 0/3 | — | — | — | — | 18±1 | 0/3 | — | — | — | — | — | — |
+| condvar/bare_wait_no_predicate | A3_whole | 3/3 | 3±1 | 8922±3830 | 5750±2626 | 52±7 | 18±2 | 0/3 | True 3/3 | terminated_ok 3/3 | clean 3/3 | PASS 3/3 | unsure 3/3 | — |
+| condvar/bare_wait_no_predicate | A3_tiered | 0/3 | — | — | — | — | 17±1 | 0/3 | — | — | — | — | — | — |
 
 `accepted`/`false_accept` are k/n over repeats; `round`/`tokens`/`*_ms` are mean±range over accepted cells; oracle columns are per-rep counts. `verify_ms` is the ConcIR `explore`/`conform` time. **A0's `accepted` only means it produced a parseable program** (a single round with no rejection); it is not a correctness claim. `extract` is the validated extraction verdict (`INVALID` = contract could not be evaluated).
 
@@ -76,12 +88,12 @@
 
 | arm | cells | accepted | accept_rate | false_accept | conform_pass_rate | escalation_rate | tokens/correct_accept | by source |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| A0_direct | 24 | 24 | 1.00 | 11 | — | — | 548 | {'behavior': 8, 'expert': 9, 'by_construction': 3} |
-| A1_self_iter | 24 | 17 | 0.71 | 1 | — | — | 1637 | {'expert': 1} |
-| A2_tools_iter_ml | 24 | 22 | 0.92 | 3 | — | — | 869 | {'expert': 3} |
-| A3_local | 24 | 21 | 0.88 | 0 | 21/21 = 1.00 | — | 683 | — |
-| A3_whole | 24 | 20 | 0.83 | 0 | 20/20 = 1.00 | — | 3627 | — |
-| A3_tiered | 24 | 21 | 0.88 | 0 | 21/21 = 1.00 | 3/24 = 0.12 | 684 | — |
+| A0_direct | 30 | 30 | 1.00 | 11 | — | — | 456 | {'behavior': 8, 'expert': 9, 'by_construction': 3} |
+| A1_self_iter | 30 | 23 | 0.77 | 1 | — | — | 1315 | {'expert': 1} |
+| A2_tools_iter_ml | 30 | 28 | 0.93 | 3 | — | — | 715 | {'expert': 3} |
+| A3_local | 30 | 24 | 0.80 | 0 | 24/24 = 1.00 | — | 675 | — |
+| A3_whole | 30 | 26 | 0.87 | 0 | 26/26 = 1.00 | — | 3267 | — |
+| A3_tiered | 30 | 24 | 0.80 | 0 | 24/24 = 1.00 | 6/30 = 0.20 | 676 | — |
 
 `tokens/correct_accept = Σ tokens / (accepted − false_accept)`; `∞` when the denominator is 0. `conform_pass_rate` is over A3 cells with a conform verdict.
 
@@ -105,6 +117,10 @@
 | channel/send_while_holding_mutex | A3_whole | {'explore_fail': 3, 'check_invalid': 3, 'accepted': 3} |
 | semaphore/acquire_twice_no_release | A3_local | {'explore_fail': 3, 'accepted': 3} |
 | semaphore/acquire_twice_no_release | A3_whole | {'explore_fail': 3, 'accepted': 3} |
+| lock-order/abba_2lock | A3_local | {'explore_fail': 3, 'accepted': 3} |
+| lock-order/abba_2lock | A3_whole | {'explore_fail': 3, 'accepted': 3} |
+| condvar/bare_wait_no_predicate | A3_local | {'explore_fail': 6, 'check_schema_error': 6} |
+| condvar/bare_wait_no_predicate | A3_whole | {'explore_fail': 3, 'check_invalid': 4, 'accepted': 3} |
 
 ### Expert labels
 
@@ -119,11 +135,20 @@
 | channel/send_while_holding_mutex | A2_tools_iter_ml | no | yes | False | False | True |
 | channel/send_while_holding_mutex | A3_local | no | no | True | False | True |
 | channel/send_while_holding_mutex | A3_whole | no | no | True | False | True |
+| condvar/bare_wait_no_predicate | A0_direct | unsure | yes | False | False | None |
+| condvar/bare_wait_no_predicate | A1_self_iter | unsure | yes | False | False | None |
+| condvar/bare_wait_no_predicate | A2_tools_iter_ml | unsure | yes | False | False | None |
+| condvar/bare_wait_no_predicate | A3_whole | unsure | yes | False | False | None |
 | condvar/notify_one_multi_waiter_wrong_pick | A0_direct | yes | yes | False | True | True |
 | condvar/notify_one_multi_waiter_wrong_pick | A1_self_iter | no | yes | False | False | True |
 | condvar/notify_one_multi_waiter_wrong_pick | A2_tools_iter_ml | no | yes | False | False | True |
 | condvar/notify_one_multi_waiter_wrong_pick | A3_local | no | yes | False | False | True |
 | condvar/notify_one_multi_waiter_wrong_pick | A3_whole | no | yes | False | False | True |
+| lock-order/abba_2lock | A0_direct | no | yes | False | False | True |
+| lock-order/abba_2lock | A1_self_iter | no | yes | False | False | True |
+| lock-order/abba_2lock | A2_tools_iter_ml | no | yes | False | False | True |
+| lock-order/abba_2lock | A3_local | no | yes | False | False | True |
+| lock-order/abba_2lock | A3_whole | no | yes | False | False | True |
 | lock-order/cross_module_cycle | A0_direct | no | no | True | False | True |
 | lock-order/cross_module_cycle | A1_self_iter | no | yes | False | False | True |
 | lock-order/cross_module_cycle | A2_tools_iter_ml | no | yes | False | False | True |
@@ -148,7 +173,7 @@
 | structure/nested_scope_lock_order | A3_local | no | yes | False | False | True |
 | structure/nested_scope_lock_order | A3_whole | no | yes | False | False | True |
 
-Agreement with the automatic oracle: **37/37 = 1.000** (unsure 0); `design_loss` (accepted ∧ design_preserved=no): **6** {'A0_direct': 2, 'A3_local': 6, 'A3_whole': 6, 'A1_self_iter': 1}.
+Agreement with the automatic oracle: **42/42 = 1.000** (unsure 4); `design_loss` (accepted ∧ design_preserved=no): **6** {'A0_direct': 2, 'A3_local': 6, 'A3_whole': 6, 'A1_self_iter': 1}.
 
 #### Expert labels (per candidate)
 
@@ -168,11 +193,16 @@ Agreement with the automatic oracle: **37/37 = 1.000** (unsure 0); `design_loss`
 | `ae1e465a6fbb` | channel/send_while_holding_mutex | A2_tools_iter_ml | rust | no | yes | 1 |
 | `aa0668f905d8` | channel/send_while_holding_mutex | A3_local | a3-rust | no | no | 3 |
 | `459df3234540` | channel/send_while_holding_mutex | A3_whole | a3-rust | no | no | 3 |
+| `e53544b9c364` | condvar/bare_wait_no_predicate | A0_direct | rust | unsure | yes | 1 |
+| `394c5e1e06b6` | condvar/bare_wait_no_predicate | A1_self_iter | rust | unsure | yes | 8 |
+| `52b496de2a26` | condvar/bare_wait_no_predicate | A3_whole | a3-rust | unsure | yes | 2 |
+| `90aee29b3ffa` | condvar/bare_wait_no_predicate | A3_whole | a3-rust | unsure | yes | 1 |
 | `daa46ba4c2ba` | condvar/notify_one_multi_waiter_wrong_pick | A0_direct | rust | yes | yes | 2 |
 | `0e3cdb53c009` | condvar/notify_one_multi_waiter_wrong_pick | A1_self_iter | rust | no | yes | 7 |
 | `7de135daa5ad` | condvar/notify_one_multi_waiter_wrong_pick | A3_local | a3-rust | no | yes | 1 |
-| `c6e9a78ee029` | condvar/notify_one_multi_waiter_wrong_pick | A3_local | a3-rust | no | yes | 2 |
 | `be85c5f756ec` | condvar/notify_one_multi_waiter_wrong_pick | A3_whole | a3-rust | no | yes | 2 |
+| `12195b60e3cb` | lock-order/abba_2lock | A0_direct | rust | no | yes | 9 |
+| `93eaf520459c` | lock-order/abba_2lock | A3_local | a3-rust | no | yes | 6 |
 | `05fcb391ea81` | lock-order/cross_module_cycle | A0_direct | rust | no | no | 2 |
 | `9bab819deee2` | lock-order/cross_module_cycle | A0_direct | rust | no | yes | 1 |
 | `1fc6e7c5ea43` | lock-order/cross_module_cycle | A1_self_iter | rust | no | yes | 3 |

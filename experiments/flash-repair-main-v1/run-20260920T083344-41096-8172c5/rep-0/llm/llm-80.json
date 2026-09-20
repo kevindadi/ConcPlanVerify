@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "98a917bb-c913-4179-bbba-78e88f5a15f9",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nA waiter blocks on a condition variable until a predicate guarded by a mutex becomes true; a notifier makes it true and signals. The waiter must complete even if the signal arrives before it waits. On completion the program must print exactly one line `DONE ready=true` and then exit; it must terminate.\n\n\nCurrent program:\n```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    let pair = Arc::new((Mutex::new(false), Condvar::new()));\n\n    let pair_w = Arc::clone(&pair);\n    let waiter = thread::spawn(move || {\n        let (mtx, cv) = &*pair_w;\n        let guard = mtx.lock().unwrap();\n\n        let guard = cv.wait(guard).unwrap();\n        drop(guard);\n    });\n\n    let pair_n = Arc::clone(&pair);\n    let notifier = thread::spawn(move || {\n        let (mtx, cv) = &*pair_n;\n        let mut ready = mtx.lock().unwrap();\n        *ready = true;\n        cv.notify_all();\n        drop(ready);\n    });\n\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n}\n\n```\n\nFix any concurrency defect and output the complete corrected Rust program, or if there is none reply exactly NO_ISSUES."
+    }
+  ],
+  "prompt_sha256": "7f9d2b2c7c9723d72eacdc081cba400793a7f0198030f0d16476528c55c2951b",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 239,
+    "prompt_tokens": 526,
+    "total_tokens": 765,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 128
+    },
+    "prompt_cache_hit_tokens": 128,
+    "prompt_cache_miss_tokens": 398
+  },
+  "content_sha256": "91b50b3999504057d797f8e54a3e2046d0f8fabaf3247a63cd587ced50cc7878",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    let pair = Arc::new((Mutex::new(false), Condvar::new()));\n\n    let pair_w = Arc::clone(&pair);\n    let waiter = thread::spawn(move || {\n        let (mtx, cv) = &*pair_w;\n        let mut guard = mtx.lock().unwrap();\n\n        while !*guard {\n            guard = cv.wait(guard).unwrap();\n        }\n        drop(guard);\n    });\n\n    let pair_n = Arc::clone(&pair);\n    let notifier = thread::spawn(move || {\n        let (mtx, cv) = &*pair_n;\n        let mut ready = mtx.lock().unwrap();\n        *ready = true;\n        cv.notify_all();\n        drop(ready);\n    });\n\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n\n    let (mtx, _cv) = &*pair;\n    let ready = *mtx.lock().unwrap();\n    println!(\"DONE ready={}\", ready);\n}\n```",
+  "wall_ms": 1442
+}

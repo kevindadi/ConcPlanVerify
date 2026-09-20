@@ -2,13 +2,13 @@
  "rubric_version": "expert-label-rubric-v2",
  "labeler": "agent-proxy",
  "seed": 20260920,
- "candidates": 49,
- "unsure": 0,
- "unsure_rate": 0.0,
+ "candidates": 54,
+ "unsure": 4,
+ "unsure_rate": 0.074,
  "agreement": {
-  "compared": 104,
-  "agree": 95,
-  "rate": 0.913
+  "compared": 117,
+  "agree": 108,
+  "rate": 0.923
  },
  "design_loss": {
   "A0_direct": 1,
@@ -829,6 +829,206 @@
    "rubric_version": "expert-label-rubric-v2"
   },
   {
+   "sha256": "12195b60e3cb8fd95403a98382b9f6cf531a06d9f43d286adf8229542575b081",
+   "kind": "rust",
+   "task": "lock-order/abba_2lock",
+   "arm": "A0_direct",
+   "bug_present": "no",
+   "evidence": "lock sequences: a->b; a->b; no cycle",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A0_direct",
+     "rep": 0
+    },
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A1_self_iter",
+     "rep": 0
+    },
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A2_tools_iter_ml",
+     "rep": 0
+    },
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A0_direct",
+     "rep": 1
+    },
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A1_self_iter",
+     "rep": 1
+    },
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A2_tools_iter_ml",
+     "rep": 1
+    },
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A0_direct",
+     "rep": 2
+    },
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A1_self_iter",
+     "rep": 2
+    },
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A2_tools_iter_ml",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "93eaf520459c63f9e6035d55bb68bc1b5243a267b73f5c9215a633c7402b0a80",
+   "kind": "a3-rust",
+   "task": "lock-order/abba_2lock",
+   "arm": "A3_local",
+   "bug_present": "no",
+   "evidence": "lock sequences: r_main__a->r_main__b; r_main__a->r_main__b; no cycle",
+   "design_preserved": "yes",
+   "unsure_reason": null,
+   "cells": [
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A3_local",
+     "rep": 0
+    },
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A3_whole",
+     "rep": 0
+    },
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A3_local",
+     "rep": 1
+    },
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A3_whole",
+     "rep": 1
+    },
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A3_local",
+     "rep": 2
+    },
+    {
+     "task": "lock-order/abba_2lock",
+     "arm": "A3_whole",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "e53544b9c364cd3e0099596fca3172f2d658f2562de7aa2d31d51d5562db1ad1",
+   "kind": "rust",
+   "task": "condvar/bare_wait_no_predicate",
+   "arm": "A0_direct",
+   "bug_present": "unsure",
+   "evidence": "waiters=1; notify_one=no; notify_all=yes",
+   "design_preserved": "yes",
+   "unsure_reason": "ambiguous_spec",
+   "cells": [
+    {
+     "task": "condvar/bare_wait_no_predicate",
+     "arm": "A0_direct",
+     "rep": 0
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "394c5e1e06b6fb2b9d64f88500b7242884ca684031879442ef2206e2ca1c91d1",
+   "kind": "rust",
+   "task": "condvar/bare_wait_no_predicate",
+   "arm": "A1_self_iter",
+   "bug_present": "unsure",
+   "evidence": "waiters=1; notify_one=no; notify_all=yes",
+   "design_preserved": "yes",
+   "unsure_reason": "ambiguous_spec",
+   "cells": [
+    {
+     "task": "condvar/bare_wait_no_predicate",
+     "arm": "A1_self_iter",
+     "rep": 0
+    },
+    {
+     "task": "condvar/bare_wait_no_predicate",
+     "arm": "A2_tools_iter_ml",
+     "rep": 0
+    },
+    {
+     "task": "condvar/bare_wait_no_predicate",
+     "arm": "A0_direct",
+     "rep": 1
+    },
+    {
+     "task": "condvar/bare_wait_no_predicate",
+     "arm": "A1_self_iter",
+     "rep": 1
+    },
+    {
+     "task": "condvar/bare_wait_no_predicate",
+     "arm": "A2_tools_iter_ml",
+     "rep": 1
+    },
+    {
+     "task": "condvar/bare_wait_no_predicate",
+     "arm": "A0_direct",
+     "rep": 2
+    },
+    {
+     "task": "condvar/bare_wait_no_predicate",
+     "arm": "A1_self_iter",
+     "rep": 2
+    },
+    {
+     "task": "condvar/bare_wait_no_predicate",
+     "arm": "A2_tools_iter_ml",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "52b496de2a265e4944241d46d805f8323df7b0de4ad4af35a4a6159767b2b5b7",
+   "kind": "a3-rust",
+   "task": "condvar/bare_wait_no_predicate",
+   "arm": "A3_whole",
+   "bug_present": "unsure",
+   "evidence": "waiters=1; notify_one=yes; notify_all=no",
+   "design_preserved": "yes",
+   "unsure_reason": "ambiguous_spec",
+   "cells": [
+    {
+     "task": "condvar/bare_wait_no_predicate",
+     "arm": "A3_whole",
+     "rep": 0
+    },
+    {
+     "task": "condvar/bare_wait_no_predicate",
+     "arm": "A3_whole",
+     "rep": 1
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
    "sha256": "a4503ffe446102b65c3ac5c466e6451ffb3afd6e09f54b93ed1666de86986a2f",
    "kind": "rust",
    "task": "lock-order/partial_deadlock_bystander",
@@ -899,30 +1099,6 @@
      "task": "lock-order/cross_module_cycle",
      "arm": "A0_direct",
      "rep": 1
-    }
-   ],
-   "labeler": "agent-proxy",
-   "rubric_version": "expert-label-rubric-v2"
-  },
-  {
-   "sha256": "c6e9a78ee0290617672d718157defb234d25cb67daf0d101f9448617079ac93f",
-   "kind": "a3-rust",
-   "task": "condvar/notify_one_multi_waiter_wrong_pick",
-   "arm": "A3_local",
-   "bug_present": "no",
-   "evidence": "waiters=2; notify_one=yes; notify_all=yes",
-   "design_preserved": "yes",
-   "unsure_reason": null,
-   "cells": [
-    {
-     "task": "condvar/notify_one_multi_waiter_wrong_pick",
-     "arm": "A3_local",
-     "rep": 1
-    },
-    {
-     "task": "condvar/notify_one_multi_waiter_wrong_pick",
-     "arm": "A3_local",
-     "rep": 2
     }
    ],
    "labeler": "agent-proxy",
@@ -1217,6 +1393,25 @@
     {
      "task": "semaphore/acquire_twice_no_release",
      "arm": "A2_tools_iter_ml",
+     "rep": 2
+    }
+   ],
+   "labeler": "agent-proxy",
+   "rubric_version": "expert-label-rubric-v2"
+  },
+  {
+   "sha256": "90aee29b3fface032a34f8e1a064a5a1a07f28151f4b51a7dd5e7e4ac434fbbb",
+   "kind": "a3-rust",
+   "task": "condvar/bare_wait_no_predicate",
+   "arm": "A3_whole",
+   "bug_present": "unsure",
+   "evidence": "waiters=1; notify_one=yes; notify_all=no",
+   "design_preserved": "yes",
+   "unsure_reason": "ambiguous_spec",
+   "cells": [
+    {
+     "task": "condvar/bare_wait_no_predicate",
+     "arm": "A3_whole",
      "rep": 2
     }
    ],
