@@ -841,3 +841,51 @@ it. This is the paper's central "tool-green ≠ correct" evidence.
 - conformance-v4 Miri not re-run on the new binary (0-change expectation only).
 - A2-ml acceptance was not re-run after the detection-classifier fix (the fix
   only makes detection stricter; noted as a deviation).
+
+# Round 2026-09-2xl — conform recall, generalization, freeze
+
+## K-1..K-6 status
+
+| item | status |
+| --- | --- |
+| K-1 conform recall | §1 conform-mutation-v1: 86 mutants; M6 (delete ev) recall 1.0 via `violation`; M1 0.545 / M2 0.067 / M4 0.333 all via `timeout`; M3 0.0; M7 control 2/19 false positive. §2 post-edit-conform-v1: 57 edits, conform PASS on all built, `drift_caught_only_by_conform` 0. `CONFORM_GAPS.md` records the stream-level blind spots. |
+| K-2 tiered | §3: early escalation (1 local + 3 whole) 3/3 on `partial_deadlock`; original trigger K=6 3/3. The earlier 0/3 was a budget split. |
+| K-3 A2 reclass | §6.1: 0 Miri status changes, 0 `tools_green` changes — deviation closed. |
+| K-4 generalization | §4: main batch now 10 tasks x 6 arms x 3 reps (55 requests). §5 not done: the endpoint aliases `deepseek-chat`/`deepseek-reasoner` to `deepseek-flash`, so no second model exists. |
+| K-5 human review | still blank (owner). |
+| K-6 freeze | §6.3 LaTeX tables; §6.4 tags + `FREEZE_MANIFEST.md`. |
+
+## New result that changes a conclusion
+
+Adding `bare_wait_no_predicate` flips the local-vs-whole acceptance ordering:
+A3_local 24/30 (0.80) vs A3_whole 26/30 (0.87) — whole now accepts more, because
+this task needs a **new predicate statement** that local regeneration cannot
+introduce (local 0/3, whole 3/3). Local remains ~5x cheaper (675 vs 3267
+tok/correct) and both keep 0 false-accept. So claim (b) is "local is much
+cheaper; acceptance depends on whether the fix needs new statements", not "local
+dominates".
+
+## Budgets
+
+| section | requests |
+| --- | --- |
+| §1 mutation | 0 |
+| §2 post-edit | 57 / 60 |
+| §3 tiered addendum | 15 / 20 |
+| §4 10-task extension | 55 / 70 |
+| §5 model probe | 0 (not run) |
+| total this round | 127 / 220 |
+
+## Binary
+
+`BIN_MAIN 4bec943d` for the main batch; ConcIR `f42764f` (E102) binary
+`03d343e5` used for the mutation/post-edit/a3-to-rust offline runs. No
+explore/conform semantic change, so the main table was not recomputed.
+
+## Not done
+
+- §5 model-probe-v1: no distinct non-Flash model on the endpoint (aliases return
+  `deepseek-flash`); no requests spent.
+- K-5 human review queue still blank.
+- §1/§2 cover the original 19 programs; the 4 CIRs added by §4 were not mutated
+  (conform for them is correct-by-construction only).
