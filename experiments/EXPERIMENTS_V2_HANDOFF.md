@@ -701,3 +701,42 @@ acceptance miss.
   A3_whole}) — not started because section 3's acceptance was not met.
 - Extraction oracle validated 0 (model compliance).
 - The optional `A3_free` extraction (G-5) was not run.
+
+# Round 2026-09-19i — first main table, instrument, dual-track oracle
+
+## I-1..I-9 status (round i)
+
+| item | what was done |
+| --- | --- |
+| §1 main batch | `flash-repair-smoke-v3` 8 tasks × {A0, A1, A2-ml, A3_local, A3_whole}, 78/200 requests, stop_reason none. Six missing Rust references authored so all 8 tasks run all 5 arms. |
+| §2 extraction harness | staged per-cell `extraction_result.json` (`stage`/pointer/stderr/normalizations, `harness_error` counted); `mod cir_trace;` auto-prepend; resource kind/mode, params, FQN, array unwrap/reject. |
+| §3 auto-labeling | `concir-instrument` (syn) inserts `cir_trace::ev` at every concurrency call, emits `labels.json` + tagged runtime; `conform --lenient-unlock/--attempt-events`. |
+| §4 expert labels | 17 accepted Rust candidates annotated (rubric v1); agreement with the automatic oracle 14/16 = 0.875; two `cycle_3lock` misses (cycle present, accepted by schedule luck). |
+| §5 Track D / scale | `detection-v3` (38 records, Lockbud available), `scale-v2` (24 runs) on binary `88c3217d`. |
+| §6 A3_free extraction | tool-instrumented label→CIR pipeline; 1/8 validated (`partial_deadlock_bystander`, 28/28 conformant), `harness_error` 0; fixed relative `CIR_TRACE_OUT`. |
+| §7 RESULTS | hand-assembled `experiments/RESULTS.md` (superseded by the round-j generator). |
+
+## Rust references (de-leak lint)
+
+Six `rust/{buggy,fixed}.rs` pairs were authored this round (`cross_module_cycle`,
+`nested_scope_lock_order`, `notify_one_multi_waiter_wrong_pick`,
+`bounded_backpressure_lock_held`, `send_while_holding_mutex`,
+`acquire_twice_no_release`). All ten generated references compile with
+`cargo build --offline`. The `repair_input/input.rs` de-leak lint (no comments,
+no `sN:`/deadlock/bug/fix tokens) reports **0 leak-token lines** for all six.
+
+## Per-section commits (round i)
+
+- ConcPlanVerify: `db20826` batch+refs, `003c300` extraction harness,
+  `7a7e634` extract v4 protocol, `ae76710` expert labels, `be45951` Track D/scale,
+  `929c169` extraction v4 result, `41032fb` hand-assembled RESULTS.
+- ConcIR: `eabad7f` instrument + lenient unlock, `f639ab9` attempt-events +
+  runtime tag helpers, `1a83704` instrument doc-comment fix.
+
+## Stop point / Not done (round i)
+
+- Rust-arm `oracle.model` was `inconclusive` for the whole batch (D-19).
+- RESULTS was hand-assembled and was inconsistent with SUMMARY (fixed in round j).
+- A0/A1 "claims no defect" was misrecorded as `no_build`; A1 accepted one
+  unbuilt candidate (fixed in round j §1).
+- Binary was not unified (`6d498c8a` for the batch, `88c3217d` for the rest).

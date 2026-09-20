@@ -55,6 +55,7 @@ def main() -> int:
     rows = []
     final: dict[tuple[str, str], tuple[bool, int | None]] = {}
     order: list[tuple[str, str]] = []
+    by_construction: set[tuple[str, str]] = set()
     for task in summary["tasks"]:
         tid = task["task"]
         if tid not in TASKS:
@@ -107,6 +108,8 @@ def main() -> int:
                     "new_accepted_round": new_accepted_round,
                 })
                 final[(tid, arm)] = (new_accepted, new_accepted_round)
+                if cls["kind"] == "claims_no_issue" and arm == "A0_direct":
+                    by_construction.add((tid, arm))
                 if (tid, arm) not in order:
                     order.append((tid, arm))
     lines = ["# flash-repair-smoke-v3 — A0/A1 reply reclassification (§1.3)", "",
@@ -145,6 +148,13 @@ def main() -> int:
               ""]
     out = REPO / "experiments/flash-repair-smoke-v3/REPLY_RECLASS.md"
     out.write_text("\n".join(lines), encoding="utf-8")
+    payload = {"batch": str(BATCH.relative_to(REPO)), "rounds": rows,
+               "cells": {f"{k[0]}|{k[1]}": {
+                   "accepted": v[0], "accepted_round": v[1],
+                   "by_construction": k in by_construction}
+                   for k, v in final.items()}}
+    (REPO / "experiments/flash-repair-smoke-v3/REPLY_RECLASS.json").write_text(
+        json.dumps(payload, indent=1) + "\n", encoding="utf-8")
     print(f"wrote {out} ({len(rows)} rounds)")
     for r in rows:
         if r["kind"] == "claims_no_issue" or r["old_decision"] != r["new_decision"]:

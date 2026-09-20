@@ -21,6 +21,7 @@ import argparse
 import dataclasses
 import json
 import os
+import shlex
 import sys
 from pathlib import Path
 
@@ -161,6 +162,18 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--miri-seeds", type=int, default=64)
 
     p = sub.add_parser("scale", help="B5: generated lock-chain scale experiment (no LLM)")
+
+    p = sub.add_parser("results", help="generate RESULTS.md from committed artefacts")
+    p.add_argument("--batch", action="append", default=[],
+                   help="batch dir with SUMMARY.json (repeatable)")
+    p.add_argument("--expert", action="append", default=[],
+                   help="expert labels JSON (repeatable)")
+    p.add_argument("--extraction", action="append", default=[],
+                   help="extraction dir (repeatable)")
+    p.add_argument("--trackd")
+    p.add_argument("--scale")
+    p.add_argument("--reclass")
+    p.add_argument("--output", required=True)
 
     p = sub.add_parser("smoke", help="Flash smoke batch: validate the multi-arm chain")
     p.add_argument("--tasks", help="benchmarks/MANIFEST.json (default: repo manifest)")
@@ -347,6 +360,21 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"cases": len(payload["cases"]),
                               "statuses": {r["case"]: r.get("status")
                                            for r in payload["cases"]}}, indent=2))
+            return 0
+
+        if args.command == "results":
+            from .results import build
+
+            command = "python -m cir_workflow results " + " ".join(
+                shlex.quote(a) for a in sys.argv[1:])
+            text = build(
+                [Path(p) for p in args.batch], [Path(p) for p in args.expert],
+                [Path(p) for p in args.extraction],
+                Path(args.trackd) if args.trackd else None,
+                Path(args.scale) if args.scale else None,
+                Path(args.reclass) if args.reclass else None, command)
+            Path(args.output).write_text(text, encoding="utf-8")
+            print(json.dumps({"out": args.output, "bytes": len(text)}, indent=2))
             return 0
 
         if args.command == "scale":

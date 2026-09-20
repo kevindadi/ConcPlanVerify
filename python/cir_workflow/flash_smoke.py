@@ -779,6 +779,24 @@ def run_repair_smoke_v3(manifest_path: Path | str, out_dir: Path | str, *,
     return summary
 
 
+def _bug_sources(rec: dict[str, Any]) -> list[str]:
+    """Sources of a `bug_present=True` verdict for one arm cell (§2.1 rule)."""
+
+    oracle = rec.get("oracle") or {}
+    sources = []
+    if oracle.get("behavior_status") == "hang":
+        sources.append("behavior")
+    if oracle.get("verify_pass") is False:
+        sources.append("model")
+    if oracle.get("extract") == "FAIL":
+        sources.append("extract")
+    if oracle.get("expert") == "yes":
+        sources.append("expert")
+    if (rec.get("notes") or {}).get("bug_present_reason") == "by_construction":
+        sources.append("by_construction")
+    return sources
+
+
 def _decision_dist(res) -> dict[str, int]:
     from collections import Counter
 
@@ -816,8 +834,9 @@ def render_smoke_v3_md(summary: dict[str, Any]) -> str:
              f"- stop reason: {summary.get('stop_reason')}", "",
              "## Main table", "",
              "| task | arm | accepted | round | tokens | llm_ms | tool_ms | oracle.build | "
-             "oracle.behavior | oracle.miri | oracle.model | false_accept |",
-             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+             "oracle.behavior | oracle.miri | oracle.model | oracle.expert | oracle.extract | "
+             "false_accept |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for t in summary["tasks"]:
         for arm in ("A0_direct", "A1_self_iter", "A2_tools_iter_ml", "A3_local", "A3_whole"):
             r = (t.get("arms") or {}).get(arm)
@@ -838,28 +857,34 @@ def render_smoke_v3_md(summary: dict[str, Any]) -> str:
                 model = o.get("model") or {}
                 ms = (f"validated:{model.get('model_verdict')}"
                       if model.get("extract_validated") else "inconclusive")
-                fa = bool(r.get("accepted") and o.get("bug_present") is True)
+                fa = bool(r.get("accepted") and _bug_sources(r))
                 lines.append(f"| {t['task']} | {arm} | {r.get('accepted')} | "
                              f"{r.get('accepted_round')} | {c.get('total_tokens')} | "
                              f"{c.get('llm_wall_ms')} | {c.get('tool_wall_ms')} | "
                              f"{o.get('build_ok')} | {o.get('behavior_status')} | {miri} | "
-                             f"{ms} | {fa} |")
+                             f"{ms} | {o.get('expert', '—')} | {o.get('extract', '—')} | {fa} |")
     # per-arm aggregates
     lines += ["", "## Per-arm aggregates", "",
-              "| arm | cells | accepted | accept_rate | false_accept | inconclusive | "
-              "mean_round | mean_tokens |", "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+              "| arm | cells | accepted | accept_rate | false_accept | by source | "
+              "inconclusive | mean_round | mean_tokens |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for arm in SMOKE_V3_ARMS:
         cells = [ (t.get("arms") or {}).get(arm) for t in summary["tasks"] ]
         cells = [c for c in cells if c]
         if not cells:
             continue
         accepted = sum(1 for c in cells if c.get("accepted"))
-        fa = sum(1 for c in cells if c.get("accepted") and (c.get("oracle") or {}).get("bug_present") is True)
+        fa_cells = [c for c in cells if c.get("accepted") and _bug_sources(c)]
+        by_source: dict[str, int] = {}
+        for c in fa_cells:
+            for source in set(_bug_sources(c)):
+                by_source[source] = by_source.get(source, 0) + 1
         inc = sum(1 for c in cells if (c.get("oracle") or {}).get("model") is None
                   and arm not in ("A3_local", "A3_whole"))
         rounds = [c.get("accepted_round") for c in cells if c.get("accepted_round")]
         toks = [ (c.get("consumption") or {}).get("total_tokens") or 0 for c in cells ]
-        lines.append(f"| {arm} | {len(cells)} | {accepted} | {accepted/len(cells):.2f} | {fa} | "
+        lines.append(f"| {arm} | {len(cells)} | {accepted} | {accepted/len(cells):.2f} | "
+                     f"{len(fa_cells)} | {by_source or '—'} | "
                      f"{inc} | {(sum(rounds)/len(rounds)) if rounds else 0:.2f} | "
                      f"{(sum(toks)/len(toks)) if toks else 0:.0f} |")
     lines += ["", "## A3 decision distribution", "",
