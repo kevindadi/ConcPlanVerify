@@ -1,0 +1,93 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260920T084100-41096-e1e2be/round-4/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:44:34
+   |
+32 |     let (ma, mb, sa, sb) = (Arc::clone(&mtx_a), Arc::clone(&mtx_b), Arc::clone(&sem_a), Arc::clone(&sem_b));
+   |                  -- this move could be avoided by cloning the original `Arc`, which is inexpensive
+33 |     let worker_a = thread::spawn(move || {
+   |                                  ------- value moved into closure here
+34 |         sa.acquire();          // A holds the token
+   |         -- variable moved due to use in closure
+...
+44 |     let worker_b = thread::spawn(move || {
+   |                                  ^^^^^^^ value used here after move
+...
+50 |         sa.release();          // hand token back
+   |         -- use occurs due to use in closure
+   |
+   = note: consider using `Arc::clone`
+help: consider cloning the value before moving it into the closure
+   |
+33 ~     let value = sa.clone();
+34 ~     let worker_a = thread::spawn(move || {
+35 ~         value.acquire();          // A holds the token
+   |
+
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:44:34
+   |
+32 |     let (ma, mb, sa, sb) = (Arc::clone(&mtx_a), Arc::clone(&mtx_b), Arc::clone(&sem_a), Arc::clone(&sem_b));
+   |                      -- this move could be avoided by cloning the original `Arc`, which is inexpensive
+33 |     let worker_a = thread::spawn(move || {
+   |                                  ------- value moved into closure here
+...
+39 |         sb.release();          // hand token to B
+   |         -- variable moved due to use in closure
+...
+44 |     let worker_b = thread::spawn(move || {
+   |                                  ^^^^^^^ value used here after move
+45 |         sb.acquire();          // B waits for token
+   |         -- use occurs due to use in closure
+   |
+   = note: consider using `Arc::clone`
+help: consider cloning the value before moving it into the closure
+   |
+33 ~     let value = sb.clone();
+34 ~     let worker_a = thread::spawn(move || {
+35 |         sa.acquire();          // A holds the token
+...
+39 |         drop(ga);
+40 ~         value.release();          // hand token to B
+   |
+
+warning: unused variable: `sa2`
+  --> src/main.rs:43:20
+   |
+43 |     let (ma2, mb2, sa2, sb2) = (Arc::clone(&mtx_a), Arc::clone(&mtx_b), Arc::clone(&sem_a), Arc::clone(&sem_b));
+   |                    ^^^ help: if this is intentional, prefix it with an underscore: `_sa2`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `sb2`
+  --> src/main.rs:43:25
+   |
+43 |     let (ma2, mb2, sa2, sb2) = (Arc::clone(&mtx_a), Arc::clone(&mtx_b), Arc::clone(&sem_a), Arc::clone(&sem_b));
+   |                         ^^^ help: if this is intentional, prefix it with an underscore: `_sb2`
+
+warning: unused variable: `done`
+  --> src/main.rs:54:9
+   |
+54 |     let done = thread::spawn(move || loop {
+   |         ^^^^ help: if this is intentional, prefix it with an underscore: `_done`
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors; 3 warnings emitted

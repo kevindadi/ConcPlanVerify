@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "7560a883-9b4a-44bb-b46a-cf04303e003c",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nA sender and a receiver communicate over a channel, and both occasionally need a shared mutex. Every interleaving must terminate; the receiver must not block on the channel while holding the lock the sender needs. On completion the program must print exactly one line `DONE done=1` and then exit; it must terminate.\n\n\nCurrent program:\n```rust\nuse std::sync::{mpsc, Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    let (tx1, rx1) = mpsc::sync_channel::<i32>(0);\n    let (tx2, _rx2) = mpsc::sync_channel::<i32>(0);\n    let s = thread::spawn(move || {\n        tx1.send(1).unwrap();\n        let _ = tx2;\n    });\n    let r = thread::spawn(move || {\n        let _ = rx1;\n    });\n    s.join().unwrap();\n    r.join().unwrap();\n    println!(\"DONE done=1\");\n}\n\n```\n\nFix any concurrency defect and output the complete corrected Rust program, or if there is none reply exactly NO_ISSUES."
+    }
+  ],
+  "prompt_sha256": "973b18643453a679b32960388ad8283b14f522910529444a46c582d742c3f404",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 366,
+    "prompt_tokens": 486,
+    "total_tokens": 852,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 256
+    },
+    "prompt_cache_hit_tokens": 256,
+    "prompt_cache_miss_tokens": 230
+  },
+  "content_sha256": "147af2479d427b4111779c67eb5a0b537cca8f7dc12ba3f3028ce2612148d15f",
+  "content": "```rust\nuse std::sync::{mpsc, Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    let (tx1, rx1) = mpsc::sync_channel::<i32>(0);\n    let (tx2, rx2) = mpsc::sync_channel::<i32>(0);\n\n    let shared = Arc::new((Mutex::new(0i32), Condvar::new()));\n\n    let shared_s = Arc::clone(&shared);\n    let s = thread::spawn(move || {\n        // Sender needs the shared mutex.\n        {\n            let (lock, cvar) = &*shared_s;\n            let mut guard = lock.lock().unwrap();\n            *guard += 1;\n            cvar.notify_all();\n        }\n        // Send on the channel without holding the lock.\n        tx1.send(1).unwrap();\n        // Wait for the receiver's acknowledgement.\n        let _ = rx2.recv();\n    });\n\n    let shared_r = Arc::clone(&shared);\n    let r = thread::spawn(move || {\n        // Receive from the channel without holding the lock.\n        let _ = rx1.recv();\n        // Receiver needs the shared mutex.\n        {\n            let (lock, cvar) = &*shared_r;\n            let mut guard = lock.lock().unwrap();\n            while *guard == 0 {\n                guard = cvar.wait(guard).unwrap();\n            }\n        }\n        // Acknowledge completion so the sender can finish.\n        tx2.send(1).unwrap();\n    });\n\n    s.join().unwrap();\n    r.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 2103
+}

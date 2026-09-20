@@ -1,0 +1,221 @@
+{
+  "status": "exhausted",
+  "task": "condvar/notify_one_multi_waiter_wrong_pick",
+  "requirements": "Several waiters share a mutex and a condition variable, and a notifier wakes one waiter. Every interleaving must terminate and every waiter must complete. On completion the program must print exactly one line `DONE waiters=0` and then exit; it must terminate.\n",
+  "contract_sha256": "b92ccd5ffc977ae72d22ff1f0266140ffb6793edbb5a80640816922033d8023e",
+  "out_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/condvar__notify_one_multi_waiter_wrong_pick/A3_whole/run-20260920T083812-41096-39be4d",
+  "max_rounds": 4,
+  "engine": "petri",
+  "diagnostics": true,
+  "check_fidelity": true,
+  "fidelity_name": null,
+  "versions": [
+    {
+      "version": 1,
+      "source": "frozen",
+      "raw_text": null,
+      "program_sha256": "fa5b0560e8935c8eb8189d74370cc1bb7752cb25299894af71f784caeafeff40",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/condvar__notify_one_multi_waiter_wrong_pick/A3_whole/run-20260920T083812-41096-39be4d/revision-1.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "valid",
+      "support_status": "supported",
+      "explore_outcome": "FAIL",
+      "explore_complete": true,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "explore_fail",
+      "request_sha256": null,
+      "feedback_sha256": "b7c85430405a96ab765c3e0367f0da62cbf18dfe0bf9f46a40cf0516b3759f37",
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "llm_wall_ms": 0,
+      "tool_wall_ms": 30,
+      "tool_output_sha256": "eaa7a46da9d434edd16d4f20d1b7068972d2c268041f794b9665788dfc1ad723",
+      "normalizations": [
+        {
+          "rule": "fqn_prefix",
+          "function": "main",
+          "sid": "s1",
+          "field": "funcs",
+          "from": "w1",
+          "to": "main::w1"
+        },
+        {
+          "rule": "fqn_prefix",
+          "function": "main",
+          "sid": "s1",
+          "field": "funcs",
+          "from": "w2",
+          "to": "main::w2"
+        },
+        {
+          "rule": "fqn_prefix",
+          "function": "main",
+          "sid": "s1",
+          "field": "funcs",
+          "from": "notifier",
+          "to": "main::notifier"
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    },
+    {
+      "version": 2,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"notify_choice_false_pass\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"m\", \"cv\", \"done\", \"remaining\"],\n        \"functions\": [\"main\", \"w1\", \"w2\", \"notifier\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"m\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"cv\", \"kind\": \"sync\", \"type\": \"Condvar\", \"mode\": \"Sync\" },\n        { \"name\": \"done\", \"kind\": \"var\", \"type\": \"Var\", \"mode\": \"Sync\" },\n        { \"name\": \"remaining\", \"kind\": \"var\", \"type\": \"Var\", \"mode\": \"Sync\" }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"write_shared\",\n              \"resource\": \"main::done\",\n              \"expr\": \"false\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"write_shared\",\n              \"resource\": \"main::remaining\",\n              \"expr\": \"2\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"scope\",\n              \"funcs\": [\"main::w1\", \"main::w2\", \"main::notifier\"]\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"w1\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_wait\",\n              \"condvar\": \"main::cv\",\n              \"lock\": \"main::m\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s6\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s7\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"w2\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_wait\",\n              \"condvar\": \"main::cv\",\n              \"lock\": \"main::m\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s6\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s7\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"notifier\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"write_shared\",\n              \"resource\": \"main::done\",\n              \"expr\": \"true\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_notify_all\",\n              \"condvar\": \"main::cv\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s5\",\n              \"kind\": \"return\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "b85c6c8e07126d21428dae91be3deed562c0f7ab42e6e8ac5df4b35d3a41189d",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/condvar__notify_one_multi_waiter_wrong_pick/A3_whole/run-20260920T083812-41096-39be4d/revision-2.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "invalid",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "check_invalid",
+      "request_sha256": "832f682f95f23683b4a89425098fb530b1fd80cadfac81ed6b9700ba42109410",
+      "feedback_sha256": "285623cf65c925ff4c0f19d370fb8cc960826d06f76a4a3e05ff0a27d6591014",
+      "prompt_tokens": 3169,
+      "completion_tokens": 1069,
+      "llm_wall_ms": 3559,
+      "tool_wall_ms": 4,
+      "tool_output_sha256": "3509c05bdb7da3f360fa7fa0e5eb5b4f1317b7b74e0e7d93d2500a1067a70902",
+      "normalizations": [
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "done",
+          "field": "mode"
+        },
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "remaining",
+          "field": "mode"
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    },
+    {
+      "version": 3,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"notify_choice_false_pass\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"m\", \"cv\", \"done\", \"remaining\"],\n        \"functions\": [\"main\", \"w1\", \"w2\", \"notifier\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"m\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"cv\", \"kind\": \"sync\", \"type\": \"Condvar\", \"mode\": \"Sync\" },\n        { \"name\": \"done\", \"kind\": \"var\", \"type\": \"Var\", \"base\": \"Bool\", \"init\": \"false\" },\n        { \"name\": \"remaining\", \"kind\": \"var\", \"type\": \"Var\", \"base\": \"Int\", \"init\": \"2\" }\n      ],\n      \"protection\": [\n        { \"resource\": \"main::done\", \"protected_by\": [\"main::m\"] },\n        { \"resource\": \"main::remaining\", \"protected_by\": [\"main::m\"] }\n      ],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"write_shared\",\n              \"resource\": \"main::done\",\n              \"expr\": \"false\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"write_shared\",\n              \"resource\": \"main::remaining\",\n              \"expr\": \"2\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"scope\",\n              \"funcs\": [\"main::w1\", \"main::w2\", \"main::notifier\"]\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"w1\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_wait\",\n              \"condvar\": \"main::cv\",\n              \"lock\": \"main::m\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s6\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s7\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"w2\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_wait\",\n              \"condvar\": \"main::cv\",\n              \"lock\": \"main::m\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s6\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s7\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"notifier\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"write_shared\",\n              \"resource\": \"main::done\",\n              \"expr\": \"true\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_notify_all\",\n              \"condvar\": \"main::cv\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s5\",\n              \"kind\": \"return\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "07ee5ba2035e62372075df4780c2fd8f01734851f77ec0ef56b6e62d892a3aec",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/condvar__notify_one_multi_waiter_wrong_pick/A3_whole/run-20260920T083812-41096-39be4d/revision-3.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "usage_error",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "check_schema_error",
+      "request_sha256": "1c78d5472967fefa16e181b901c14a9b8166d7ab728936bfc81408a4125988d9",
+      "feedback_sha256": "a8189a8cb513fca45f2596f6be1d4bb8eb11b2a757e2f522c188c3e93c61c59a",
+      "prompt_tokens": 3200,
+      "completion_tokens": 1123,
+      "llm_wall_ms": 3447,
+      "tool_wall_ms": 4,
+      "tool_output_sha256": "d3a2d8304169baf2bf4c24cdb773dacffaf9de6c669274f741555ec72b1486d5",
+      "normalizations": [
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "resource",
+          "to": "var"
+        },
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "protected_by",
+          "to": "lock"
+        },
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "resource",
+          "to": "var"
+        },
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "protected_by",
+          "to": "lock"
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    },
+    {
+      "version": 4,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"notify_choice_false_pass\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"m\", \"cv\", \"done\", \"remaining\"],\n        \"functions\": [\"main\", \"w1\", \"w2\", \"notifier\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"m\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"cv\", \"kind\": \"sync\", \"type\": \"Condvar\", \"mode\": \"Sync\" },\n        { \"name\": \"done\", \"kind\": \"var\", \"type\": \"Var\", \"base\": \"Bool\", \"init\": \"false\" },\n        { \"name\": \"remaining\", \"kind\": \"var\", \"type\": \"Var\", \"base\": \"Int\", \"init\": \"2\" }\n      ],\n      \"protection\": [\n        { \"resource\": \"main::done\", \"protected_by\": [\"main::m\"] },\n        { \"resource\": \"main::remaining\", \"protected_by\": [\"main::m\"] }\n      ],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"write_shared\",\n              \"resource\": \"main::done\",\n              \"expr\": \"false\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"write_shared\",\n              \"resource\": \"main::remaining\",\n              \"expr\": \"2\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"scope\",\n              \"funcs\": [\"main::w1\", \"main::w2\", \"main::notifier\"]\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"w1\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_wait\",\n              \"condvar\": \"main::cv\",\n              \"lock\": \"main::m\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s6\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s7\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"w2\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_wait\",\n              \"condvar\": \"main::cv\",\n              \"lock\": \"main::m\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s6\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s7\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"notifier\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"write_shared\",\n              \"resource\": \"main::done\",\n              \"expr\": \"true\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_notify_all\",\n              \"condvar\": \"main::cv\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s5\",\n              \"kind\": \"return\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "07ee5ba2035e62372075df4780c2fd8f01734851f77ec0ef56b6e62d892a3aec",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/condvar__notify_one_multi_waiter_wrong_pick/A3_whole/run-20260920T083812-41096-39be4d/revision-4.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": null,
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "stalled_local_patch",
+      "request_sha256": "f251ae12bcd1efce4d6d5892a3e8ce95d5c5474d8e8b3e913b52836a61729bdf",
+      "feedback_sha256": "79492a5b7c31531b93d8fa7cc601563b72d8e2de50f7c799cc078186cf3e4d27",
+      "prompt_tokens": 2886,
+      "completion_tokens": 1123,
+      "llm_wall_ms": 3489,
+      "tool_wall_ms": 0,
+      "tool_output_sha256": null,
+      "normalizations": [
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "resource",
+          "to": "var"
+        },
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "protected_by",
+          "to": "lock"
+        },
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "resource",
+          "to": "var"
+        },
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "protected_by",
+          "to": "lock"
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    }
+  ],
+  "accepted_version": null,
+  "repair_mode": "llm_revision",
+  "candidate_source": "llm",
+  "consumption": {
+    "http_requests": 3,
+    "prompt_tokens": 9255,
+    "completion_tokens": 3315,
+    "total_tokens": 12570,
+    "llm_wall_ms": 10495,
+    "tool_wall_ms": 38,
+    "rounds": 3,
+    "first_correct_round": null
+  },
+  "error": "no complete PASS within 4 rounds",
+  "accepted": false
+}

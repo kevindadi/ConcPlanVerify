@@ -1,0 +1,207 @@
+{
+  "status": "accepted",
+  "task": "channel/bounded_backpressure_lock_held",
+  "requirements": "A sender and a receiver use a channel of capacity one, plus a mutex both occasionally need. The sender sends two values. Every interleaving must terminate; neither side may block on the channel while holding the lock the other needs. On completion the program must print exactly one line `DONE done=1` and then exit; it must terminate.\n",
+  "contract_sha256": "9b4f8ef4d7b79dfbcd00c58313394e668ca5b5a4f4e077da0aff3a26168f8ebb",
+  "out_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/channel__bounded_backpressure_lock_held/A3_whole/run-20260920T083859-41096-8d59f8",
+  "max_rounds": 4,
+  "engine": "petri",
+  "diagnostics": true,
+  "check_fidelity": true,
+  "fidelity_name": null,
+  "versions": [
+    {
+      "version": 1,
+      "source": "frozen",
+      "raw_text": null,
+      "program_sha256": "405bd8a5c6b1b0a990739bba99c9e19881f96af284867362b5f3477c6c731bc2",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/channel__bounded_backpressure_lock_held/A3_whole/run-20260920T083859-41096-8d59f8/revision-1.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "valid",
+      "support_status": "supported",
+      "explore_outcome": "FAIL",
+      "explore_complete": true,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "explore_fail",
+      "request_sha256": null,
+      "feedback_sha256": "ba73342d6c65d2b9c8f90d099d8fef387f8fd19cbd4e820837d0e900ed4c6d0b",
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "llm_wall_ms": 0,
+      "tool_wall_ms": 24,
+      "tool_output_sha256": "a5f65a81490a67729dd0ba8048015642d431cd4aa2499985ef2333c00b642efe",
+      "normalizations": [
+        {
+          "rule": "add_local",
+          "function": "receiver",
+          "names": [
+            "_"
+          ]
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    },
+    {
+      "version": 2,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"backpressure\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"ch\", \"m\", \"done\"],\n        \"functions\": [\"main\", \"sender\", \"receiver\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"ch\", \"kind\": \"sync\", \"type\": \"Channel\", \"count\": 1 },\n        { \"name\": \"m\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"done\", \"kind\": \"var\", \"type\": \"Var\", \"mode\": \"Sync\" }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"sender\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"channel_send\", \"channel\": \"main::ch\", \"value\": \"1\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s3\", \"kind\": \"mutex_unlock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s4\", \"kind\": \"channel_send\", \"channel\": \"main::ch\", \"value\": \"2\" },\n            { \"sid\": \"s5\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"receiver\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"channel_recv\", \"channel\": \"main::ch\", \"dst\": \"v1\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s3\", \"kind\": \"mutex_unlock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s4\", \"kind\": \"channel_recv\", \"channel\": \"main::ch\", \"dst\": \"v2\" },\n            { \"sid\": \"s5\", \"kind\": \"write_shared\", \"resource\": \"main::done\", \"expr\": \"1\" },\n            { \"sid\": \"s6\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"scope\", \"funcs\": [\"main::sender\", \"main::receiver\"] },\n            { \"sid\": \"s2\", \"kind\": \"return\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "6218707edf890b886b9a7a368d04336393e04def595c9d64e3544f4ca45eafce",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/channel__bounded_backpressure_lock_held/A3_whole/run-20260920T083859-41096-8d59f8/revision-2.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "invalid",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "check_invalid",
+      "request_sha256": "0a09d70b850b51de2e0edbd87103070b83051cadb828228380a81d33f0a86d04",
+      "feedback_sha256": "d036faf4f4bd2becca8add9755e1107b4be27acd9e8a9acdc2563bbdf94c7860",
+      "prompt_tokens": 2999,
+      "completion_tokens": 637,
+      "llm_wall_ms": 2234,
+      "tool_wall_ms": 4,
+      "tool_output_sha256": "854a7708a44f49d3a7b8bf436be517b491959635c64380dd760bb02a4049d0b2",
+      "normalizations": [
+        {
+          "rule": "resource_mode",
+          "scope": "resource",
+          "resource": "ch",
+          "location": "/modules/0",
+          "to": "Sync"
+        },
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "done",
+          "field": "mode"
+        },
+        {
+          "rule": "add_local",
+          "function": "receiver",
+          "names": [
+            "v1",
+            "v2"
+          ]
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    },
+    {
+      "version": 3,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"backpressure\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"ch\", \"m\", \"done\"],\n        \"functions\": [\"main\", \"sender\", \"receiver\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"ch\", \"kind\": \"sync\", \"type\": \"Channel\", \"base\": \"Int\", \"capacity\": 1 },\n        { \"name\": \"m\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"done\", \"kind\": \"var\", \"type\": \"Var\", \"base\": \"Int\", \"init\": \"0\" }\n      ],\n      \"protection\": [\n        { \"resource\": \"main::done\", \"protected_by\": \"main::m\" }\n      ],\n      \"functions\": [\n        {\n          \"name\": \"sender\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"channel_send\", \"channel\": \"main::ch\", \"value\": \"1\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s3\", \"kind\": \"mutex_unlock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s4\", \"kind\": \"channel_send\", \"channel\": \"main::ch\", \"value\": \"2\" },\n            { \"sid\": \"s5\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"receiver\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"channel_recv\", \"channel\": \"main::ch\", \"dst\": \"v1\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s3\", \"kind\": \"mutex_unlock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s4\", \"kind\": \"channel_recv\", \"channel\": \"main::ch\", \"dst\": \"v2\" },\n            { \"sid\": \"s5\", \"kind\": \"mutex_lock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s6\", \"kind\": \"write_shared\", \"resource\": \"main::done\", \"expr\": \"1\" },\n            { \"sid\": \"s7\", \"kind\": \"mutex_unlock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s8\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"scope\", \"funcs\": [\"main::sender\", \"main::receiver\"] },\n            { \"sid\": \"s2\", \"kind\": \"return\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "19381837654e580ada5c9761ffc7dce7249a79f93aaed092f4bed31818a2cec0",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/channel__bounded_backpressure_lock_held/A3_whole/run-20260920T083859-41096-8d59f8/revision-3.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "invalid",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "check_invalid",
+      "request_sha256": "9dd7ffb02ae1bf24194c01d08bae101d10ca224c569e991bd3219db80b931412",
+      "feedback_sha256": "0d1aa77b4477279acd117f2c239a8dcb8bbab36f4e47bc7126f516bf84a5fbad",
+      "prompt_tokens": 2899,
+      "completion_tokens": 724,
+      "llm_wall_ms": 2629,
+      "tool_wall_ms": 4,
+      "tool_output_sha256": "0bc03025442268f8bca44bc199e47a75965b537b5ccccee6d92ab59de5f7727d",
+      "normalizations": [
+        {
+          "rule": "resource_mode",
+          "scope": "resource",
+          "resource": "ch",
+          "location": "/modules/0",
+          "to": "Sync"
+        },
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "resource",
+          "to": "var"
+        },
+        {
+          "rule": "protection_alias",
+          "scope": "protection",
+          "from": "protected_by",
+          "to": "lock"
+        },
+        {
+          "rule": "add_local",
+          "function": "receiver",
+          "names": [
+            "v1",
+            "v2"
+          ]
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    },
+    {
+      "version": 4,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"backpressure\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"ch\", \"m\", \"done\"],\n        \"functions\": [\"main\", \"sender\", \"receiver\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"ch\", \"kind\": \"sync\", \"type\": \"Channel\", \"base\": \"Int\", \"capacity\": 1 },\n        { \"name\": \"m\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"done\", \"kind\": \"var\", \"type\": \"Var\", \"base\": \"Int\", \"init\": 0 }\n      ],\n      \"protection\": [\n        { \"var\": \"main::done\", \"lock\": \"main::m\" }\n      ],\n      \"functions\": [\n        {\n          \"name\": \"sender\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"channel_send\", \"channel\": \"main::ch\", \"value\": \"1\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s3\", \"kind\": \"mutex_unlock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s4\", \"kind\": \"channel_send\", \"channel\": \"main::ch\", \"value\": \"2\" },\n            { \"sid\": \"s5\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"receiver\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"channel_recv\", \"channel\": \"main::ch\", \"dst\": \"v1\" },\n            { \"sid\": \"s2\", \"kind\": \"mutex_lock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s3\", \"kind\": \"mutex_unlock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s4\", \"kind\": \"channel_recv\", \"channel\": \"main::ch\", \"dst\": \"v2\" },\n            { \"sid\": \"s5\", \"kind\": \"mutex_lock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s6\", \"kind\": \"write_shared\", \"resource\": \"main::done\", \"expr\": \"1\" },\n            { \"sid\": \"s7\", \"kind\": \"mutex_unlock\", \"resource\": \"main::m\" },\n            { \"sid\": \"s8\", \"kind\": \"return\" }\n          ]\n        },\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            { \"sid\": \"s1\", \"kind\": \"scope\", \"funcs\": [\"main::sender\", \"main::receiver\"] },\n            { \"sid\": \"s2\", \"kind\": \"return\" }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "7dfedd6c4074360a6faa264d6b9f8da167336e1e3823fee449eb5d99682ce378",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-0/channel__bounded_backpressure_lock_held/A3_whole/run-20260920T083859-41096-8d59f8/revision-4.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "valid",
+      "support_status": "supported",
+      "explore_outcome": "PASS",
+      "explore_complete": true,
+      "fidelity": null,
+      "accepted": true,
+      "decision": "accepted",
+      "request_sha256": "474b6416e2f18c7e13d92a0f22e8017159689de22656d3e5d6630a92be99e2b9",
+      "feedback_sha256": null,
+      "prompt_tokens": 2927,
+      "completion_tokens": 722,
+      "llm_wall_ms": 2405,
+      "tool_wall_ms": 24,
+      "tool_output_sha256": "3820f4d505c76291c98077b9dd79a6536af860a64409c526c594eb0fbb8f8c46",
+      "normalizations": [
+        {
+          "rule": "resource_mode",
+          "scope": "resource",
+          "resource": "ch",
+          "location": "/modules/0",
+          "to": "Sync"
+        },
+        {
+          "rule": "add_local",
+          "function": "receiver",
+          "names": [
+            "v1",
+            "v2"
+          ]
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    }
+  ],
+  "accepted_version": 4,
+  "repair_mode": "llm_revision",
+  "candidate_source": "llm",
+  "consumption": {
+    "http_requests": 3,
+    "prompt_tokens": 8825,
+    "completion_tokens": 2083,
+    "total_tokens": 10908,
+    "llm_wall_ms": 7268,
+    "tool_wall_ms": 56,
+    "rounds": 3,
+    "first_correct_round": 4
+  },
+  "error": null,
+  "accepted": true
+}

@@ -1,0 +1,71 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260920T083952-41096-52970e/round-2/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+error: unexpected token: `...`
+  --> src/main.rs:14:5
+   |
+14 |     ...
+   |     ^^^
+   |
+help: use `..` for an exclusive range
+   |
+14 -     ...
+14 +     ..
+   |
+help: or `..=` for an inclusive range
+   |
+14 -     ...
+14 +     ..=
+   |
+
+error[E0586]: inclusive range with no end
+  --> src/main.rs:14:5
+   |
+14 |     ...
+   |     ^^^
+   |
+   = note: inclusive ranges must be bounded at the end (`..=b` or `a..=b`)
+help: use `..` instead
+   |
+14 -     ...
+14 +     ..
+   |
+
+error[E0433]: cannot find module or crate `mpsc` in this scope
+ --> src/main.rs:2:20
+  |
+2 |     let (tx, rx) = mpsc::sync_channel::<u32>(0);
+  |                    ^^^^ use of unresolved module or unlinked crate `mpsc`
+  |
+  = help: if you wanted to use a crate named `mpsc`, use `cargo add mpsc` to add it to your `Cargo.toml`
+help: consider importing this module
+  |
+1 + use std::sync::mpsc;
+  |
+
+error[E0433]: cannot find type `Sem` in this scope
+ --> src/main.rs:3:33
+  |
+3 |     let s = std::sync::Arc::new(Sem::new());
+  |                                 ^^^ use of undeclared type `Sem`
+
+Some errors have detailed explanations: E0433, E0586.
+For more information about an error, try `rustc --explain E0433`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 4 previous errors

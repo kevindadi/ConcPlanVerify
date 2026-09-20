@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{mpsc, Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    // Shared mutex + condvar used by both sender and receiver.\n    let shared = Arc::new((Mutex::new(false), Condvar::new()));\n\n    // Rendezvous channel: sender and receiver must meet.\n    let (tx1, rx1) = mpsc::sync_channel::<i32>(0);\n\n    let shared_s = Arc::clone(&shared);\n    let s = thread::spawn(move || {\n        // Sender acquires the shared lock, signals, then releases it\n        // before blocking on the channel send.\n        {\n            let (lock, cvar) = &*shared_s;\n            let mut ready = lock.lock().unwrap();\n            *ready = true;\n            cvar.notify_all();\n        }\n\n        // Send after releasing the lock so the receiver can proceed.\n        tx1.send(1).unwrap();\n    });\n\n    let shared_r = Arc::clone(&shared);\n    let r = thread::spawn(move || {\n        // Receiver waits for the sender's signal without holding the\n        // lock while blocking on the channel.\n        {\n            let (lock, cvar) = &*shared_r;\n            let mut ready = lock.lock().unwrap();\n            while !*ready {\n                ready = cvar.wait(ready).unwrap();\n            }\n        }\n\n        // Receive after releasing the lock.\n        let _ = rx1.recv().unwrap();\n    });\n\n    s.join().unwrap();\n    r.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```"
+}

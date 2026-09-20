@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    let p = Arc::new((Mutex::new(false), Condvar::new()));\n    let mut hs = vec![];\n    for _ in 0..2 {\n        let q = Arc::clone(&p);\n        hs.push(thread::spawn(move || {\n            let (m, cv) = &*q;\n            let mut g = m.lock().unwrap();\n            while !*g {\n                g = cv.wait(g).unwrap();\n            }\n        }));\n    }\n    let q = Arc::clone(&p);\n    let n = thread::spawn(move || {\n        let (m, cv) = &*q;\n        let mut g = m.lock().unwrap();\n        *g = true;\n        cv.notify_all();\n    });\n    n.join().unwrap();\n    for h in hs {\n        h.join().unwrap();\n    }\n    println!(\"DONE waiters=0\");\n}\n```"
+}

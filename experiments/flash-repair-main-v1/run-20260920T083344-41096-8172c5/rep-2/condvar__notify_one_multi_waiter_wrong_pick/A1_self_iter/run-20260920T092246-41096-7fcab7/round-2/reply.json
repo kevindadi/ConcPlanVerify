@@ -1,0 +1,10 @@
+{
+  "round": 2,
+  "kind": "claims_no_issue",
+  "matched": [
+    "there is no (bug|deadlock|defect)",
+    "no deadlock"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program:\n\n- Two waiter threads lock the mutex, see `false`, and call `cv.wait(g)`.\n- The notifier thread locks the mutex, sets the flag to `true`, and calls `cv.notify_all()`.\n- `notify_all` wakes both waiters, so both will re-check the predicate and exit.\n- The notifier joins, then the waiters join, then it prints `DONE waiters=0`.\n\nThe specification says \"a notifier wakes one waiter\" but the program uses `notify_all()`. However, the requirement is that every waiter must complete. With `notify_all`, both waiters are woken and both terminate. There is no lost wakeup because the flag is set while holding the mutex, and waiters re-check the predicate in a `while` loop.\n\nThere is no deadlock, no lost wakeup, no data race, and no thread that can block forever. The program terminates and prints exactly one line.\n\nNO_ISSUES"
+}

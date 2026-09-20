@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "44e48050-cc10-4996-9560-c1fdd3ab653c",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nTwo workers share a semaphore with one permit. A worker may acquire the permit more than once but must release it as many times before returning. Every interleaving must terminate and both workers must complete. On completion the program must print exactly one line `DONE done=1` and then exit; it must terminate.\n\n\nCurrent program:\n```rust\nuse std::sync::mpsc;\nstruct Sem {\n    n: std::sync::Mutex<u32>,\n    cv: std::sync::Condvar,\n}\nimpl Sem {\n    fn new(n: u32) -> Self {\n        Self {\n            n: std::sync::Mutex::new(n),\n            cv: std::sync::Condvar::new(),\n        }\n    }\n    fn acq(&self) {\n        let mut c = self.n.lock().unwrap();\n        while *c == 0 {\n            c = self.cv.wait(c).unwrap();\n        }\n        *c -= 1;\n    }\n    fn rel(&self) {\n        *self.n.lock().unwrap() += 1;\n        self.cv.notify_one();\n    }\n}\nfn main() {\n    let (tx, rx) = mpsc::sync_channel::<u32>(0);\n    let s = std::sync::Arc::new(Sem::new(1));\n    let s1 = std::sync::Arc::clone(&s);\n    let tx1 = tx.clone();\n    let w1 = std::thread::spawn(move || {\n        s1.acq();\n        s1.acq();\n        s1.rel();\n        let _ = tx1;\n        let _ = rx;\n    });\n    let s2 = std::sync::Arc::clone(&s);\n    let w2 = std::thread::spawn(move || {\n        s2.acq();\n        s2.rel();\n    });\n    w1.join().unwrap();\n    w2.join().unwrap();\n    println!(\"DONE done=1\");\n}\n\n```\n\nFix any concurrency defect and output the complete corrected Rust program, or if there is none reply exactly NO_ISSUES."
+    }
+  ],
+  "prompt_sha256": "40312477610de7b7a8be0a265560a024a2bc5b7a3121f4f9da35a69acc56521b",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 292,
+    "prompt_tokens": 681,
+    "total_tokens": 973,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 512
+    },
+    "prompt_cache_hit_tokens": 512,
+    "prompt_cache_miss_tokens": 169
+  },
+  "content_sha256": "6379bb7f089cb32343a5fe8ca014fdfda6d061e01a51dcc159ac594108fbfdcf",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\n\nstruct Sem {\n    n: Mutex<u32>,\n    cv: Condvar,\n}\n\nimpl Sem {\n    fn new(n: u32) -> Self {\n        Self {\n            n: Mutex::new(n),\n            cv: Condvar::new(),\n        }\n    }\n\n    fn acq(&self) {\n        let mut c = self.n.lock().unwrap();\n        while *c == 0 {\n            c = self.cv.wait(c).unwrap();\n        }\n        *c -= 1;\n    }\n\n    fn rel(&self) {\n        let mut c = self.n.lock().unwrap();\n        *c += 1;\n        self.cv.notify_one();\n    }\n}\n\nfn main() {\n    let s = Arc::new(Sem::new(1));\n\n    let s1 = Arc::clone(&s);\n    let w1 = std::thread::spawn(move || {\n        s1.acq();\n        s1.acq();\n        s1.rel();\n        s1.rel();\n    });\n\n    let s2 = Arc::clone(&s);\n    let w2 = std::thread::spawn(move || {\n        s2.acq();\n        s2.rel();\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 1553
+}

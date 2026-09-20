@@ -1,0 +1,28 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260920T084100-41096-e1e2be/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+warning: unused variable: `done`
+  --> src/main.rs:67:9
+   |
+67 |     let done = thread::spawn(move || loop {
+   |         ^^^^ help: if this is intentional, prefix it with an underscore: `_done`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+

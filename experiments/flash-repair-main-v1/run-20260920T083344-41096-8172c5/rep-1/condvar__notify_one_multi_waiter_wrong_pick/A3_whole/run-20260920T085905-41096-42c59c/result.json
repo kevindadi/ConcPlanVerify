@@ -1,0 +1,215 @@
+{
+  "status": "accepted",
+  "task": "condvar/notify_one_multi_waiter_wrong_pick",
+  "requirements": "Several waiters share a mutex and a condition variable, and a notifier wakes one waiter. Every interleaving must terminate and every waiter must complete. On completion the program must print exactly one line `DONE waiters=0` and then exit; it must terminate.\n",
+  "contract_sha256": "b92ccd5ffc977ae72d22ff1f0266140ffb6793edbb5a80640816922033d8023e",
+  "out_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-1/condvar__notify_one_multi_waiter_wrong_pick/A3_whole/run-20260920T085905-41096-42c59c",
+  "max_rounds": 4,
+  "engine": "petri",
+  "diagnostics": true,
+  "check_fidelity": true,
+  "fidelity_name": null,
+  "versions": [
+    {
+      "version": 1,
+      "source": "frozen",
+      "raw_text": null,
+      "program_sha256": "fa5b0560e8935c8eb8189d74370cc1bb7752cb25299894af71f784caeafeff40",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-1/condvar__notify_one_multi_waiter_wrong_pick/A3_whole/run-20260920T085905-41096-42c59c/revision-1.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "valid",
+      "support_status": "supported",
+      "explore_outcome": "FAIL",
+      "explore_complete": true,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "explore_fail",
+      "request_sha256": null,
+      "feedback_sha256": "b7c85430405a96ab765c3e0367f0da62cbf18dfe0bf9f46a40cf0516b3759f37",
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "llm_wall_ms": 0,
+      "tool_wall_ms": 26,
+      "tool_output_sha256": "eaa7a46da9d434edd16d4f20d1b7068972d2c268041f794b9665788dfc1ad723",
+      "normalizations": [
+        {
+          "rule": "fqn_prefix",
+          "function": "main",
+          "sid": "s1",
+          "field": "funcs",
+          "from": "w1",
+          "to": "main::w1"
+        },
+        {
+          "rule": "fqn_prefix",
+          "function": "main",
+          "sid": "s1",
+          "field": "funcs",
+          "from": "w2",
+          "to": "main::w2"
+        },
+        {
+          "rule": "fqn_prefix",
+          "function": "main",
+          "sid": "s1",
+          "field": "funcs",
+          "from": "notifier",
+          "to": "main::notifier"
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    },
+    {
+      "version": 2,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"notify_choice_false_pass\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"m\", \"cv\", \"done\", \"remaining\"],\n        \"functions\": [\"main\", \"w1\", \"w2\", \"notifier\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"m\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"cv\", \"kind\": \"sync\", \"type\": \"Condvar\", \"mode\": \"Sync\" },\n        { \"name\": \"done\", \"kind\": \"var\", \"type\": \"Atomic\", \"mode\": \"Sync\" },\n        { \"name\": \"remaining\", \"kind\": \"var\", \"type\": \"Atomic\", \"mode\": \"Sync\" }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::remaining\",\n              \"value\": \"2\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::done\",\n              \"value\": \"false\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"scope\",\n              \"funcs\": [\"main::w1\", \"main::w2\", \"main::notifier\"]\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"w1\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_wait\",\n              \"condvar\": \"main::cv\",\n              \"lock\": \"main::m\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s5\",\n              \"kind\": \"goto\",\n              \"target\": \"s6\"\n            },\n            {\n              \"sid\": \"s6\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s7\",\n              \"kind\": \"atomic_load\",\n              \"resource\": \"main::remaining\",\n              \"dst\": \"r\"\n            },\n            {\n              \"sid\": \"s8\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::remaining\",\n              \"value\": \"r - 1\"\n            },\n            {\n              \"sid\": \"s9\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"w2\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_wait\",\n              \"condvar\": \"main::cv\",\n              \"lock\": \"main::m\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s5\",\n              \"kind\": \"goto\",\n              \"target\": \"s6\"\n            },\n            {\n              \"sid\": \"s6\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s7\",\n              \"kind\": \"atomic_load\",\n              \"resource\": \"main::remaining\",\n              \"dst\": \"r\"\n            },\n            {\n              \"sid\": \"s8\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::remaining\",\n              \"value\": \"r - 1\"\n            },\n            {\n              \"sid\": \"s9\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"notifier\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::done\",\n              \"value\": \"true\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_notify_all\",\n              \"condvar\": \"main::cv\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s5\",\n              \"kind\": \"return\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "760f5feebb6c9de9f84df041a701e0251622f21c8d7038e7fc680ff4e324c8b5",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-1/condvar__notify_one_multi_waiter_wrong_pick/A3_whole/run-20260920T085905-41096-42c59c/revision-2.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "invalid",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "check_invalid",
+      "request_sha256": "832f682f95f23683b4a89425098fb530b1fd80cadfac81ed6b9700ba42109410",
+      "feedback_sha256": "d447ceb4d201e223769e906f08a4a3133889eca6978b6dd56d334f0859b368c8",
+      "prompt_tokens": 3169,
+      "completion_tokens": 1270,
+      "llm_wall_ms": 4897,
+      "tool_wall_ms": 4,
+      "tool_output_sha256": "9abc4d43d0fd5762619464ff1bae8da4aafd871cde2e3e67c4a07d78a9fa0242",
+      "normalizations": [
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "done",
+          "field": "mode"
+        },
+        {
+          "rule": "drop_field",
+          "scope": "resource",
+          "resource": "remaining",
+          "field": "mode"
+        },
+        {
+          "rule": "add_local",
+          "function": "w1",
+          "names": [
+            "r"
+          ]
+        },
+        {
+          "rule": "add_local",
+          "function": "w2",
+          "names": [
+            "r"
+          ]
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": "main::w1"
+    },
+    {
+      "version": 3,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"notify_choice_false_pass\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"m\", \"cv\", \"done\", \"remaining\"],\n        \"functions\": [\"main\", \"w1\", \"w2\", \"notifier\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"m\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"cv\", \"kind\": \"sync\", \"type\": \"Condvar\", \"mode\": \"Sync\" },\n        { \"name\": \"done\", \"kind\": \"var\", \"type\": \"Atomic\", \"base\": \"Bool\", \"init\": \"false\" },\n        { \"name\": \"remaining\", \"kind\": \"var\", \"type\": \"Atomic\", \"base\": \"Int\", \"init\": \"2\" }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::remaining\",\n              \"value\": \"2\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::done\",\n              \"value\": \"false\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"scope\",\n              \"funcs\": [\"main::w1\", \"main::w2\", \"main::notifier\"]\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"w1\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_wait\",\n              \"condvar\": \"main::cv\",\n              \"lock\": \"main::m\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s6\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s7\",\n              \"kind\": \"atomic_load\",\n              \"resource\": \"main::remaining\",\n              \"dst\": \"r\"\n            },\n            {\n              \"sid\": \"s8\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::remaining\",\n              \"value\": \"r - 1\"\n            },\n            {\n              \"sid\": \"s9\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"w2\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_wait\",\n              \"condvar\": \"main::cv\",\n              \"lock\": \"main::m\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s6\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s7\",\n              \"kind\": \"atomic_load\",\n              \"resource\": \"main::remaining\",\n              \"dst\": \"r\"\n            },\n            {\n              \"sid\": \"s8\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::remaining\",\n              \"value\": \"r - 1\"\n            },\n            {\n              \"sid\": \"s9\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"notifier\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::done\",\n              \"value\": \"true\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_notify_all\",\n              \"condvar\": \"main::cv\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s5\",\n              \"kind\": \"return\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "ce0e17275d89011353c78c75c0e93bbef106e32127641956a92c86ed3c31a9f4",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-1/condvar__notify_one_multi_waiter_wrong_pick/A3_whole/run-20260920T085905-41096-42c59c/revision-3.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "invalid",
+      "support_status": null,
+      "explore_outcome": null,
+      "explore_complete": null,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "check_invalid",
+      "request_sha256": "2e7bdb4fb47ee42a7e5d248b07b0f077a1e3e0e81b3ae3c0286f04ccea6e7297",
+      "feedback_sha256": "3854980c3a198944f384bd6a61dcd430f40ac285dde14d3636762e550848367e",
+      "prompt_tokens": 3683,
+      "completion_tokens": 1228,
+      "llm_wall_ms": 4291,
+      "tool_wall_ms": 4,
+      "tool_output_sha256": "5a86b2f011806372bc93c1edc58392cf2045a90194074a9e9926664d4d6d6de0",
+      "normalizations": [
+        {
+          "rule": "add_local",
+          "function": "w1",
+          "names": [
+            "r"
+          ]
+        },
+        {
+          "rule": "add_local",
+          "function": "w2",
+          "names": [
+            "r"
+          ]
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": "main::w1"
+    },
+    {
+      "version": 4,
+      "source": "llm",
+      "raw_text": "{\n  \"program\": \"notify_choice_false_pass\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"m\", \"cv\", \"done\", \"remaining\"],\n        \"functions\": [\"main\", \"w1\", \"w2\", \"notifier\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        { \"name\": \"m\", \"kind\": \"sync\", \"type\": \"Mutex\", \"mode\": \"Sync\" },\n        { \"name\": \"cv\", \"kind\": \"sync\", \"type\": \"Condvar\", \"mode\": \"Sync\" },\n        { \"name\": \"done\", \"kind\": \"var\", \"type\": \"Atomic\", \"base\": \"Bool\", \"init\": false },\n        { \"name\": \"remaining\", \"kind\": \"var\", \"type\": \"Atomic\", \"base\": \"Int\", \"init\": 2 }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::remaining\",\n              \"value\": \"2\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::done\",\n              \"value\": \"false\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"scope\",\n              \"funcs\": [\"main::w1\", \"main::w2\", \"main::notifier\"]\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"w1\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_wait\",\n              \"condvar\": \"main::cv\",\n              \"lock\": \"main::m\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s6\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s7\",\n              \"kind\": \"atomic_load\",\n              \"resource\": \"main::remaining\",\n              \"dst\": \"r\"\n            },\n            {\n              \"sid\": \"s8\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::remaining\",\n              \"value\": \"r - 1\"\n            },\n            {\n              \"sid\": \"s9\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"w2\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_wait\",\n              \"condvar\": \"main::cv\",\n              \"lock\": \"main::m\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"branch\",\n              \"cond\": \"done == true\",\n              \"then\": \"s6\",\n              \"else\": \"s3\"\n            },\n            {\n              \"sid\": \"s6\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s7\",\n              \"kind\": \"atomic_load\",\n              \"resource\": \"main::remaining\",\n              \"dst\": \"r\"\n            },\n            {\n              \"sid\": \"s8\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::remaining\",\n              \"value\": \"r - 1\"\n            },\n            {\n              \"sid\": \"s9\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"notifier\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"mutex_lock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"atomic_store\",\n              \"resource\": \"main::done\",\n              \"value\": \"true\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"condvar_notify_all\",\n              \"condvar\": \"main::cv\"\n            },\n            {\n              \"sid\": \"s4\",\n              \"kind\": \"mutex_unlock\",\n              \"resource\": \"main::m\"\n            },\n            {\n              \"sid\": \"s5\",\n              \"kind\": \"return\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "program_sha256": "bf12945c0b413dc8654d3146368b3bb9363d7ff6eef8a5855e0c3cc754fc3afb",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5/rep-1/condvar__notify_one_multi_waiter_wrong_pick/A3_whole/run-20260920T085905-41096-42c59c/revision-4.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "valid",
+      "support_status": "supported",
+      "explore_outcome": "PASS",
+      "explore_complete": true,
+      "fidelity": null,
+      "accepted": true,
+      "decision": "accepted",
+      "request_sha256": "128f492054b1a20806bce84c32fd9719849a9f988ff88a439f379de18bf951d6",
+      "feedback_sha256": null,
+      "prompt_tokens": 3355,
+      "completion_tokens": 1225,
+      "llm_wall_ms": 4284,
+      "tool_wall_ms": 35,
+      "tool_output_sha256": "360d53c4e21c1b7b0117c82384cc45142c044b480915c334417abe3de9290387",
+      "normalizations": [
+        {
+          "rule": "add_local",
+          "function": "w1",
+          "names": [
+            "r"
+          ]
+        },
+        {
+          "rule": "add_local",
+          "function": "w2",
+          "names": [
+            "r"
+          ]
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    }
+  ],
+  "accepted_version": 4,
+  "repair_mode": "llm_revision",
+  "candidate_source": "llm",
+  "consumption": {
+    "http_requests": 3,
+    "prompt_tokens": 10207,
+    "completion_tokens": 3723,
+    "total_tokens": 13930,
+    "llm_wall_ms": 13472,
+    "tool_wall_ms": 69,
+    "rounds": 3,
+    "first_correct_round": 4
+  },
+  "error": null,
+  "accepted": true
+}

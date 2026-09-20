@@ -1,145 +1,210 @@
-# RESULTS — ConcIR repair/extraction benchmark (round i)
+# RESULTS — ConcIR repair/extraction benchmark
 
-Assembled from committed experiment artefacts. Paper-facing summary of the
-main repair batch, the dual-track Rust-arm oracle, tool-driven extraction,
-Track D, and the scale table.
+> **Generated file — do not edit by hand.** Regenerate with:
+> ```
+> python -m cir_workflow results --out /tmp results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --trackd experiments/detection-v3/DETECTION.json --scale experiments/scale-v2/SCALE.json --output experiments/RESULTS.md
+> ```
 
 ## Provenance
 
-- ConcPV HEAD at assembly: see `git log`; ConcIR HEAD `1a83704`
-- ConcIR backend sha256: `6d498c8a8fa2f3dde578236889dd88073fe1952353a79a22097bfe68633f26e9` (main batch); Track D/extraction `88c3217d4b8f6549c8f7e07787e384ea3b065dc99abab47a27766beb958b42a3`
-- main protocol sha256: `596203e05d9b1ca386cb8963f484439eb6ad4888d79459c1e2bb8355928d9aa3`
-- main batch: 78/200 requests, stop_reason=None, K=4
-- provider/model: deepseek / deepseek-flash; thinking disabled, temperature 0, max_tokens 4096, timeout 90 s
+- batch: `experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5`
+- track D: `experiments/detection-v3/DETECTION.json`
+- scale: `experiments/scale-v2/SCALE.json`
+- binary sha256: `4bec943dd486473caab24b17233b536e31641fbbb1e3d8d505d499b3113fb3f2`
+- protocol[0] sha256: `b869a532588c83b2520f4c8df40e4be36c848789e9b7714301b1a22f9159e7f0`
+- protocol[1] sha256: `b869a532588c83b2520f4c8df40e4be36c848789e9b7714301b1a22f9159e7f0`
+- protocol[2] sha256: `b869a532588c83b2520f4c8df40e4be36c848789e9b7714301b1a22f9159e7f0`
 
-## 1. Main repair batch (8 hard tasks x 5 arms)
+## 1. Main table
 
-| task | arm | accepted | round | tokens | tool_ms | oracle (build/behavior/miri) | false_accept |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| lock-order/partial_deadlock_bystander | A0_direct | True | 1 | 1361 | 870 | True/hang/detected | None |
-| lock-order/partial_deadlock_bystander | A1_self_iter | False | None | 10210 | 778 | False/no_build/clean | None |
-| lock-order/partial_deadlock_bystander | A2_tools_iter_ml | True | 2 | 7612 | 4622 | True/terminated_ok/clean | None |
-| lock-order/partial_deadlock_bystander | A3_local | False | None | 4587 | 28 | None/None/— | None |
-| lock-order/partial_deadlock_bystander | A3_whole | False | None | 16355 | 42 | None/None/— | None |
-| lock-order/cross_module_cycle | A0_direct | True | 1 | 1000 | 705 | True/terminated_ok/clean | None |
-| lock-order/cross_module_cycle | A1_self_iter | False | None | 2478 | 676 | False/no_build/clean | None |
-| lock-order/cross_module_cycle | A2_tools_iter_ml | True | 1 | 647 | 1985 | True/terminated_ok/clean | None |
-| lock-order/cross_module_cycle | A3_local | True | 2 | 1912 | 49 | None/None/— | None |
-| lock-order/cross_module_cycle | A3_whole | True | 2 | 3580 | 48 | None/None/— | None |
-| lock-order/cycle_3lock | A0_direct | True | 1 | 1001 | 686 | True/terminated_ok/clean | None |
-| lock-order/cycle_3lock | A1_self_iter | False | None | 3695 | 2674 | True/terminated_ok/clean | None |
-| lock-order/cycle_3lock | A2_tools_iter_ml | True | 1 | 911 | 2192 | True/terminated_ok/clean | None |
-| lock-order/cycle_3lock | A3_local | True | 2 | 2096 | 56 | None/None/— | None |
-| lock-order/cycle_3lock | A3_whole | True | 3 | 8524 | 88 | None/None/— | None |
-| structure/nested_scope_lock_order | A0_direct | True | 1 | 736 | 668 | True/terminated_ok/clean | None |
-| structure/nested_scope_lock_order | A1_self_iter | True | 2 | 1105 | 656 | True/terminated_ok/clean | None |
-| structure/nested_scope_lock_order | A2_tools_iter_ml | True | 1 | 677 | 2472 | True/terminated_ok/clean | None |
-| structure/nested_scope_lock_order | A3_local | True | 2 | 2054 | 48 | None/None/— | None |
-| structure/nested_scope_lock_order | A3_whole | True | 4 | 10713 | 60 | None/None/— | None |
-| condvar/notify_one_multi_waiter_wrong_pick | A0_direct | False | None | 2208 | 0 | False/no_build/clean | None |
-| condvar/notify_one_multi_waiter_wrong_pick | A1_self_iter | False | None | 2710 | 681 | False/no_build/clean | None |
-| condvar/notify_one_multi_waiter_wrong_pick | A2_tools_iter_ml | True | 1 | 675 | 2762 | True/terminated_ok/clean | None |
-| condvar/notify_one_multi_waiter_wrong_pick | A3_local | True | 2 | 2792 | 49 | None/None/— | None |
-| condvar/notify_one_multi_waiter_wrong_pick | A3_whole | False | None | 13857 | 40 | None/None/— | None |
-| channel/bounded_backpressure_lock_held | A0_direct | True | 1 | 707 | 714 | True/terminated_ok/clean | None |
-| channel/bounded_backpressure_lock_held | A1_self_iter | False | None | 2755 | 729 | False/no_build/clean | None |
-| channel/bounded_backpressure_lock_held | A2_tools_iter_ml | True | 1 | 665 | 2623 | True/terminated_ok/clean | None |
-| channel/bounded_backpressure_lock_held | A3_local | True | 2 | 2149 | 49 | None/None/— | None |
-| channel/bounded_backpressure_lock_held | A3_whole | True | 4 | 11450 | 58 | None/None/— | None |
-| channel/send_while_holding_mutex | A0_direct | True | 1 | 851 | 746 | True/terminated_ok/clean | None |
-| channel/send_while_holding_mutex | A1_self_iter | True | 3 | 1808 | 705 | False/no_build/clean | None |
-| channel/send_while_holding_mutex | A2_tools_iter_ml | True | 1 | 828 | 2421 | True/terminated_ok/clean | None |
-| channel/send_while_holding_mutex | A3_local | True | 2 | 1499 | 48 | None/None/— | None |
-| channel/send_while_holding_mutex | A3_whole | True | 4 | 9345 | 54 | None/None/— | None |
-| semaphore/acquire_twice_no_release | A0_direct | True | 1 | 973 | 665 | True/hang/detected | None |
-| semaphore/acquire_twice_no_release | A1_self_iter | False | None | 13642 | 1427 | False/no_build/clean | None |
-| semaphore/acquire_twice_no_release | A2_tools_iter_ml | True | 2 | 4012 | 4088 | True/terminated_ok/clean | None |
-| semaphore/acquire_twice_no_release | A3_local | True | 2 | 1763 | 46 | None/None/— | None |
-| semaphore/acquire_twice_no_release | A3_whole | True | 2 | 3432 | 47 | None/None/— | None |
+| task | arm | accepted | round | tokens | false_accept | build | behavior | miri | expert | extract |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| lock-order/partial_deadlock_bystander | A0_direct | 3/3 | 1 | 1417±99 | 3/3 | True | hang | clean | — | — |
+| lock-order/partial_deadlock_bystander | A1_self_iter | 2/3 | 1 | 12574±6516 | 0/3 | True | terminated_ok | clean | — | — |
+| lock-order/partial_deadlock_bystander | A2_tools_iter_ml | 1/3 | 2 | 7957 | 0/3 | True | terminated_ok | clean | — | — |
+| lock-order/partial_deadlock_bystander | A3_local | 0/3 | — | — | 0/3 | None | — | — | — | — |
+| lock-order/partial_deadlock_bystander | A3_whole | 2/3 | 4 | 15255±30 | 0/3 | None | — | — | — | — |
+| lock-order/cross_module_cycle | A0_direct | 3/3 | 1 | 898±242 | 0/3 | True | terminated_ok | clean | — | — |
+| lock-order/cross_module_cycle | A1_self_iter | 3/3 | 1 | 1247±66 | 0/3 | True | terminated_ok | clean | — | — |
+| lock-order/cross_module_cycle | A2_tools_iter_ml | 3/3 | 1 | 693 | 0/3 | True | terminated_ok | clean | — | — |
+| lock-order/cross_module_cycle | A3_local | 3/3 | 2 | 1912 | 0/3 | None | — | — | — | — |
+| lock-order/cross_module_cycle | A3_whole | 3/3 | 2 | 3580 | 0/3 | None | — | — | — | — |
+| lock-order/cycle_3lock | A0_direct | 3/3 | 1 | 1001 | 0/3 | True | terminated_ok | clean | — | — |
+| lock-order/cycle_3lock | A1_self_iter | 0/3 | — | — | 0/3 | True | terminated_ok | clean | — | — |
+| lock-order/cycle_3lock | A2_tools_iter_ml | 3/3 | 1 | 911 | 0/3 | True | terminated_ok | clean | — | — |
+| lock-order/cycle_3lock | A3_local | 3/3 | 2 | 2100±13 | 0/3 | None | — | — | — | — |
+| lock-order/cycle_3lock | A3_whole | 2/3 | 3 | 8524 | 0/3 | None | — | — | — | — |
+| structure/nested_scope_lock_order | A0_direct | 3/3 | 1 | 736 | 0/3 | True | terminated_ok | clean | — | — |
+| structure/nested_scope_lock_order | A1_self_iter | 3/3 | 1 | 1105 | 0/3 | True | terminated_ok | clean | — | — |
+| structure/nested_scope_lock_order | A2_tools_iter_ml | 3/3 | 1 | 646 | 0/3 | True | terminated_ok | clean | — | — |
+| structure/nested_scope_lock_order | A3_local | 3/3 | 2 | 2054 | 0/3 | None | — | — | — | — |
+| structure/nested_scope_lock_order | A3_whole | 2/3 | 4 | 10713 | 0/3 | None | — | — | — | — |
+| condvar/notify_one_multi_waiter_wrong_pick | A0_direct | 3/3 | 1 | 623±213 | 2/3 | True | hang | clean | — | — |
+| condvar/notify_one_multi_waiter_wrong_pick | A1_self_iter | 3/3 | 1 | 1334±34 | 0/3 | True | terminated_ok | clean | — | — |
+| condvar/notify_one_multi_waiter_wrong_pick | A2_tools_iter_ml | 3/3 | 1 | 675 | 0/3 | True | terminated_ok | clean | — | — |
+| condvar/notify_one_multi_waiter_wrong_pick | A3_local | 3/3 | 2 | 2841±29 | 0/3 | None | — | — | — | — |
+| condvar/notify_one_multi_waiter_wrong_pick | A3_whole | 2/3 | 4 | 13930 | 0/3 | None | — | — | — | — |
+| channel/bounded_backpressure_lock_held | A0_direct | 3/3 | 1 | 707 | 0/3 | True | terminated_ok | clean | — | — |
+| channel/bounded_backpressure_lock_held | A1_self_iter | 3/3 | 1 | 1523±730 | 0/3 | True | terminated_ok | clean | — | — |
+| channel/bounded_backpressure_lock_held | A2_tools_iter_ml | 3/3 | 1 | 670±15 | 0/3 | True | terminated_ok | clean | — | — |
+| channel/bounded_backpressure_lock_held | A3_local | 3/3 | 2 | 2165 | 0/3 | None | — | — | — | — |
+| channel/bounded_backpressure_lock_held | A3_whole | 3/3 | 4 | 11127±530 | 0/3 | None | — | — | — | — |
+| channel/send_while_holding_mutex | A0_direct | 3/3 | 1 | 859±22 | 0/3 | True | terminated_ok | clean | — | — |
+| channel/send_while_holding_mutex | A1_self_iter | 0/3 | — | — | 0/3 | None | — | — | — | — |
+| channel/send_while_holding_mutex | A2_tools_iter_ml | 3/3 | 1 | 760±27 | 0/3 | True | terminated_ok | clean | — | — |
+| channel/send_while_holding_mutex | A3_local | 3/3 | 2 | 1506±38 | 0/3 | None | — | — | — | — |
+| channel/send_while_holding_mutex | A3_whole | 3/3 | 3 | 5983 | 0/3 | None | — | — | — | — |
+| semaphore/acquire_twice_no_release | A0_direct | 3/3 | 1 | 877±287 | 3/3 | True | hang | detected | — | — |
+| semaphore/acquire_twice_no_release | A1_self_iter | 3/3 | 1 | 8415±10091 | 0/3 | True | terminated_ok | clean | — | — |
+| semaphore/acquire_twice_no_release | A2_tools_iter_ml | 3/3 | 2 | 4196±419 | 0/3 | True | terminated_ok | clean | — | — |
+| semaphore/acquire_twice_no_release | A3_local | 3/3 | 2 | 1759±11 | 0/3 | None | — | — | — | — |
+| semaphore/acquire_twice_no_release | A3_whole | 3/3 | 2 | 3432 | 0/3 | None | — | — | — | — |
+
+`accepted`/`false_accept` are k/n over repeats; `round`/`tokens` are mean±range over accepted cells. `expert` is the manual/proxy label, `extract` the validated extraction verdict.
 
 ### Per-arm aggregates
 
-| arm | cells | accepted | accept_rate | false_accept | inconclusive | mean_round | mean_tokens |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| A0_direct | 8 | 7 | 0.88 | 0 | 0 | 1.0 | 947.0 |
-| A1_self_iter | 8 | 2 | 0.25 | 0 | 0 | 2.5 | 1456.5 |
-| A2_tools_iter_ml | 8 | 8 | 1.0 | 0 | 0 | 1.25 | 2003.4 |
-| A3_local | 8 | 7 | 0.88 | 0 | 0 | 2.0 | 2037.9 |
-| A3_whole | 8 | 6 | 0.75 | 0 | 0 | 3.17 | 7840.7 |
+| arm | cells | accepted | accept_rate | false_accept | by source |
+| --- | --- | --- | --- | --- | --- |
+| A0_direct | 24 | 24 | 1.00 | 8 | {'behavior': 8, 'by_construction': 3} |
+| A1_self_iter | 24 | 17 | 0.71 | 0 | — |
+| A2_tools_iter_ml | 24 | 22 | 0.92 | 0 | — |
+| A3_local | 24 | 21 | 0.88 | 0 | — |
+| A3_whole | 24 | 20 | 0.83 | 0 | — |
 
-Rust-arm `oracle.model` is `inconclusive` for this batch (deviation **D-19**); it is
-backfilled by the dual-track oracle (automatic extraction §6 + expert labels §4).
+### A3 decision distribution
 
-## 4. Expert labels (Rust-arm oracle track)
+| task | decisions |
+| --- | --- |
 
-Rubric `expert-label-rubric-v1` (proxy annotator). Every accepted A0/A1/A2
-candidate was read and labelled:
+### Expert labels
 
 | task | arm | bug_present | design_preserved | auto | agree |
 | --- | --- | --- | --- | --- | --- |
-| lock-order/partial_deadlock_bystander | A0_direct | yes | yes | True | True |
-| lock-order/partial_deadlock_bystander | A2_tools_iter_ml | no | yes | False | True |
-| lock-order/cross_module_cycle | A0_direct | no | no | False | True |
-| lock-order/cross_module_cycle | A2_tools_iter_ml | no | yes | False | True |
-| lock-order/cycle_3lock | A0_direct | yes | yes | False | False |
-| lock-order/cycle_3lock | A2_tools_iter_ml | yes | yes | False | False |
-| structure/nested_scope_lock_order | A0_direct | no | yes | False | True |
-| structure/nested_scope_lock_order | A1_self_iter | no | yes | False | True |
-| structure/nested_scope_lock_order | A2_tools_iter_ml | no | yes | False | True |
-| condvar/notify_one_multi_waiter_wrong_pick | A2_tools_iter_ml | no | yes | False | True |
-| channel/bounded_backpressure_lock_held | A0_direct | no | yes | False | True |
-| channel/bounded_backpressure_lock_held | A2_tools_iter_ml | no | yes | False | True |
-| channel/send_while_holding_mutex | A0_direct | no | yes | False | True |
-| channel/send_while_holding_mutex | A1_self_iter | unsure | no | False | None |
-| channel/send_while_holding_mutex | A2_tools_iter_ml | no | yes | False | True |
-| semaphore/acquire_twice_no_release | A0_direct | yes | yes | True | True |
-| semaphore/acquire_twice_no_release | A2_tools_iter_ml | no | yes | False | True |
 
-Agreement with the automatic oracle: **14/16 = 0.875** (unsure 1). The two
-disagreements are `lock-order/cycle_3lock` A0/A2: the 3-lock cycle is present in
-the as-written program but the batch accepted it because the sampled schedules
-terminated — exactly the miss expert labels are meant to catch.
+Agreement with the automatic oracle: **n/a** (unsure 0).
 
-## 6. Tool-driven extraction (A3_free, v4)
+### Extraction oracle
 
-- 8/64 requests, protocol sha `f7ce2844fa588ef85064fdd5cbd7b72787d2dd9b4d2f01e4944d75ddf7224f94`
-- validated: **1/8**; harness errors: **0**
-- stage distribution: `{'explore': 1, 'conform': 4, 'codegen': 3}`
+- cells: 0; validated: 0; stage distribution: `{}`
 
-| task | stage | validated |
-| --- | --- | --- |
-| lock-order/partial_deadlock_bystander | explore | True |
-| lock-order/cross_module_cycle | conform | False |
-| lock-order/cycle_3lock | conform | False |
-| structure/nested_scope_lock_order | codegen | False |
-| condvar/notify_one_multi_waiter_wrong_pick | codegen | False |
-| channel/bounded_backpressure_lock_held | conform | False |
-| channel/send_while_holding_mutex | conform | False |
-| semaphore/acquire_twice_no_release | codegen | False |
+| task|arm | stage | validated | verdict |
+| --- | --- | --- | --- |
 
-The model never edits Rust: `concir-instrument` (syn) inserts `cir_trace::ev` at
-every concurrency call and emits `labels.json`; the model maps labels to CIR sids
-only. Conformance uses extraction-mode `--lenient-unlock --attempt-events`.
-`partial_deadlock_bystander` reached **28/28 conformant traces** and a CIR verdict.
-Remaining failures are model-side: omitted `spawn` label sids (4x, `unknown_sid` at
-event 0), Rust types / `Arc::new` / `vec` in the CIR (3x, `codegen`).
+### Track D (detection capability)
 
-## 5. Track D and scale
+| task | side | concir.petri | concir.interp | miri | lockbud |
+| --- | --- | --- | --- | --- | --- |
+| lock-order/abba_2lock | buggy | FAIL | FAIL | None | None |
+| lock-order/abba_2lock | fixed | PASS | PASS | None | None |
+| lock-order/cycle_3lock | buggy | FAIL | FAIL | None | None |
+| lock-order/cycle_3lock | fixed | PASS | PASS | None | None |
+| lock-order/cross_module_cycle | buggy | FAIL | FAIL | None | None |
+| lock-order/cross_module_cycle | fixed | PASS | PASS | None | None |
+| lock-order/partial_deadlock_bystander | buggy | FAIL | FAIL | None | None |
+| lock-order/partial_deadlock_bystander | fixed | PASS | PASS | None | None |
+| condvar/lost_wakeup_notify_before_wait | buggy | FAIL | FAIL | None | None |
+| condvar/lost_wakeup_notify_before_wait | fixed | PASS | PASS | None | None |
+| channel/rendezvous_both_send | buggy | FAIL | FAIL | None | None |
+| channel/rendezvous_both_send | fixed | PASS | PASS | None | None |
+| semaphore/permit_leak | buggy | FAIL | FAIL | None | None |
+| semaphore/permit_leak | fixed | PASS | PASS | None | None |
+| semaphore/acquire_twice_no_release | buggy | FAIL | FAIL | None | None |
+| semaphore/acquire_twice_no_release | fixed | PASS | PASS | None | None |
+| semaphore/throttle_n_permits | buggy | None | None | None | None |
+| semaphore/throttle_n_permits | fixed | None | None | None | None |
+| condvar/bare_wait_no_predicate | buggy | FAIL | FAIL | None | None |
+| condvar/bare_wait_no_predicate | fixed | PASS | PASS | None | None |
+| channel/bounded_backpressure_lock_held | buggy | FAIL | FAIL | None | None |
+| channel/bounded_backpressure_lock_held | fixed | PASS | PASS | None | None |
+| atomic-data/bounded_counter_invariant | buggy | None | None | None | None |
+| atomic-data/bounded_counter_invariant | fixed | None | None | None | None |
+| atomic-data/counter_overflow_safety | buggy | FAIL | FAIL | None | None |
+| atomic-data/counter_overflow_safety | fixed | PASS | PASS | None | None |
+| atomic-data/atomic_lost_update | buggy | FAIL | FAIL | None | None |
+| atomic-data/atomic_lost_update | fixed | PASS | PASS | None | None |
+| structure/scope_bound_k_workers | buggy | None | None | None | None |
+| structure/scope_bound_k_workers | fixed | None | None | None | None |
+| structure/nested_scope_lock_order | buggy | FAIL | FAIL | None | None |
+| structure/nested_scope_lock_order | fixed | PASS | PASS | None | None |
+| structure/scope_worker_abba | buggy | FAIL | FAIL | None | None |
+| structure/scope_worker_abba | fixed | PASS | PASS | None | None |
+| structure/worker_with_payload | buggy | None | None | None | None |
+| structure/worker_with_payload | fixed | None | None | None | None |
+| boundary/unbounded_int_unknown | buggy | None | None | None | None |
+| boundary/unbounded_int_unknown | fixed | None | None | None | None |
+| lock-order/two_independent_cycles | buggy | FAIL | FAIL | None | None |
+| lock-order/two_independent_cycles | fixed | None | None | None | None |
+| condvar/same_cv_different_locks | buggy | None | None | None | None |
+| condvar/same_cv_different_locks | fixed | None | None | None | None |
+| condvar/notify_one_multi_waiter_wrong_pick | buggy | FAIL | FAIL | None | None |
+| condvar/notify_one_multi_waiter_wrong_pick | fixed | PASS | PASS | None | None |
+| channel/send_while_holding_mutex | buggy | FAIL | FAIL | None | None |
+| channel/send_while_holding_mutex | fixed | PASS | PASS | None | None |
+| structure/finite_call_loop | buggy | None | None | None | None |
+| structure/finite_call_loop | fixed | None | None | None | None |
+| structure/spawn_join_loop_finite | buggy | None | None | None | None |
+| structure/spawn_join_loop_finite | fixed | None | None | None | None |
+| boundary/rwlock_unsupported | buggy | UNSUPPORTED | UNSUPPORTED | None | None |
+| boundary/rwlock_unsupported | fixed | None | None | None | None |
+| boundary/async_select_unsupported | buggy | UNSUPPORTED | UNSUPPORTED | None | None |
+| boundary/async_select_unsupported | fixed | None | None | None | None |
+| P1 | buggy | None | None | None | None |
+| P1 | fixed | None | None | None | None |
+| P2 | buggy | None | None | None | None |
+| P2 | fixed | None | None | None | None |
+| P3 | buggy | None | None | None | None |
+| P3 | fixed | None | None | None | None |
+| P4 | buggy | None | None | None | None |
+| P4 | fixed | None | None | None | None |
+| P5 | buggy | None | None | None | None |
+| P5 | fixed | None | None | None | None |
+| P6 | buggy | None | None | None | None |
+| P6 | fixed | None | None | None | None |
+| P7 | buggy | None | None | None | None |
+| P7 | fixed | None | None | None | None |
+| P8 | buggy | None | None | None | None |
+| P8 | fixed | None | None | None | None |
+| P9 | buggy | None | None | None | None |
+| P9 | fixed | None | None | None | None |
+| real-cases/rmw-zenoh-998 | buggy | FAIL | FAIL | None | None |
+| real-cases/rmw-zenoh-998 | fixed | PASS | PASS | None | None |
+| real-cases/dashmap-369 | buggy | UNSUPPORTED | UNSUPPORTED | None | None |
+| real-cases/dashmap-369 | fixed | None | None | None | None |
 
-- Track D: 38 task records; ConcIR (petri+interp) detects every
-  CIR-defined lock-order/condvar/channel/semaphore buggy program and passes the fixed
-  one; Miri is schedule-dependent (detects partial_deadlock_bystander,
-  acquire_twice_no_release, bounded_backpressure_lock_held; misses the rest);
-  Lockbud available (commit `cc78cb72cb85`).
-- Scale: 24 generated lock-chain runs (no LLM).
+Lockbud: available=True commit=`cc78cb72cb85`.
+
+### Scale
+
+| threads | chain_len | max_states | outcome | complete | states | wall_ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2 | 2 | 5000 | PASS | True | 39 | 15 |
+| 2 | 2 | 20000 | PASS | True | 39 | 15 |
+| 2 | 2 | 200000 | PASS | True | 39 | 15 |
+| 3 | 2 | 5000 | PASS | True | 218 | 18 |
+| 3 | 2 | 20000 | PASS | True | 218 | 19 |
+| 3 | 2 | 200000 | PASS | True | 218 | 18 |
+| 4 | 2 | 5000 | PASS | True | 1267 | 40 |
+| 4 | 2 | 20000 | PASS | True | 1267 | 41 |
+| 4 | 2 | 200000 | PASS | True | 1267 | 42 |
+| 5 | 2 | 5000 | UNKNOWN | False | 5001 | 121 |
+| 5 | 2 | 20000 | PASS | True | 7780 | 205 |
+| 5 | 2 | 200000 | PASS | True | 7780 | 201 |
+| 3 | 3 | 5000 | PASS | True | 320 | 20 |
+| 3 | 3 | 20000 | PASS | True | 320 | 20 |
+| 3 | 3 | 200000 | PASS | True | 320 | 20 |
+| 4 | 3 | 5000 | PASS | True | 1891 | 57 |
+| 4 | 3 | 20000 | PASS | True | 1891 | 54 |
+| 4 | 3 | 200000 | PASS | True | 1891 | 57 |
+| 5 | 3 | 5000 | UNKNOWN | False | 5001 | 124 |
+| 5 | 3 | 20000 | PASS | True | 11710 | 318 |
+| 5 | 3 | 200000 | PASS | True | 11710 | 318 |
+| 6 | 3 | 5000 | UNKNOWN | False | 5001 | 99 |
+| 6 | 3 | 20000 | UNKNOWN | False | 20001 | 445 |
+| 6 | 3 | 200000 | PASS | True | 78263 | 2471 |
 
 ## Deviations and threats to validity
 
-- **D-19**: the main batch is not gated on Rust-arm oracle completeness; missing
-  `oracle.model` cells are `inconclusive` and backfilled here by §6/§4.
-- Main batch ran on backend `6d498c8a`; Track D/scale/extraction on `1a83704`'s
-  backend. The changes are additive (conformance default path unchanged).
-- Rust references for 6 of 8 tasks were authored this round so all 8 tasks run the
-  full 5-arm matrix.
-- A1 accepted one cell whose final artefact is a prose `NO_ISSUES` reply with
-  `build_ok=False` (arm-level false accept), recorded as `unsure` in §4.
+- D-19: the main batch is not gated on Rust-arm oracle completeness; missing `oracle.model` cells are `inconclusive` and backfilled by extraction/expert labels.
+- Expert labels are LLM-assisted (agent-proxy); a random sample plus every disagreement is queued for human review (`expert-labels/HUMAN_REVIEW_QUEUE.md`).
+- All offline recomputation uses a single BIN_MAIN; any result on another binary sha is listed here.

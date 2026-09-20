@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "0030bf33-5504-42f1-9a6a-368e5864042c",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\nA sender and a receiver use a channel of capacity one, plus a mutex both occasionally need. The sender sends two values. Every interleaving must terminate; neither side may block on the channel while holding the lock the other needs. On completion the program must print exactly one line `DONE done=1` and then exit; it must terminate.\n\n\nCurrent program:\n```rust\nuse std::sync::{mpsc, Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    let (tx, rx) = mpsc::sync_channel::<i32>(1);\n    let m = Arc::new(Mutex::new(()));\n    let m1 = Arc::clone(&m);\n    let s = thread::spawn(move || {\n        let _g = m1.lock().unwrap();\n        tx.send(1).unwrap();\n        tx.send(2).unwrap();\n    });\n    let r = thread::spawn(move || {\n        let _g = m.lock().unwrap();\n        rx.recv().unwrap();\n        rx.recv().unwrap();\n    });\n    s.join().unwrap();\n    r.join().unwrap();\n    println!(\"DONE done=1\");\n}\n\n```\n\nFix any concurrency defect and output the complete corrected Rust program, or if there is none reply exactly NO_ISSUES."
+    }
+  ],
+  "prompt_sha256": "6d93473cfd55dcf7eb68a42b6c747c8eafd88b205f9807fceb7f1860d63865d4",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 186,
+    "prompt_tokens": 521,
+    "total_tokens": 707,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 384
+    },
+    "prompt_cache_hit_tokens": 384,
+    "prompt_cache_miss_tokens": 137
+  },
+  "content_sha256": "c02d5120316942142178de9db2ad4778e0b302121113ff76bd9e9dbec68cfb97",
+  "content": "```rust\nuse std::sync::{mpsc, Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let (tx, rx) = mpsc::sync_channel::<i32>(1);\n    let m = Arc::new(Mutex::new(()));\n    let m1 = Arc::clone(&m);\n    let s = thread::spawn(move || {\n        tx.send(1).unwrap();\n        {\n            let _g = m1.lock().unwrap();\n        }\n        tx.send(2).unwrap();\n    });\n    let r = thread::spawn(move || {\n        rx.recv().unwrap();\n        {\n            let _g = m.lock().unwrap();\n        }\n        rx.recv().unwrap();\n    });\n    s.join().unwrap();\n    r.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 1557
+}

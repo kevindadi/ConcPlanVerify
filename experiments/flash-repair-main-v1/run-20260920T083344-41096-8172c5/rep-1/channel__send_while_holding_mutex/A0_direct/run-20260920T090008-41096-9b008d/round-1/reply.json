@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{mpsc, Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    let (tx1, rx1) = mpsc::sync_channel::<i32>(0);\n    let (tx2, rx2) = mpsc::sync_channel::<i32>(0);\n\n    let shared = Arc::new((Mutex::new(0i32), Condvar::new()));\n\n    let shared_s = Arc::clone(&shared);\n    let s = thread::spawn(move || {\n        // Sender needs the shared mutex.\n        {\n            let (lock, cvar) = &*shared_s;\n            let mut guard = lock.lock().unwrap();\n            *guard += 1;\n            cvar.notify_all();\n        }\n        // Send on the channel without holding the lock.\n        tx1.send(1).unwrap();\n        // Wait for the receiver's acknowledgement.\n        let _ = rx2.recv();\n    });\n\n    let shared_r = Arc::clone(&shared);\n    let r = thread::spawn(move || {\n        // Receive from the channel without holding the lock.\n        let _ = rx1.recv();\n        // Receiver needs the shared mutex.\n        {\n            let (lock, cvar) = &*shared_r;\n            let mut guard = lock.lock().unwrap();\n            while *guard == 0 {\n                guard = cvar.wait(guard).unwrap();\n            }\n        }\n        // Acknowledge completion so the sender can finish.\n        tx2.send(1).unwrap();\n    });\n\n    s.join().unwrap();\n    r.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```"
+}
