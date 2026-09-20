@@ -792,6 +792,7 @@ def _run_task_arms(task_id: str, root: Path, task, contract_path: Path,
                    timeout: float, max_tokens: int, sdk_client: Any,
                    arm_order: tuple[str, ...]) -> dict[str, Any]:
     from .arms import cir_oracle, rust_oracle
+    from .revision_workflow import WholeArtifactRevisionWorkflow
 
     client = ConcirClient(binary, workdir=arm_dir / "calls", timeout=30.0)
     record: dict[str, Any] = {
