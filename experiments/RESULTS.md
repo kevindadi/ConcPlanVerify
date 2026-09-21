@@ -177,62 +177,71 @@ Agreement with the automatic oracle: **42/42 = 1.000** (unsure 4); `design_loss`
 
 #### Expert labels (per candidate)
 
-| sha256 | task | arm | kind | bug_present | design_preserved | cells |
-| --- | --- | --- | --- | --- | --- | --- |
-| `13d1b761aaca` | channel/bounded_backpressure_lock_held | A0_direct | rust | no | yes | 6 |
-| `1c28ef235a06` | channel/bounded_backpressure_lock_held | A2_tools_iter_ml | rust | no | yes | 2 |
-| `98eed6be2b32` | channel/bounded_backpressure_lock_held | A2_tools_iter_ml | rust | no | yes | 1 |
-| `6c87085c602a` | channel/bounded_backpressure_lock_held | A3_local | a3-rust | no | no | 3 |
-| `7f182a8fd554` | channel/bounded_backpressure_lock_held | A3_whole | a3-rust | no | no | 1 |
-| `e443cf0e3e70` | channel/bounded_backpressure_lock_held | A3_whole | a3-rust | no | no | 1 |
-| `6d7602ab8549` | channel/bounded_backpressure_lock_held | A3_whole | a3-rust | no | no | 1 |
-| `8f09cd79b48c` | channel/send_while_holding_mutex | A0_direct | rust | no | yes | 1 |
-| `b607a97d0ac7` | channel/send_while_holding_mutex | A0_direct | rust | no | yes | 2 |
-| `05b2f4c77462` | channel/send_while_holding_mutex | A2_tools_iter_ml | rust | no | yes | 1 |
-| `1bb2c14dc515` | channel/send_while_holding_mutex | A2_tools_iter_ml | rust | no | yes | 1 |
-| `ae1e465a6fbb` | channel/send_while_holding_mutex | A2_tools_iter_ml | rust | no | yes | 1 |
-| `aa0668f905d8` | channel/send_while_holding_mutex | A3_local | a3-rust | no | no | 3 |
-| `459df3234540` | channel/send_while_holding_mutex | A3_whole | a3-rust | no | no | 3 |
-| `e53544b9c364` | condvar/bare_wait_no_predicate | A0_direct | rust | unsure | yes | 1 |
-| `394c5e1e06b6` | condvar/bare_wait_no_predicate | A1_self_iter | rust | unsure | yes | 8 |
-| `52b496de2a26` | condvar/bare_wait_no_predicate | A3_whole | a3-rust | unsure | yes | 2 |
-| `90aee29b3ffa` | condvar/bare_wait_no_predicate | A3_whole | a3-rust | unsure | yes | 1 |
-| `daa46ba4c2ba` | condvar/notify_one_multi_waiter_wrong_pick | A0_direct | rust | yes | yes | 2 |
-| `0e3cdb53c009` | condvar/notify_one_multi_waiter_wrong_pick | A1_self_iter | rust | no | yes | 7 |
-| `7de135daa5ad` | condvar/notify_one_multi_waiter_wrong_pick | A3_local | a3-rust | no | yes | 1 |
-| `be85c5f756ec` | condvar/notify_one_multi_waiter_wrong_pick | A3_whole | a3-rust | no | yes | 2 |
-| `12195b60e3cb` | lock-order/abba_2lock | A0_direct | rust | no | yes | 9 |
-| `93eaf520459c` | lock-order/abba_2lock | A3_local | a3-rust | no | yes | 6 |
-| `05fcb391ea81` | lock-order/cross_module_cycle | A0_direct | rust | no | no | 2 |
-| `9bab819deee2` | lock-order/cross_module_cycle | A0_direct | rust | no | yes | 1 |
-| `1fc6e7c5ea43` | lock-order/cross_module_cycle | A1_self_iter | rust | no | yes | 3 |
-| `a7983b7f5fbe` | lock-order/cross_module_cycle | A2_tools_iter_ml | rust | no | yes | 3 |
-| `e7adea20e72f` | lock-order/cross_module_cycle | A3_local | a3-rust | no | yes | 3 |
-| `34835028c1d2` | lock-order/cross_module_cycle | A3_whole | a3-rust | no | yes | 3 |
-| `c7d11e854196` | lock-order/cycle_3lock | A0_direct | rust | yes | yes | 6 |
-| `970be001ab1e` | lock-order/cycle_3lock | A3_local | a3-rust | no | yes | 5 |
-| `d9c02a69c650` | lock-order/partial_deadlock_bystander | A0_direct | rust | yes | yes | 1 |
-| `a4503ffe4461` | lock-order/partial_deadlock_bystander | A0_direct | rust | yes | yes | 1 |
-| `574a7804dc4d` | lock-order/partial_deadlock_bystander | A0_direct | rust | yes | yes | 1 |
-| `1ff1454288bf` | lock-order/partial_deadlock_bystander | A1_self_iter | rust | yes | yes | 1 |
-| `a08bd1a020fa` | lock-order/partial_deadlock_bystander | A1_self_iter | rust | no | no | 1 |
-| `fbeb211c0ac0` | lock-order/partial_deadlock_bystander | A2_tools_iter_ml | rust | no | yes | 1 |
-| `f4db34f1644d` | lock-order/partial_deadlock_bystander | A3_whole | a3-rust | no | yes | 1 |
-| `0951c33394bd` | lock-order/partial_deadlock_bystander | A3_whole | a3-rust | no | yes | 1 |
-| `f42afd77e7a9` | semaphore/acquire_twice_no_release | A0_direct | rust | no | yes | 2 |
-| `691d644c986c` | semaphore/acquire_twice_no_release | A0_direct | rust | yes | yes | 1 |
-| `8f59f2055f41` | semaphore/acquire_twice_no_release | A1_self_iter | rust | no | yes | 1 |
-| `c42fa5ece43f` | semaphore/acquire_twice_no_release | A1_self_iter | rust | no | yes | 1 |
-| `b6f7d6651e0e` | semaphore/acquire_twice_no_release | A1_self_iter | rust | no | yes | 1 |
-| `12cfc7f3617e` | semaphore/acquire_twice_no_release | A2_tools_iter_ml | rust | no | yes | 1 |
-| `d463f5f9f603` | semaphore/acquire_twice_no_release | A2_tools_iter_ml | rust | no | yes | 1 |
-| `0501dcb3a49d` | semaphore/acquire_twice_no_release | A2_tools_iter_ml | rust | no | yes | 1 |
-| `1901bf15e784` | semaphore/acquire_twice_no_release | A3_local | a3-rust | no | yes | 3 |
-| `84f0ae3ead6e` | semaphore/acquire_twice_no_release | A3_whole | a3-rust | no | yes | 3 |
-| `4e6e1cdc7910` | structure/nested_scope_lock_order | A0_direct | rust | no | yes | 6 |
-| `c9c01200389d` | structure/nested_scope_lock_order | A1_self_iter | rust | no | yes | 3 |
-| `70525c67bb7c` | structure/nested_scope_lock_order | A3_local | a3-rust | no | yes | 3 |
-| `77459d011aae` | structure/nested_scope_lock_order | A3_whole | a3-rust | no | yes | 2 |
+| sha256 | task | arm | kind | bug_present | design_preserved | human | cells |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `13d1b761aaca` | channel/bounded_backpressure_lock_held | A0_direct | rust | no | yes | — | 6 |
+| `1c28ef235a06` | channel/bounded_backpressure_lock_held | A2_tools_iter_ml | rust | no | yes | — | 2 |
+| `98eed6be2b32` | channel/bounded_backpressure_lock_held | A2_tools_iter_ml | rust | no | yes | — | 1 |
+| `6c87085c602a` | channel/bounded_backpressure_lock_held | A3_local | a3-rust | no | no | no | 3 |
+| `7f182a8fd554` | channel/bounded_backpressure_lock_held | A3_whole | a3-rust | no | no | — | 1 |
+| `e443cf0e3e70` | channel/bounded_backpressure_lock_held | A3_whole | a3-rust | no | no | — | 1 |
+| `6d7602ab8549` | channel/bounded_backpressure_lock_held | A3_whole | a3-rust | no | no | — | 1 |
+| `8f09cd79b48c` | channel/send_while_holding_mutex | A0_direct | rust | no | yes | — | 1 |
+| `b607a97d0ac7` | channel/send_while_holding_mutex | A0_direct | rust | no | yes | — | 2 |
+| `05b2f4c77462` | channel/send_while_holding_mutex | A2_tools_iter_ml | rust | no | yes | — | 1 |
+| `1bb2c14dc515` | channel/send_while_holding_mutex | A2_tools_iter_ml | rust | no | yes | — | 1 |
+| `ae1e465a6fbb` | channel/send_while_holding_mutex | A2_tools_iter_ml | rust | no | yes | — | 1 |
+| `aa0668f905d8` | channel/send_while_holding_mutex | A3_local | a3-rust | no | no | — | 3 |
+| `459df3234540` | channel/send_while_holding_mutex | A3_whole | a3-rust | no | no | — | 3 |
+| `e53544b9c364` | condvar/bare_wait_no_predicate | A0_direct | rust | unsure | yes | no | 1 |
+| `394c5e1e06b6` | condvar/bare_wait_no_predicate | A1_self_iter | rust | unsure | yes | no | 8 |
+| `52b496de2a26` | condvar/bare_wait_no_predicate | A3_whole | a3-rust | unsure | yes | no | 2 |
+| `90aee29b3ffa` | condvar/bare_wait_no_predicate | A3_whole | a3-rust | unsure | yes | no | 1 |
+| `daa46ba4c2ba` | condvar/notify_one_multi_waiter_wrong_pick | A0_direct | rust | yes | yes | — | 2 |
+| `0e3cdb53c009` | condvar/notify_one_multi_waiter_wrong_pick | A1_self_iter | rust | no | yes | — | 7 |
+| `7de135daa5ad` | condvar/notify_one_multi_waiter_wrong_pick | A3_local | a3-rust | no | yes | — | 1 |
+| `be85c5f756ec` | condvar/notify_one_multi_waiter_wrong_pick | A3_whole | a3-rust | no | yes | — | 2 |
+| `12195b60e3cb` | lock-order/abba_2lock | A0_direct | rust | no | yes | — | 9 |
+| `93eaf520459c` | lock-order/abba_2lock | A3_local | a3-rust | no | yes | — | 6 |
+| `05fcb391ea81` | lock-order/cross_module_cycle | A0_direct | rust | no | no | — | 2 |
+| `9bab819deee2` | lock-order/cross_module_cycle | A0_direct | rust | no | yes | — | 1 |
+| `1fc6e7c5ea43` | lock-order/cross_module_cycle | A1_self_iter | rust | no | yes | — | 3 |
+| `a7983b7f5fbe` | lock-order/cross_module_cycle | A2_tools_iter_ml | rust | no | yes | — | 3 |
+| `e7adea20e72f` | lock-order/cross_module_cycle | A3_local | a3-rust | no | yes | — | 3 |
+| `34835028c1d2` | lock-order/cross_module_cycle | A3_whole | a3-rust | no | yes | — | 3 |
+| `c7d11e854196` | lock-order/cycle_3lock | A0_direct | rust | yes | yes | yes | 6 |
+| `970be001ab1e` | lock-order/cycle_3lock | A3_local | a3-rust | no | yes | — | 5 |
+| `d9c02a69c650` | lock-order/partial_deadlock_bystander | A0_direct | rust | yes | yes | — | 1 |
+| `a4503ffe4461` | lock-order/partial_deadlock_bystander | A0_direct | rust | yes | yes | — | 1 |
+| `574a7804dc4d` | lock-order/partial_deadlock_bystander | A0_direct | rust | yes | yes | — | 1 |
+| `1ff1454288bf` | lock-order/partial_deadlock_bystander | A1_self_iter | rust | yes | yes | yes | 1 |
+| `a08bd1a020fa` | lock-order/partial_deadlock_bystander | A1_self_iter | rust | no | no | no | 1 |
+| `fbeb211c0ac0` | lock-order/partial_deadlock_bystander | A2_tools_iter_ml | rust | no | yes | — | 1 |
+| `f4db34f1644d` | lock-order/partial_deadlock_bystander | A3_whole | a3-rust | no | yes | — | 1 |
+| `0951c33394bd` | lock-order/partial_deadlock_bystander | A3_whole | a3-rust | no | yes | — | 1 |
+| `f42afd77e7a9` | semaphore/acquire_twice_no_release | A0_direct | rust | no | yes | no | 2 |
+| `691d644c986c` | semaphore/acquire_twice_no_release | A0_direct | rust | yes | yes | — | 1 |
+| `8f59f2055f41` | semaphore/acquire_twice_no_release | A1_self_iter | rust | no | yes | — | 1 |
+| `c42fa5ece43f` | semaphore/acquire_twice_no_release | A1_self_iter | rust | no | yes | no | 1 |
+| `b6f7d6651e0e` | semaphore/acquire_twice_no_release | A1_self_iter | rust | no | yes | no | 1 |
+| `12cfc7f3617e` | semaphore/acquire_twice_no_release | A2_tools_iter_ml | rust | no | yes | — | 1 |
+| `d463f5f9f603` | semaphore/acquire_twice_no_release | A2_tools_iter_ml | rust | no | yes | — | 1 |
+| `0501dcb3a49d` | semaphore/acquire_twice_no_release | A2_tools_iter_ml | rust | no | yes | — | 1 |
+| `1901bf15e784` | semaphore/acquire_twice_no_release | A3_local | a3-rust | no | yes | — | 3 |
+| `84f0ae3ead6e` | semaphore/acquire_twice_no_release | A3_whole | a3-rust | no | yes | — | 3 |
+| `4e6e1cdc7910` | structure/nested_scope_lock_order | A0_direct | rust | no | yes | — | 6 |
+| `c9c01200389d` | structure/nested_scope_lock_order | A1_self_iter | rust | no | yes | — | 3 |
+| `70525c67bb7c` | structure/nested_scope_lock_order | A3_local | a3-rust | no | yes | — | 3 |
+| `77459d011aae` | structure/nested_scope_lock_order | A3_whole | a3-rust | no | yes | — | 2 |
+
+Human review: 11 candidates; agent vs human **7/7** (agent unsure 4); human vs auto **9/11**.
+
+##### Human vs automatic-oracle disagreements
+
+| task | arm | sha | human | auto |
+| --- | --- | --- | --- | --- |
+| semaphore/acquire_twice_no_release | A0_direct | `f42afd77e7a9` | no | True |
+| lock-order/partial_deadlock_bystander | A1_self_iter | `a08bd1a020fa` | no | True |
 
 ### Extraction oracle
 

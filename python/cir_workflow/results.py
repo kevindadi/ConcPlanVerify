@@ -358,15 +358,50 @@ def render(rows: list[dict[str, Any]], expert_agg: dict[str, dict],
               f"{dict(design_loss_by_arm)}.", ""]
     if candidates:
         L += ["#### Expert labels (per candidate)",
-              "", "| sha256 | task | arm | kind | bug_present | design_preserved | cells |",
-              "| --- | --- | --- | --- | --- | --- | --- |"]
+              "", "| sha256 | task | arm | kind | bug_present | design_preserved | human | cells |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- |"]
         for cand in sorted(candidates, key=lambda c: (c.get("task", ""), c.get("arm", ""))):
             cells = cand.get("cells", []) or []
+            human = cand.get("human_label") if cand.get("human_reviewed") else "—"
             L.append(f"| `{str(cand.get('sha256',''))[:12]}` | {cand.get('task')} | "
                      f"{cand.get('arm')} | {cand.get('kind','—')} | "
                      f"{cand.get('bug_present')} | {cand.get('design_preserved')} | "
-                     f"{len(cells)} |")
+                     f"{human} | {len(cells)} |")
         L.append("")
+        reviewed = [c for c in candidates if c.get("human_reviewed")]
+        if reviewed:
+            ag_cmp = ag_agree = ag_unsure = 0
+            au_cmp = au_agree = 0
+            au_disagree = []
+            for c in reviewed:
+                h = c.get("human_label")
+                if h not in ("yes", "no"):
+                    continue
+                a = c.get("bug_present")
+                if a == "unsure":
+                    ag_unsure += 1
+                else:
+                    ag_cmp += 1
+                    ag_agree += 1 if (h == "yes") == (a == "yes") else 0
+                row = next((r for r in rows if r["task"] == c.get("task")
+                            and r["arm"] == c.get("arm")), None)
+                if row is not None:
+                    auto = row["false_accept"] > 0
+                    au_cmp += 1
+                    if (h == "yes") == auto:
+                        au_agree += 1
+                    else:
+                        au_disagree.append((c.get("task"), c.get("arm"),
+                                            str(c.get("sha256"))[:12], h, auto))
+            L += [f"Human review: {len(reviewed)} candidates; agent vs human "
+                  f"**{ag_agree}/{ag_cmp}** (agent unsure {ag_unsure}); human vs auto "
+                  f"**{au_agree}/{au_cmp}**.", ""]
+            if au_disagree:
+                L += ["##### Human vs automatic-oracle disagreements", "",
+                      "| task | arm | sha | human | auto |", "| --- | --- | --- | --- | --- |"]
+                for t, a, sha, h, auto in au_disagree:
+                    L.append(f"| {t} | {a} | `{sha}` | {h} | {auto} |")
+                L.append("")
     if disagreements:
         L += ["### Oracle disagreements", "",
               "| task | arm | expert bug_present | automatic false_accept |",
@@ -614,11 +649,13 @@ def latex_tables(rows: list[dict[str, Any]], candidates: list[dict],
 
     if candidates:
         body = ("\\toprule\n\\textbf{sha} & \\textbf{task} & \\textbf{arm} & "
-                "\\textbf{bug} & \\textbf{design} \\\\\n\\midrule\n")
+                "\\textbf{bug} & \\textbf{design} & \\textbf{human} \\\\\n\\midrule\n")
         for c in sorted(candidates, key=lambda x: (x.get("task", ""), x.get("arm", ""))):
+            human = c.get("human_label") if c.get("human_reviewed") else "--"
             body += (f"\\texttt{{{str(c.get('sha256',''))[:8]}}} & "
                      f"{_tex_escape(c.get('task'))} & {_tex_escape(c.get('arm'))} & "
-                     f"{c.get('bug_present')} & {c.get('design_preserved')} \\\\\n")
+                     f"{c.get('bug_present')} & {c.get('design_preserved')} & "
+                     f"{human} \\\\\n")
         body += "\\bottomrule"
         write("expert.tex", "\\begin{tabular}{lllll}\n" + body + "\n\\end{tabular}")
 
