@@ -445,7 +445,8 @@ def main(argv: list[str] | None = None) -> int:
                                 acc = sum(1 for c in rs if c.get("accepted"))
                                 fa = sum(1 for c in rs if c.get("accepted")
                                          and (c.get("oracle") or {}).get("bug_present") is True)
-                                body += f"{model} & {arm} & {len(rs)} & {acc} & {fa} \\\\\n"
+                                body += (f"{model} & {arm.replace('_', chr(92)+'_')} & "
+                                         f"{len(rs)} & {acc} & {fa} \\\\\n")
                         body += "\\bottomrule"
                         (Path(args.latex) / "model_probe.tex").write_text(
                             "% model_probe.tex\n\\begin{tabular}{llrrr}\n" + body + "\n\\end{tabular}\n")

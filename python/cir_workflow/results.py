@@ -711,8 +711,9 @@ def latex_tables(rows: list[dict[str, Any]], candidates: list[dict],
                 if e.get("miri") is None:
                     continue
                 m = Counter((e.get("miri") or {}).get("statuses") or [])
+                mtext = ", ".join(f"{k}: {v}" for k, v in m.items()) or "--"
                 body += (f"{_tex_escape(rec['task'])} & {side} & {e.get('concir_petri')} & "
-                         f"{e.get('concir_interp')} & {dict(m)} & "
+                         f"{e.get('concir_interp')} & {_tex_escape(mtext)} & "
                          f"{(e.get('lockbud') or {}).get('status')} \\\\\n")
         body += "\\bottomrule"
         write("trackd.tex", "\\begin{tabular}{llllll}\n" + body + "\n\\end{tabular}")
@@ -727,7 +728,7 @@ def latex_tables(rows: list[dict[str, Any]], candidates: list[dict],
                      f"{c.get('bug_present')} & {c.get('design_preserved')} & "
                      f"{human} \\\\\n")
         body += "\\bottomrule"
-        write("expert.tex", "\\begin{tabular}{lllll}\n" + body + "\n\\end{tabular}")
+        write("expert.tex", "\\begin{tabular}{llllll}\n" + body + "\n\\end{tabular}")
 
     if scale:
         body = ("\\toprule\n\\textbf{threads} & \\textbf{chain} & \\textbf{max-states} & "

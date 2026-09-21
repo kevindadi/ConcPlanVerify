@@ -89,7 +89,7 @@
 
 | arm | cells | accepted | accept_rate | false_accept | conform_pass_rate | escalation_rate | tokens/correct_accept | by source |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| A0_direct | 30 | 30 | 1.00 | 11 | — | — | 456 | {'behavior': 8, 'expert': 9, 'by_construction': 3} |
+| A0_direct | 30 | 30 | 1.00 | 11 | — | — | 456 | {'expert': 9, 'behavior': 8, 'by_construction': 3} |
 | A1_self_iter | 30 | 23 | 0.77 | 1 | — | — | 1315 | {'expert': 1} |
 | A2_tools_iter_ml | 30 | 28 | 0.93 | 3 | — | — | 715 | {'expert': 3} |
 | A3_local | 30 | 24 | 0.80 | 0 | 24/24 = 1.00 | — | 675 | — |

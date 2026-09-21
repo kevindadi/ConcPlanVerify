@@ -968,3 +968,14 @@ auto-generated message. History is not rewritten; recorded here.
 - ConcPV tag `experiments-v2-freeze-3`; ConcIR unchanged this round, so no new
   ConcIR tag (`concir-freeze-2` still applies).
 - BIN_MAIN `4bec943d` (main table), BIN_V2 `073129de` (conform/a3-to-rust/mutation/post-edit).
+
+## Round n — Not done / stop points
+
+- §A5 `concir-instrument` v2 (free Rust -> wrappers) **not done** (optional).
+  The paper's post-verification scope is therefore stated as codegen products
+  and their developer edits (`notes/GAP_AUDIT.md`).
+- §B2 method section text not rewritten (per instructions); `notes/GAP_AUDIT.md`
+  and `notes/METHOD_REWRITE_PLAN.md` carry the plan. Figures are placeholders
+  (`notes/FIGURES_TODO.md`).
+- The paper repo changes are committed separately in
+  `/Users/kevin/paper-review` (commit `2c74d7d`).
