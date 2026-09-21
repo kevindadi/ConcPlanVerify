@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::mpsc;\nuse std::thread;\n\nfn main() {\n    let (tx, rx) = mpsc::sync_channel(0);\n\n    let sender = thread::spawn(move || {\n        tx.send(1).unwrap();\n    });\n\n    let receiver = thread::spawn(move || {\n        let value = rx.recv().unwrap();\n        value\n    });\n\n    sender.join().unwrap();\n    let done = receiver.join().unwrap();\n\n    println!(\"DONE done={}\", done);\n}\n```"
+}

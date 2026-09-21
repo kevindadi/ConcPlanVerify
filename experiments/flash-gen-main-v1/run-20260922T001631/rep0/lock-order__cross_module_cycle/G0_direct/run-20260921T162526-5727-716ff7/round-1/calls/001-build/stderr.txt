@@ -1,0 +1,38 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | .../run-20260921T162526-5727-716ff7/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+warning: field `resource_a` is never read
+ --> src/main.rs:6:5
+  |
+5 | struct ModuleA {
+  |        ------- field in this struct
+6 |     resource_a: Mutex<()>,
+  |     ^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `resource_b` is never read
+  --> src/main.rs:11:5
+   |
+10 | struct ModuleB {
+   |        ------- field in this struct
+11 |     resource_b: Mutex<()>,
+   |     ^^^^^^^^^^
+

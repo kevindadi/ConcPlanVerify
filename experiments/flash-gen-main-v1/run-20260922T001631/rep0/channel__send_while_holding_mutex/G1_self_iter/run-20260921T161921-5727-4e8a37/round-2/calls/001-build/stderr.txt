@@ -1,0 +1,131 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | .../run-20260921T161921-5727-4e8a37/round-2/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+error[E0433]: cannot find type `Arc` in this scope
+ --> src/main.rs:2:18
+  |
+2 |     let shared = Arc::new(Mutex::new(0u32));
+  |                  ^^^ use of undeclared type `Arc`
+  |
+help: consider importing this struct
+  |
+1 + use std::sync::Arc;
+  |
+
+error[E0433]: cannot find type `Mutex` in this scope
+ --> src/main.rs:2:27
+  |
+2 |     let shared = Arc::new(Mutex::new(0u32));
+  |                           ^^^^^ use of undeclared type `Mutex`
+  |
+help: consider importing one of these structs
+  |
+1 + use std::sync::Mutex;
+  |
+1 + use std::sync::nonpoison::Mutex;
+  |
+
+error[E0433]: cannot find type `Arc` in this scope
+ --> src/main.rs:3:16
+  |
+3 |     let chan = Arc::new(Rendezvous::new());
+  |                ^^^ use of undeclared type `Arc`
+  |
+help: consider importing this struct
+  |
+1 + use std::sync::Arc;
+  |
+
+error[E0433]: cannot find type `Arc` in this scope
+ --> src/main.rs:5:20
+  |
+5 |     let shared_s = Arc::clone(&shared);
+  |                    ^^^ use of undeclared type `Arc`
+  |
+help: consider importing this struct
+  |
+1 + use std::sync::Arc;
+  |
+
+error[E0433]: cannot find type `Arc` in this scope
+ --> src/main.rs:6:18
+  |
+6 |     let chan_s = Arc::clone(&chan);
+  |                  ^^^ use of undeclared type `Arc`
+  |
+help: consider importing this struct
+  |
+1 + use std::sync::Arc;
+  |
+
+error[E0433]: cannot find module or crate `thread` in this scope
+ --> src/main.rs:7:18
+  |
+7 |     let sender = thread::spawn(move || {
+  |                  ^^^^^^ use of unresolved module or unlinked crate `thread`
+  |
+  = help: if you wanted to use a crate named `thread`, use `cargo add thread` to add it to your `Cargo.toml`
+help: consider importing this module
+  |
+1 + use std::thread;
+  |
+
+error[E0433]: cannot find type `Arc` in this scope
+  --> src/main.rs:15:20
+   |
+15 |     let shared_r = Arc::clone(&shared);
+   |                    ^^^ use of undeclared type `Arc`
+   |
+help: consider importing this struct
+   |
+ 1 + use std::sync::Arc;
+   |
+
+error[E0433]: cannot find type `Arc` in this scope
+  --> src/main.rs:16:18
+   |
+16 |     let chan_r = Arc::clone(&chan);
+   |                  ^^^ use of undeclared type `Arc`
+   |
+help: consider importing this struct
+   |
+ 1 + use std::sync::Arc;
+   |
+
+error[E0433]: cannot find module or crate `thread` in this scope
+  --> src/main.rs:17:20
+   |
+17 |     let receiver = thread::spawn(move || {
+   |                    ^^^^^^ use of unresolved module or unlinked crate `thread`
+   |
+   = help: if you wanted to use a crate named `thread`, use `cargo add thread` to add it to your `Cargo.toml`
+help: consider importing this module
+   |
+ 1 + use std::thread;
+   |
+
+error[E0433]: cannot find type `Rendezvous` in this scope
+ --> src/main.rs:3:25
+  |
+3 |     let chan = Arc::new(Rendezvous::new());
+  |                         ^^^^^^^^^^ use of undeclared type `Rendezvous`
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 10 previous errors

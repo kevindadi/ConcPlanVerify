@@ -1,0 +1,186 @@
+{
+  "arm": "G1_self_iter",
+  "task": "lock-order/cross_module_cycle",
+  "rounds": [
+    {
+      "round": 1,
+      "request_sha256": "896658a4b0ef98e8bbb12d16c097cb8f78324499c643c85ea528481d94171bcc",
+      "feedback_sha256": "f55d8a9ccd065b9c48071828e4217878c03953fc23146fd859a7eebead027ce4",
+      "prompt_tokens": 368,
+      "completion_tokens": 507,
+      "llm_wall_ms": 1944,
+      "tool_wall_ms": 709,
+      "tool_output_sha256": "b9f8999cfbb997438b04ff347554c74fe6efe75aff9965d4277f890fe76b0a67",
+      "decision": "continue"
+    },
+    {
+      "round": 2,
+      "request_sha256": "b8e4f51ef5083adc9790698b3f9873a42316cb783d47bfdfe4cf26039738128b",
+      "feedback_sha256": "f55d8a9ccd065b9c48071828e4217878c03953fc23146fd859a7eebead027ce4",
+      "prompt_tokens": 898,
+      "completion_tokens": 568,
+      "llm_wall_ms": 2699,
+      "tool_wall_ms": 0,
+      "tool_output_sha256": null,
+      "decision": "claims_no_issue"
+    }
+  ],
+  "accepted": true,
+  "accepted_round": 1,
+  "consumption": {
+    "http_requests": 2,
+    "prompt_tokens": 1266,
+    "completion_tokens": 1075,
+    "total_tokens": 2341,
+    "llm_wall_ms": 4643,
+    "tool_wall_ms": 709,
+    "rounds": 2,
+    "first_correct_round": 1
+  },
+  "final_artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/candidate.rs",
+  "final_artifact_sha256": "083629e3b2e3b1e1cc562355c8c46ca5b48e0dcd289d2c52af7575c3b6432fee",
+  "notes": {
+    "tools_tier": "ml",
+    "tool_rounds": [
+      {
+        "source_sha256": "083629e3b2e3b1e1cc562355c8c46ca5b48e0dcd289d2c52af7575c3b6432fee",
+        "project_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/probe",
+        "calls_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls",
+        "build": {
+          "tool": "build",
+          "argv": [
+            "cargo",
+            "build",
+            "--offline",
+            "--quiet"
+          ],
+          "exit_code": 0,
+          "wall_ms": 205,
+          "timed_out": false,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "6ef5298b89517aafe1aeee154378ceb8ec4ef9095c1ca9a97394df7a9a30ae90",
+          "error": null,
+          "extra": {
+            "argv_sha256": "fec7373c64c407b58e735d3607a5e6ae6f0a170222e628e747399f35a3f3d0f1",
+            "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"
+          },
+          "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls/001-build",
+          "files": {
+            "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls/001-build/argv.json",
+            "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls/001-build/env.json",
+            "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls/001-build/stdout.txt",
+            "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls/001-build/stderr.txt",
+            "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls/001-build/exit.txt",
+            "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls/001-build/wall_ms.txt"
+          }
+        },
+        "build_ok": true,
+        "behavior_test": {
+          "tool": "test",
+          "argv": [
+            "cargo",
+            "test",
+            "--offline",
+            "--quiet"
+          ],
+          "exit_code": 0,
+          "wall_ms": 504,
+          "timed_out": false,
+          "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd",
+          "stderr_sha256": "6ef5298b89517aafe1aeee154378ceb8ec4ef9095c1ca9a97394df7a9a30ae90",
+          "error": null,
+          "extra": {
+            "argv_sha256": "8d0bd802406385cee352a37cfbdd73e10be6dd8653245b269b28e1385ab75e25",
+            "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"
+          },
+          "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls/002-test",
+          "files": {
+            "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls/002-test/argv.json",
+            "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls/002-test/env.json",
+            "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls/002-test/stdout.txt",
+            "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls/002-test/stderr.txt",
+            "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls/002-test/exit.txt",
+            "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/lock-order__cross_module_cycle/G1_self_iter/run-20260921T162531-5727-2b4bc3/round-1/calls/002-test/wall_ms.txt"
+          }
+        },
+        "behavior_test_passed": 0,
+        "behavior_test_ok": null,
+        "behavior_test_reason": "no_tests",
+        "lockbud": {
+          "tool": "lockbud",
+          "status": "skipped"
+        },
+        "miri": [],
+        "miri_extended": null
+      }
+    ],
+    "round_columns": [
+      {
+        "round": 1,
+        "build_ok": true,
+        "test_ok": null,
+        "miri_green": false,
+        "miri_detected": false,
+        "lockbud_green": true,
+        "lockbud_detected": false,
+        "lockbud_status": "skipped"
+      }
+    ],
+    "build_ok_rounds": [
+      1
+    ],
+    "claims_no_issue_rounds": [
+      2
+    ],
+    "accepted_candidate_round": 1
+  },
+  "error": null,
+  "llm_calls": [
+    {
+      "attempt": 1,
+      "request_id": "c2121c7c-f505-4bc1-97d6-3aee686239c1",
+      "response_model": "deepseek-flash",
+      "usage": {
+        "completion_tokens": 507,
+        "prompt_tokens": 368,
+        "total_tokens": 875,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 128
+        },
+        "prompt_cache_hit_tokens": 128,
+        "prompt_cache_miss_tokens": 240
+      },
+      "wall_ms": 1944,
+      "transport_attempt": 1,
+      "prompt_sha256": "6665c360368556fb4125b507f682df546d2892de57c3b44233dbef38db3b0f60"
+    },
+    {
+      "attempt": 2,
+      "request_id": "a3f099d7-2cbe-4e56-bb13-43edb6351c40",
+      "response_model": "deepseek-flash",
+      "usage": {
+        "completion_tokens": 568,
+        "prompt_tokens": 898,
+        "total_tokens": 1466,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 640
+        },
+        "prompt_cache_hit_tokens": 640,
+        "prompt_cache_miss_tokens": 258
+      },
+      "wall_ms": 2699,
+      "transport_attempt": 1,
+      "prompt_sha256": "7e27c4e972fb513aa3c17f4d4abb5fb97311da4443d57f92c77303eddc7fea2c"
+    }
+  ],
+  "oracle": {
+    "status": "build_failed",
+    "coverage": null
+  },
+  "coverage": null,
+  "monitor_fail": null
+}

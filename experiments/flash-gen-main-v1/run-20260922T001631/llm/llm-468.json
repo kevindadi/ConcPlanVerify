@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "f0e133ca-4c21-4e61-a1b3-9c19bfdb7bf7",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. A main task starts a sender role and a receiver role that run at the same time, and both roles occasionally use one shared lock.\nR2. The two roles exchange a value over a channel that requires both roles to meet.\nR3. No role may wait on the channel while holding the shared lock that the other role needs.\nR4. Every schedule and interleaving must terminate with the sender and the receiver both finished.\nR5. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "534abcab604c7401081bc41f2cd151b4dc11e5ade946fe56f69c92f83efffe28",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 559,
+    "prompt_tokens": 362,
+    "total_tokens": 921,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 128
+    },
+    "prompt_cache_hit_tokens": 128,
+    "prompt_cache_miss_tokens": 234
+  },
+  "content_sha256": "f9af1d6ad856d4b63d807b36d5134d3ec47579f37f0bdc679aa4b9d2e5c8af05",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\n// A rendezvous channel: sender and receiver must meet.\nstruct Rendezvous<T> {\n    slot: Mutex<Option<T>>,\n    sender_ready: Condvar,\n    receiver_ready: Condvar,\n}\n\nimpl<T> Rendezvous<T> {\n    fn new() -> Self {\n        Rendezvous {\n            slot: Mutex::new(None),\n            sender_ready: Condvar::new(),\n            receiver_ready: Condvar::new(),\n        }\n    }\n\n    fn send(&self, value: T) {\n        let mut slot = self.slot.lock().unwrap();\n        while slot.is_some() {\n            slot = self.receiver_ready.wait(slot).unwrap();\n        }\n        *slot = Some(value);\n        self.sender_ready.notify_one();\n        while slot.is_some() {\n            slot = self.receiver_ready.wait(slot).unwrap();\n        }\n    }\n\n    fn recv(&self) -> T {\n        let mut slot = self.slot.lock().unwrap();\n        while slot.is_none() {\n            slot = self.sender_ready.wait(slot).unwrap();\n        }\n        let value = slot.take().unwrap();\n        self.receiver_ready.notify_one();\n        value\n    }\n}\n\nfn main() {\n    let shared_lock = Arc::new(Mutex::new(0u64));\n    let channel = Arc::new(Rendezvous::new());\n\n    let sender_lock = Arc::clone(&shared_lock);\n    let sender_channel = Arc::clone(&channel);\n\n    let sender = thread::spawn(move || {\n        // Occasionally use the shared lock, but never while waiting on the channel.\n        {\n            let mut guard = sender_lock.lock().unwrap();\n            *guard += 1;\n        }\n\n        sender_channel.send(1u64);\n\n        {\n            let mut guard = sender_lock.lock().unwrap();\n            *guard += 1;\n        }\n    });\n\n    let receiver_lock = Arc::clone(&shared_lock);\n    let receiver_channel = Arc::clone(&channel);\n\n    let receiver = thread::spawn(move || {\n        {\n            let mut guard = receiver_lock.lock().unwrap();\n            *guard += 1;\n        }\n\n        let value = receiver_channel.recv();\n\n        {\n            let mut guard = receiver_lock.lock().unwrap();\n            *guard += 1;\n        }\n\n        value\n    });\n\n    sender.join().unwrap();\n    let done = receiver.join().unwrap();\n\n    println!(\"DONE done={}\", done);\n}\n```",
+  "wall_ms": 2168
+}

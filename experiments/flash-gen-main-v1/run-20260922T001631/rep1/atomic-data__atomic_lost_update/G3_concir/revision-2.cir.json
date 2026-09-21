@@ -1,0 +1,148 @@
+{
+  "program": "two_workers_atomic",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "c"
+        ],
+        "functions": [
+          "main",
+          "supervisor",
+          "worker"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "c",
+          "kind": "var",
+          "type": "Atomic",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::supervisor",
+              "handle": "sup"
+            },
+            {
+              "sid": "s2",
+              "kind": "join",
+              "handle": "sup"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "supervisor",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::worker",
+              "handle": "w1"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "main::worker",
+              "handle": "w2"
+            },
+            {
+              "sid": "s3",
+              "kind": "join",
+              "handle": "w1"
+            },
+            {
+              "sid": "s4",
+              "kind": "join",
+              "handle": "w2"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "worker",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "old"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "new",
+              "expr": "old + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "old",
+              "desired": "new",
+              "dst": "ok"
+            },
+            {
+              "sid": "s4",
+              "kind": "branch",
+              "cond": "ok == true",
+              "then": "s6",
+              "else": "s5"
+            },
+            {
+              "sid": "s5",
+              "kind": "goto",
+              "target": "s1"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "new",
+              "type": "Int"
+            },
+            {
+              "name": "ok",
+              "type": "Int"
+            },
+            {
+              "name": "old",
+              "type": "Int"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

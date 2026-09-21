@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "61565b51-ac8e-49bc-b4ac-c7e26690f4a9",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. The design contains two modules, where one module owns the first shared resource and the other module owns the second shared resource.\nR2. One task runs in the first module and another task runs in the second module, and both tasks need both resources.\nR3. Each task must declare that it depends on the resource owned by the other module.\nR4. Each task must hold both resources at the same time while it performs its work.\nR5. It must never be possible for the two tasks to leave each other waiting forever, each holding one resource and needing the other.\nR6. Every task must release each resource it holds before it finishes.\nR7. A starting thread launches both tasks and only finishes after both tasks have finished.\nR8. Both tasks must finish even though they run in different modules.\nR9. Every possible schedule or interleaving must terminate.\nR10. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "dd0d3d92378db269a1b8bc6cf17ced14af2f709b4633f46cb84da4f3bdfc2833",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 500,
+    "prompt_tokens": 452,
+    "total_tokens": 952,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 256
+    },
+    "prompt_cache_hit_tokens": 256,
+    "prompt_cache_miss_tokens": 196
+  },
+  "content_sha256": "bd2d41eb107b9799623e8dad3f01dfd501940200715a322e0cec45ff9862e881",
+  "content": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\n// Module A owns resource A.\nstruct ModuleA {\n    resource_a: Mutex<()>,\n}\n\n// Module B owns resource B.\nstruct ModuleB {\n    resource_b: Mutex<()>,\n}\n\n// Task in module A needs both resources.\n// It declares a dependency on the resource owned by module B.\nfn task_a(module_a: &ModuleA, module_b: &ModuleB) {\n    // Acquire in a globally consistent order to prevent deadlock:\n    // always acquire resource_a before resource_b.\n    let _guard_a = module_a.resource_a.lock().unwrap();\n    let _guard_b = module_b.resource_b.lock().unwrap();\n\n    // Hold both resources at the same time while performing work.\n    // (Work is represented by the critical section itself.)\n\n    // Both guards are released here, before the task finishes.\n}\n\n// Task in module B needs both resources.\n// It declares a dependency on the resource owned by module A.\nfn task_b(module_b: &ModuleB, module_a: &ModuleA) {\n    // Same global lock order: resource_a before resource_b.\n    let _guard_a = module_a.resource_a.lock().unwrap();\n    let _guard_b = module_b.resource_b.lock().unwrap();\n\n    // Hold both resources at the same time while performing work.\n\n    // Both guards are released here, before the task finishes.\n}\n\nfn main() {\n    let module_a = Arc::new(ModuleA {\n        resource_a: Mutex::new(()),\n    });\n    let module_b = Arc::new(ModuleB {\n        resource_b: Mutex::new(()),\n    });\n\n    let a1 = Arc::clone(&module_a);\n    let b1 = Arc::clone(&module_b);\n    let a2 = Arc::clone(&module_a);\n    let b2 = Arc::clone(&module_b);\n\n    // Starting thread launches both tasks and only finishes after both finish.\n    let handle_a = thread::spawn(move || {\n        task_a(&a1, &b1);\n    });\n\n    let handle_b = thread::spawn(move || {\n        task_b(&b2, &a2);\n    });\n\n    handle_a.join().unwrap();\n    handle_b.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 1911
+}

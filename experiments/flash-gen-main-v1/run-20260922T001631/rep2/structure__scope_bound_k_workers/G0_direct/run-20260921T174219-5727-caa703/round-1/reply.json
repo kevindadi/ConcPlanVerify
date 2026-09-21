@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Permit {\n    available: Mutex<bool>,\n    cv: Condvar,\n}\n\nimpl Permit {\n    fn new() -> Self {\n        Permit {\n            available: Mutex::new(true),\n            cv: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut avail = self.available.lock().unwrap();\n        while !*avail {\n            avail = self.cv.wait(avail).unwrap();\n        }\n        *avail = false;\n    }\n\n    fn release(&self) {\n        let mut avail = self.available.lock().unwrap();\n        *avail = true;\n        self.cv.notify_one();\n    }\n}\n\nfn main() {\n    let permit = Arc::new(Permit::new());\n    let done = Arc::new(Mutex::new(0u32));\n\n    let mut handles = Vec::new();\n\n    for _role in 0..3 {\n        for _activation in 0..2 {\n            let permit = Arc::clone(&permit);\n            let done = Arc::clone(&done);\n            let handle = thread::spawn(move || {\n                permit.acquire();\n                // critical section: hold the single permit while doing work\n                let mut d = done.lock().unwrap();\n                *d += 1;\n                drop(d);\n                permit.release();\n            });\n            handles.push(handle);\n        }\n    }\n\n    for h in handles {\n        h.join().unwrap();\n    }\n\n    let d = done.lock().unwrap();\n    println!(\"DONE done={}\", *d);\n}\n```"
+}

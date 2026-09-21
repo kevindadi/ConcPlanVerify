@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Arc;\nuse std::thread;\n\nfn main() {\n    let counter = Arc::new(AtomicUsize::new(0));\n\n    let mut handles = Vec::new();\n\n    for _ in 0..2 {\n        let counter = Arc::clone(&counter);\n        let handle = thread::spawn(move || {\n            loop {\n                let current = counter.load(Ordering::SeqCst);\n                let next = current + 1;\n                match counter.compare_exchange(current, next, Ordering::SeqCst, Ordering::SeqCst) {\n                    Ok(_) => break,\n                    Err(_) => continue,\n                }\n            }\n        });\n        handles.push(handle);\n    }\n\n    for handle in handles {\n        handle.join().unwrap();\n    }\n\n    let done = counter.load(Ordering::SeqCst) - 1;\n    println!(\"DONE done={}\", done);\n}\n```"
+}

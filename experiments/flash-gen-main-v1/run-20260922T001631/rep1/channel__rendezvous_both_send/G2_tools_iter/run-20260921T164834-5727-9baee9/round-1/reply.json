@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::mpsc::{sync_channel, SyncSender, Receiver};\nuse std::thread;\n\nfn main() {\n    // R2: zero-buffered channel (rendezvous)\n    let (tx, rx): (SyncSender<i32>, Receiver<i32>) = sync_channel(0);\n\n    // R1: sender and receiver run concurrently\n    let sender = thread::spawn(move || {\n        // R3: sender passes exactly one value\n        tx.send(1).expect(\"send failed\");\n    });\n\n    let receiver = thread::spawn(move || {\n        // R3: receiver takes exactly one value\n        rx.recv().expect(\"recv failed\")\n    });\n\n    // R4/R5: join both so no task waits forever and both finish\n    sender.join().expect(\"sender panicked\");\n    let value = receiver.join().expect(\"receiver panicked\");\n\n    // R6: channel is empty after both finish (rendezvous guarantees this)\n    // R7: print exactly the required line\n    println!(\"DONE done={}\", value);\n}\n```"
+}

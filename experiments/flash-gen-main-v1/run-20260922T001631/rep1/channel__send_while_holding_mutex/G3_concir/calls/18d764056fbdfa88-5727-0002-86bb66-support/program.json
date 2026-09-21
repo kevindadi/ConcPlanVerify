@@ -1,0 +1,123 @@
+{
+  "program": "concir_mod",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "ch1",
+          "lock"
+        ],
+        "functions": [
+          "main",
+          "sender",
+          "receiver"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "ch1",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        },
+        {
+          "name": "lock",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::sender",
+                "main::receiver"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "sender",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::lock"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_unlock",
+              "resource": "main::lock"
+            },
+            {
+              "sid": "s3",
+              "kind": "channel_send",
+              "channel": "main::ch1",
+              "value": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "receiver",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::lock"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_unlock",
+              "resource": "main::lock"
+            },
+            {
+              "sid": "s3",
+              "kind": "channel_recv",
+              "channel": "main::ch1",
+              "dst": "v"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "v",
+              "type": "Int"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

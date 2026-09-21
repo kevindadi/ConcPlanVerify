@@ -44,6 +44,34 @@ def generation_system_prompt() -> str:
     return _read(GENERATION_ASSET)
 
 
+def concir_generation_v2_system_prompt() -> str:
+    """The v2 CIR generation prompt (used when the contract is hidden)."""
+    return _read("concir_generation_v2.md")
+
+
+def requirements_only_user_prompt(requirements: str, *,
+                                  previous_candidate: str | None = None,
+                                  feedback: str | None = None) -> str:
+    """Generation user prompt that never contains the verification contract."""
+    parts = [
+        "Produce one ConcIR program for the requirements below. No verification "
+        "contract is provided; the requirements are the whole input.",
+        "",
+        "<domain_requirements>",
+        requirements.strip(),
+        "</domain_requirements>",
+    ]
+    if previous_candidate:
+        parts += ["", "<previous_candidate>", previous_candidate,
+                  "</previous_candidate>"]
+    if feedback:
+        parts += ["", "<verification_feedback>", feedback,
+                  "</verification_feedback>",
+                  "Output the complete corrected JSON object."]
+    parts += ["", "Output only the JSON object."]
+    return "\n".join(parts)
+
+
 def feedback_system_prompt() -> str:
     return _read(FEEDBACK_ASSET)
 

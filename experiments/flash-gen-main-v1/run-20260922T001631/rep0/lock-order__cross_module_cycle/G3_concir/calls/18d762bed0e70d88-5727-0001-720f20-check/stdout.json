@@ -1,0 +1,73 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E108",
+      "severity": "error",
+      "message": "requires resource 'm2' must be an FQN (module::entity)",
+      "path": "modules[0].requires.resources[0]",
+      "fix_hint": "write the resource as module::name"
+    },
+    {
+      "code": "E108",
+      "severity": "error",
+      "message": "requires function 't2' must be an FQN (module::entity)",
+      "path": "modules[0].requires.functions[0]",
+      "fix_hint": "write the function as module::name"
+    },
+    {
+      "code": "E108",
+      "severity": "error",
+      "message": "requires resource 'm1' must be an FQN (module::entity)",
+      "path": "modules[1].requires.resources[0]",
+      "fix_hint": "write the resource as module::name"
+    },
+    {
+      "code": "E108",
+      "severity": "error",
+      "message": "requires function 't1' must be an FQN (module::entity)",
+      "path": "modules[1].requires.functions[0]",
+      "fix_hint": "write the function as module::name"
+    },
+    {
+      "code": "E101",
+      "severity": "error",
+      "message": "undefined resource 'other::m2'",
+      "location": "main::t1.s2",
+      "path": "modules[0].functions[1].body[1]",
+      "fix_hint": "declare the resource or import it via requires"
+    },
+    {
+      "code": "E101",
+      "severity": "error",
+      "message": "undefined resource 'other::m2'",
+      "location": "main::t1.s4",
+      "path": "modules[0].functions[1].body[3]",
+      "fix_hint": "declare the resource or import it via requires"
+    },
+    {
+      "code": "E101",
+      "severity": "error",
+      "message": "undefined resource 'main::m1'",
+      "location": "other::t2.s1",
+      "path": "modules[1].functions[0].body[0]",
+      "fix_hint": "declare the resource or import it via requires"
+    },
+    {
+      "code": "E101",
+      "severity": "error",
+      "message": "undefined resource 'main::m1'",
+      "location": "other::t2.s5",
+      "path": "modules[1].functions[0].body[4]",
+      "fix_hint": "declare the resource or import it via requires"
+    },
+    {
+      "code": "E108",
+      "severity": "error",
+      "message": "cross-module reference 'other::t2' is not listed in requires.functions",
+      "location": "main::main.s2",
+      "path": "modules[0].functions[0].body[1]",
+      "fix_hint": "add this FQN to the module's requires.functions"
+    }
+  ]
+}

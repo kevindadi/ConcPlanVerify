@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::thread;\n\nfn auxiliary() {\n    // Auxiliary routine: no shared state, just does some work.\n    let mut x = 0u64;\n    for i in 0..1000 {\n        x = x.wrapping_add(i);\n    }\n    // Prevent optimization from removing the work.\n    std::hint::black_box(x);\n}\n\nfn main() {\n    // R1: main task calls auxiliary, then begins the same call sequence again.\n    // R3: each auxiliary call runs to completion before the next call starts.\n    auxiliary();\n    auxiliary();\n\n    // R5: print exactly the required line.\n    println!(\"DONE done=1\");\n}\n```"
+}

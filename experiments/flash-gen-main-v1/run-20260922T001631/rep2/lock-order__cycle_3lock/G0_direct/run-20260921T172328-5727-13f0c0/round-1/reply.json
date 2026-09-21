@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nstruct Locks {\n    a: Mutex<()>,\n    b: Mutex<()>,\n    c: Mutex<()>,\n}\n\nfn main() {\n    let locks = Arc::new(Locks {\n        a: Mutex::new(()),\n        b: Mutex::new(()),\n        c: Mutex::new(()),\n    });\n\n    // To avoid deadlock (R5), impose a global ordering on lock acquisition.\n    // Worker 1 needs a and b: acquire a then b.\n    // Worker 2 needs b and c: acquire b then c.\n    // Worker 3 needs c and a: acquire a then c (order a before c).\n    let l1 = Arc::clone(&locks);\n    let t1 = thread::spawn(move || {\n        let _ga = l1.a.lock().unwrap();\n        let _gb = l1.b.lock().unwrap();\n        // critical work\n    });\n\n    let l2 = Arc::clone(&locks);\n    let t2 = thread::spawn(move || {\n        let _gb = l2.b.lock().unwrap();\n        let _gc = l2.c.lock().unwrap();\n        // critical work\n    });\n\n    let l3 = Arc::clone(&locks);\n    let t3 = thread::spawn(move || {\n        let _ga = l3.a.lock().unwrap();\n        let _gc = l3.c.lock().unwrap();\n        // critical work\n    });\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n    t3.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 4,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    // Four locks: first pair (0,1), second pair (2,3)\n    let locks: Vec<Arc<Mutex<()>>> = (0..4).map(|_| Arc::new(Mutex::new(()))).collect();\n\n    let mut handles = Vec::new();\n\n    // Workers 0 and 1 use locks 0 and 1, in the same relative order (0 then 1).\n    for _ in 0..2 {\n        let a = Arc::clone(&locks[0]);\n        let b = Arc::clone(&locks[1]);\n        handles.push(thread::spawn(move || {\n            let _g1 = a.lock().unwrap();\n            let _g2 = b.lock().unwrap();\n            // hold both locks while working\n        }));\n    }\n\n    // Workers 2 and 3 use locks 2 and 3, in the same relative order (2 then 3).\n    for _ in 0..2 {\n        let a = Arc::clone(&locks[2]);\n        let b = Arc::clone(&locks[3]);\n        handles.push(thread::spawn(move || {\n            let _g1 = a.lock().unwrap();\n            let _g2 = b.lock().unwrap();\n            // hold both locks while working\n        }));\n    }\n\n    for h in handles {\n        h.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}

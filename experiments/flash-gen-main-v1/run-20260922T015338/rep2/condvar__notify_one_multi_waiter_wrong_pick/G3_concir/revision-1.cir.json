@@ -1,0 +1,209 @@
+{
+  "program": "waiters_notifier",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m",
+          "cv",
+          "ready",
+          "done"
+        ],
+        "functions": [
+          "main",
+          "waiter",
+          "notifier"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "cv",
+          "kind": "sync",
+          "type": "Condvar",
+          "mode": "Sync"
+        },
+        {
+          "name": "ready",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        },
+        {
+          "name": "done",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [
+        {
+          "var": "ready",
+          "lock": "m"
+        },
+        {
+          "var": "done",
+          "lock": "m"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::waiter",
+                "main::waiter",
+                "main::notifier"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "waiter",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "ready",
+              "expr": "ready + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "write_shared",
+              "resource": "main::ready",
+              "expr": "ready"
+            },
+            {
+              "sid": "s4",
+              "kind": "condvar_notify_all",
+              "condvar": "main::cv"
+            },
+            {
+              "sid": "s5",
+              "kind": "branch",
+              "cond": "ready == 2",
+              "then": "s7",
+              "else": "s6"
+            },
+            {
+              "sid": "s6",
+              "kind": "condvar_wait",
+              "condvar": "main::cv",
+              "lock": "main::m"
+            },
+            {
+              "sid": "s7",
+              "kind": "goto",
+              "target": "s5"
+            },
+            {
+              "sid": "s8",
+              "kind": "assign_local",
+              "target": "done",
+              "expr": "done + 1"
+            },
+            {
+              "sid": "s9",
+              "kind": "write_shared",
+              "resource": "main::done",
+              "expr": "done"
+            },
+            {
+              "sid": "s10",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s11",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "done",
+              "type": "Int"
+            },
+            {
+              "name": "ready",
+              "type": "Int"
+            }
+          ]
+        },
+        {
+          "name": "notifier",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "branch",
+              "cond": "ready == 2",
+              "then": "s4",
+              "else": "s3"
+            },
+            {
+              "sid": "s3",
+              "kind": "condvar_wait",
+              "condvar": "main::cv",
+              "lock": "main::m"
+            },
+            {
+              "sid": "s4",
+              "kind": "goto",
+              "target": "s2"
+            },
+            {
+              "sid": "s5",
+              "kind": "condvar_notify_all",
+              "condvar": "main::cv"
+            },
+            {
+              "sid": "s6",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

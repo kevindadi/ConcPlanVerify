@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::thread;\n\nfn main() {\n    for _ in 0..1 {\n        let handle = thread::spawn(|| {\n            // R2: worker performs no shared work\n        });\n        // R3: wait exactly once before next iteration\n        handle.join().unwrap();\n    }\n    println!(\"DONE done=1\");\n}\n```"
+}

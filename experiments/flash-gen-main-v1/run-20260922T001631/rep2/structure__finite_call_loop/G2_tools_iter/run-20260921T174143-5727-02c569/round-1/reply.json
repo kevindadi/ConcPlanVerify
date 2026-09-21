@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::thread;\n\nfn auxiliary() {\n    // Auxiliary routine: does some work and returns.\n    // No shared state with the main task.\n    let mut x = 0u64;\n    for i in 0..1000 {\n        x = x.wrapping_add(i);\n    }\n    // Prevent optimization from removing the work.\n    std::hint::black_box(x);\n}\n\nfn main() {\n    // R1: main task calls auxiliary, then begins the same call sequence again.\n    // R3: each auxiliary call runs to completion before the next call starts.\n    // R2: no shared state between main and auxiliary.\n    // R4: every schedule terminates (join ensures completion).\n    // R5: print exactly \"DONE done=1\".\n\n    let handle1 = thread::spawn(auxiliary);\n    handle1.join().unwrap();\n\n    let handle2 = thread::spawn(auxiliary);\n    handle2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

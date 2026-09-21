@@ -1,0 +1,52 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | .../run-20260921T165401-5727-41e7b9/round-2/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+error: unexpected token: `...`
+  --> src/main.rs:30:5
+   |
+30 |     ...
+   |     ^^^
+   |
+help: use `..` for an exclusive range
+   |
+30 -     ...
+30 +     ..
+   |
+help: or `..=` for an inclusive range
+   |
+30 -     ...
+30 +     ..=
+   |
+
+error[E0586]: inclusive range with no end
+  --> src/main.rs:30:5
+   |
+30 |     ...
+   |     ^^^
+   |
+   = note: inclusive ranges must be bounded at the end (`..=b` or `a..=b`)
+help: use `..` instead
+   |
+30 -     ...
+30 +     ..
+   |
+
+For more information about this error, try `rustc --explain E0586`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors

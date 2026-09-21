@@ -1,0 +1,11 @@
+{
+  "round": 2,
+  "kind": "claims_no_issue",
+  "matched": [
+    "is correct",
+    "there is no (bug|deadlock|defect)",
+    "no deadlock"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program:\n\n- The waiter locks, checks the flag in a `while !*ready` loop, and calls `cvar.wait(ready)` which atomically releases the lock and blocks, re-acquiring on wake. It re-checks the flag after every wake. This correctly handles the case where the signal happens before the waiter waits (the flag is already true, so the loop body never executes).\n- The notifier locks, sets the flag to true, calls `notify_one()`, then releases the lock at end of scope.\n- The flag is only accessed under the lock.\n- Both threads are joined, so the program terminates.\n\nChecking the requirements:\n- R5/R6: If the notifier runs first, it sets `ready = true` and signals. When the waiter later locks, it sees `ready == true` and skips waiting. No lost wakeup.\n- R7: The waiter releases the lock while blocked (via `Condvar::wait`).\n- R10: Prints `DONE ready=true`.\n\nThere is no deadlock, lost wakeup, data race, or indefinite block. The design is correct.\n\nNO_ISSUES"
+}

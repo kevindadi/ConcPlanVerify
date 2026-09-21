@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "08954f8b-7345-4998-8abf-5e69a12196c2",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.\nR2. Both worker threads share one counting permit pool that begins with exactly one permit.\nR3. A worker must hold a permit while it performs its work, so the two workers never work at the same time.\nR4. Each worker may acquire the permit more than once, and on every path it must release the permit exactly as many times as it acquired it before it finishes.\nR5. While a worker waits for a permit, the worker currently holding it must remain able to release it so the waiting worker can eventually proceed.\nR6. Every possible schedule and interleaving of the two workers must terminate.\nR7. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "8e28de81c5ee19bd579aab95242cd7ecb7ed3b7de5550581a5566591949e7ade",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 430,
+    "prompt_tokens": 420,
+    "total_tokens": 850,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 256
+    },
+    "prompt_cache_hit_tokens": 256,
+    "prompt_cache_miss_tokens": 164
+  },
+  "content_sha256": "00890a59a1ee1d902b6616b7c1d140eec46bc3aeb0a7a57d45dbc78ab4e69901",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct PermitPool {\n    permits: Mutex<usize>,\n    condvar: Condvar,\n}\n\nimpl PermitPool {\n    fn new(initial: usize) -> Self {\n        PermitPool {\n            permits: Mutex::new(initial),\n            condvar: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            permits = self.condvar.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        *permits += 1;\n        self.condvar.notify_one();\n    }\n}\n\nfn worker(pool: Arc<PermitPool>, id: usize) {\n    // Each worker acquires the permit multiple times, doing work while holding it.\n    // Every acquire is matched by exactly one release on all paths.\n    let acquisitions = if id == 0 { 3 } else { 2 };\n\n    for _ in 0..acquisitions {\n        pool.acquire();\n        // Critical section: only one worker can be here at a time.\n        // Simulate work by doing some computation.\n        let mut sum: u64 = 0;\n        for i in 0..1000u64 {\n            sum = sum.wrapping_add(i);\n        }\n        std::hint::black_box(sum);\n        pool.release();\n    }\n}\n\nfn main() {\n    let pool = Arc::new(PermitPool::new(1));\n\n    let mut handles = Vec::new();\n    for id in 0..2 {\n        let pool = Arc::clone(&pool);\n        handles.push(thread::spawn(move || worker(pool, id)));\n    }\n\n    for handle in handles {\n        handle.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 2152
+}

@@ -1,0 +1,162 @@
+{
+  "program": "permit_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "s",
+          "done"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "s",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 1
+        },
+        {
+          "name": "done",
+          "kind": "var",
+          "type": "Atomic",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::w1",
+              "handle": "sup"
+            },
+            {
+              "sid": "s2",
+              "kind": "join",
+              "handle": "sup"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::w2",
+              "handle": "w1"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "main::w2",
+              "handle": "w2"
+            },
+            {
+              "sid": "s3",
+              "kind": "join",
+              "handle": "w1"
+            },
+            {
+              "sid": "s4",
+              "kind": "join",
+              "handle": "w2"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "semaphore_acquire",
+              "resource": "main::s",
+              "count": 1
+            },
+            {
+              "sid": "s2",
+              "kind": "semaphore_release",
+              "resource": "main::s",
+              "count": 1
+            },
+            {
+              "sid": "s3",
+              "kind": "semaphore_acquire",
+              "resource": "main::s",
+              "count": 1
+            },
+            {
+              "sid": "s4",
+              "kind": "semaphore_release",
+              "resource": "main::s",
+              "count": 1
+            },
+            {
+              "sid": "s5",
+              "kind": "atomic_load",
+              "resource": "main::done",
+              "dst": "d"
+            },
+            {
+              "sid": "s6",
+              "kind": "assign_local",
+              "target": "d2",
+              "expr": "d + 1"
+            },
+            {
+              "sid": "s7",
+              "kind": "atomic_store",
+              "resource": "main::done",
+              "value": "d2"
+            },
+            {
+              "sid": "s8",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "d",
+              "type": "Int"
+            },
+            {
+              "name": "d2",
+              "type": "Int"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

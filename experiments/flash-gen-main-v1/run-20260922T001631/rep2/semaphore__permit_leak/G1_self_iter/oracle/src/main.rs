@@ -1,0 +1,53 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+use std::sync::{Arc};
+use std::thread;
+
+struct PermitPool {
+    permits: Mutex<usize>,
+    condvar: Condvar,
+}
+
+impl PermitPool {
+    fn new(permits: usize) -> Self {
+        PermitPool {
+            permits: Mutex::new(permits),
+            condvar: Condvar::new(),
+        }
+    }
+
+    fn acquire(&self) {
+        let mut permits = self.permits.lock().unwrap();
+        while *permits == 0 {
+            permits = self.condvar.wait(permits).unwrap();
+        }
+        *permits -= 1;
+    }
+
+    fn release(&self) {
+        let mut permits = self.permits.lock().unwrap();
+        *permits += 1;
+        self.condvar.notify_one();
+    }
+}
+
+fn main() { cir_trace::init();
+    let pool = Arc::new(PermitPool::new(1));
+
+    let mut handles = Vec::new();
+    for _ in 0..2 {
+        let pool = Arc::clone(&pool);
+        handles.push(thread::spawn(move || {
+            pool.acquire();
+            // Perform work while holding the permit.
+            pool.release();
+        }));
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    let permits = pool.permits.lock().unwrap();
+    println!("DONE permits={}", *permits);
+ cir_trace::finish();}

@@ -33,7 +33,24 @@ from .offline_workflow import _exclusive_run_dir
 from .providers import CandidateProvider, CandidateRequest, ScriptedProvider
 from .structural import run_structural_check
 
+ARM_GEN_DIRECT = "G0_direct"
+ARM_GEN_SELF = "G1_self_iter"
+ARM_GEN_TOOLS = "G2_tools_iter"
+GEN_ARMS = (ARM_GEN_DIRECT, ARM_GEN_SELF, ARM_GEN_TOOLS)
+
 SELF_REPORT_TOKENS = ("no problems", "no_problems", "no concurrency")
+
+
+def _direct(arm: str) -> bool:
+    return arm in (ARM_DIRECT, ARM_GEN_DIRECT)
+
+
+def _self_iter(arm: str) -> bool:
+    return arm in (ARM_SELF_ITER, ARM_GEN_SELF)
+
+
+def _tools(arm: str) -> bool:
+    return arm.startswith("A2") or arm in (ARM_TOOLS_ITER, ARM_GEN_TOOLS)
 
 # Word list for the prose branch of the three-way reply classifier. A reply with
 # no code fence that matches any of these is a *claim of no defect*. Written to
@@ -199,7 +216,7 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
         initial_path = base / "initial.rs"
         initial_path.write_text(initial_source, encoding="utf-8")
     last_path: Path | None = None
-    wants_tools = arm.startswith("A2")
+    wants_tools = _tools(arm)
     if tools_tier == "ml" and arm.endswith("_m"):
         tools_tier = "m"
     run.notes["tools_tier"] = tools_tier
@@ -248,7 +265,15 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
 
         if kind == "claims_no_issue":
             run.notes.setdefault("claims_no_issue_rounds", []).append(round_no)
-            if arm == ARM_DIRECT:
+            if _direct(arm):
+                if initial_path is None:
+                    # Generation: there is no input program to accept; a bare
+                    # no-issue claim is not a program.
+                    rr.decision = "claims_no_issue_no_program"
+                    run.accepted = False
+                    _write_reply(round_dir, round_no, response.text,
+                                 classification, rr.decision)
+                    break
                 rr.decision = "claims_no_issue"
                 run.accepted = True
                 run.accepted_round = round_no
@@ -257,7 +282,7 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
                 accepted_path = initial_path
                 _write_reply(round_dir, round_no, response.text, classification, rr.decision)
                 break
-            if arm == ARM_SELF_ITER:
+            if _self_iter(arm):
                 if last_build_ok is not None:
                     built_round = last_build_ok[0]
                     rr.decision = "claims_no_issue"
@@ -288,7 +313,7 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
                         "```rust fence, or reply exactly NO_ISSUES.")
             rr.feedback_sha256 = sha256_text(feedback)
             _write_reply(round_dir, round_no, response.text, classification, rr.decision)
-            if arm == ARM_DIRECT:
+            if _direct(arm):
                 break
             continue
 
@@ -335,13 +360,13 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
             last_build_ok_path = candidate_path
             run.notes["build_ok_rounds"].append(round_no)
 
-        if arm == ARM_DIRECT:
+        if _direct(arm):
             run.accepted = build_ok
             rr.decision = "build_ok" if build_ok else "build_fail"
             accepted_path = candidate_path if build_ok else None
             _write_reply(round_dir, round_no, response.text, classification, rr.decision)
             break
-        if arm == ARM_SELF_ITER:
+        if _self_iter(arm):
             rr.decision = "continue"
             feedback = ("Review the program for concurrency defects and either fix it "
                         "(full program) or reply exactly NO_ISSUES.")
@@ -383,7 +408,7 @@ def run_rust_arm(provider: CandidateProvider, *, arm: str, task: str, spec: str,
     elif initial_source is not None:
         run.notes["initial_source_sha256"] = sha256_text(initial_source)
     # Invariant (I-3): any accepted A1 cell must have a successfully built candidate.
-    if arm == ARM_SELF_ITER and run.accepted and last_build_ok is None:
+    if _self_iter(arm) and run.accepted and last_build_ok is None:
         raise AssertionError("A1 accepted without a build_ok candidate")
     return run
 

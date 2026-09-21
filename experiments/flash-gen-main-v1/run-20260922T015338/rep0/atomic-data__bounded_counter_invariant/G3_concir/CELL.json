@@ -1,0 +1,111 @@
+{
+  "arm": "G3_concir",
+  "task": "atomic-data/bounded_counter_invariant",
+  "accepted": true,
+  "status": "accepted",
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "accepted",
+      "check": "valid",
+      "explore": "PASS",
+      "prompt_tokens": 1556,
+      "completion_tokens": 806,
+      "llm_ms": 3001,
+      "name_alignment": [
+        {
+          "module": "main",
+          "old": "counter",
+          "new": "c"
+        },
+        {
+          "module": "main",
+          "old": "lock",
+          "new": "m"
+        },
+        {
+          "module": "main",
+          "old": "supervisor",
+          "new": "w1",
+          "kind": "function"
+        },
+        {
+          "module": "main",
+          "old": "worker",
+          "new": "w2",
+          "kind": "function"
+        }
+      ]
+    }
+  ],
+  "llm_calls": [
+    {
+      "attempt": 1,
+      "request_id": "9753a658-2a73-423e-ad76-306949f1f810",
+      "response_model": "deepseek-flash",
+      "usage": {
+        "completion_tokens": 806,
+        "prompt_tokens": 1556,
+        "total_tokens": 2362,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 1408
+        },
+        "prompt_cache_hit_tokens": 1408,
+        "prompt_cache_miss_tokens": 148
+      },
+      "wall_ms": 3001,
+      "prompt_sha256": "dd90a22bb481bbe20f2748ee5305fbe3a9221cd1ddc2666e83649d0243df1cdd"
+    }
+  ],
+  "accepted_with_proof": false,
+  "name_alignment": [
+    {
+      "module": "main",
+      "old": "counter",
+      "new": "c"
+    },
+    {
+      "module": "main",
+      "old": "lock",
+      "new": "m"
+    },
+    {
+      "module": "main",
+      "old": "supervisor",
+      "new": "w1",
+      "kind": "function"
+    },
+    {
+      "module": "main",
+      "old": "worker",
+      "new": "w2",
+      "kind": "function"
+    }
+  ],
+  "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T015338/rep0/atomic-data__bounded_counter_invariant/G3_concir/revision-1.cir.json",
+  "model": {
+    "outcome": "PASS",
+    "complete": true
+  },
+  "coverage": {
+    "total": 7,
+    "decidable": 6,
+    "satisfied": 6,
+    "failed": [],
+    "statuses": {
+      "R1": "PASS",
+      "R2": "PASS",
+      "R3": "PASS",
+      "R4": "PASS",
+      "R5": "PASS",
+      "R6": "PASS",
+      "R7": "unverifiable"
+    },
+    "rc": 0.8571428571428571,
+    "rf": 0.8571428571428571
+  },
+  "holes": [],
+  "codegen_error": "RuntimeError: filled project failed to build"
+}

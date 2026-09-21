@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::thread;\n\nfn auxiliary() {\n    // Auxiliary routine: no shared state, no contention.\n    // It simply performs a small amount of local work.\n    let mut x: u64 = 0;\n    for i in 0..1000u64 {\n        x = x.wrapping_add(i);\n    }\n    // Prevent the compiler from optimizing the work away.\n    std::hint::black_box(x);\n}\n\nfn main() {\n    // R1: main task calls the auxiliary routine, then begins the same call\n    // sequence again.\n    // R3: each auxiliary call runs to completion before the next call starts.\n    // We model the auxiliary routine as a spawned thread that is joined,\n    // ensuring completion before the next call begins.\n\n    // First call sequence.\n    let handle1 = thread::spawn(auxiliary);\n    handle1.join().expect(\"auxiliary thread 1 panicked\");\n\n    // Second call sequence.\n    let handle2 = thread::spawn(auxiliary);\n    handle2.join().expect(\"auxiliary thread 2 panicked\");\n\n    // R5: print exactly the required line and exit.\n    println!(\"DONE done=1\");\n}\n```"
+}

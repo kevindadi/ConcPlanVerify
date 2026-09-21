@@ -1,0 +1,262 @@
+{
+  "analysis_started": true,
+  "assumptions": {
+    "no_spurious_wakeups": true,
+    "sequential_consistency": true
+  },
+  "binary_sha256": "cf4f9e9a183d252a4abe95d702302151951af82f8a877e9d172a38b53a1acbf2",
+  "boundary_events": [],
+  "bounds": {
+    "max_boundary_events": 4096,
+    "max_depth": 40,
+    "max_frames_per_thread": 32,
+    "max_states": 10000,
+    "max_threads": 16
+  },
+  "complete": true,
+  "contract_fingerprint": "07e61dc98d3c927c",
+  "diagnostics": [
+    {
+      "blocked": [
+        {
+          "detail": "waiting for scope members",
+          "holder": null,
+          "kind": "scope",
+          "resource": null,
+          "resource_name": null,
+          "thread": 0,
+          "waiting": 0
+        },
+        {
+          "detail": "waiting for a lock",
+          "holder": 3,
+          "kind": "lock",
+          "resource": 1,
+          "resource_name": "main::m1",
+          "thread": 1,
+          "waiting": 2
+        },
+        {
+          "detail": "waiting for a lock",
+          "holder": 3,
+          "kind": "lock",
+          "resource": 1,
+          "resource_name": "main::m1",
+          "thread": 2,
+          "waiting": 2
+        },
+        {
+          "detail": "waiting for a lock",
+          "holder": 2,
+          "kind": "lock",
+          "resource": 2,
+          "resource_name": "main::m2",
+          "thread": 3,
+          "waiting": 1
+        }
+      ],
+      "cir_statements": [
+        {
+          "function": "main",
+          "module": "main",
+          "sid": "s1"
+        },
+        {
+          "function": "waiter1",
+          "module": "main",
+          "sid": "s1"
+        },
+        {
+          "function": "waiter2",
+          "module": "main",
+          "sid": "s2"
+        },
+        {
+          "function": "notifier",
+          "module": "main",
+          "sid": "s2"
+        }
+      ],
+      "complete": true,
+      "counterexample": [
+        {
+          "frame": 0,
+          "origin": {
+            "function": 0,
+            "module": 0,
+            "phase": "statement",
+            "sid": 0
+          },
+          "thread": 0
+        },
+        {
+          "frame": 2,
+          "origin": {
+            "function": 2,
+            "module": 0,
+            "phase": "statement",
+            "sid": 0
+          },
+          "thread": 2
+        },
+        {
+          "frame": 3,
+          "origin": {
+            "function": 3,
+            "module": 0,
+            "phase": "statement",
+            "sid": 0
+          },
+          "thread": 3
+        },
+        {
+          "frame": 1,
+          "origin": {
+            "function": 1,
+            "module": 0,
+            "phase": "statement",
+            "sid": 0
+          },
+          "thread": 1
+        },
+        {
+          "frame": 2,
+          "origin": {
+            "function": 2,
+            "module": 0,
+            "phase": "statement",
+            "sid": 1
+          },
+          "thread": 2
+        },
+        {
+          "frame": 3,
+          "origin": {
+            "function": 3,
+            "module": 0,
+            "phase": "statement",
+            "sid": 1
+          },
+          "thread": 3
+        }
+      ],
+      "counterexample_names": [
+        "main::main::s1",
+        "main::waiter2::s1",
+        "main::notifier::s1",
+        "main::waiter1::s1",
+        "main::waiter2::s2",
+        "main::notifier::s2"
+      ],
+      "doom_state": {
+        "free_resources": [],
+        "threads": [
+          {
+            "at_sid": "s1",
+            "entry_function": "main::main",
+            "function": "main::main",
+            "holds": [],
+            "thread": 0,
+            "waiting_on": {
+              "kind": "scope",
+              "resource": null
+            }
+          },
+          {
+            "at_sid": "s1",
+            "entry_function": "main::waiter1",
+            "function": "main::waiter1",
+            "holds": [],
+            "thread": 1,
+            "waiting_on": {
+              "kind": "mutex",
+              "resource": "main::m1"
+            }
+          },
+          {
+            "at_sid": "s2",
+            "entry_function": "main::waiter2",
+            "function": "main::waiter2",
+            "holds": [
+              "main::m2"
+            ],
+            "thread": 2,
+            "waiting_on": {
+              "kind": "mutex",
+              "resource": "main::m1"
+            }
+          },
+          {
+            "at_sid": "s2",
+            "entry_function": "main::notifier",
+            "function": "main::notifier",
+            "holds": [
+              "main::m1"
+            ],
+            "thread": 3,
+            "waiting_on": {
+              "kind": "mutex",
+              "resource": "main::m2"
+            }
+          }
+        ]
+      },
+      "final_instances": [
+        {
+          "frame": 0,
+          "function": 0,
+          "sid": 0,
+          "status": "running",
+          "thread": 0
+        },
+        {
+          "frame": 1,
+          "function": 1,
+          "sid": 0,
+          "status": "running",
+          "thread": 1
+        },
+        {
+          "frame": 2,
+          "function": 2,
+          "sid": 1,
+          "status": "running",
+          "thread": 2
+        },
+        {
+          "frame": 3,
+          "function": 3,
+          "sid": 1,
+          "status": "running",
+          "thread": 3
+        }
+      ],
+      "message": "reachable global deadlock",
+      "outcome": "FAIL",
+      "property": "deadlock",
+      "proven_facts": [
+        "reached a counterexample state after 6 step(s)",
+        "explored 160 reachable states"
+      ],
+      "repair_hints": [
+        "thread main::waiter2 (at s2) holds main::m2 and waits on main::m1; thread main::notifier (at s2) holds main::m1 and waits on main::m2 — unify the acquisition order, or release main::m2 before waiting on main::m1",
+        "thread main::notifier (at s2) holds main::m1 and waits on main::m2; thread main::waiter2 (at s2) holds main::m2 and waits on main::m1 — unify the acquisition order, or release main::m1 before waiting on main::m2",
+        "check lock acquisition order, channel capacity, and missing notify/join"
+      ]
+    }
+  ],
+  "git_rev": "1097b79f2c9fa06c046774ce31ded1f359b47ffb",
+  "invalid": [],
+  "model_fingerprint": "bb5ca9c63f897902",
+  "outcome": "FAIL",
+  "properties": [
+    {
+      "detail": "a reachable state has no enabled step and unfinished threads",
+      "id": "deadlock",
+      "outcome": "FAIL"
+    }
+  ],
+  "states_explored": 160,
+  "transitions_explored": 282,
+  "unsupported": []
+}

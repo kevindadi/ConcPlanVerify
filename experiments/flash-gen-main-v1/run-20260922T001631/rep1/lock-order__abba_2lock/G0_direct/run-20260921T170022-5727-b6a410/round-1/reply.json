@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex, Condvar};\nuse std::thread;\n\nstruct Shared {\n    lock_a: Mutex<bool>,\n    lock_b: Mutex<bool>,\n    cv_a: Condvar,\n    cv_b: Condvar,\n}\n\nfn acquire(lock: &Mutex<bool>, cv: &Condvar) {\n    let mut held = lock.lock().unwrap();\n    while *held {\n        held = cv.wait(held).unwrap();\n    }\n    *held = true;\n}\n\nfn release(lock: &Mutex<bool>, cv: &Condvar) {\n    let mut held = lock.lock().unwrap();\n    *held = false;\n    cv.notify_one();\n}\n\nfn worker(shared: Arc<Shared>, id: usize) -> usize {\n    // Acquire both locks in a consistent global order to prevent deadlock (R5).\n    acquire(&shared.lock_a, &shared.cv_a);\n    acquire(&shared.lock_b, &shared.cv_b);\n\n    // Critical work while holding both locks (R3).\n    let _ = id;\n\n    // Release both locks before finishing (R7).\n    release(&shared.lock_b, &shared.cv_b);\n    release(&shared.lock_a, &shared.cv_a);\n\n    1\n}\n\nfn main() {\n    let shared = Arc::new(Shared {\n        lock_a: Mutex::new(false),\n        lock_b: Mutex::new(false),\n        cv_a: Condvar::new(),\n        cv_b: Condvar::new(),\n    });\n\n    let s1 = Arc::clone(&shared);\n    let s2 = Arc::clone(&shared);\n\n    let t1 = thread::spawn(move || worker(s1, 1));\n    let t2 = thread::spawn(move || worker(s2, 2));\n\n    let r1 = t1.join().unwrap();\n    let r2 = t2.join().unwrap();\n\n    println!(\"DONE t1={} t2={}\", r1, r2);\n}\n```"
+}

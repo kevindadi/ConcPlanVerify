@@ -128,6 +128,7 @@ class WholeArtifactRevisionWorkflow:
         check_fidelity: bool = True,
         fidelity_name: str | None = None,
         reply_format: str = "whole",
+        tolerate_invalid: bool = False,
     ) -> None:
         self.client = client
         self.provider = provider
@@ -138,6 +139,10 @@ class WholeArtifactRevisionWorkflow:
         self.check_fidelity = check_fidelity
         self.fidelity_name = fidelity_name
         self.reply_format = reply_format
+        # Generation starts from nothing, so a first-pass invalid/unknown CIR is
+        # fed back as feedback instead of ending the loop (repair keeps the
+        # default terminal behaviour).
+        self.tolerate_invalid = tolerate_invalid
 
     def run(self, requirements: str, contract: dict[str, Any], *,
             task_id: str = "task", initial_program: Path | str | None = None) -> RevisionResult:
@@ -385,11 +390,24 @@ class WholeArtifactRevisionWorkflow:
                 return result
 
             if explore.status == "unknown":
+                if self.tolerate_invalid:
+                    record.decision = "unknown"
+                    feedback_dict = (build_explore_feedback(explore) if self.diagnostics
+                                     else {"stage": "explore", "outcome": "UNKNOWN"})
+                    record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
+                    continue
                 record.decision = "unknown"
                 result.status = "unknown"
                 _write_result(run_dir, result)
                 return result
             if explore.status in ("invalid", "unsupported"):
+                if self.tolerate_invalid:
+                    record.decision = explore.status
+                    feedback_dict = (build_explore_feedback(explore) if self.diagnostics
+                                     else {"stage": "explore",
+                                           "outcome": explore.status.upper()})
+                    record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
+                    continue
                 record.decision = explore.status
                 result.status = explore.status
                 _write_result(run_dir, result)

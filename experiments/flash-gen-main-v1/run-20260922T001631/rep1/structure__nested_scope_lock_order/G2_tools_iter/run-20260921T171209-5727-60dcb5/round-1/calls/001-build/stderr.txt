@@ -1,0 +1,66 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | .../run-20260921T171209-5727-60dcb5/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+error[E0596]: cannot borrow `_ga` as mutable, as it is not declared as mutable
+  --> src/main.rs:17:14
+   |
+17 |             *_ga += 1;
+   |              ^^^ cannot borrow as mutable
+   |
+help: consider changing this to be mutable
+   |
+15 |             let mut _ga = a1.lock().unwrap();
+   |                 +++
+
+error[E0596]: cannot borrow `_gb` as mutable, as it is not declared as mutable
+  --> src/main.rs:18:14
+   |
+18 |             *_gb += 1;
+   |              ^^^ cannot borrow as mutable
+   |
+help: consider changing this to be mutable
+   |
+16 |             let mut _gb = b1.lock().unwrap();
+   |                 +++
+
+error[E0596]: cannot borrow `_ga` as mutable, as it is not declared as mutable
+  --> src/main.rs:24:14
+   |
+24 |             *_ga += 1;
+   |              ^^^ cannot borrow as mutable
+   |
+help: consider changing this to be mutable
+   |
+22 |             let mut _ga = a2.lock().unwrap();
+   |                 +++
+
+error[E0596]: cannot borrow `_gb` as mutable, as it is not declared as mutable
+  --> src/main.rs:25:14
+   |
+25 |             *_gb += 1;
+   |              ^^^ cannot borrow as mutable
+   |
+help: consider changing this to be mutable
+   |
+23 |             let mut _gb = b2.lock().unwrap();
+   |                 +++
+
+For more information about this error, try `rustc --explain E0596`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 4 previous errors

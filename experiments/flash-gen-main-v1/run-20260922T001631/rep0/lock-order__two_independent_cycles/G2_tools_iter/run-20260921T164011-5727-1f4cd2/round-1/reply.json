@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let lock1 = Arc::new(Mutex::new(()));\n    let lock2 = Arc::new(Mutex::new(()));\n    let lock3 = Arc::new(Mutex::new(()));\n    let lock4 = Arc::new(Mutex::new(()));\n\n    let mut handles = Vec::new();\n\n    // Workers 1 and 2 use the first pair (lock1, lock2) in the same order.\n    for _ in 0..2 {\n        let a = Arc::clone(&lock1);\n        let b = Arc::clone(&lock2);\n        handles.push(thread::spawn(move || {\n            let _g1 = a.lock().unwrap();\n            let _g2 = b.lock().unwrap();\n            // hold both locks while working\n        }));\n    }\n\n    // Workers 3 and 4 use the second pair (lock3, lock4) in the same order.\n    for _ in 0..2 {\n        let a = Arc::clone(&lock3);\n        let b = Arc::clone(&lock4);\n        handles.push(thread::spawn(move || {\n            let _g1 = a.lock().unwrap();\n            let _g2 = b.lock().unwrap();\n            // hold both locks while working\n        }));\n    }\n\n    for h in handles {\n        h.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}

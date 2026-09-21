@@ -1,0 +1,98 @@
+{
+  "program": "permit_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "s"
+        ],
+        "functions": [
+          "main",
+          "supervisor",
+          "worker"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "s",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 1
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::supervisor"
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "supervisor",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::worker",
+                "main::worker"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "worker",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "semaphore_acquire",
+              "resource": "main::s",
+              "count": 1
+            },
+            {
+              "sid": "s2",
+              "kind": "nop"
+            },
+            {
+              "sid": "s3",
+              "kind": "semaphore_release",
+              "resource": "main::s",
+              "count": 1
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    // Two locks shared by both workers.\n    let lock_a = Arc::new(Mutex::new(()));\n    let lock_b = Arc::new(Mutex::new(()));\n\n    // Counters to prove each worker ran exactly once.\n    let t1_done = Arc::new(Mutex::new(0));\n    let t2_done = Arc::new(Mutex::new(0));\n\n    let a1 = Arc::clone(&lock_a);\n    let b1 = Arc::clone(&lock_b);\n    let c1 = Arc::clone(&t1_done);\n\n    let a2 = Arc::clone(&lock_a);\n    let b2 = Arc::clone(&lock_b);\n    let c2 = Arc::clone(&t2_done);\n\n    // Worker 1 acquires locks in order A then B.\n    let h1 = thread::spawn(move || {\n        let _ga = a1.lock().unwrap();\n        let _gb = b1.lock().unwrap();\n        // Critical work while holding both locks.\n        *c1.lock().unwrap() += 1;\n        // Locks released here when guards drop.\n    });\n\n    // Worker 2 acquires locks in the same order A then B to avoid deadlock.\n    let h2 = thread::spawn(move || {\n        let _ga = a2.lock().unwrap();\n        let _gb = b2.lock().unwrap();\n        // Critical work while holding both locks.\n        *c2.lock().unwrap() += 1;\n        // Locks released here when guards drop.\n    });\n\n    // Main thread waits for both workers to finish.\n    h1.join().unwrap();\n    h2.join().unwrap();\n\n    let v1 = *t1_done.lock().unwrap();\n    let v2 = *t2_done.lock().unwrap();\n    println!(\"DONE t1={} t2={}\", v1, v2);\n}\n```"
+}

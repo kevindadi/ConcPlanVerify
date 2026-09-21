@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nfn main() {\n    // R1: main task calls an auxiliary routine, then begins the same call sequence again.\n    // R2: no shared state between main and auxiliary routine.\n    // R3: each auxiliary call runs to completion before the next call starts.\n    // R4: every schedule terminates.\n    // R5: print exactly \"DONE done=1\".\n\n    let handle1 = std::thread::spawn(auxiliary);\n    handle1.join().unwrap();\n\n    let handle2 = std::thread::spawn(auxiliary);\n    handle2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n\nfn auxiliary() {\n    // Auxiliary routine: no shared state, just does some local work.\n    let mut local = 0u64;\n    for i in 0..1000 {\n        local = local.wrapping_add(i);\n    }\n    // Prevent optimization from removing the work.\n    std::hint::black_box(local);\n}\n```"
+}

@@ -1,0 +1,137 @@
+{
+  "program": "two_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "c",
+          "done"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "c",
+          "kind": "var",
+          "type": "Atomic",
+          "base": "Int",
+          "init": 0
+        },
+        {
+          "name": "done",
+          "kind": "var",
+          "type": "Var",
+          "base": "Bool",
+          "init": false
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::w1"
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::w2",
+                "main::w2"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "write_shared",
+              "resource": "main::done",
+              "expr": "true"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "old"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "new",
+              "expr": "old + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "old",
+              "desired": "new",
+              "dst": "ok"
+            },
+            {
+              "sid": "s4",
+              "kind": "branch",
+              "cond": "ok == true",
+              "then": "s5",
+              "else": "s1"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "new",
+              "type": "Int"
+            },
+            {
+              "name": "ok",
+              "type": "Int"
+            },
+            {
+              "name": "old",
+              "type": "Int"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

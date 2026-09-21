@@ -1,0 +1,162 @@
+{
+  "program": "permit_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "s",
+          "done"
+        ],
+        "functions": [
+          "main",
+          "supervisor",
+          "worker"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "s",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 1
+        },
+        {
+          "name": "done",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::supervisor",
+              "handle": "sup"
+            },
+            {
+              "sid": "s2",
+              "kind": "join",
+              "handle": "sup"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "supervisor",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::worker",
+              "handle": "w1"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "main::worker",
+              "handle": "w2"
+            },
+            {
+              "sid": "s3",
+              "kind": "join",
+              "handle": "w1"
+            },
+            {
+              "sid": "s4",
+              "kind": "join",
+              "handle": "w2"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "worker",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "semaphore_acquire",
+              "resource": "main::s",
+              "count": 1
+            },
+            {
+              "sid": "s2",
+              "kind": "semaphore_acquire",
+              "resource": "main::s",
+              "count": 1
+            },
+            {
+              "sid": "s3",
+              "kind": "semaphore_release",
+              "resource": "main::s",
+              "count": 1
+            },
+            {
+              "sid": "s4",
+              "kind": "semaphore_release",
+              "resource": "main::s",
+              "count": 1
+            },
+            {
+              "sid": "s5",
+              "kind": "atomic_load",
+              "resource": "main::done",
+              "dst": "d"
+            },
+            {
+              "sid": "s6",
+              "kind": "assign_local",
+              "target": "d2",
+              "expr": "d + 1"
+            },
+            {
+              "sid": "s7",
+              "kind": "atomic_store",
+              "resource": "main::done",
+              "value": "d2"
+            },
+            {
+              "sid": "s8",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "d",
+              "type": "Int"
+            },
+            {
+              "name": "d2",
+              "type": "Int"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "round": 2,
+  "kind": "claims_no_issue",
+  "matched": [
+    "is correct"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program, I need to check for concurrency defects.\n\nThe `PermitPool` uses a `Mutex<usize>` and a `Condvar`. Let me trace through the logic:\n\n- `acquire`: locks, waits while permits == 0, then decrements.\n- `release`: locks, increments, notifies one.\n\nThe classic pattern here is correct: the `while` loop guards against spurious wakeups, and the mutex is held during the check. The `notify_one` is called while holding the lock (which is fine, just potentially less efficient).\n\nLet me check the requirements:\n\n- R1: supervising task (main) launches two workers and joins both. ✓\n- R2: one permit. ✓\n- R3: worker holds permit while working. ✓\n- R4: acquire, work, release before finishing. ✓\n- R5: waiting worker's condvar wait releases the mutex, so the holder can release. ✓\n- R6: every schedule terminates. With one permit and two workers, one acquires, works, releases, notifies; the other wakes and proceeds. ✓\n- R7: prints `DONE permits=1`. After both workers release, permits = 1. ✓\n\nWait — let me double-check R7 more carefully. Both workers acquire and release. Starting at 1: worker A acquires (0), releases (1). Worker B acquires (0), releases (1). Final = 1. ✓\n\nIs there any lost wakeup? The `notify_one` happens under the lock. A waiter that hasn't yet entered `wait` will re-check the predicate under the lock before waiting, so no lost wakeup. A waiter already in `wait` gets notified. Correct.\n\nIs there a deadlock? No — the mutex is always released (via `wait` or scope exit), and there's no lock ordering issue.\n\nIs there a data race? No — all access to `permits` is under the mutex.\n\nThe program appears correct. The `notify_one` under the lock is a minor inefficiency but not a defect.\n\nNO_ISSUES"
+}

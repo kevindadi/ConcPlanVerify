@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "10fadae9-8bdd-4b28-b714-f2a4a7cfe003",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.\nR2. Both worker threads share a single integer counter that is declared to range from zero to two and starts at zero.\nR3. Each worker adds exactly one to the shared counter while it holds the mutual-exclusion lock.\nR4. A worker must hold the mutual-exclusion lock whenever it reads or writes the shared counter, so the two workers never update it at the same time.\nR5. In every state that can occur, the counter value stays within its declared range from zero to two.\nR6. Every possible schedule and interleaving of the two workers must terminate.\nR7. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "42244c5eeb12fa4483a66a39dc71090afac31218e6f7c91e47dbe9c856342b35",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 145,
+    "prompt_tokens": 414,
+    "total_tokens": 559,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 256
+    },
+    "prompt_cache_hit_tokens": 256,
+    "prompt_cache_miss_tokens": 158
+  },
+  "content_sha256": "9f0e29f36f0bf2325e64a17fa996572bee0ef167a840a72cde8464b5e036f43d",
+  "content": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let counter = Arc::new(Mutex::new(0u32));\n\n    let mut handles = Vec::new();\n\n    for _ in 0..2 {\n        let counter = Arc::clone(&counter);\n        let handle = thread::spawn(move || {\n            let mut guard = counter.lock().unwrap();\n            *guard += 1;\n        });\n        handles.push(handle);\n    }\n\n    for handle in handles {\n        handle.join().unwrap();\n    }\n\n    let final_value = *counter.lock().unwrap();\n    println!(\"DONE done={}\", final_value);\n}\n```",
+  "wall_ms": 990
+}

@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "aae62129-a05e-459a-b5d6-1baf99618967",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. A main task starts two waiter roles and one notifier role that run at the same time. [U]\nR2. Each waiter blocks on a shared condition variable until it is told to proceed.\nR3. The notifier must wake every waiter that is still blocked, so no waiter is left waiting forever.\nR4. A waiter must hold the lock while it waits on the condition variable.\nR5. The notifier must take the lock before it wakes the waiters and release the lock afterwards.\nR6. The waiters and the notifier use a separate permit counter so that the notifier only wakes the waiters after both are ready to wait.\nR7. Waking a single waiter is not enough; every blocked waiter must be woken.\nR8. Every schedule and interleaving must terminate with every waiter and the notifier finished.\nR9. Every waiter completes in every schedule.\nR10. The program must print exactly the line `DONE waiters=0` and then exit. [U]\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "c3afb8b28e9150d952ba8271b39b58210c81e740c4ab81e0a220931be2f87e05",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 432,
+    "prompt_tokens": 460,
+    "total_tokens": 892,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 256
+    },
+    "prompt_cache_hit_tokens": 256,
+    "prompt_cache_miss_tokens": 204
+  },
+  "content_sha256": "3f7138181869906a6a852e083fec62e083872fefb5057df0a41ec4c7be8bb8fb",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Shared {\n    // Number of waiters that have reached the waiting point.\n    ready: usize,\n    // Number of waiters that have been released.\n    released: usize,\n    // Set to true once the notifier has signalled.\n    notified: bool,\n}\n\nfn main() {\n    let shared = Arc::new((\n        Mutex::new(Shared {\n            ready: 0,\n            released: 0,\n            notified: false,\n        }),\n        Condvar::new(),\n    ));\n\n    let mut handles = Vec::new();\n\n    // Two waiters.\n    for _ in 0..2 {\n        let shared = Arc::clone(&shared);\n        handles.push(thread::spawn(move || {\n            let (lock, cvar) = &*shared;\n            let mut guard = lock.lock().unwrap();\n\n            // Mark this waiter as ready.\n            guard.ready += 1;\n            cvar.notify_all();\n\n            // Wait until the notifier has signalled.\n            while !guard.notified {\n                guard = cvar.wait(guard).unwrap();\n            }\n\n            guard.released += 1;\n        }));\n    }\n\n    // Notifier.\n    {\n        let shared = Arc::clone(&shared);\n        handles.push(thread::spawn(move || {\n            let (lock, cvar) = &*shared;\n            let mut guard = lock.lock().unwrap();\n\n            // Wait until both waiters are ready.\n            while guard.ready < 2 {\n                guard = cvar.wait(guard).unwrap();\n            }\n\n            // Wake every blocked waiter.\n            guard.notified = true;\n            cvar.notify_all();\n        }));\n    }\n\n    for h in handles {\n        h.join().unwrap();\n    }\n\n    let (lock, _) = &*shared;\n    let guard = lock.lock().unwrap();\n    let remaining = 2 - guard.released;\n    println!(\"DONE waiters={}\", remaining);\n}\n```",
+  "wall_ms": 1664
+}

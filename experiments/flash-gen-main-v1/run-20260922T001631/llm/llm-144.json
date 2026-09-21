@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "1ec72742-9c7f-4e95-9fb6-4b1f9f8c6ab3",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches three worker threads and waits for all of them to finish.\nR2. All three worker threads share one counting permit pool that begins with exactly two permits.\nR3. Each worker acquires one permit, performs its work, releases the permit, and then finishes.\nR4. At most two workers may hold permits at the same time, so a third worker waits until a permit is released.\nR5. While a worker waits for a permit, a holder must remain able to release it so the waiting worker can eventually proceed.\nR6. Every possible schedule and interleaving of the three workers must terminate.\nR7. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "27c2b4fc0112d781abf60fa023a4f57a9931b66510f876425e810abb917db057",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 279,
+    "prompt_tokens": 405,
+    "total_tokens": 684,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 0
+    },
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 405
+  },
+  "content_sha256": "963ffe3add720291a965f332bec19585eec14369c88a3d3bfc883f48e4a8b367",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct PermitPool {\n    permits: Mutex<usize>,\n    available: Condvar,\n}\n\nimpl PermitPool {\n    fn new(count: usize) -> Self {\n        PermitPool {\n            permits: Mutex::new(count),\n            available: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            permits = self.available.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        *permits += 1;\n        self.available.notify_one();\n    }\n}\n\nfn main() {\n    let pool = Arc::new(PermitPool::new(2));\n    let mut handles = Vec::new();\n\n    for _ in 0..3 {\n        let pool = Arc::clone(&pool);\n        handles.push(thread::spawn(move || {\n            pool.acquire();\n            // perform work\n            pool.release();\n        }));\n    }\n\n    for handle in handles {\n        handle.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 1204
+}

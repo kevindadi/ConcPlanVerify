@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nfn main() {\n    // R1: main task calls an auxiliary routine, then begins the same call sequence again.\n    // R2: no shared state between main and auxiliary routine.\n    // R3: each auxiliary call runs to completion before the next call starts.\n    // R4: every schedule terminates.\n    // R5: print exactly \"DONE done=1\".\n\n    let done = auxiliary();\n    let done2 = auxiliary();\n\n    // Both calls complete; combine results without shared mutable state.\n    let total = done + done2;\n    println!(\"DONE done={}\", total);\n}\n\nfn auxiliary() -> u32 {\n    // Pure computation, no shared state, always terminates.\n    let mut x = 0u32;\n    for i in 0..1 {\n        x += i + 1;\n    }\n    x\n}\n```"
+}

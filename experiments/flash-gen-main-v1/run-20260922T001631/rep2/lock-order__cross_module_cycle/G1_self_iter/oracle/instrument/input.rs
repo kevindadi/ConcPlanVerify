@@ -1,0 +1,80 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+// Module A owns resource A
+mod module_a {
+    use std::sync::{Arc, Mutex};
+
+    pub struct ResourceA {
+        pub value: i32,
+    }
+
+    pub fn task_a(res_a: Arc<Mutex<ResourceA>>, res_b: Arc<Mutex<super::module_b::ResourceB>>) {
+        // Acquire both resources in a consistent global order to avoid deadlock.
+        // Order: resource A then resource B.
+        let mut a = res_a.lock().unwrap();
+        let mut b = res_b.lock().unwrap();
+
+        // Hold both resources at the same time while performing work.
+        a.value += 1;
+        b.value += 1;
+
+        // Resources are released automatically when guards drop at end of scope.
+        drop(b);
+        drop(a);
+    }
+}
+
+// Module B owns resource B
+mod module_b {
+    use std::sync::{Arc, Mutex};
+
+    pub struct ResourceB {
+        pub value: i32,
+    }
+
+    pub fn task_b(res_a: Arc<Mutex<super::module_a::ResourceA>>, res_b: Arc<Mutex<ResourceB>>) {
+        // Acquire both resources in the same global order: resource A then resource B.
+        let mut a = res_a.lock().unwrap();
+        let mut b = res_b.lock().unwrap();
+
+        // Hold both resources at the same time while performing work.
+        a.value += 1;
+        b.value += 1;
+
+        // Resources are released automatically when guards drop at end of scope.
+        drop(b);
+        drop(a);
+    }
+}
+
+fn main() {
+    let res_a = Arc::new(Mutex::new(module_a::ResourceA { value: 0 }));
+    let res_b = Arc::new(Mutex::new(module_b::ResourceB { value: 0 }));
+
+    let a1 = Arc::clone(&res_a);
+    let b1 = Arc::clone(&res_b);
+    let a2 = Arc::clone(&res_a);
+    let b2 = Arc::clone(&res_b);
+
+    let t1 = thread::spawn(move || {
+        module_a::task_a(a1, b1);
+    });
+
+    let t2 = thread::spawn(move || {
+        module_b::task_b(a2, b2);
+    });
+
+    t1.join().unwrap();
+    t2.join().unwrap();
+
+    let done = {
+        let a = res_a.lock().unwrap();
+        let b = res_b.lock().unwrap();
+        a.value == 1 && b.value == 1
+    };
+
+    if done {
+        println!("DONE done=1");
+    }
+}

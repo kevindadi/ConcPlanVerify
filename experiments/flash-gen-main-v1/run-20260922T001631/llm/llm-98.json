@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "9fbb2658-a18b-413e-95fe-2bfdea00023c",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. The design contains one main thread and three worker threads.\nR2. Three locks are shared among the workers, and none of them may be held by more than one worker at a time.\nR3. The first worker needs the first and second lock, the second worker needs the second and third lock, and the third worker needs the third and the first lock.\nR4. Each worker must hold its two locks at the same time while it performs its critical work.\nR5. It must never be possible for the workers to leave one another waiting forever, each holding one lock and needing another.\nR6. Every worker must release each lock it holds before it finishes.\nR7. The main thread starts all three workers and only finishes after all three have finished.\nR8. Every worker must finish eventually, whatever order the workers run in.\nR9. Every possible schedule or interleaving of the workers must terminate.\nR10. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "b1a3b6c5fcd366a427b26d6b406773d8461611923f7b5c0a95d8e9c1c6525349",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 329,
+    "prompt_tokens": 461,
+    "total_tokens": 790,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 256
+    },
+    "prompt_cache_hit_tokens": 256,
+    "prompt_cache_miss_tokens": 205
+  },
+  "content_sha256": "1bc51640524ff7a97de876b7c267557e597caf98b53360bd2564f11817795a35",
+  "content": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nstruct Locks {\n    a: Mutex<()>,\n    b: Mutex<()>,\n    c: Mutex<()>,\n}\n\nfn main() {\n    let locks = Arc::new(Locks {\n        a: Mutex::new(()),\n        b: Mutex::new(()),\n        c: Mutex::new(()),\n    });\n\n    let l1 = Arc::clone(&locks);\n    let l2 = Arc::clone(&locks);\n    let l3 = Arc::clone(&locks);\n\n    // Worker 1 needs locks a and b.\n    let w1 = thread::spawn(move || {\n        let _ga = l1.a.lock().unwrap();\n        let _gb = l1.b.lock().unwrap();\n        // critical work\n    });\n\n    // Worker 2 needs locks b and c.\n    let w2 = thread::spawn(move || {\n        let _gb = l2.b.lock().unwrap();\n        let _gc = l2.c.lock().unwrap();\n        // critical work\n    });\n\n    // Worker 3 needs locks c and a.\n    let w3 = thread::spawn(move || {\n        let _gc = l3.c.lock().unwrap();\n        let _ga = l3.a.lock().unwrap();\n        // critical work\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n    w3.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 1346
+}

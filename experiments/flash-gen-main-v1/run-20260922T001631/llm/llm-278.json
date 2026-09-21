@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "48f536eb-a35c-45b6-bf06-9eb8534e99fb",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. A main task starts two waiter roles and one notifier role that run at the same time. [U]\nR2. The two waiters guard their work with two different locks.\nR3. Both waiters block on the same condition variable.\nR4. A waiter must hold its own lock while it waits on the shared condition variable.\nR5. Each waiter must announce that it is about to wait before it blocks, so the notifier knows how many waits to expect.\nR6. The notifier must wait until both waiters have announced themselves before it wakes them.\nR7. When the notifier wakes the waiters it must hold each lock that a waiter needs in order to wake and finish.\nR8. The waking step must not leave any waiter blocked and must not depend on a race between the waiters.\nR9. Every schedule and interleaving must terminate with all roles finished.\nR10. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "bdd394bad3e041dd0acd01c903ac4244b74a0dc7f0fa4baaab940eed1aab2f14",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 647,
+    "prompt_tokens": 459,
+    "total_tokens": 1106,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 256
+    },
+    "prompt_cache_hit_tokens": 256,
+    "prompt_cache_miss_tokens": 203
+  },
+  "content_sha256": "269c24b21d87cec330ce5b0473d615ca1d80d750a6fb8bf50c428b6d3098947f",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Shared {\n    // Number of waiters that have announced they are about to wait.\n    announced: Mutex<usize>,\n    // Shared condition variable both waiters block on.\n    cv: Condvar,\n    // Locks each waiter holds while waiting.\n    lock_a: Mutex<()>,\n    lock_b: Mutex<()>,\n}\n\nfn main() {\n    let shared = Arc::new(Shared {\n        announced: Mutex::new(0),\n        cv: Condvar::new(),\n        lock_a: Mutex::new(()),\n        lock_b: Mutex::new(()),\n    });\n\n    let s1 = Arc::clone(&shared);\n    let waiter_a = thread::spawn(move || {\n        // Waiter A holds lock_a while waiting on the shared condvar.\n        let mut guard = s1.lock_a.lock().unwrap();\n\n        // Announce before blocking.\n        {\n            let mut n = s1.announced.lock().unwrap();\n            *n += 1;\n            s1.cv.notify_all();\n        }\n\n        // Wait on the shared condition variable while holding lock_a.\n        // The notifier will hold lock_a when it wakes us.\n        while *s1.announced.lock().unwrap() < 2 {\n            guard = s1.cv.wait(guard).unwrap();\n        }\n\n        // Woken and finished.\n        drop(guard);\n    });\n\n    let s2 = Arc::clone(&shared);\n    let waiter_b = thread::spawn(move || {\n        // Waiter B holds lock_b while waiting on the shared condvar.\n        let mut guard = s2.lock_b.lock().unwrap();\n\n        // Announce before blocking.\n        {\n            let mut n = s2.announced.lock().unwrap();\n            *n += 1;\n            s2.cv.notify_all();\n        }\n\n        // Wait on the shared condition variable while holding lock_b.\n        // The notifier will hold lock_b when it wakes us.\n        while *s2.announced.lock().unwrap() < 2 {\n            guard = s2.cv.wait(guard).unwrap();\n        }\n\n        // Woken and finished.\n        drop(guard);\n    });\n\n    let s3 = Arc::clone(&shared);\n    let notifier = thread::spawn(move || {\n        // Wait until both waiters have announced themselves.\n        {\n            let mut n = s3.announced.lock().unwrap();\n            while *n < 2 {\n                n = s3.cv.wait(n).unwrap();\n            }\n        }\n\n        // Wake the waiters while holding each lock they need to wake and finish.\n        let _ga = s3.lock_a.lock().unwrap();\n        let _gb = s3.lock_b.lock().unwrap();\n        s3.cv.notify_all();\n    });\n\n    waiter_a.join().unwrap();\n    waiter_b.join().unwrap();\n    notifier.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 2512
+}

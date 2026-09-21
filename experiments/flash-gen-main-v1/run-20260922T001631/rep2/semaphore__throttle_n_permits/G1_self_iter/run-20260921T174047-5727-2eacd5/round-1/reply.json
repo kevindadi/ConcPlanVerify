@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct PermitPool {\n    permits: Mutex<usize>,\n    condvar: Condvar,\n}\n\nimpl PermitPool {\n    fn new(count: usize) -> Self {\n        PermitPool {\n            permits: Mutex::new(count),\n            condvar: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            permits = self.condvar.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        *permits += 1;\n        self.condvar.notify_one();\n    }\n}\n\nfn main() {\n    let pool = Arc::new(PermitPool::new(2));\n    let done = Arc::new(Mutex::new(0usize));\n\n    let mut handles = Vec::new();\n    for _ in 0..3 {\n        let pool = Arc::clone(&pool);\n        let done = Arc::clone(&done);\n        handles.push(thread::spawn(move || {\n            pool.acquire();\n            // perform work\n            pool.release();\n            let mut d = done.lock().unwrap();\n            *d += 1;\n        }));\n    }\n\n    for h in handles {\n        h.join().unwrap();\n    }\n\n    let d = done.lock().unwrap();\n    println!(\"DONE done={}\", *d);\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let lock_a = Arc::new(Mutex::new(()));\n    let lock_b = Arc::new(Mutex::new(()));\n\n    let a1 = Arc::clone(&lock_a);\n    let b1 = Arc::clone(&lock_b);\n    let t1 = thread::spawn(move || {\n        // Acquire both locks in a consistent global order to avoid deadlock.\n        let _g1 = a1.lock().unwrap();\n        let _g2 = b1.lock().unwrap();\n        // Critical work while holding both locks.\n    });\n\n    let a2 = Arc::clone(&lock_a);\n    let b2 = Arc::clone(&lock_b);\n    let t2 = thread::spawn(move || {\n        // Same acquisition order as t1.\n        let _g1 = a2.lock().unwrap();\n        let _g2 = b2.lock().unwrap();\n        // Critical work while holding both locks.\n    });\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    println!(\"DONE t1=1 t2=1\");\n}\n```"
+}

@@ -1,0 +1,81 @@
+   Compiling cir_arm_probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep0/semaphore__acquire_twice_no_release/G2_tools_iter/run-20260921T164043-5727-877f6a/round-1/lockbud-probe)
+[2026-09-21T16:40:46Z WARN  lockbud::callbacks] [
+      {
+        "DoubleLock": {
+          "bug_kind": "DoubleLock",
+          "possibility": "Possibly",
+          "diagnosis": {
+            "first_lock_type": "StdMutex(usize)",
+            "first_lock_span": "src/main.rs:59:9: 59:10 (#0)",
+            "second_lock_type": "StdMutex(usize)",
+            "second_lock_span": "src/main.rs:49:17: 49:22 (#0)",
+            "callchains": [
+              [
+                []
+              ],
+              [
+                [
+                  "src/main.rs:41:22: 51:11 (#0)"
+                ],
+                [
+                  "/Users/kevin/.rustup/toolchains/nightly-2026-02-07-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/builder.rs:191:18: 191:41 (#0)"
+                ],
+                [
+                  "/Users/kevin/.rustup/toolchains/nightly-2026-02-07-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/builder.rs:261:32: 261:84 (#0)"
+                ],
+                [],
+                [],
+                []
+              ],
+              [
+                [
+                  "src/main.rs:41:22: 51:11 (#0)"
+                ],
+                [
+                  "/Users/kevin/.rustup/toolchains/nightly-2026-02-07-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/builder.rs:191:18: 191:41 (#0)"
+                ],
+                [
+                  "/Users/kevin/.rustup/toolchains/nightly-2026-02-07-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/builder.rs:261:32: 261:84 (#0)"
+                ],
+                [],
+                [],
+                [
+                  "/Users/kevin/.rustup/toolchains/nightly-2026-02-07-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/lifecycle.rs:91:13: 91:67 (#0)"
+                ],
+                [
+                  "/Users/kevin/.rustup/toolchains/nightly-2026-02-07-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/backtrace.rs:166:18: 166:21 (#0)"
+                ]
+              ],
+              [
+                [
+                  "src/main.rs:41:22: 51:11 (#0)"
+                ],
+                [
+                  "/Users/kevin/.rustup/toolchains/nightly-2026-02-07-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/builder.rs:191:18: 191:41 (#0)"
+                ],
+                [
+                  "/Users/kevin/.rustup/toolchains/nightly-2026-02-07-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/builder.rs:261:32: 261:84 (#0)"
+                ],
+                [],
+                []
+              ],
+              [
+                [
+                  "src/main.rs:41:22: 51:11 (#0)"
+                ],
+                [
+                  "/Users/kevin/.rustup/toolchains/nightly-2026-02-07-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/builder.rs:191:18: 191:41 (#0)"
+                ],
+                [
+                  "/Users/kevin/.rustup/toolchains/nightly-2026-02-07-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/builder.rs:261:32: 261:84 (#0)"
+                ],
+                []
+              ]
+            ]
+          },
+          "explanation": "The first lock is not released when acquiring the second lock"
+        }
+      }
+    ]
+[2026-09-21T16:40:46Z WARN  lockbud::callbacks] crate cir_arm_probe contains bugs: { probably: 0, possibly: 1 }, conflictlock: { probably: 0, possibly: 0 }, condvar_deadlock: { probably: 0, possibly: 0 }, atomicity_violation: { possibly: 0 }, invalid_free: { possibly: 0 }, use_after_free: { possibly: 0 }
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.18s

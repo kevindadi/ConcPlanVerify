@@ -1,0 +1,67 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E104",
+      "severity": "error",
+      "message": "duplicate resource name 'b'",
+      "path": "modules[0].resources[5].name",
+      "fix_hint": "remove the duplicate or rename one of them"
+    },
+    {
+      "code": "E301",
+      "severity": "error",
+      "message": "mutex_lock/unlock requires a Mutex (resource 'main::b')",
+      "location": "main::worker1.s4",
+      "path": "modules[0].functions[1].body[3]",
+      "fix_hint": "use the matching resource type"
+    },
+    {
+      "code": "E301",
+      "severity": "error",
+      "message": "mutex_lock/unlock requires a Mutex (resource 'main::b')",
+      "location": "main::worker1.s6",
+      "path": "modules[0].functions[1].body[5]",
+      "fix_hint": "use the matching resource type"
+    },
+    {
+      "code": "E301",
+      "severity": "error",
+      "message": "mutex_lock/unlock requires a Mutex (resource 'main::b')",
+      "location": "main::worker2.s1",
+      "path": "modules[0].functions[2].body[0]",
+      "fix_hint": "use the matching resource type"
+    },
+    {
+      "code": "E301",
+      "severity": "error",
+      "message": "mutex_lock/unlock requires a Mutex (resource 'main::b')",
+      "location": "main::worker2.s7",
+      "path": "modules[0].functions[2].body[6]",
+      "fix_hint": "use the matching resource type"
+    },
+    {
+      "code": "E702",
+      "severity": "error",
+      "message": "protection lock 'b' is not a Mutex or RwLock",
+      "path": "modules[0].protection[1].lock",
+      "fix_hint": "use a Mutex or RwLock resource name"
+    },
+    {
+      "code": "E401",
+      "severity": "warning",
+      "message": "spawn handle 'h3' has no matching join",
+      "location": "main::main.s3",
+      "path": "modules[0].functions[0].body[2]",
+      "fix_hint": "add join on this handle, or use a scope statement (implicit join_all)"
+    },
+    {
+      "code": "E605",
+      "severity": "warning",
+      "message": "potential infinite loop with no exit in function 'bystander' starting at 's2'",
+      "location": "main::bystander.s2",
+      "path": "modules[0].functions[3].body[1]",
+      "fix_hint": "add an exit condition or confirm this is an intentional event loop"
+    }
+  ]
+}

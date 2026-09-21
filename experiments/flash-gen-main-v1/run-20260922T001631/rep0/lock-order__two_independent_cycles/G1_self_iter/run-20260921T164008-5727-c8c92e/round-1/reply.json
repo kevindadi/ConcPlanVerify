@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let a = Arc::new(Mutex::new(0));\n    let b = Arc::new(Mutex::new(0));\n    let c = Arc::new(Mutex::new(0));\n    let d = Arc::new(Mutex::new(0));\n\n    let mut handles = Vec::new();\n\n    {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        handles.push(thread::spawn(move || {\n            let _ga = a.lock().unwrap();\n            let _gb = b.lock().unwrap();\n        }));\n    }\n    {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        handles.push(thread::spawn(move || {\n            let _ga = a.lock().unwrap();\n            let _gb = b.lock().unwrap();\n        }));\n    }\n    {\n        let c = Arc::clone(&c);\n        let d = Arc::clone(&d);\n        handles.push(thread::spawn(move || {\n            let _gc = c.lock().unwrap();\n            let _gd = d.lock().unwrap();\n        }));\n    }\n    {\n        let c = Arc::clone(&c);\n        let d = Arc::clone(&d);\n        handles.push(thread::spawn(move || {\n            let _gc = c.lock().unwrap();\n            let _gd = d.lock().unwrap();\n        }));\n    }\n\n    for h in handles {\n        h.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}

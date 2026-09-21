@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "49abb84c-14c4-42f8-8257-c19ebe9b231f",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. The design contains one main thread and two worker threads.\nR2. Both worker threads share the same two locks, and neither lock may be held by more than one worker at a time.\nR3. Each worker must hold both locks at the same time while it performs its critical work.\nR4. A worker that finds a lock busy must wait for it to become free and then continue.\nR5. It must never be possible for the two workers to leave each other waiting forever, each holding one lock and needing the other.\nR6. The main thread starts both workers and only finishes after both workers have finished.\nR7. Every worker must release each lock it holds before it finishes.\nR8. Every possible schedule or interleaving of the workers must terminate.\nR9. The program must print exactly the line `DONE t1=1 t2=1` and then exit. [U]\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "5825e0de5fbbfdb870d351a4a906d77623f9a2b91555e9d62c78d549d0f7802d",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 429,
+    "prompt_tokens": 436,
+    "total_tokens": 865,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 256
+    },
+    "prompt_cache_hit_tokens": 256,
+    "prompt_cache_miss_tokens": 180
+  },
+  "content_sha256": "770af7202fa61b6ceeb56eb00e2a12ff623da635f2a8f393c07e1d80c1259c15",
+  "content": "```rust\nuse std::sync::{Arc, Mutex, Condvar};\nuse std::thread;\n\nstruct Shared {\n    lock_a: Mutex<bool>,\n    lock_b: Mutex<bool>,\n    cv_a: Condvar,\n    cv_b: Condvar,\n}\n\nfn acquire(lock: &Mutex<bool>, cv: &Condvar) {\n    let mut held = lock.lock().unwrap();\n    while *held {\n        held = cv.wait(held).unwrap();\n    }\n    *held = true;\n}\n\nfn release(lock: &Mutex<bool>, cv: &Condvar) {\n    let mut held = lock.lock().unwrap();\n    *held = false;\n    cv.notify_one();\n}\n\nfn worker(shared: Arc<Shared>, id: usize) -> usize {\n    // Acquire both locks in a consistent global order to prevent deadlock (R5).\n    acquire(&shared.lock_a, &shared.cv_a);\n    acquire(&shared.lock_b, &shared.cv_b);\n\n    // Critical work while holding both locks (R3).\n    let _ = id;\n\n    // Release both locks before finishing (R7).\n    release(&shared.lock_b, &shared.cv_b);\n    release(&shared.lock_a, &shared.cv_a);\n\n    1\n}\n\nfn main() {\n    let shared = Arc::new(Shared {\n        lock_a: Mutex::new(false),\n        lock_b: Mutex::new(false),\n        cv_a: Condvar::new(),\n        cv_b: Condvar::new(),\n    });\n\n    let s1 = Arc::clone(&shared);\n    let s2 = Arc::clone(&shared);\n\n    let t1 = thread::spawn(move || worker(s1, 1));\n    let t2 = thread::spawn(move || worker(s2, 2));\n\n    let r1 = t1.join().unwrap();\n    let r2 = t2.join().unwrap();\n\n    println!(\"DONE t1={} t2={}\", r1, r2);\n}\n```",
+  "wall_ms": 2218
+}

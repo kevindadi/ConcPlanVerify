@@ -1,0 +1,10 @@
+{
+  "round": 3,
+  "kind": "claims_no_issue",
+  "matched": [
+    "is correct",
+    "no deadlock"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program:\n\n- The waiter locks, checks the flag in a `while !*ready` loop, and waits on the condvar while holding the lock (releasing it during `wait`). This correctly handles spurious wakeups and the \"signal before wait\" case, because the flag is checked under the lock.\n- The notifier locks, sets the flag true, calls `notify_one`, and releases the lock on scope exit.\n- The main thread joins both, then locks and prints.\n\nThe classic lost-wakeup bug is avoided because the flag is checked under the same mutex that the notifier holds when setting it. If the notifier runs first, the flag is already true when the waiter checks, so it never waits. If the waiter runs first, it waits, and the notifier's signal wakes it.\n\nOne subtle point: `notify_one` is called while holding the lock. This is not a defect — it's allowed, and the waiter will re-acquire the lock after the notifier releases it. There's no deadlock because `wait` releases the lock.\n\nAll requirements are satisfied. No concurrency defect exists.\n\nNO_ISSUES"
+}

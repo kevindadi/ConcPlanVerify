@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn sequential_helper() -> u64 {\n    // Performs only local computation.\n    let mut acc: u64 = 0;\n    for i in 0..1000u64 {\n        acc = acc.wrapping_add(i.wrapping_mul(3).wrapping_add(1));\n    }\n    acc\n}\n\nfn main() {\n    let shared = Arc::new(Mutex::new(0u64));\n\n    let mut handles = Vec::new();\n\n    for _ in 0..2 {\n        let shared = Arc::clone(&shared);\n        let handle = thread::spawn(move || {\n            // R2: take the shared mutex.\n            let mut guard = shared.lock().unwrap();\n\n            // R2: call sequential helper (local computation) while holding mutex.\n            let local = sequential_helper();\n\n            // R2: update shared counter while still holding the mutex.\n            // Use local result so the computation is not optimized away.\n            *guard = guard.wrapping_add(local % 2);\n\n            // R3: release the mutex before finishing.\n            drop(guard);\n        });\n        handles.push(handle);\n    }\n\n    for handle in handles {\n        handle.join().unwrap();\n    }\n\n    // R8: print exactly the required line.\n    println!(\"DONE done=1\");\n}\n```"
+}

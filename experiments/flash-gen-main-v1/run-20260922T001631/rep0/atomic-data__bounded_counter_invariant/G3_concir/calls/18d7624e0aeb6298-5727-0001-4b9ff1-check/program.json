@@ -1,0 +1,166 @@
+{
+  "program": "counter_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "c",
+          "m",
+          "done"
+        ],
+        "functions": [
+          "main",
+          "supervisor",
+          "worker"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "c",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        },
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "done",
+          "kind": "var",
+          "type": "Var",
+          "base": "Bool",
+          "init": false
+        }
+      ],
+      "protection": [
+        {
+          "var": "c",
+          "lock": "m"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::supervisor",
+              "handle": "sup"
+            },
+            {
+              "sid": "s2",
+              "kind": "join",
+              "handle": "sup"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "supervisor",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::worker",
+              "handle": "w1"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "main::worker",
+              "handle": "w2"
+            },
+            {
+              "sid": "s3",
+              "kind": "join",
+              "handle": "w1"
+            },
+            {
+              "sid": "s4",
+              "kind": "join",
+              "handle": "w2"
+            },
+            {
+              "sid": "s5",
+              "kind": "write_shared",
+              "resource": "main::done",
+              "expr": "true"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "worker",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "read_shared",
+              "resource": "main::c",
+              "dst": "c"
+            },
+            {
+              "sid": "s3",
+              "kind": "assign_local",
+              "target": "c2",
+              "expr": "c + 1"
+            },
+            {
+              "sid": "s4",
+              "kind": "write_shared",
+              "resource": "main::c",
+              "expr": "c2"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "c",
+              "type": "Int"
+            },
+            {
+              "name": "c2",
+              "type": "Int"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

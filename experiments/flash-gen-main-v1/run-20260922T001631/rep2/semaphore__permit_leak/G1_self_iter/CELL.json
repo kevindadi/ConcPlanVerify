@@ -1,0 +1,573 @@
+{
+  "arm": "G1_self_iter",
+  "task": "semaphore/permit_leak",
+  "rounds": [
+    {
+      "round": 1,
+      "request_sha256": "6218d3643780d176a3185401f03a94d383228f52329f1aed8261bca101e9c363",
+      "feedback_sha256": "f55d8a9ccd065b9c48071828e4217878c03953fc23146fd859a7eebead027ce4",
+      "prompt_tokens": 323,
+      "completion_tokens": 307,
+      "llm_wall_ms": 1181,
+      "tool_wall_ms": 741,
+      "tool_output_sha256": "cdbdfff2690ef4e9e949d1c18b7ef8ad5c0d7040d67eef80cf5439e6d41f2343",
+      "decision": "continue"
+    },
+    {
+      "round": 2,
+      "request_sha256": "9367273f33736e78e97dd50d3fadeb05c451afecc7f58f360cc17d40aae1aaac",
+      "feedback_sha256": "f55d8a9ccd065b9c48071828e4217878c03953fc23146fd859a7eebead027ce4",
+      "prompt_tokens": 653,
+      "completion_tokens": 505,
+      "llm_wall_ms": 2431,
+      "tool_wall_ms": 0,
+      "tool_output_sha256": null,
+      "decision": "claims_no_issue"
+    }
+  ],
+  "accepted": true,
+  "accepted_round": 1,
+  "consumption": {
+    "http_requests": 2,
+    "prompt_tokens": 976,
+    "completion_tokens": 812,
+    "total_tokens": 1788,
+    "llm_wall_ms": 3612,
+    "tool_wall_ms": 741,
+    "rounds": 2,
+    "first_correct_round": 1
+  },
+  "final_artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/candidate.rs",
+  "final_artifact_sha256": "db1c242c901511fbabb49a80fa7c1b60a758613e616bd81d75b7441d96272da4",
+  "notes": {
+    "tools_tier": "ml",
+    "tool_rounds": [
+      {
+        "source_sha256": "db1c242c901511fbabb49a80fa7c1b60a758613e616bd81d75b7441d96272da4",
+        "project_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/probe",
+        "calls_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls",
+        "build": {
+          "tool": "build",
+          "argv": [
+            "cargo",
+            "build",
+            "--offline",
+            "--quiet"
+          ],
+          "exit_code": 0,
+          "wall_ms": 216,
+          "timed_out": false,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "194a09cc26399dfdd96fcb6a4057c1779175787318458c1097062f275fe670a8",
+          "error": null,
+          "extra": {
+            "argv_sha256": "d139259611e5754b5f85540f22f379c5132639f1b8a4444725db97cea72a2aad",
+            "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"
+          },
+          "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls/001-build",
+          "files": {
+            "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls/001-build/argv.json",
+            "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls/001-build/env.json",
+            "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls/001-build/stdout.txt",
+            "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls/001-build/stderr.txt",
+            "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls/001-build/exit.txt",
+            "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls/001-build/wall_ms.txt"
+          }
+        },
+        "build_ok": true,
+        "behavior_test": {
+          "tool": "test",
+          "argv": [
+            "cargo",
+            "test",
+            "--offline",
+            "--quiet"
+          ],
+          "exit_code": 0,
+          "wall_ms": 525,
+          "timed_out": false,
+          "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd",
+          "stderr_sha256": "194a09cc26399dfdd96fcb6a4057c1779175787318458c1097062f275fe670a8",
+          "error": null,
+          "extra": {
+            "argv_sha256": "83ff21a8522c4680a094af78cac4ef0359b2df4f69f55520a9da88ea026d65d0",
+            "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"
+          },
+          "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls/002-test",
+          "files": {
+            "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls/002-test/argv.json",
+            "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls/002-test/env.json",
+            "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls/002-test/stdout.txt",
+            "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls/002-test/stderr.txt",
+            "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls/002-test/exit.txt",
+            "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/run-20260921T174023-5727-7d7882/round-1/calls/002-test/wall_ms.txt"
+          }
+        },
+        "behavior_test_passed": 0,
+        "behavior_test_ok": null,
+        "behavior_test_reason": "no_tests",
+        "lockbud": {
+          "tool": "lockbud",
+          "status": "skipped"
+        },
+        "miri": [],
+        "miri_extended": null
+      }
+    ],
+    "round_columns": [
+      {
+        "round": 1,
+        "build_ok": true,
+        "test_ok": null,
+        "miri_green": false,
+        "miri_detected": false,
+        "lockbud_green": true,
+        "lockbud_detected": false,
+        "lockbud_status": "skipped"
+      }
+    ],
+    "build_ok_rounds": [
+      1
+    ],
+    "claims_no_issue_rounds": [
+      2
+    ],
+    "accepted_candidate_round": 1
+  },
+  "error": null,
+  "llm_calls": [
+    {
+      "attempt": 1,
+      "request_id": "8e167055-f4e0-4fd1-b0a8-8905046f27a7",
+      "response_model": "deepseek-flash",
+      "usage": {
+        "completion_tokens": 307,
+        "prompt_tokens": 323,
+        "total_tokens": 630,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 128
+        },
+        "prompt_cache_hit_tokens": 128,
+        "prompt_cache_miss_tokens": 195
+      },
+      "wall_ms": 1181,
+      "transport_attempt": 1,
+      "prompt_sha256": "ce6133024d7d52dbe01eab0ae4ba904b4738e42e0eddea44b0503e0b0a04bcce"
+    },
+    {
+      "attempt": 2,
+      "request_id": "c2419dd4-29ec-4e25-b60d-c36411e3239b",
+      "response_model": "deepseek-flash",
+      "usage": {
+        "completion_tokens": 505,
+        "prompt_tokens": 653,
+        "total_tokens": 1158,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 512
+        },
+        "prompt_cache_hit_tokens": 512,
+        "prompt_cache_miss_tokens": 141
+      },
+      "wall_ms": 2431,
+      "transport_attempt": 1,
+      "prompt_sha256": "5d6b069655f68b32e6f81d3da859dcb7897f707837f9e65785b3fa85b45a262d"
+    }
+  ],
+  "oracle": {
+    "built": true,
+    "build_log_tail": "   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle)\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.27s\n",
+    "resources": [],
+    "limitations": [],
+    "runs": [
+      {
+        "index": 0,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-000.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 1,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-001.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 2,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-002.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 3,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-003.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 4,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-004.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 5,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-005.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 6,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-006.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 7,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-007.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 8,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-008.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 9,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-009.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 10,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-010.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 11,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-011.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 12,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-012.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 13,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-013.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 14,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-014.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 15,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-015.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 16,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-016.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 17,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-017.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 18,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-018.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 19,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-019.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 20,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-020.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 21,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-021.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 22,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-022.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 23,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-023.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 24,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-024.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 25,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-025.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 26,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-026.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 27,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-027.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 28,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-028.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 29,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-029.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 30,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-030.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 31,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces/native-031.jsonl",
+        "trace_exists": true
+      }
+    ],
+    "behavior_ok": true,
+    "hang": false,
+    "monitor": {
+      "binary_sha256": "cf4f9e9a183d252a4abe95d702302151951af82f8a877e9d172a38b53a1acbf2",
+      "bounded": true,
+      "events": 352,
+      "git_rev": "1097b79f2c9fa06c046774ce31ded1f359b47ffb",
+      "properties": [
+        {
+          "detail": "decided by behavior (hang/timeout) and Miri",
+          "id": "no-deadlock",
+          "kind": "deadlock_free",
+          "req": [
+            "R4",
+            "R5",
+            "R6"
+          ],
+          "source": "properties",
+          "status": "deferred"
+        },
+        {
+          "id": "main::w1 completes",
+          "kind": "reachable",
+          "req": [
+            "R1",
+            "R6"
+          ],
+          "source": "preserved",
+          "status": "not_observed"
+        },
+        {
+          "id": "main::w2 completes",
+          "kind": "reachable",
+          "req": [
+            "R1",
+            "R6"
+          ],
+          "source": "preserved",
+          "status": "not_observed"
+        },
+        {
+          "detail": "resource main::s not observed",
+          "id": "main::w1 holds [main::s] at once",
+          "kind": "reachable",
+          "req": [
+            "R2",
+            "R3"
+          ],
+          "source": "preserved",
+          "status": "unmapped"
+        }
+      ],
+      "resource_map": {
+        "condvar": null,
+        "mutex": null
+      },
+      "status": "ok",
+      "traces": 32,
+      "unmapped_resources": [
+        "condvar",
+        "mutex"
+      ],
+      "_exit": 0,
+      "_argv": [
+        "/Users/kevin/local-repos/ConcIR/target/release/concir-backend",
+        "monitor",
+        "--contract",
+        "/Users/kevin/local-repos/ConcPlanVerify/benchmarks/families/semaphore/permit_leak/contract.json",
+        "--traces",
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/traces",
+        "--resources",
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/instrument/resources.json",
+        "--mapping",
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/semaphore__permit_leak/G1_self_iter/oracle/mapping.json"
+      ],
+      "_stderr": ""
+    },
+    "mapping": {},
+    "mapping_provenance": {
+      "by_kind": {},
+      "spawns": []
+    },
+    "coverage": {
+      "total": 7,
+      "decidable": 4,
+      "satisfied": 2,
+      "failed": 0,
+      "not_observed": 2,
+      "unmapped": 2,
+      "unsupported": 0,
+      "deferred": 0,
+      "unverifiable": 1,
+      "rc": 0.5714285714285714,
+      "rf": 0.2857142857142857,
+      "statuses": {
+        "R1": "not_observed",
+        "R2": "unmapped",
+        "R3": "unmapped",
+        "R4": "PASS_bounded",
+        "R5": "PASS_bounded",
+        "R6": "not_observed",
+        "R7": "unverifiable"
+      }
+    },
+    "status": "ok",
+    "monitor_fail": []
+  },
+  "coverage": {
+    "total": 7,
+    "decidable": 4,
+    "satisfied": 2,
+    "failed": 0,
+    "not_observed": 2,
+    "unmapped": 2,
+    "unsupported": 0,
+    "deferred": 0,
+    "unverifiable": 1,
+    "rc": 0.5714285714285714,
+    "rf": 0.2857142857142857,
+    "statuses": {
+      "R1": "not_observed",
+      "R2": "unmapped",
+      "R3": "unmapped",
+      "R4": "PASS_bounded",
+      "R5": "PASS_bounded",
+      "R6": "not_observed",
+      "R7": "unverifiable"
+    }
+  },
+  "monitor_fail": []
+}

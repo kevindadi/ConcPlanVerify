@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let lock1 = Arc::new(Mutex::new(()));\n    let lock2 = Arc::new(Mutex::new(()));\n    let lock3 = Arc::new(Mutex::new(()));\n\n    // To avoid deadlock (R5, R8, R9), impose a global ordering on the locks\n    // and always acquire them in that order. Worker 3 needs lock3 and lock1,\n    // so it acquires lock1 first, then lock3.\n    let l1 = Arc::clone(&lock1);\n    let l2 = Arc::clone(&lock2);\n    let w1 = thread::spawn(move || {\n        let _a = l1.lock().unwrap();\n        let _b = l2.lock().unwrap();\n        // critical work\n    });\n\n    let l2 = Arc::clone(&lock2);\n    let l3 = Arc::clone(&lock3);\n    let w2 = thread::spawn(move || {\n        let _a = l2.lock().unwrap();\n        let _b = l3.lock().unwrap();\n        // critical work\n    });\n\n    let l1 = Arc::clone(&lock1);\n    let l3 = Arc::clone(&lock3);\n    let w3 = thread::spawn(move || {\n        let _a = l1.lock().unwrap();\n        let _b = l3.lock().unwrap();\n        // critical work\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n    w3.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

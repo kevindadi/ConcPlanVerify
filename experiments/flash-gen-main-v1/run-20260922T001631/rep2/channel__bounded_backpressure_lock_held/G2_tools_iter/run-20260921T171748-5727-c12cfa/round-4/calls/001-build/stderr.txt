@@ -1,0 +1,45 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | .../run-20260921T171748-5727-c12cfa/round-4/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+error[E0594]: cannot assign to `self.slot`, which is behind a `&` reference
+  --> src/main.rs:26:9
+   |
+26 |         self.slot = Some(value);
+   |         ^^^^^^^^^^^^^^^^^^^^^^^ `self` is a `&` reference, so it cannot be written to
+   |
+help: consider changing this to be a mutable reference
+   |
+21 |     fn send(&mut self, value: i32) {
+   |              +++
+
+error[E0596]: cannot borrow `self.slot` as mutable, as it is behind a `&` reference
+  --> src/main.rs:35:21
+   |
+35 |         let value = self.slot.take().unwrap();
+   |                     ^^^^^^^^^ `self` is a `&` reference, so it cannot be borrowed as mutable
+   |
+help: consider changing this to be a mutable reference
+   |
+30 |     fn recv(&mut self) -> i32 {
+   |              +++
+
+Some errors have detailed explanations: E0594, E0596.
+For more information about an error, try `rustc --explain E0594`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors

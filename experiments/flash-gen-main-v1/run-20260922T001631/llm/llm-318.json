@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "e3f986a6-54de-4759-bb0f-89f8fc7ca21b",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. The design contains one main thread and two short-lived workers.\nR2. An independent bystander task also runs and keeps making progress without ever finishing on its own. [U]\nR3. The two workers share the same two locks and also use two counting permits to coordinate with each other.\nR4. Each worker must hold both locks at the same time while it enters its critical section.\nR5. The two workers must use the two permits as a handshake, so that neither takes its second lock before the other has taken its first.\nR6. The bystander task must not prevent the two workers from finishing.\nR7. At every point during execution, it must still be possible for the first worker to finish.\nR8. At every point during execution, it must still be possible for the second worker to finish.\nR9. Neither worker may wait forever for a permit or a lock that the other worker never provides.\nR10. Every worker must release each lock it holds before it finishes.\nR11. The main thread starts all three tasks and only finishes after both workers have finished, even though the bystander may keep running.\nR12. The program must print exactly the line `DONE a=1 b=1` and then exit. [U]\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "bad2254b64c0c00f6f04d048834ca37944faccbf50cac960c11ffbcdf4b14e54",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 893,
+    "prompt_tokens": 510,
+    "total_tokens": 1403,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 256
+    },
+    "prompt_cache_hit_tokens": 256,
+    "prompt_cache_miss_tokens": 254
+  },
+  "content_sha256": "fc41fe7b6eb86863b778376388281a7d980b25c9597c0850698e244d235cf57e",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\n// A simple counting semaphore built from Mutex + Condvar.\nstruct Semaphore {\n    count: Mutex<usize>,\n    cond: Condvar,\n}\n\nimpl Semaphore {\n    fn new(count: usize) -> Self {\n        Semaphore {\n            count: Mutex::new(count),\n            cond: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut c = self.count.lock().unwrap();\n        while *c == 0 {\n            c = self.cond.wait(c).unwrap();\n        }\n        *c -= 1;\n    }\n\n    fn release(&self) {\n        let mut c = self.count.lock().unwrap();\n        *c += 1;\n        self.cond.notify_one();\n    }\n}\n\n// Shared state: two locks and two permits.\nstruct Shared {\n    lock_a: Mutex<()>,\n    lock_b: Mutex<()>,\n    permit_1: Semaphore,\n    permit_2: Semaphore,\n}\n\nfn main() {\n    let shared = Arc::new(Shared {\n        lock_a: Mutex::new(()),\n        lock_b: Mutex::new(()),\n        permit_1: Semaphore::new(0),\n        permit_2: Semaphore::new(0),\n    });\n\n    let done_a = Arc::new(Mutex::new(false));\n    let done_b = Arc::new(Mutex::new(false));\n\n    // Worker A\n    let s_a = Arc::clone(&shared);\n    let da = Arc::clone(&done_a);\n    let worker_a = thread::spawn(move || {\n        // Take first lock.\n        let _ga = s_a.lock_a.lock().unwrap();\n        // Signal that we have taken our first lock.\n        s_a.permit_1.release();\n        // Wait for the other worker to take its first lock.\n        s_a.permit_2.acquire();\n        // Now take second lock.\n        let _gb = s_a.lock_b.lock().unwrap();\n        // Critical section: both locks held.\n        // Release both locks (drop guards).\n        drop(_gb);\n        drop(_ga);\n        *da.lock().unwrap() = true;\n    });\n\n    // Worker B\n    let s_b = Arc::clone(&shared);\n    let db = Arc::clone(&done_b);\n    let worker_b = thread::spawn(move || {\n        // Take first lock.\n        let _gb = s_b.lock_b.lock().unwrap();\n        // Signal that we have taken our first lock.\n        s_b.permit_2.release();\n        // Wait for the other worker to take its first lock.\n        s_b.permit_1.acquire();\n        // Now take second lock.\n        let _ga = s_b.lock_a.lock().unwrap();\n        // Critical section: both locks held.\n        // Release both locks (drop guards).\n        drop(_ga);\n        drop(_gb);\n        *db.lock().unwrap() = true;\n    });\n\n    // Bystander task: keeps making progress without ever finishing on its own.\n    let s_by = Arc::clone(&shared);\n    let bystander = thread::spawn(move || {\n        // The bystander repeatedly acquires and releases the locks,\n        // making progress but never finishing. It must not prevent\n        // the workers from finishing.\n        loop {\n            {\n                let _g = s_by.lock_a.lock().unwrap();\n            }\n            {\n                let _g = s_by.lock_b.lock().unwrap();\n            }\n        }\n    });\n\n    // Main thread waits for both workers to finish.\n    worker_a.join().unwrap();\n    worker_b.join().unwrap();\n\n    // Bystander never finishes; detach it by not joining.\n    // But we must ensure main terminates. We can't join the bystander\n    // because it never finishes. We simply drop the handle.\n    drop(bystander);\n\n    let a = *done_a.lock().unwrap();\n    let b = *done_b.lock().unwrap();\n    println!(\"DONE a={} b={}\", a as u32, b as u32);\n}\n```",
+  "wall_ms": 3183
+}

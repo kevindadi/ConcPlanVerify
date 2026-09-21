@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "1a9af458-b7e6-4bc5-a242-27d48192323d",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# ConcIR modular generation prompt (v2)\n\nYou write one **ConcIR** program as a single JSON object. CIR is the input\nto a separate Rust verifier; you never verify, translate, repair or accept\nanything yourself. Output only the JSON object, no prose or fences.\n\nThe tables below are generated from the verifier's machine schema\n(`concir-backend schema`). `sid` is per-function and must match `^s[0-9]+$`.\n\n## Statements\n\n| kind | required fields | optional fields |\n| --- | --- | --- |\n| `assign_local` | `target`, `expr` | — |\n| `atomic_cas` | `resource`, `expected`, `desired`, `dst` | — |\n| `atomic_load` | `resource`, `dst` | — |\n| `atomic_store` | `resource`, `value` | — |\n| `branch` | `cond`, `then`, `else` | — |\n| `call` | `func` | `args`, `dst` |\n| `channel_recv` | `channel`, `dst` | — |\n| `channel_send` | `channel`, `value` | — |\n| `condvar_notify` | `condvar` | — |\n| `condvar_notify_all` | `condvar` | — |\n| `condvar_wait` | `condvar`, `lock` | — |\n| `goto` | `target` | — |\n| `join` | `handle` | — |\n| `mutex_lock` | `resource` | — |\n| `mutex_unlock` | `resource` | — |\n| `nop` | — | — |\n| `read_shared` | `resource` | `dst` |\n| `return` | — | `value` |\n| `scope` | `funcs` | — |\n| `semaphore_acquire` | `resource` | `count` |\n| `semaphore_release` | `resource` | `count` |\n| `spawn` | `func`, `handle` | `args` |\n| `switch` | `var`, `cases`, `default` | — |\n| `write_shared` | `resource`, `expr` | — |\n\n## Resources\n\n| type | fixed fields | required | optional |\n| --- | --- | --- | --- |\n| `Atomic` | `kind='var'`, `type='Atomic'` | `name`, `kind`, `type`, `base`, `init` | — |\n| `Channel` | `kind='sync'`, `mode='Sync'`, `type='Channel'` | `name`, `kind`, `type`, `mode`, `base`, `capacity` | — |\n| `Condvar` | `kind='sync'`, `mode='Sync'`, `type='Condvar'` | `name`, `kind`, `type`, `mode` | — |\n| `Mutex` | `kind='sync'`, `mode='Sync'`, `type='Mutex'` | `name`, `kind`, `type`, `mode` | — |\n| `Semaphore` | `kind='sync'`, `mode='Sync'`, `type='Semaphore'` | `name`, `kind`, `type`, `mode` | `count` |\n| `Var` | `kind='var'`, `type='Var'` | `name`, `kind`, `type`, `base`, `init` | — |\n\n## Contract (you never write it; this is what it can observe)\n\nProperties: `always_reachable`, `deadlock_free`, `reachability`, `safety`, `unreachable`.\nPreserved behaviors: `always`, `reachable`.\nPredicates: `and`, `channel_at_least`, `channel_empty`, `false`, `function_completed`, `holds_all`, `mutex_exclusive`, `mutex_free`, `mutex_held`, `never_holds_all`, `not`, `or`, `true`, `var_cmp`, `var_eq`.\n\n`holds_all`/`never_holds_all` take a `function` and a `resources` list;\n`mutex_exclusive` takes a `resource`. Semaphore resources count as held\nwhile permits are below the declared count.\n\n## Three minimal fragments\n\nA variable resource (note `base` and `init` are required):\n\n```json\n{\"name\": \"ready\", \"kind\": \"var\", \"type\": \"Var\", \"base\": \"Bool\", \"init\": false}\n```\n\nA write and a predicate-guarded wait loop:\n\n```json\n{\"sid\": \"s1\", \"kind\": \"write_shared\", \"resource\": \"main::ready\", \"expr\": \"true\"}\n{\"sid\": \"s2\", \"kind\": \"branch\", \"cond\": \"ready == true\", \"then\": \"s4\", \"else\": \"s3\"}\n{\"sid\": \"s3\", \"kind\": \"condvar_wait\", \"condvar\": \"main::cv\", \"lock\": \"main::m\"}\n{\"sid\": \"s4\", \"kind\": \"goto\", \"target\": \"s2\"}\n```\n\nA scope that starts two tasks and waits:\n\n```json\n{\"sid\": \"s1\", \"kind\": \"scope\", \"funcs\": [\"main::t1\", \"main::t2\"]}\n```\n\n## Top-level, module, function\n\n```json\n{ \"program\": \"short_name\", \"version\": \"3.5.0\", \"entry\": \"main::main\", \"modules\": [\n  { \"name\": \"main\", \"provides\": {\"resources\": [\"m\"], \"functions\": [\"main\",\"t1\"]},\n    \"requires\": {\"resources\": [], \"functions\": []}, \"resources\": [ ... ],\n    \"protection\": [ {\"var\": \"ready\", \"lock\": \"m\"} ], \"functions\": [ ... ] } ] }\n```\n\nA function is `{\"name\":\"t1\",\"kind\":\"normal\",\"form\":\"closure\",\"body\":[...]}`.\n`expr`/`cond`/`value`/`expected`/`desired` are **JSON strings**, never objects.\nDo not emit unsupported kinds (`rwlock_*`, `select`, `async_call`, `await`,\n`abstract_step`, `seq_hole`).\n"
+    },
+    {
+      "role": "user",
+      "content": "Produce one ConcIR program for the requirements below. No verification contract is provided; the requirements are the whole input.\n\n<domain_requirements>\n# Requirements\n\nR1. A main task starts one sending task and one receiving task that run at the same time.\nR2. The two tasks communicate over a channel with no buffering, so a send and a take must meet to exchange the value.\nR3. The sender passes one value and the receiver takes one value, so both tasks finish.\nR4. No task may wait forever for a partner that never arrives.\nR5. Every schedule and interleaving must terminate with both tasks finished and no value left in the channel.\nR6. The channel is empty once both tasks have finished.\nR7. The program must print exactly the line `DONE done=1` and then exit. [U]\n</domain_requirements>\n\nOutput only the JSON object."
+    }
+  ],
+  "prompt_sha256": "04e7b69356ace911c1347afae9a211db1d10847ed557fb1606779651a85414b5",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 424,
+    "prompt_tokens": 1534,
+    "total_tokens": 1958,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 1280
+    },
+    "prompt_cache_hit_tokens": 1280,
+    "prompt_cache_miss_tokens": 254
+  },
+  "content_sha256": "c0b0be3560ceffab9c6ea06ff3065bfd3ce33b4932b6524163297734d587ccd0",
+  "content": "{\n  \"program\": \"sync_handoff\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\"ch\"],\n        \"functions\": [\"main\", \"sender\", \"receiver\"]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        {\n          \"name\": \"ch\",\n          \"kind\": \"sync\",\n          \"type\": \"Channel\",\n          \"mode\": \"Sync\",\n          \"base\": \"Int\",\n          \"capacity\": 0\n        }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"scope\",\n              \"funcs\": [\"main::sender\", \"main::receiver\"]\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"sender\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"channel_send\",\n              \"channel\": \"main::ch\",\n              \"value\": \"1\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"receiver\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"channel_recv\",\n              \"channel\": \"main::ch\",\n              \"dst\": \"v\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"return\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}",
+  "wall_ms": 1576
+}

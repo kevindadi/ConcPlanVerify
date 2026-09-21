@@ -1,0 +1,206 @@
+{
+  "arm": "G1_self_iter",
+  "task": "channel/send_while_holding_mutex",
+  "rounds": [
+    {
+      "round": 1,
+      "request_sha256": "66c8c5346c864fd09789e05765dfad32a1e6937809888bf2f4a95ff41828662b",
+      "feedback_sha256": "f55d8a9ccd065b9c48071828e4217878c03953fc23146fd859a7eebead027ce4",
+      "prompt_tokens": 278,
+      "completion_tokens": 473,
+      "llm_wall_ms": 1749,
+      "tool_wall_ms": 765,
+      "tool_output_sha256": "8ea280ce8dc52d2611d95a521837df024e1d3b78e386d734f91c854d72ae931a",
+      "decision": "continue"
+    },
+    {
+      "round": 2,
+      "request_sha256": "86f8bad5c251aea30af05a2ec6533327954aa3eb423bced401ab28e23d163361",
+      "feedback_sha256": "03b13f4aa9a205a0b6ca281fd7f1e2a57e644703dc0ccb8c214fa24f14c04f54",
+      "prompt_tokens": 774,
+      "completion_tokens": 1095,
+      "llm_wall_ms": 4935,
+      "tool_wall_ms": 0,
+      "tool_output_sha256": null,
+      "decision": "claims_no_issue"
+    }
+  ],
+  "accepted": true,
+  "accepted_round": 1,
+  "consumption": {
+    "http_requests": 3,
+    "prompt_tokens": 1826,
+    "completion_tokens": 5664,
+    "total_tokens": 7490,
+    "llm_wall_ms": 24085,
+    "tool_wall_ms": 765,
+    "rounds": 3,
+    "first_correct_round": 1
+  },
+  "final_artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/candidate.rs",
+  "final_artifact_sha256": "a1e08565471bd32949158933dad8865ccb6ad664ed6fbea1d67f080c456f4dbb",
+  "notes": {
+    "tools_tier": "ml",
+    "tool_rounds": [
+      {
+        "source_sha256": "a1e08565471bd32949158933dad8865ccb6ad664ed6fbea1d67f080c456f4dbb",
+        "project_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/probe",
+        "calls_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls",
+        "build": {
+          "tool": "build",
+          "argv": [
+            "cargo",
+            "build",
+            "--offline",
+            "--quiet"
+          ],
+          "exit_code": 0,
+          "wall_ms": 215,
+          "timed_out": false,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "ea57a06953b9842e655f879517c0e9cb5da5ba51258405c7d1ac40780e7bd783",
+          "error": null,
+          "extra": {
+            "argv_sha256": "d02cbba94ec5df744bb610194264c7e0ce03d41092c36889d9fc6ccacb57a44e",
+            "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"
+          },
+          "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls/001-build",
+          "files": {
+            "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls/001-build/argv.json",
+            "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls/001-build/env.json",
+            "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls/001-build/stdout.txt",
+            "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls/001-build/stderr.txt",
+            "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls/001-build/exit.txt",
+            "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls/001-build/wall_ms.txt"
+          }
+        },
+        "build_ok": true,
+        "behavior_test": {
+          "tool": "test",
+          "argv": [
+            "cargo",
+            "test",
+            "--offline",
+            "--quiet"
+          ],
+          "exit_code": 0,
+          "wall_ms": 550,
+          "timed_out": false,
+          "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd",
+          "stderr_sha256": "ea57a06953b9842e655f879517c0e9cb5da5ba51258405c7d1ac40780e7bd783",
+          "error": null,
+          "extra": {
+            "argv_sha256": "9d3fc13e13f8225d4f2055157a953a018b065c9bc87ca8e98bfbea072dd467b3",
+            "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"
+          },
+          "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls/002-test",
+          "files": {
+            "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls/002-test/argv.json",
+            "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls/002-test/env.json",
+            "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls/002-test/stdout.txt",
+            "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls/002-test/stderr.txt",
+            "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls/002-test/exit.txt",
+            "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v1/run-20260922T001631/rep2/channel__send_while_holding_mutex/G1_self_iter/run-20260921T171823-5727-79535e/round-1/calls/002-test/wall_ms.txt"
+          }
+        },
+        "behavior_test_passed": 0,
+        "behavior_test_ok": null,
+        "behavior_test_reason": "no_tests",
+        "lockbud": {
+          "tool": "lockbud",
+          "status": "skipped"
+        },
+        "miri": [],
+        "miri_extended": null
+      }
+    ],
+    "round_columns": [
+      {
+        "round": 1,
+        "build_ok": true,
+        "test_ok": null,
+        "miri_green": false,
+        "miri_detected": false,
+        "lockbud_green": true,
+        "lockbud_detected": false,
+        "lockbud_status": "skipped"
+      }
+    ],
+    "build_ok_rounds": [
+      1
+    ],
+    "claims_no_issue_rounds": [
+      2
+    ],
+    "accepted_candidate_round": 1
+  },
+  "error": null,
+  "llm_calls": [
+    {
+      "attempt": 1,
+      "request_id": "372739ed-df18-4bd2-9e54-e87d460266d2",
+      "response_model": "deepseek-flash",
+      "usage": {
+        "completion_tokens": 473,
+        "prompt_tokens": 278,
+        "total_tokens": 751,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 128
+        },
+        "prompt_cache_hit_tokens": 128,
+        "prompt_cache_miss_tokens": 150
+      },
+      "wall_ms": 1749,
+      "transport_attempt": 1,
+      "prompt_sha256": "75c7efd662f942b736ffd802b763e6161540d463ff7ee947c21906f94a9b0257"
+    },
+    {
+      "attempt": 2,
+      "request_id": "89c99972-d411-4b40-b51f-605c04296e55",
+      "response_model": "deepseek-flash",
+      "usage": {
+        "completion_tokens": 4096,
+        "prompt_tokens": 774,
+        "total_tokens": 4870,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 640
+        },
+        "prompt_cache_hit_tokens": 640,
+        "prompt_cache_miss_tokens": 134
+      },
+      "wall_ms": 17401,
+      "transport_attempt": 1,
+      "prompt_sha256": "47ea5ef3a0874f91770da9b95c80f22ddcef6a08d7ff5b6c599c59541ff2cd00"
+    },
+    {
+      "attempt": 2,
+      "request_id": "9c960d41-09de-4321-bcb0-7e2a5d09fca7",
+      "response_model": "deepseek-flash",
+      "usage": {
+        "completion_tokens": 1095,
+        "prompt_tokens": 774,
+        "total_tokens": 1869,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 640
+        },
+        "prompt_cache_hit_tokens": 640,
+        "prompt_cache_miss_tokens": 134
+      },
+      "wall_ms": 4935,
+      "transport_attempt": 1,
+      "prompt_sha256": "47ea5ef3a0874f91770da9b95c80f22ddcef6a08d7ff5b6c599c59541ff2cd00"
+    }
+  ],
+  "oracle": {
+    "status": "build_failed",
+    "coverage": null
+  },
+  "coverage": null,
+  "monitor_fail": null
+}

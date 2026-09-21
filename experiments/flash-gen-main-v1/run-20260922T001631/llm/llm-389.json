@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "9339eec1-aaab-4b86-a763-eecac4f3d53e",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. A main task starts three worker roles that share a single permit, and each role may have up to two activations running at once. [U]\nR2. Each activation holds the single permit while it does its work and releases it afterwards. [U]\nR3. At most one activation may hold the permit at any moment.\nR4. An activation that cannot obtain the permit waits until the permit becomes available.\nR5. Every schedule and interleaving must terminate.\nR6. All three worker roles complete.\nR7. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "718efb76118987d13108a04f65cdd14221736ab2c9a67b004baa4eef0596111a",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 347,
+    "prompt_tokens": 380,
+    "total_tokens": 727,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 128
+    },
+    "prompt_cache_hit_tokens": 128,
+    "prompt_cache_miss_tokens": 252
+  },
+  "content_sha256": "8b2383a1d8a4ef5e2d8b796d0ee4f976982b72abcdc833a2b1197bab41599347",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Permit {\n    available: Mutex<bool>,\n    cv: Condvar,\n}\n\nimpl Permit {\n    fn new() -> Self {\n        Permit {\n            available: Mutex::new(true),\n            cv: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut avail = self.available.lock().unwrap();\n        while !*avail {\n            avail = self.cv.wait(avail).unwrap();\n        }\n        *avail = false;\n    }\n\n    fn release(&self) {\n        let mut avail = self.available.lock().unwrap();\n        *avail = true;\n        self.cv.notify_one();\n    }\n}\n\nfn main() {\n    let permit = Arc::new(Permit::new());\n    let done = Arc::new(Mutex::new(0u32));\n\n    let mut handles = Vec::new();\n\n    for _role in 0..3 {\n        for _activation in 0..2 {\n            let permit = Arc::clone(&permit);\n            let done = Arc::clone(&done);\n            let handle = thread::spawn(move || {\n                permit.acquire();\n                // critical section: hold the single permit\n                let mut d = done.lock().unwrap();\n                *d += 1;\n                drop(d);\n                permit.release();\n            });\n            handles.push(handle);\n        }\n    }\n\n    for h in handles {\n        h.join().unwrap();\n    }\n\n    let d = done.lock().unwrap();\n    println!(\"DONE done={}\", *d);\n}\n```",
+  "wall_ms": 1558
+}

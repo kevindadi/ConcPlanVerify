@@ -1,0 +1,86 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | .../run-20260921T170811-5727-6f4388/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+error[E0308]: mismatched types
+   --> src/main.rs:37:29
+    |
+ 37 |         let l1 = Arc::clone(&locks.a1);
+    |                  ---------- ^^^^^^^^^ expected `&Arc<_, _>`, found `&Mutex<()>`
+    |                  |
+    |                  arguments to this function are incorrect
+    |
+    = note: expected reference `&Arc<_, _>`
+               found reference `&std::sync::Mutex<()>`
+note: method defined here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/clone.rs:236:8
+    |
+236 |     fn clone(&self) -> Self;
+    |        ^^^^^
+
+error[E0308]: mismatched types
+   --> src/main.rs:38:29
+    |
+ 38 |         let l2 = Arc::clone(&locks.a2);
+    |                  ---------- ^^^^^^^^^ expected `&Arc<_, _>`, found `&Mutex<()>`
+    |                  |
+    |                  arguments to this function are incorrect
+    |
+    = note: expected reference `&Arc<_, _>`
+               found reference `&std::sync::Mutex<()>`
+note: method defined here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/clone.rs:236:8
+    |
+236 |     fn clone(&self) -> Self;
+    |        ^^^^^
+
+error[E0308]: mismatched types
+   --> src/main.rs:47:29
+    |
+ 47 |         let l1 = Arc::clone(&locks.b1);
+    |                  ---------- ^^^^^^^^^ expected `&Arc<_, _>`, found `&Mutex<()>`
+    |                  |
+    |                  arguments to this function are incorrect
+    |
+    = note: expected reference `&Arc<_, _>`
+               found reference `&std::sync::Mutex<()>`
+note: method defined here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/clone.rs:236:8
+    |
+236 |     fn clone(&self) -> Self;
+    |        ^^^^^
+
+error[E0308]: mismatched types
+   --> src/main.rs:48:29
+    |
+ 48 |         let l2 = Arc::clone(&locks.b2);
+    |                  ---------- ^^^^^^^^^ expected `&Arc<_, _>`, found `&Mutex<()>`
+    |                  |
+    |                  arguments to this function are incorrect
+    |
+    = note: expected reference `&Arc<_, _>`
+               found reference `&std::sync::Mutex<()>`
+note: method defined here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/clone.rs:236:8
+    |
+236 |     fn clone(&self) -> Self;
+    |        ^^^^^
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 4 previous errors
