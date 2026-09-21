@@ -3,7 +3,11 @@
   "properties": [
     {
       "kind": "deadlock_free",
-      "id": "no-deadlock"
+      "id": "no-deadlock",
+      "req": [
+        "R6",
+        "R7"
+      ]
     },
     {
       "kind": "reachability",
@@ -12,7 +16,13 @@
         "kind": "var_eq",
         "resource": "main::ready",
         "value": true
-      }
+      },
+      "req": [
+        "R3",
+        "R4",
+        "R8",
+        "R9"
+      ]
     }
   ],
   "preserved": [
@@ -22,7 +32,15 @@
       "goal": {
         "kind": "function_completed",
         "function": "main::waiter"
-      }
+      },
+      "req": [
+        "R1",
+        "R4",
+        "R5",
+        "R6",
+        "R7",
+        "R9"
+      ]
     },
     {
       "kind": "reachable",
@@ -30,7 +48,12 @@
       "goal": {
         "kind": "function_completed",
         "function": "main::notifier"
-      }
+      },
+      "req": [
+        "R1",
+        "R3",
+        "R7"
+      ]
     },
     {
       "kind": "reachable",
@@ -39,7 +62,11 @@
         "kind": "var_eq",
         "resource": "main::ready",
         "value": true
-      }
+      },
+      "req": [
+        "R3",
+        "R8"
+      ]
     }
   ],
   "assumptions": {

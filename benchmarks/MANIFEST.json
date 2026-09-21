@@ -15,19 +15,36 @@
       "directory": "families/lock-order/abba_2lock",
       "files": {
         "families/lock-order/abba_2lock/spec.md": "847d8c94a9af493d1c1353b21d697871b089396a05506bffaa398113706fecf5",
-        "families/lock-order/abba_2lock/contract.json": "b3ab33335bb3c0aec29448a3322ff9ea48b7bef115a87fff86c70f0b35e9fe8a",
+        "families/lock-order/abba_2lock/contract.json": "702317b1850c42fca2e8819fcf189664ee2ad6964cb0f413561bcb3d99d17f33",
         "families/lock-order/abba_2lock/buggy.cir.json": "795ab21c6e889e34e15a11ce8056a243974f1d7261fbe3d6920a2940d8d1d063",
         "families/lock-order/abba_2lock/fixed.cir.json": "50f0bcebf6ac3c586a759c8c20669b70bf49476fcf968b5c46383e832b548d94",
         "families/lock-order/abba_2lock/ground_truth.json": "c9e8478ca0e7fadba695c82832653bf0d416d57d2545df1adb1aec7da946fe64",
         "families/lock-order/abba_2lock/repair_task.json": "aeeb9616c5112f43ca7c81bca88ac239fc131412f05cf7dd918f002482f83572",
         "families/lock-order/abba_2lock/rust/buggy.rs": "ce946300ec53e50326d3dc56d51c3496408cf6d95bea4802043980a5e771d13a",
         "families/lock-order/abba_2lock/rust/fixed.rs": "f9095bb5bfefab40ef467ca86325a853828cc2ba43c42866f012f4a09b05b5e1",
+        "families/lock-order/abba_2lock/generation_input/REQUIREMENTS.md": "45d3cbfe0ee0722665e91e43794cd04c56c1072b928327fd0dcf7eb9caf4fb4a",
+        "families/lock-order/abba_2lock/generation_input/requirements.json": "f6051e3334bb424322a0d0083d7917a2105a1b1f5cf498112a0b17a216bc84f3",
         "families/lock-order/abba_2lock/repair_input/requirements.txt": "969737561f11ee7ef1fe2edc38c3778756840a524f47b6642b09459a6a644d6d",
         "families/lock-order/abba_2lock/repair_input/input.cir.json": "21be90480beba33dcfa9fa48cb2ae63c8a55735e03ccb83ba19829b91929a45d",
         "families/lock-order/abba_2lock/repair_input/input.rs": "c038ad6b35bea5bc2990d36333383d7f60c92a313864430bfc68d81d7bef8abf"
       },
       "spec": "families/lock-order/abba_2lock/spec.md",
       "contract": "families/lock-order/abba_2lock/contract.json",
+      "generation": true,
+      "requirements": [
+        "The design contains one main thread and two worker threads.",
+        "Both worker threads share the same two locks, and neither lock may be held by more than one worker at a time.",
+        "Each worker must hold both locks at the same time while it performs its critical work.",
+        "A worker that finds a lock busy must wait for it to become free and then continue.",
+        "It must never be possible for the two workers to leave each other waiting forever, each holding one lock and needing the other.",
+        "The main thread starts both workers and only finishes after both workers have finished.",
+        "Every worker must release each lock it holds before it finishes.",
+        "Every possible schedule or interleaving of the workers must terminate.",
+        "The program must print exactly the line `DONE t1=1 t2=1` and then exit."
+      ],
+      "unverifiable": [
+        9
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -84,19 +101,37 @@
       "directory": "families/lock-order/cycle_3lock",
       "files": {
         "families/lock-order/cycle_3lock/spec.md": "da1e07857c91a2687ca582ed2f68a89ae730821cbf4faf55fd283dc652cd999e",
-        "families/lock-order/cycle_3lock/contract.json": "3c7025300ca62faf62e6a5933c5f63d35faa2018d65a5186f59424ca4255d56c",
+        "families/lock-order/cycle_3lock/contract.json": "bc7a0e843b47e6838cc949737292a646ead9ad12c6dc2065ff0596b3c763a42b",
         "families/lock-order/cycle_3lock/buggy.cir.json": "3568ce39e250c85b07dc5988e83b6d0690dcd494e424810a752129507d7b9e05",
         "families/lock-order/cycle_3lock/fixed.cir.json": "012722eebc94b405b520916d0adf54e0c9599c0606b4722152d5b5ecbf304acd",
         "families/lock-order/cycle_3lock/ground_truth.json": "07a129e59faa5d53e92cc1f258e0a3d95507719d97e9f3334dbc86e593ee267f",
         "families/lock-order/cycle_3lock/repair_task.json": "ccf791476a0ea410d090d81c94900a9de2f50797007096085cc61e63f347d1a1",
         "families/lock-order/cycle_3lock/rust/buggy.rs": "8e25677b26d2014c731a13da23d163cb96a558a896f8e36d7fb32da633cdcd88",
         "families/lock-order/cycle_3lock/rust/fixed.rs": "0916d7ee878bf7e9be3086fbba74265dbd49d3d166b390d6b49fe45560738e3d",
+        "families/lock-order/cycle_3lock/generation_input/REQUIREMENTS.md": "4db1c4afcd05fed4daafdd26bbc4f60d59979093e4e7049b98313f20fe5fad19",
+        "families/lock-order/cycle_3lock/generation_input/requirements.json": "a22ad58d17b3f32bc7d602c2bf8795b7db066eef8cc545f5d84158b257345393",
         "families/lock-order/cycle_3lock/repair_input/requirements.txt": "9bde1a4077a589b20806348f871634af403b8d72b69bc7cd7fe91b4927bedfc6",
         "families/lock-order/cycle_3lock/repair_input/input.cir.json": "50341a18d9965b11f05eac1fe7ed5f836bc14565e054fc2c0e99ba63b34dea12",
         "families/lock-order/cycle_3lock/repair_input/input.rs": "99b41213ad99fda0bbec528cd29fea8952223a424a24e0779da1ee88660a4614"
       },
       "spec": "families/lock-order/cycle_3lock/spec.md",
       "contract": "families/lock-order/cycle_3lock/contract.json",
+      "generation": true,
+      "requirements": [
+        "The design contains one main thread and three worker threads.",
+        "Three locks are shared among the workers, and none of them may be held by more than one worker at a time.",
+        "The first worker needs the first and second lock, the second worker needs the second and third lock, and the third worker needs the third and the first lock.",
+        "Each worker must hold its two locks at the same time while it performs its critical work.",
+        "It must never be possible for the workers to leave one another waiting forever, each holding one lock and needing another.",
+        "Every worker must release each lock it holds before it finishes.",
+        "The main thread starts all three workers and only finishes after all three have finished.",
+        "Every worker must finish eventually, whatever order the workers run in.",
+        "Every possible schedule or interleaving of the workers must terminate.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        10
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -154,19 +189,37 @@
       "directory": "families/lock-order/cross_module_cycle",
       "files": {
         "families/lock-order/cross_module_cycle/spec.md": "2832aeab6c6da78f125d60e98543593a6d7d14020f18aff8d16b9a33bfc73f02",
-        "families/lock-order/cross_module_cycle/contract.json": "8eca3d4ba76fd2e117290cd04b2e2bcab9f216fa729ac936de68f868338ca039",
+        "families/lock-order/cross_module_cycle/contract.json": "4899299240793991f1843b59c00d00790c71280f16e4955bcec001007a66ad25",
         "families/lock-order/cross_module_cycle/buggy.cir.json": "a513fadc58079ab1e36af412e56adf01c78bcc0776b55dcfecb65007ccc23d5d",
         "families/lock-order/cross_module_cycle/fixed.cir.json": "c3b6a5cc109e7e5d46359f0fa9b4b3f2c584ebc277c671c95952a711418a12fd",
         "families/lock-order/cross_module_cycle/ground_truth.json": "6bc2588610a682fe0b70504c3c3f333cac3ec80a0984df42e4eda06c4577e3eb",
         "families/lock-order/cross_module_cycle/repair_task.json": "2453e0e5b1ff268abcaa9d2480b8cafbbdd9bafc6351c46f43c596625d279429",
         "families/lock-order/cross_module_cycle/rust/buggy.rs": "01e9baed641d979280318dbdd5ae3de7e0942a3c9f8fbd378fd863beee4682f4",
         "families/lock-order/cross_module_cycle/rust/fixed.rs": "3513db380281a11ad5eb7a3f3715c7de6fbf68c07b60cf83037c8dcdcc2d17c2",
+        "families/lock-order/cross_module_cycle/generation_input/REQUIREMENTS.md": "a9e3378e2b70edfd52763081acec1444f5506383cd6057c28256128c65b36262",
+        "families/lock-order/cross_module_cycle/generation_input/requirements.json": "5780c1746f05b610e62f3bd6f87b18e4a2e4fe87722e052eb3b413ef5646bae5",
         "families/lock-order/cross_module_cycle/repair_input/requirements.txt": "ffcdc128749fb2bc2b5ba2ad9354d0545011b4166aaad1689a557b96aa234dc4",
         "families/lock-order/cross_module_cycle/repair_input/input.cir.json": "0ac61d99049c04fbf9872924951e0321f50b6a0336172c3b8c3d5818560811ac",
         "families/lock-order/cross_module_cycle/repair_input/input.rs": "4ca6e380c6ce917454a3dd210f030540f7654b659cd2188048d4ec3cdad22076"
       },
       "spec": "families/lock-order/cross_module_cycle/spec.md",
       "contract": "families/lock-order/cross_module_cycle/contract.json",
+      "generation": true,
+      "requirements": [
+        "The design contains two modules, where one module owns the first shared resource and the other module owns the second shared resource.",
+        "One task runs in the first module and another task runs in the second module, and both tasks need both resources.",
+        "Each task must declare that it depends on the resource owned by the other module.",
+        "Each task must hold both resources at the same time while it performs its work.",
+        "It must never be possible for the two tasks to leave each other waiting forever, each holding one resource and needing the other.",
+        "Every task must release each resource it holds before it finishes.",
+        "A starting thread launches both tasks and only finishes after both tasks have finished.",
+        "Both tasks must finish even though they run in different modules.",
+        "Every possible schedule or interleaving must terminate.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        10
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -223,19 +276,40 @@
       "directory": "families/lock-order/partial_deadlock_bystander",
       "files": {
         "families/lock-order/partial_deadlock_bystander/spec.md": "71c5f363fd84ac33461a6d54bcf74b48f21e3f32c1af73da8a9dc4505dbe4e43",
-        "families/lock-order/partial_deadlock_bystander/contract.json": "753eb1c81fb8c87aa560e2ed5cca88cfa307c10df1ce6f4d93debeebcf02f304",
+        "families/lock-order/partial_deadlock_bystander/contract.json": "e8c636becce7aeebbe2ce37097eba11f5418bb82a88faf625a5dbc6759775c50",
         "families/lock-order/partial_deadlock_bystander/buggy.cir.json": "13e6147c8bfdc6feb2ad3fe488df7aaf5a81ad142f432e40a7443a340dd36a45",
         "families/lock-order/partial_deadlock_bystander/fixed.cir.json": "59e4c43180c3d64711b714339cdaec26778d5d2bf3affa60b5cd960ae2775fb6",
         "families/lock-order/partial_deadlock_bystander/ground_truth.json": "e746214045a0879fd8f8c7e5e6ccd726d2995ec7fc26ac2bbc2c1b683720d64f",
         "families/lock-order/partial_deadlock_bystander/repair_task.json": "cef67c57bf0e3b958000c121558447b755ab0547973f4a38861793fd8476ef6e",
         "families/lock-order/partial_deadlock_bystander/rust/buggy.rs": "fd8efdba862186b48388f77c175dd095be231564e273057aa8d252b3f078978c",
         "families/lock-order/partial_deadlock_bystander/rust/fixed.rs": "62a4a5ca6c4f383aa03b9931541ccd6d85f465d820e40de6c7b01041ca47bc07",
+        "families/lock-order/partial_deadlock_bystander/generation_input/REQUIREMENTS.md": "7e323b3ec0f3fd96daf2392ed343116ddcb6eaa94fadf615a053132f971ad9bf",
+        "families/lock-order/partial_deadlock_bystander/generation_input/requirements.json": "ecd6d55f2b5dadef8fa8ebc6ad59750b5a9071e33b3c63a79d12c5ff886134e9",
         "families/lock-order/partial_deadlock_bystander/repair_input/requirements.txt": "7efd0948db49ed25174c7bc6bc2ba3ca799c33e951fa59e23ba329ef2d17a636",
         "families/lock-order/partial_deadlock_bystander/repair_input/input.cir.json": "d4fa74cd5e308b40d8b7570c3189252d05bc2d79feefdf4e9250f46f48a87810",
         "families/lock-order/partial_deadlock_bystander/repair_input/input.rs": "1712c45c3f0e99d7bad9984fec4d5d7dd539c9246276780faae6ff893ff0a6c3"
       },
       "spec": "families/lock-order/partial_deadlock_bystander/spec.md",
       "contract": "families/lock-order/partial_deadlock_bystander/contract.json",
+      "generation": true,
+      "requirements": [
+        "The design contains one main thread and two short-lived workers.",
+        "An independent bystander task also runs and keeps making progress without ever finishing on its own.",
+        "The two workers share the same two locks and also use two counting permits to coordinate with each other.",
+        "Each worker must hold both locks at the same time while it enters its critical section.",
+        "The two workers must use the two permits as a handshake, so that neither takes its second lock before the other has taken its first.",
+        "The bystander task must not prevent the two workers from finishing.",
+        "At every point during execution, it must still be possible for the first worker to finish.",
+        "At every point during execution, it must still be possible for the second worker to finish.",
+        "Neither worker may wait forever for a permit or a lock that the other worker never provides.",
+        "Every worker must release each lock it holds before it finishes.",
+        "The main thread starts all three tasks and only finishes after both workers have finished, even though the bystander may keep running.",
+        "The program must print exactly the line `DONE a=1 b=1` and then exit."
+      ],
+      "unverifiable": [
+        2,
+        12
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -304,16 +378,35 @@
       "directory": "families/condvar/lost_wakeup_notify_before_wait",
       "files": {
         "families/condvar/lost_wakeup_notify_before_wait/spec.md": "bf19c9bda5010fff69dd91da9834eca14228e882bec71691dc24916ba595ca50",
-        "families/condvar/lost_wakeup_notify_before_wait/contract.json": "8e4b0980912358f4efdd40e45a034ca8ac18559203fb8414c1b4b03daa9be7ff",
+        "families/condvar/lost_wakeup_notify_before_wait/contract.json": "293d32e0182f5088179d38d079b54f0f6c0b359262385cc24446af42be27bffa",
         "families/condvar/lost_wakeup_notify_before_wait/buggy.cir.json": "bc55bb0ce0543f44d0b225469d8d919e661c73a637d5eeb77593a85250c7df1b",
         "families/condvar/lost_wakeup_notify_before_wait/fixed.cir.json": "d20319d3bd381d2bd016771212ea86d6b31a66a61e6ea62fc2a97127e337ae0f",
         "families/condvar/lost_wakeup_notify_before_wait/ground_truth.json": "04da4b7a83e7e586a34dbe6f5b43e8dbeaa7bab65af74edfbec2bd5dfb87e8fe",
         "families/condvar/lost_wakeup_notify_before_wait/repair_task.json": "ca3df48293807efcc7c6573396215c7a441e466fc131a0773221ee4a631c89f0",
+        "families/condvar/lost_wakeup_notify_before_wait/generation_input/REQUIREMENTS.md": "4dc3bf344d6c24e28c5182acdbced4e5594288e53f888495ebcfcacb99b2a375",
+        "families/condvar/lost_wakeup_notify_before_wait/generation_input/requirements.json": "12abf4c29fe59c87c3d9a4af38acfefb5cb2dea501c6a7c31ac6e15e59fad9e5",
         "families/condvar/lost_wakeup_notify_before_wait/repair_input/requirements.txt": "b618f6f6ab46bec5065b9088621ab4c23a44724e8e93699c8d5e75cdf75469cd",
         "families/condvar/lost_wakeup_notify_before_wait/repair_input/input.cir.json": "df0a0b10864a9617c3e9e3f5c4747b78942adfebc6327b7051e60863fc7e53b5"
       },
       "spec": "families/condvar/lost_wakeup_notify_before_wait/spec.md",
       "contract": "families/condvar/lost_wakeup_notify_before_wait/contract.json",
+      "generation": true,
+      "requirements": [
+        "A main task starts a waiter role and a notifier role that run at the same time.",
+        "The waiter and the notifier share one lock, one condition variable, and one boolean flag that the lock guards.",
+        "The notifier sets the shared flag to true while holding the lock, signals the condition variable, and then releases the lock.",
+        "The waiter checks the flag while holding the lock, waits on the condition variable only while the flag is false, and re-checks the flag after every wake.",
+        "The waiter must complete even when the notifier's signal happens before the waiter starts waiting.",
+        "The flag must be set to true before the signal is issued, so a waiting role never misses the notification.",
+        "The flag is read and written only while the lock is held, and the waiter releases the lock while blocked.",
+        "Every schedule and interleaving must terminate with the waiter and the notifier both finished.",
+        "The shared flag becomes true in every schedule.",
+        "The program must print exactly the line `DONE ready=true` and then exit."
+      ],
+      "unverifiable": [
+        2,
+        10
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -371,16 +464,31 @@
       "directory": "families/channel/rendezvous_both_send",
       "files": {
         "families/channel/rendezvous_both_send/spec.md": "3fc38d01a3b0a007dc93cef12f8385b1b2617092756e29ea261ddecfab4d57bd",
-        "families/channel/rendezvous_both_send/contract.json": "244e2e1a1a83d24f6b50d31bae34a49f85ca3c986e1fd59bb17708019b4cc0e4",
+        "families/channel/rendezvous_both_send/contract.json": "7a207f911a3b4b4836712dec88a2c12c73f255581ee9955a9c76d0413b35c6fe",
         "families/channel/rendezvous_both_send/buggy.cir.json": "4201c273c2777a183c526a521b09858270b87adebb614dfa3f82dccef62adaa6",
         "families/channel/rendezvous_both_send/fixed.cir.json": "72b5131f3dabf3a0ecf942925462f38bf30b615320b103228293661d4f2b3394",
         "families/channel/rendezvous_both_send/ground_truth.json": "eedbd29f28b59ee353502a7c57e51f80a7682972a44c0f41b8e9645d82c9347c",
         "families/channel/rendezvous_both_send/repair_task.json": "14192bb1bd68c8f7cad72ddad5f6b4d95ac396477553803891d77db91e0f0b83",
+        "families/channel/rendezvous_both_send/generation_input/REQUIREMENTS.md": "aa21fc9e8516bc82e82140f9872f6a1af765ed7ef66646d403175131ce9128e1",
+        "families/channel/rendezvous_both_send/generation_input/requirements.json": "8b3112625c78cf235952700ff756dc2f4dcaf8238654a15fe6ad8a6473570215",
         "families/channel/rendezvous_both_send/repair_input/requirements.txt": "287615b681e03670eb8282f90f0657e628990fb7f2377da32e385b69a6cf334d",
         "families/channel/rendezvous_both_send/repair_input/input.cir.json": "5042ce749fc8583a45c768c7f8234b9c49bf02d8cbd22cfe7a63bfa2f046929a"
       },
       "spec": "families/channel/rendezvous_both_send/spec.md",
       "contract": "families/channel/rendezvous_both_send/contract.json",
+      "generation": true,
+      "requirements": [
+        "A main task starts one sending task and one receiving task that run at the same time.",
+        "The two tasks communicate over a channel with no buffering, so a send and a take must meet to exchange the value.",
+        "The sender passes one value and the receiver takes one value, so both tasks finish.",
+        "No task may wait forever for a partner that never arrives.",
+        "Every schedule and interleaving must terminate with both tasks finished and no value left in the channel.",
+        "The channel is empty once both tasks have finished.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        7
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -435,16 +543,31 @@
       "directory": "families/semaphore/permit_leak",
       "files": {
         "families/semaphore/permit_leak/spec.md": "851fda96c6984166d0f2858f28559af87ea61569fb49e286435d5f333d6564c3",
-        "families/semaphore/permit_leak/contract.json": "b00aaa60aff972e31dcdcbb4255bfc5400ebfb05d3991e8fedd7b189ed1eac3a",
+        "families/semaphore/permit_leak/contract.json": "962b693a2d5728366ad178308d250825ee7b6e558e18be85bca62b032c6de3c2",
         "families/semaphore/permit_leak/buggy.cir.json": "6ac9f65c82a126b88b35e958434dc279193a8c96bc0f557c4e2f77c065b49752",
         "families/semaphore/permit_leak/fixed.cir.json": "21149d244d791f20d4cdd2f0ca94d407bc4e614e09dd47953db74ea103219589",
         "families/semaphore/permit_leak/ground_truth.json": "dd90d49b02f67bd58583efa816121c4fdd1e76df895fefe270d6b8c3fd518f1a",
         "families/semaphore/permit_leak/repair_task.json": "7501273bab62116ab2990936775a44f58810d331bb11a85d4be563697f514751",
+        "families/semaphore/permit_leak/generation_input/REQUIREMENTS.md": "94e9e07bde1365df68919e7c4b730d01e3d1452ed4a4058e8d4f1849cd75df23",
+        "families/semaphore/permit_leak/generation_input/requirements.json": "403c18adc2edf065c816ad976e0946bac5f7c85f069154324ab4dc9bd4d3257e",
         "families/semaphore/permit_leak/repair_input/requirements.txt": "d8762c35ac7b0a4fd73d91ad8cba77480781950a500fffc983b3865eb7d7014b",
         "families/semaphore/permit_leak/repair_input/input.cir.json": "85408034775b5d60111e7688059874aa7b7046196c9ce2b150238bc643171ed0"
       },
       "spec": "families/semaphore/permit_leak/spec.md",
       "contract": "families/semaphore/permit_leak/contract.json",
+      "generation": true,
+      "requirements": [
+        "The program starts a supervising task that launches two worker threads and waits for both of them to finish.",
+        "Both worker threads share one counting permit pool that begins with exactly one permit.",
+        "A worker must hold a permit while it performs its work, so the two workers never work at the same time.",
+        "Each worker acquires one permit, performs its work, and must release that permit before it finishes.",
+        "While a worker waits for the permit, the worker holding it must remain able to release it so the waiting worker can eventually proceed.",
+        "Every possible schedule and interleaving of the two workers must terminate.",
+        "The program must print exactly the line `DONE permits=1` and then exit."
+      ],
+      "unverifiable": [
+        7
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -499,19 +622,34 @@
       "directory": "families/semaphore/acquire_twice_no_release",
       "files": {
         "families/semaphore/acquire_twice_no_release/spec.md": "578cbea7d7fe3be40bf9c55648bf031e3ff643fdfbe359344789c34b24844c8f",
-        "families/semaphore/acquire_twice_no_release/contract.json": "7d2a161b29b19784e99e52ec123abde1ab569ae43531b1f964e92b8610f3543a",
+        "families/semaphore/acquire_twice_no_release/contract.json": "fabe5d3f81c10e0c7ea77790df05fc77f6524ca63320480b817febae080c286a",
         "families/semaphore/acquire_twice_no_release/buggy.cir.json": "ebc7c80fe2d7050fbb55b83d5a82e803134c9e973a46df3c30a86b9447311e95",
         "families/semaphore/acquire_twice_no_release/fixed.cir.json": "93ae64605a829cdbd8a3eb83f8a6cd0bbce5ea421ada0f42231ce166677dfecc",
         "families/semaphore/acquire_twice_no_release/ground_truth.json": "ea38d285fff5cfeac4cceb872463ffc3d26c2cedb41898dc1ae9186347388a4c",
         "families/semaphore/acquire_twice_no_release/repair_task.json": "161c30fa9c9063a0c74e05f2776c29a9b45e06f393fcd57f69237ae8b82eaaea",
         "families/semaphore/acquire_twice_no_release/rust/buggy.rs": "2313586fc6d66812f493229abf230c4f79b062908fa32667bd7a3c81abf58196",
         "families/semaphore/acquire_twice_no_release/rust/fixed.rs": "a1b000081a593388dfa74d2132b351e89c5285a92edc98b9e7fbd0c197370585",
+        "families/semaphore/acquire_twice_no_release/generation_input/REQUIREMENTS.md": "f434a1ffa74d7e6a56e5f3f4400c5b28a069a419a47806d29e5a56483f06e6db",
+        "families/semaphore/acquire_twice_no_release/generation_input/requirements.json": "6134adaacfb3bda4f7a808c4df7a88196099af2eedc459f0aecfaccb47f19e0a",
         "families/semaphore/acquire_twice_no_release/repair_input/requirements.txt": "22c48f344f1f55d01a7c9eb43ae532175bc4cf3b6a886f63a7b13e0fcadbab31",
         "families/semaphore/acquire_twice_no_release/repair_input/input.cir.json": "88611b9ae9f9ca599e7cd69b3745ac665dfd02cb722c428c4e0e676e12829e94",
         "families/semaphore/acquire_twice_no_release/repair_input/input.rs": "691d644c986c297877714735a8fcc3aaa6f57e2a89c28c5500731564142856a7"
       },
       "spec": "families/semaphore/acquire_twice_no_release/spec.md",
       "contract": "families/semaphore/acquire_twice_no_release/contract.json",
+      "generation": true,
+      "requirements": [
+        "The program starts a supervising task that launches two worker threads and waits for both of them to finish.",
+        "Both worker threads share one counting permit pool that begins with exactly one permit.",
+        "A worker must hold a permit while it performs its work, so the two workers never work at the same time.",
+        "Each worker may acquire the permit more than once, and on every path it must release the permit exactly as many times as it acquired it before it finishes.",
+        "While a worker waits for a permit, the worker currently holding it must remain able to release it so the waiting worker can eventually proceed.",
+        "Every possible schedule and interleaving of the two workers must terminate.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        7
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -566,12 +704,27 @@
       "directory": "families/semaphore/throttle_n_permits",
       "files": {
         "families/semaphore/throttle_n_permits/spec.md": "c4e83ea219c13f624af8f2e4823f345e076445389e512f18bd8b2833ae167fcc",
-        "families/semaphore/throttle_n_permits/contract.json": "bd04ac4615cf19e9b1860022fd8133157df81cb523b0df999d3f84eee4d18151",
+        "families/semaphore/throttle_n_permits/contract.json": "f1127d8b9b83a712e854ecb661df0b7d2d8dd7f1066977f97e3edcce0302f2ed",
         "families/semaphore/throttle_n_permits/correct.cir.json": "57a8846dc02781cf782046993f6c6c37a1b2762c357e5484f2faee1d914faf4c",
-        "families/semaphore/throttle_n_permits/ground_truth.json": "39cfc7f87b1dbf2976528f3de2c44a33b29776abfb25aa77aa44edeb96b458ec"
+        "families/semaphore/throttle_n_permits/ground_truth.json": "39cfc7f87b1dbf2976528f3de2c44a33b29776abfb25aa77aa44edeb96b458ec",
+        "families/semaphore/throttle_n_permits/generation_input/REQUIREMENTS.md": "322fed3342e0c2338ca4cf73e7b0820d941227e6d4e2fd1305e1935546e4e06e",
+        "families/semaphore/throttle_n_permits/generation_input/requirements.json": "dc7c1f9507c44a38ad13585c8f11e8a27ad5dc26816197f14934877e1d9ce1cd"
       },
       "spec": "families/semaphore/throttle_n_permits/spec.md",
       "contract": "families/semaphore/throttle_n_permits/contract.json",
+      "generation": true,
+      "requirements": [
+        "The program starts a supervising task that launches three worker threads and waits for all of them to finish.",
+        "All three worker threads share one counting permit pool that begins with exactly two permits.",
+        "Each worker acquires one permit, performs its work, releases the permit, and then finishes.",
+        "At most two workers may hold permits at the same time, so a third worker waits until a permit is released.",
+        "While a worker waits for a permit, a holder must remain able to release it so the waiting worker can eventually proceed.",
+        "Every possible schedule and interleaving of the three workers must terminate.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        7
+      ],
       "results": {
         "correct": {
           "check_valid": true,
@@ -607,19 +760,38 @@
       "directory": "families/condvar/bare_wait_no_predicate",
       "files": {
         "families/condvar/bare_wait_no_predicate/spec.md": "9b0f73fab5f3d405cf7c93069db11c5fdc166ea70575cd2d565cf58db83932b9",
-        "families/condvar/bare_wait_no_predicate/contract.json": "951beef3e911773d319b17bdc6111bc30f26551e2fa8ede26392581ccbe94320",
+        "families/condvar/bare_wait_no_predicate/contract.json": "9917c289d3138a759f2c7be2606e95afc8e5091e096f4bb5f6805d58abede4ea",
         "families/condvar/bare_wait_no_predicate/buggy.cir.json": "c42bd955c037985ea243a39235f119955926e4267149f7ff1236fa622482b45b",
         "families/condvar/bare_wait_no_predicate/fixed.cir.json": "557c5829bc342b1bb58b6a3e22ed1db07fe95c70eb8f60b0d9b008228783b3af",
         "families/condvar/bare_wait_no_predicate/ground_truth.json": "507fdaaaaad0a6559b66cf5e9f2288c84bec8b582ffb46e5658d50e0cef171e2",
         "families/condvar/bare_wait_no_predicate/repair_task.json": "85a4686a626995720a1618f028ffba25173dda1c4ea2e3dc93850460db43687d",
         "families/condvar/bare_wait_no_predicate/rust/buggy.rs": "c3323d8c653b8eb97764ad337b42bf3f0bc7e89b616e8bbdbf80e11dfcf1f60a",
         "families/condvar/bare_wait_no_predicate/rust/fixed.rs": "326c6ab628a59c7862342906fdba55569d19677c7df2e360100da1640d9bd49f",
+        "families/condvar/bare_wait_no_predicate/generation_input/REQUIREMENTS.md": "66076ec458d91ad72ba1f17174477687323f32d10df0a59141a577b5af98fbc5",
+        "families/condvar/bare_wait_no_predicate/generation_input/requirements.json": "9b5958ae81ffb6579e7f62d5099c3aad2edfac0cf4969a4b888b452d282e9ae1",
         "families/condvar/bare_wait_no_predicate/repair_input/requirements.txt": "673e9b872e1ea5c865869fd3625c07cb95406997cee69f7620ece0922495d5a0",
         "families/condvar/bare_wait_no_predicate/repair_input/input.cir.json": "20a2feba87d455f1b68b4c2a3dfe74c6997f7795e52df4f1a5e1298ecbf4b98c",
         "families/condvar/bare_wait_no_predicate/repair_input/input.rs": "da790bb7cf366b9f031c999eb7ea21b99c7f8ac30e09ff959424f52e6d16b78a"
       },
       "spec": "families/condvar/bare_wait_no_predicate/spec.md",
       "contract": "families/condvar/bare_wait_no_predicate/contract.json",
+      "generation": true,
+      "requirements": [
+        "A main task starts a waiter role and a notifier role that run at the same time.",
+        "The waiter and the notifier share one lock and one condition variable, and the lock guards a boolean flag.",
+        "The notifier sets the shared flag to true while holding the lock, signals the condition variable, and then releases the lock.",
+        "While holding the lock, the waiter checks the flag first, waits on the condition variable only while the flag is false, and re-checks the flag after each wake.",
+        "The waiter must complete even when the notifier signals before the waiter starts waiting.",
+        "The waiter must not wait on the condition variable while the flag is already true, and must not keep the lock while blocked.",
+        "Every schedule and interleaving of the two roles must terminate with both roles finished.",
+        "The shared flag becomes true in every schedule.",
+        "The waiter must not pass its wait until the flag is true.",
+        "The program must print exactly the line `DONE ready=true` and then exit."
+      ],
+      "unverifiable": [
+        2,
+        10
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -675,19 +847,36 @@
       "directory": "families/channel/bounded_backpressure_lock_held",
       "files": {
         "families/channel/bounded_backpressure_lock_held/spec.md": "68f1b79ee7bfd9c28df05a67aa73ad265a77995a44ad3b55257cebbcb7bca9fc",
-        "families/channel/bounded_backpressure_lock_held/contract.json": "9b4f8ef4d7b79dfbcd00c58313394e668ca5b5a4f4e077da0aff3a26168f8ebb",
+        "families/channel/bounded_backpressure_lock_held/contract.json": "43cc8a8f116df636bb8815c56cadf49601419b81f92ed01f82afdead36e1ca35",
         "families/channel/bounded_backpressure_lock_held/buggy.cir.json": "0bdf33118290911a8ccfed6a782483fe7d0ff91a8b4a778c3299956f5b8f02d5",
         "families/channel/bounded_backpressure_lock_held/fixed.cir.json": "698e388adea78f0ba1b5a905d96bd3d9796479374761f998c4a52e3107127b3e",
         "families/channel/bounded_backpressure_lock_held/ground_truth.json": "73f2eb3ace7771a8c5c1e50657046097243ef1cbb71c970ba8ef0a5848969995",
         "families/channel/bounded_backpressure_lock_held/repair_task.json": "e0adab495ab065683b4f4f281eb740c5116fc07a2f3ce98310358eab8fbc5aa0",
         "families/channel/bounded_backpressure_lock_held/rust/buggy.rs": "2b8d43e3948345e0049b8e290bd3ada33d998cd12d009207456897ca8337ce7f",
         "families/channel/bounded_backpressure_lock_held/rust/fixed.rs": "74e426dd3d51643818302a1ae0db649982f28c4c0a96ce95e96606d43fb1c54d",
+        "families/channel/bounded_backpressure_lock_held/generation_input/REQUIREMENTS.md": "7dfc14678efea079a7044fd553a6871db9c59f0d7a65937bd0be37e45d2a87cb",
+        "families/channel/bounded_backpressure_lock_held/generation_input/requirements.json": "c2d5c4c37b6cefaf68d20a6463516e95fcc231fc4c3ac5c89d00a1f2ced4d03d",
         "families/channel/bounded_backpressure_lock_held/repair_input/requirements.txt": "21b70ef51e6d32b21da55bd465ead9946cb421629b715dac3d8d209b8082c116",
         "families/channel/bounded_backpressure_lock_held/repair_input/input.cir.json": "69c7aa7191b726896d91da24cc86a4ffe0072fb68a37aa200fce9fe304c08703",
         "families/channel/bounded_backpressure_lock_held/repair_input/input.rs": "35269bd26e288cd27a0ae90b7a3f6ea1c181f2583f4e8ba7aa185a24e56d228e"
       },
       "spec": "families/channel/bounded_backpressure_lock_held/spec.md",
       "contract": "families/channel/bounded_backpressure_lock_held/contract.json",
+      "generation": true,
+      "requirements": [
+        "A main task starts a sender role and a receiver role that run at the same time.",
+        "The two roles communicate through a channel that can hold at most one value, and both roles occasionally need one shared lock.",
+        "The sender passes two values in order and the receiver takes two values, so both roles can finish.",
+        "When the channel is full the sender waits before it sends again, and when the channel is empty the receiver waits before it takes.",
+        "No role may wait on the channel while holding the shared lock that the other role needs.",
+        "Every schedule and interleaving must terminate with the sender and the receiver both finished.",
+        "The sender must not pass its second value before the receiver has taken the first, because the channel holds only one value.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        2,
+        8
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -743,12 +932,27 @@
       "directory": "families/atomic-data/bounded_counter_invariant",
       "files": {
         "families/atomic-data/bounded_counter_invariant/spec.md": "b28e6ba9f032dbcf0511aa980249b3c644790e2ad0f42b9306a72fd862cea031",
-        "families/atomic-data/bounded_counter_invariant/contract.json": "f79d14587ea6a2f846b25947ef7d4def63dc1f83ccae1c0c4da28dcb57f135e1",
+        "families/atomic-data/bounded_counter_invariant/contract.json": "6890b51e593972303a2ae0408368f4c410b028922b11a2d87f657e4013cca58b",
         "families/atomic-data/bounded_counter_invariant/correct.cir.json": "be74e14b58839a54f2e9de65a22820c9230b27b31129cb0f8abea9f1d43e37f6",
-        "families/atomic-data/bounded_counter_invariant/ground_truth.json": "5af9d6ad7d33e8cfa526f0fce4e914f9b40523fabc1de94387770664915140e3"
+        "families/atomic-data/bounded_counter_invariant/ground_truth.json": "5af9d6ad7d33e8cfa526f0fce4e914f9b40523fabc1de94387770664915140e3",
+        "families/atomic-data/bounded_counter_invariant/generation_input/REQUIREMENTS.md": "ddff92f12f23eec105c93c7203e3793f98473ba71eff6296f97a11d72d98f7ba",
+        "families/atomic-data/bounded_counter_invariant/generation_input/requirements.json": "3fb0a1b06ed7c78cdd45157777c705004c707aaf72c90538380c7d38a8f8c8a7"
       },
       "spec": "families/atomic-data/bounded_counter_invariant/spec.md",
       "contract": "families/atomic-data/bounded_counter_invariant/contract.json",
+      "generation": true,
+      "requirements": [
+        "The program starts a supervising task that launches two worker threads and waits for both of them to finish.",
+        "Both worker threads share a single integer counter that is declared to range from zero to two and starts at zero.",
+        "Each worker adds exactly one to the shared counter while it holds the mutual-exclusion lock.",
+        "A worker must hold the mutual-exclusion lock whenever it reads or writes the shared counter, so the two workers never update it at the same time.",
+        "In every state that can occur, the counter value stays within its declared range from zero to two.",
+        "Every possible schedule and interleaving of the two workers must terminate.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        7
+      ],
       "results": {
         "correct": {
           "check_valid": true,
@@ -784,16 +988,31 @@
       "directory": "families/atomic-data/counter_overflow_safety",
       "files": {
         "families/atomic-data/counter_overflow_safety/spec.md": "d7f1f124ce4ed5a843d3d166cf900bc0e6d94f5e5cc07c89eef37b37dfb49472",
-        "families/atomic-data/counter_overflow_safety/contract.json": "26c77e28f80d934719243f1fe37131e503ffcdf8feba973e7d50e6b4f7865bf2",
+        "families/atomic-data/counter_overflow_safety/contract.json": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
         "families/atomic-data/counter_overflow_safety/buggy.cir.json": "6470a1eac41428de29debf87b93dc503231ed586d2be36e2b61c51fe829f82cb",
         "families/atomic-data/counter_overflow_safety/fixed.cir.json": "6c1f088436b109064b365d1c9236c3769d85f9008ceeb6b10ffc524ef0bda0c0",
         "families/atomic-data/counter_overflow_safety/ground_truth.json": "7f35fdd321c957ba0fa455a6ac23733a73a9528278f2b958263e41b0c975d76f",
         "families/atomic-data/counter_overflow_safety/repair_task.json": "ae10162508069c733a41cca286650caa7909a48fa9cf7f4a30610694c8f7a6a6",
+        "families/atomic-data/counter_overflow_safety/generation_input/REQUIREMENTS.md": "f5e6fea4c39d1ba33953ea98b4c99d3a5424d85927aea08ef747c560189496d6",
+        "families/atomic-data/counter_overflow_safety/generation_input/requirements.json": "62289eb8b714a27255cf6c58ad65fa251015fa2ccd4fff6ec9d9179405ff6e4a",
         "families/atomic-data/counter_overflow_safety/repair_input/requirements.txt": "decaf4d9a01bf22bd67a03d76cc8ae609576fcfbec6a7a252081a4b7f89ded2c",
         "families/atomic-data/counter_overflow_safety/repair_input/input.cir.json": "dc363110175af16a3de767a7ff0dc5005731eca13b0fbc1badfab4ddc267030e"
       },
       "spec": "families/atomic-data/counter_overflow_safety/spec.md",
       "contract": "families/atomic-data/counter_overflow_safety/contract.json",
+      "generation": true,
+      "requirements": [
+        "The program starts a supervising task that launches two worker threads and waits for both of them to finish.",
+        "Both worker threads share a single integer counter that is declared to range from zero to two and starts at zero.",
+        "Each worker adds one to the shared counter only when doing so keeps the value within the required upper limit.",
+        "A worker must hold the mutual-exclusion lock whenever it reads or writes the shared counter, so the two workers never update it at the same time.",
+        "In every state that can occur, the counter never exceeds one, even though its declared range allows up to two.",
+        "Every possible schedule and interleaving of the two workers must terminate.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        7
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -848,16 +1067,33 @@
       "directory": "families/atomic-data/atomic_lost_update",
       "files": {
         "families/atomic-data/atomic_lost_update/spec.md": "b883233c80fc39eb6f89d58427ebf0ceaefbfec0b5ab1b30096db802cd21d072",
-        "families/atomic-data/atomic_lost_update/contract.json": "a35e853c52debbcdf594c79b37a23945d23950f363898fe3d34c4a6e501c44f1",
+        "families/atomic-data/atomic_lost_update/contract.json": "989006ad5869078f9728e51cff2759d01fef579b04fe9a15e51dc9a1c8e94334",
         "families/atomic-data/atomic_lost_update/buggy.cir.json": "2cf02a322d19b0959aaa12d1dac6213375091ea6b5f9361976750cf88a66dca0",
         "families/atomic-data/atomic_lost_update/fixed.cir.json": "ff033934f8268b3d9491949980a51ad32af61aea0a987f1a9891fbd26c977ef5",
         "families/atomic-data/atomic_lost_update/ground_truth.json": "a53ac2861c3b2ac9ae4d3ee3053bf3e96d4054fdd2a2560862bfd83c0c7f36c0",
         "families/atomic-data/atomic_lost_update/repair_task.json": "a3bbcba9ac89cbcd29f351008cc240e7f5a75b5f25a3f4fc496d844cc5e6ba53",
+        "families/atomic-data/atomic_lost_update/generation_input/REQUIREMENTS.md": "15332babe2301fa7ff72b8e272c24d34040b4fef2568f2912ca578a524109c27",
+        "families/atomic-data/atomic_lost_update/generation_input/requirements.json": "f5982d1dd5ecf9db8aaae3ff0ad058af76885ad4565edbc8acdecd53b9af819f",
         "families/atomic-data/atomic_lost_update/repair_input/requirements.txt": "d1fb3cb450295c95701b2d1ed272ea8e88038f06a6f5a7fde1c05f3b60cff394",
         "families/atomic-data/atomic_lost_update/repair_input/input.cir.json": "91d06e8af93cf09f815d85821d5342094ffe718eba2054fcc8f0f823644e8c53"
       },
       "spec": "families/atomic-data/atomic_lost_update/spec.md",
       "contract": "families/atomic-data/atomic_lost_update/contract.json",
+      "generation": true,
+      "requirements": [
+        "The program starts a supervising task that launches two worker threads and waits for both of them to finish.",
+        "Both worker threads share a single atomic counter that starts at zero.",
+        "Each worker adds exactly one to the shared counter, so once both have finished the counter equals two.",
+        "Each worker updates the counter with an atomic read-modify-write retry loop, so a competing update can never be silently lost.",
+        "A failed update attempt must be retried rather than abandoned, so every worker's increment eventually takes effect.",
+        "From every state that can occur, it must remain possible for the counter to still reach two.",
+        "Each increment appears to happen in a single indivisible step, so no partial update is ever observable.",
+        "Every possible schedule and interleaving of the two workers must terminate.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        9
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -913,12 +1149,29 @@
       "directory": "families/structure/scope_bound_k_workers",
       "files": {
         "families/structure/scope_bound_k_workers/spec.md": "25e589302ff9669e32cd41ff59ecfdbdfebeaa4467d6d53970b3fb020ac4ce9a",
-        "families/structure/scope_bound_k_workers/contract.json": "2e7cd16a10a6cf57a9f5180b2c7911fbe981bff674429c51f5b30a42a51289fb",
+        "families/structure/scope_bound_k_workers/contract.json": "36705f432cc918dce6bd88936196a3d5251fa94fc388c25f1fe4788f8b14d723",
         "families/structure/scope_bound_k_workers/correct.cir.json": "e410b98f27884453270ac60a903d37c7f2ec5dd2905fd7622f220635a107baf1",
-        "families/structure/scope_bound_k_workers/ground_truth.json": "634c62b1254141fbce172087803bc760c32ed44951f719a8d6da05e25059d950"
+        "families/structure/scope_bound_k_workers/ground_truth.json": "634c62b1254141fbce172087803bc760c32ed44951f719a8d6da05e25059d950",
+        "families/structure/scope_bound_k_workers/generation_input/REQUIREMENTS.md": "0257988ba60a3fd1beefa7c095b6165f2038ec0f1452ad94ec02a4cacfece064",
+        "families/structure/scope_bound_k_workers/generation_input/requirements.json": "299de513687d2dadcc142790211a2c248555abf8da2ebb63ccece1b5675978ad"
       },
       "spec": "families/structure/scope_bound_k_workers/spec.md",
       "contract": "families/structure/scope_bound_k_workers/contract.json",
+      "generation": true,
+      "requirements": [
+        "A main task starts three worker roles that share a single permit, and each role may have up to two activations running at once.",
+        "Each activation holds the single permit while it does its work and releases it afterwards.",
+        "At most one activation may hold the permit at any moment.",
+        "An activation that cannot obtain the permit waits until the permit becomes available.",
+        "Every schedule and interleaving must terminate.",
+        "All three worker roles complete.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        1,
+        2,
+        7
+      ],
       "results": {
         "correct": {
           "check_valid": true,
@@ -954,19 +1207,36 @@
       "directory": "families/structure/nested_scope_lock_order",
       "files": {
         "families/structure/nested_scope_lock_order/spec.md": "9aca708bc00c13a4c8a99648f8c22dd60b72bc5090ae022defee703be9c3c350",
-        "families/structure/nested_scope_lock_order/contract.json": "428e72b8bc56df90196e96aa4558bd483e7b1207535a1f5a6fd11a616085f41a",
+        "families/structure/nested_scope_lock_order/contract.json": "aaef1c7ac85f1c42111761a2ff24d841949d2ef1e28133dc519843dc039dccb6",
         "families/structure/nested_scope_lock_order/buggy.cir.json": "5f69cb04cc404f0f0562f409f7db6d79135ee448c7c6dc456623dfa6b105389c",
         "families/structure/nested_scope_lock_order/fixed.cir.json": "e4ed9de548420b83162fd1e42846573834c8abaae4c1e90b5ed1e3f7e8ba828c",
         "families/structure/nested_scope_lock_order/ground_truth.json": "57abf1cbd4946f7ed4186eeec4467dc1e153bb8e892029591f4cb54729a164d4",
         "families/structure/nested_scope_lock_order/repair_task.json": "fd7cad43324cb65944dabf4cad2d6dd40fc0cff666755cec14d099550258ddfd",
         "families/structure/nested_scope_lock_order/rust/buggy.rs": "9d9517f3f5b020e4edc3770b178df13282d61ae7c74c026971d25f2e102c88d5",
         "families/structure/nested_scope_lock_order/rust/fixed.rs": "8413e31aacbd6eeef448c39ee60366e2ef230b12fdb070010b224ea273b8defb",
+        "families/structure/nested_scope_lock_order/generation_input/REQUIREMENTS.md": "c5bbe5e06aba912e893ea4e41a6746b9199810d114fd54121d812a9ad2ff64f0",
+        "families/structure/nested_scope_lock_order/generation_input/requirements.json": "a4b2eec6fc9931d979db2c71f146fd7a3ad72acf15612827d6128301d22f3e38",
         "families/structure/nested_scope_lock_order/repair_input/requirements.txt": "ff3e70980c1264a7ebef8a0adc2094b0f1052da8d50b56afc8114a83db96949c",
         "families/structure/nested_scope_lock_order/repair_input/input.cir.json": "b5dd8f2ae6a3bfe0cb324a349b61efe93a6e98940cee44581161abe85cc149c0",
         "families/structure/nested_scope_lock_order/repair_input/input.rs": "c2a4b5675ace2aa4e4ebf950af8584fea38fd0dcb539e4a19fdbcabe6352a22e"
       },
       "spec": "families/structure/nested_scope_lock_order/spec.md",
       "contract": "families/structure/nested_scope_lock_order/contract.json",
+      "generation": true,
+      "requirements": [
+        "A main task starts one outer worker.",
+        "The outer worker starts a nested group of two inner tasks.",
+        "Each inner task takes mutex A and mutex B and, at some point, holds both of them at the same time.",
+        "The two inner tasks take the mutexes in the same order so that no wait cycle can form.",
+        "The outer worker completes, and it only completes after both inner tasks have finished.",
+        "Every schedule and interleaving of the tasks must terminate.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        1,
+        2,
+        7
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -1023,16 +1293,35 @@
       "directory": "families/structure/scope_worker_abba",
       "files": {
         "families/structure/scope_worker_abba/spec.md": "b4d15204f16e0b569ce5f3661aff065a3ff043637b2d418a9cd6cbc2a3cd4f63",
-        "families/structure/scope_worker_abba/contract.json": "041164032bf8ce724a517d77dd54c6dcc63aa42b96cf9edb2661905c9ab07508",
+        "families/structure/scope_worker_abba/contract.json": "2c5df140bb9592efeadb6bfb4a10e25cf8192cb15d577b4899111d5c97f4865a",
         "families/structure/scope_worker_abba/buggy.cir.json": "491b3f888ce8ae46a8a2b8d8f1f6ceb9aac8d9a7f2b668dd846d678128c8a9d3",
         "families/structure/scope_worker_abba/fixed.cir.json": "27555b889c5105ea06ce74733f02c88e31d8d6b29db050c8f50c240af333db32",
         "families/structure/scope_worker_abba/ground_truth.json": "4ddf42c49faea7577055533eefc1b7a15b3e09c7cecd30d1b545c3b85de05511",
         "families/structure/scope_worker_abba/repair_task.json": "853ad2b0528216ed8e54658b7ed42a4ee502dbf89cea8a85e37ca46e508a7331",
+        "families/structure/scope_worker_abba/generation_input/REQUIREMENTS.md": "d0ff3148d5432a97eee72759f3ca5d550eaf5482052e04d469b5757eaa2093ce",
+        "families/structure/scope_worker_abba/generation_input/requirements.json": "b60a8e0bed469b35cffb5253908d37aef076b938477925152568351a751084ef",
         "families/structure/scope_worker_abba/repair_input/requirements.txt": "3462e43477789a9f5bbd8be3558ea249dc394dd4a9897cb0ab957f503d168fdd",
         "families/structure/scope_worker_abba/repair_input/input.cir.json": "3cb9f109138d0e6a051a5662ef5d88554fce48537e524f6f8b93371482684cd0"
       },
       "spec": "families/structure/scope_worker_abba/spec.md",
       "contract": "families/structure/scope_worker_abba/contract.json",
+      "generation": true,
+      "requirements": [
+        "A main task starts a group of two workers that both contend for the same two mutexes, A and B.",
+        "Each worker takes mutex A and mutex B and, at some point, holds both of them at the same time.",
+        "Each worker releases each mutex it took once its work is finished.",
+        "At most one worker may hold a given mutex at any moment.",
+        "The two workers take the mutexes in the same order so that no wait cycle can form.",
+        "A worker that cannot take a held mutex waits until it becomes free.",
+        "Every schedule and interleaving of the workers must terminate.",
+        "Each worker completes, and the group finishes only after both workers have completed.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        1,
+        3,
+        9
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -1089,12 +1378,31 @@
       "directory": "families/structure/worker_with_payload",
       "files": {
         "families/structure/worker_with_payload/spec.md": "416c1c62f7ded1009fb8670a356d9696ffd8e1ff7f1d3ee76c340a89509e6390",
-        "families/structure/worker_with_payload/contract.json": "764918442d3dde59071305f78c336d142fa612a40edba3b88281df8fc7fba328",
+        "families/structure/worker_with_payload/contract.json": "e9931a050fae90a449b62a1b48a7954543174bbbe592c0d4ba0a7d813fcc3c0a",
         "families/structure/worker_with_payload/correct.cir.json": "9a459c80ac84e096ed060c6ebaf67939a895ae9157085787f3ab50ac430615ab",
-        "families/structure/worker_with_payload/ground_truth.json": "882141308f5affee963c6885e397aa32c40386624c41362cb382730d91dce98e"
+        "families/structure/worker_with_payload/ground_truth.json": "882141308f5affee963c6885e397aa32c40386624c41362cb382730d91dce98e",
+        "families/structure/worker_with_payload/generation_input/REQUIREMENTS.md": "b6e73aa83cfc67564eb5d2e191467dbd604e3ad98be17cf10f36e70d64dd6f46",
+        "families/structure/worker_with_payload/generation_input/requirements.json": "f9015579132f24f160bf3c3f6ee40b9f8adc034ea587a598582a50a170e38967"
       },
       "spec": "families/structure/worker_with_payload/spec.md",
       "contract": "families/structure/worker_with_payload/contract.json",
+      "generation": true,
+      "requirements": [
+        "A main task starts a group of two workers.",
+        "Each worker takes a shared mutex, calls a sequential helper routine that performs only local computation, then updates a shared counter while still holding the mutex.",
+        "Each worker releases the mutex it took before it finishes.",
+        "At most one worker may hold the shared mutex at any moment.",
+        "A worker that cannot take a held mutex waits until it becomes free.",
+        "Every schedule and interleaving of the workers must terminate.",
+        "Both workers complete.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        1,
+        2,
+        3,
+        8
+      ],
       "results": {
         "correct": {
           "check_valid": true,
@@ -1171,15 +1479,36 @@
       "directory": "families/lock-order/two_independent_cycles",
       "files": {
         "families/lock-order/two_independent_cycles/spec.md": "da0154144286a8eb3bed11366c00065aa0ea1b168471fa3b41d6160d9534d7fb",
-        "families/lock-order/two_independent_cycles/contract.json": "addcd3c76c712d7a1569eb749ce400c62857aecb018734bf8f8cf084d9acce31",
+        "families/lock-order/two_independent_cycles/contract.json": "4273504d2945063aa80526d9ed2d6945307afb3be76a43f697d30fae26814af4",
         "families/lock-order/two_independent_cycles/buggy.cir.json": "9d43e80c423b713db3df0261337c698f9ff59312f25f3160bd700a6a698694ed",
-        "families/lock-order/two_independent_cycles/ground_truth.json": "9f798c1b311d751fe70797273978e7d9c18d9eb53d16c5671c66f77b35d9836b",
-        "families/lock-order/two_independent_cycles/repair_task.json": "4aa48ba1e172e641264816c5746c93e1e2c586d38218b503eaf4a8657fa6a376",
+        "families/lock-order/two_independent_cycles/fixed.cir.json": "ad98a817a5f8b29839df6fca9e3abfdf6bae900bc30b7fba429f99d3b34c776f",
+        "families/lock-order/two_independent_cycles/ground_truth.json": "577ac77b13032844150c3210940e2219f454e358a3d2b6b2f581fba0e900d407",
+        "families/lock-order/two_independent_cycles/repair_task.json": "fb8318d50c78688fc0362831e1e978df8c62b721dc58ed1d9bd6f971fc17616d",
+        "families/lock-order/two_independent_cycles/generation_input/REQUIREMENTS.md": "866b4160299b53edf06270931608b3592bf1ddbaae8ff84739755d65f8c18d69",
+        "families/lock-order/two_independent_cycles/generation_input/requirements.json": "d1a7a12378bd7c4f3ac9bf86c568db78aa4610c00d1a2fdfbfcabac098b152f7",
         "families/lock-order/two_independent_cycles/repair_input/requirements.txt": "afdeb7e2982a730a3b864c55356096f4135941b742599a476660049582903c81",
         "families/lock-order/two_independent_cycles/repair_input/input.cir.json": "b9611ea35fb0abbd886aec5d07aa91a7d84af793a63da40e2ded42b2f3f9c256"
       },
       "spec": "families/lock-order/two_independent_cycles/spec.md",
       "contract": "families/lock-order/two_independent_cycles/contract.json",
+      "generation": true,
+      "requirements": [
+        "The design contains one main thread and four worker threads.",
+        "Four locks are shared among the workers, arranged as a first pair and a second pair.",
+        "The first two workers each need both locks of the first pair, and the last two workers each need both locks of the second pair.",
+        "Each worker must hold both locks of its pair at the same time while it works.",
+        "The two pairs must be independent, so that progress in one pair does not depend on the other pair.",
+        "Within the first pair, the two workers must take their two locks in the same relative sequence.",
+        "Within the second pair, the two workers must take their two locks in the same relative sequence.",
+        "No worker may hold one lock of its pair while waiting forever for the other lock of that pair.",
+        "Every worker must release each lock it holds before it finishes.",
+        "The main thread starts all four workers and only finishes after all four have finished.",
+        "Every possible schedule or interleaving of the workers must terminate.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        12
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -1190,6 +1519,16 @@
           "interp_complete": true,
           "states": 2211,
           "wall_ms": null
+        },
+        "fixed": {
+          "check_valid": true,
+          "support": true,
+          "petri": "PASS",
+          "interp": "PASS",
+          "petri_complete": true,
+          "interp_complete": true,
+          "states": 1371,
+          "wall_ms": null
         }
       },
       "status": "ready",
@@ -1198,11 +1537,12 @@
         "resources": [],
         "statements": [],
         "expected_outcome_buggy": "FAIL",
-        "provenance": "concir regression seed (two independent cycles)"
+        "provenance": "concir regression seed (two independent cycles)",
+        "expected_outcome_fixed": "PASS"
       },
       "id": "lock-order/two_independent_cycles",
       "buggy_cir": "families/lock-order/two_independent_cycles/buggy.cir.json",
-      "fixed_cir": null,
+      "fixed_cir": "families/lock-order/two_independent_cycles/fixed.cir.json",
       "correct_cir": null,
       "buggy_rs": null,
       "fixed_rs": null,
@@ -1218,12 +1558,31 @@
       "directory": "families/condvar/same_cv_different_locks",
       "files": {
         "families/condvar/same_cv_different_locks/spec.md": "0c88c1b3a5fa936e5c3672f81b74129e26663061058af24f3a260961c8c78fce",
-        "families/condvar/same_cv_different_locks/contract.json": "208a625a826de0bbe0677f256f33c44d23d274a4f57422d1ed95045342067f3a",
+        "families/condvar/same_cv_different_locks/contract.json": "17d0da5b27d2d13855208429fcbfde01394319604875aa11fb9e8a7d2e13409c",
         "families/condvar/same_cv_different_locks/correct.cir.json": "d1d6e7c95adedec669bd0903bdacabf176b2c0f217e3569d8640ff19c27f6156",
-        "families/condvar/same_cv_different_locks/ground_truth.json": "2579326529818c09a767dfd9f57d4e746ae4539d622a319e7270a7f7e53814f9"
+        "families/condvar/same_cv_different_locks/ground_truth.json": "2579326529818c09a767dfd9f57d4e746ae4539d622a319e7270a7f7e53814f9",
+        "families/condvar/same_cv_different_locks/generation_input/REQUIREMENTS.md": "e8dfbd4a09a40a1467067d31263fe290e396acbc1cfca88f7b9da5bcc28dead4",
+        "families/condvar/same_cv_different_locks/generation_input/requirements.json": "cff22886533ad60402a4a8382a62d28ce3c2c2bd032053cabe0919326836b3e1"
       },
       "spec": "families/condvar/same_cv_different_locks/spec.md",
       "contract": "families/condvar/same_cv_different_locks/contract.json",
+      "generation": true,
+      "requirements": [
+        "A main task starts two waiter roles and one notifier role that run at the same time.",
+        "The two waiters guard their work with two different locks.",
+        "Both waiters block on the same condition variable.",
+        "A waiter must hold its own lock while it waits on the shared condition variable.",
+        "Each waiter must announce that it is about to wait before it blocks, so the notifier knows how many waits to expect.",
+        "The notifier must wait until both waiters have announced themselves before it wakes them.",
+        "When the notifier wakes the waiters it must hold each lock that a waiter needs in order to wake and finish.",
+        "The waking step must not leave any waiter blocked and must not depend on a race between the waiters.",
+        "Every schedule and interleaving must terminate with all roles finished.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        1,
+        10
+      ],
       "results": {
         "correct": {
           "check_valid": true,
@@ -1257,19 +1616,38 @@
       "directory": "families/condvar/notify_one_multi_waiter_wrong_pick",
       "files": {
         "families/condvar/notify_one_multi_waiter_wrong_pick/spec.md": "d0e949dbad319ceb5293f16fa8b54fe95b2220ec99012f9090ccca6162a54d7b",
-        "families/condvar/notify_one_multi_waiter_wrong_pick/contract.json": "b92ccd5ffc977ae72d22ff1f0266140ffb6793edbb5a80640816922033d8023e",
+        "families/condvar/notify_one_multi_waiter_wrong_pick/contract.json": "6b04d2c2e1b03eebef5ecb8eeb3334c9d359dc6eb8785aa1e2a61392224cfe7f",
         "families/condvar/notify_one_multi_waiter_wrong_pick/buggy.cir.json": "e2bc49550cbd8b817817b928c0e3ac1c4e92734d61cf65c548dae7230f5f1855",
         "families/condvar/notify_one_multi_waiter_wrong_pick/fixed.cir.json": "701c6fd10e1eee274f677e35db585f987c1a02c1ad8161db88586744dacd078c",
         "families/condvar/notify_one_multi_waiter_wrong_pick/ground_truth.json": "90b51a096e1cae1ec6ac795b36bbdcae801b2bb5184be9f041ad96c161eed597",
         "families/condvar/notify_one_multi_waiter_wrong_pick/repair_task.json": "ccedfa65bafbafcc256b0476267321a1784b640f003185a3bfc561cf713aff0a",
         "families/condvar/notify_one_multi_waiter_wrong_pick/rust/buggy.rs": "ad73c2a778d0d6756e636a791d865e8ba428f633285c6cbebe4424b59f382c4b",
         "families/condvar/notify_one_multi_waiter_wrong_pick/rust/fixed.rs": "17581f66d15bd9c7dc246790cf3b758c5ce95cc311a6444a407956a91b1f1789",
+        "families/condvar/notify_one_multi_waiter_wrong_pick/generation_input/REQUIREMENTS.md": "3c8d71cbeaa46006cc4c681c6316705bb34e8d04de0eb8e2a7865658def9b4fc",
+        "families/condvar/notify_one_multi_waiter_wrong_pick/generation_input/requirements.json": "0c330fac1f60ee3946d795abf6308d9c8dc6462f72d057525404fb82ffd146fb",
         "families/condvar/notify_one_multi_waiter_wrong_pick/repair_input/requirements.txt": "374c6e00ef0f3ff0d36f9f4a05caa0b3dc05387443ec8bdf4d034ae4aa4be026",
         "families/condvar/notify_one_multi_waiter_wrong_pick/repair_input/input.cir.json": "caa541021c59724f63140d63e5c7b7642d8786357d51c10556c92650be14117e",
         "families/condvar/notify_one_multi_waiter_wrong_pick/repair_input/input.rs": "daa46ba4c2babc35e1fc082b3655126f23d252a289c478aaacb0bae701dd3d54"
       },
       "spec": "families/condvar/notify_one_multi_waiter_wrong_pick/spec.md",
       "contract": "families/condvar/notify_one_multi_waiter_wrong_pick/contract.json",
+      "generation": true,
+      "requirements": [
+        "A main task starts two waiter roles and one notifier role that run at the same time.",
+        "Each waiter blocks on a shared condition variable until it is told to proceed.",
+        "The notifier must wake every waiter that is still blocked, so no waiter is left waiting forever.",
+        "A waiter must hold the lock while it waits on the condition variable.",
+        "The notifier must take the lock before it wakes the waiters and release the lock afterwards.",
+        "The waiters and the notifier use a separate permit counter so that the notifier only wakes the waiters after both are ready to wait.",
+        "Waking a single waiter is not enough; every blocked waiter must be woken.",
+        "Every schedule and interleaving must terminate with every waiter and the notifier finished.",
+        "Every waiter completes in every schedule.",
+        "The program must print exactly the line `DONE waiters=0` and then exit."
+      ],
+      "unverifiable": [
+        1,
+        10
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -1318,19 +1696,32 @@
       "directory": "families/channel/send_while_holding_mutex",
       "files": {
         "families/channel/send_while_holding_mutex/spec.md": "89521f3dc39d79958bdad3ea6674d785d5323b3f809cb54b3c92bef23fafdcce",
-        "families/channel/send_while_holding_mutex/contract.json": "0e2cf45274ebf9175ae37b498cb62227063c8ebc9391185d843ea6eeac90d054",
+        "families/channel/send_while_holding_mutex/contract.json": "5c03493f10f5dbfa185b0c938baf4cb1e28dedc303751a3060813fbabf910f72",
         "families/channel/send_while_holding_mutex/buggy.cir.json": "9ccc4d4e0dac86e35637ca75f8cfaf8e08b27f6c67512b8346fc7bd9a72cfdf8",
         "families/channel/send_while_holding_mutex/fixed.cir.json": "122f058916d543bcb41509cdedd4a267d4ef2aaf482ea22bd905528d463c6145",
         "families/channel/send_while_holding_mutex/ground_truth.json": "3ef66e05d36f031a63af79b4640939cda7686a683dcb02db77a0bbf33d561558",
         "families/channel/send_while_holding_mutex/repair_task.json": "af0040dd32ac1e6bc5f7a22cc454fa7cea40b8df0c6cf672f2ebbed18d63438a",
         "families/channel/send_while_holding_mutex/rust/buggy.rs": "43806b614bb334d3b46af4deed139341e5cf7cabd5d5c7dd2b9192354c8f3b8f",
         "families/channel/send_while_holding_mutex/rust/fixed.rs": "6ea3d2d57aaf0ac6db1a9de9779ea7f42f6b670db985295885e4b0bd4c0d9d26",
+        "families/channel/send_while_holding_mutex/generation_input/REQUIREMENTS.md": "74a3e142de76fed872ca082c550689c97361cc5397d21b00d05fcfafa91f2312",
+        "families/channel/send_while_holding_mutex/generation_input/requirements.json": "b37204a1edf176d69b874ca76c864743142d87cb49f72755db70d719eafd8880",
         "families/channel/send_while_holding_mutex/repair_input/requirements.txt": "bef7c2f340ecaf43edf0ca6f097c1100e8a4b9c99e156596736dc1310237028f",
         "families/channel/send_while_holding_mutex/repair_input/input.cir.json": "5baef20346fd891648041f699830f1606e59f239fa184a3591d5e8d9ca1fd7de",
         "families/channel/send_while_holding_mutex/repair_input/input.rs": "476ecabd5dc2dc2fdc90562f3e3751a5c1779f8c882574f39b3e96ef1e2b14f0"
       },
       "spec": "families/channel/send_while_holding_mutex/spec.md",
       "contract": "families/channel/send_while_holding_mutex/contract.json",
+      "generation": true,
+      "requirements": [
+        "A main task starts a sender role and a receiver role that run at the same time, and both roles occasionally use one shared lock.",
+        "The two roles exchange a value over a channel that requires both roles to meet.",
+        "No role may wait on the channel while holding the shared lock that the other role needs.",
+        "Every schedule and interleaving must terminate with the sender and the receiver both finished.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        5
+      ],
       "results": {
         "buggy": {
           "check_valid": true,
@@ -1379,12 +1770,26 @@
       "directory": "families/structure/finite_call_loop",
       "files": {
         "families/structure/finite_call_loop/spec.md": "66fb01e1188bf2cd3e480d84013c7de7dc46e147c2e0c4f5dc355a8648eccc02",
-        "families/structure/finite_call_loop/contract.json": "decdf7f99a6bd0bcbe76634aaa9c79191df79d4533e604e9a41f5712e1253b58",
+        "families/structure/finite_call_loop/contract.json": "7b211f8df0c6661f63e98fb71ce5e3d3825fdc389e9393eab09e0b106ff69089",
         "families/structure/finite_call_loop/correct.cir.json": "0b077998fb0ec27520e9c4e362cf934275b0c4145f0b041867383b7662d325af",
-        "families/structure/finite_call_loop/ground_truth.json": "6845b07ca650e707b7676f1248777e0cb2d57c70dbd27e4a8c2bba36e479bd32"
+        "families/structure/finite_call_loop/ground_truth.json": "6845b07ca650e707b7676f1248777e0cb2d57c70dbd27e4a8c2bba36e479bd32",
+        "families/structure/finite_call_loop/generation_input/REQUIREMENTS.md": "0bda27f893008b74328bdbd9ee88b5ff2d24b098c0f18be99af707572efb110d",
+        "families/structure/finite_call_loop/generation_input/requirements.json": "c28390e60af357c1525ea0a970514fec32bcaf22653919d73e1bdfd267bdf051"
       },
       "spec": "families/structure/finite_call_loop/spec.md",
       "contract": "families/structure/finite_call_loop/contract.json",
+      "generation": true,
+      "requirements": [
+        "A main task calls an auxiliary routine and then begins the same call sequence again.",
+        "The main task and the auxiliary routine share no mutexes, counters, or other shared state, so no two tasks contend for a resource.",
+        "Each auxiliary call runs to completion before the calling task starts the next call.",
+        "Every schedule and interleaving of the tasks must terminate.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        1,
+        5
+      ],
       "results": {
         "correct": {
           "check_valid": true,
@@ -1418,12 +1823,28 @@
       "directory": "families/structure/spawn_join_loop_finite",
       "files": {
         "families/structure/spawn_join_loop_finite/spec.md": "9ef9ad0f106ea53aa5eab3f70618c6b4d20eff9720bc031b283e00b812341aac",
-        "families/structure/spawn_join_loop_finite/contract.json": "29c46cf280d4360692992adb519fbe2acb8d301a9482820905a70b55d1920849",
+        "families/structure/spawn_join_loop_finite/contract.json": "b8f6667377bd4b27c912935249f51c35cf6360077e2e60db239b379770c607c5",
         "families/structure/spawn_join_loop_finite/correct.cir.json": "04fc4f493b5414f44840805852e32181a8bef57f0c997ae0cecc8efa9595b76e",
-        "families/structure/spawn_join_loop_finite/ground_truth.json": "6573983052eb2473039c7666772df6a5610457e6132ed926c5ad5dd91f64d3a1"
+        "families/structure/spawn_join_loop_finite/ground_truth.json": "6573983052eb2473039c7666772df6a5610457e6132ed926c5ad5dd91f64d3a1",
+        "families/structure/spawn_join_loop_finite/generation_input/REQUIREMENTS.md": "6df307312ec6a21e4cf9b1d92d760148cde32e18d29a1134cc8c519352dc7439",
+        "families/structure/spawn_join_loop_finite/generation_input/requirements.json": "79aac1b0d943f34ba7b91b0c3ce364819f8a922b04d49f6b04912f28ccfd36eb"
       },
       "spec": "families/structure/spawn_join_loop_finite/spec.md",
       "contract": "families/structure/spawn_join_loop_finite/contract.json",
+      "generation": true,
+      "requirements": [
+        "A main task starts a worker task and waits for that worker to finish, then begins the same start-and-wait cycle again.",
+        "The worker task performs no shared work and shares no mutexes or counters with the main task.",
+        "Each started worker is waited for exactly once before the next worker is started.",
+        "No task ever waits for a worker that cannot finish, so no execution stalls.",
+        "Every schedule and interleaving must terminate.",
+        "The program must print exactly the line `DONE done=1` and then exit."
+      ],
+      "unverifiable": [
+        1,
+        2,
+        6
+      ],
       "results": {
         "correct": {
           "check_valid": true,

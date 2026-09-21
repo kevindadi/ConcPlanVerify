@@ -31,6 +31,24 @@ LEGACY = ROOT / "benchmarks/legacy-paper-patterns"
 PATTERNS = ROOT / "benchmarks/patterns"
 FROZEN = ROOT / "experiments/deepseek-flash-repair-v1/frozen-inputs"
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from generation_requirements import GENERATION, GENERATION_FAMILIES  # noqa: E402
+
+# ─────────────── §0 benchmark v3: generation requirements + tiers ───────────────
+# Complexity tiers over (requirement count, reference threads+resources, reference
+# model state count).  Thresholds are frozen in benchmarks/TIERS.md.
+TIER_SIMPLE = {"max_requirements": 7, "max_states": 45, "max_shape": 4}
+TIER_COMPLEX = {"min_states": 100, "min_requirements": 10, "min_req_states": 40,
+                "min_shape": 7}
+
+# Requirement text must not leak the model/verifier vocabulary or code.
+FORBIDDEN_GEN_PATTERNS = [
+    r"\bconcir\b", r"\bcir\b", r"\bsid\b", r"\bcontract\b", r"holds_all",
+    r"always_reachable", r"deadlock_free", r"\breachability\b", r"\bunreachable\b",
+    r"\bpreserved\b", r"```", r"println", r"\bfn\b", r"\bpub\b", r"std::",
+    r"\bmpsc\b", r"Condvar", r"Semaphore", r"\bRust\b",
+]
+
 BOUNDS = {"max_threads": 8, "max_frames_per_thread": 8, "max_states": 20000,
           "max_depth": 64, "max_boundary_events": 256}
 SCOPE = {"allow_lock_reorder": True}
@@ -152,6 +170,114 @@ DEFAULT_TERMINAL = "DONE done=1"
 TERMINAL_SENTENCE = (
     "On completion the program must print exactly one line `{line}` and then exit; "
     "it must terminate.")
+
+
+def terminal_line_for(key: str) -> str:
+    return TERMINAL.get(key, DEFAULT_TERMINAL)
+
+
+def cir_shape(program: dict) -> tuple[int, int]:
+    """Return (thread count, resource count) for a CIR program.
+
+    Threads are the distinct functions started by ``scope``/``spawn``; resources
+    are every declared resource across modules.
+    """
+    threads: set[str] = set()
+    resources = 0
+    for mod in program.get("modules", []):
+        resources += len(mod.get("resources", []))
+        for fn in mod.get("functions", []):
+            for st in fn.get("body", []):
+                if st.get("kind") in ("scope", "spawn"):
+                    for ref in st.get("funcs") or []:
+                        threads.add(ref if "::" in ref else f"{mod['name']}::{ref}")
+                    if st.get("func"):
+                        ref = st["func"]
+                        threads.add(ref if "::" in ref else f"{mod['name']}::{ref}")
+    return len(threads), resources
+
+
+def classify_tier(requirements: int, shape: int, states: int | None) -> str:
+    s = TIER_SIMPLE
+    if (requirements <= s["max_requirements"]
+            and (states is None or states <= s["max_states"])
+            and shape <= s["max_shape"]):
+        return "Simple"
+    c = TIER_COMPLEX
+    if ((states is not None and states >= c["min_states"])
+            or (requirements >= c["min_requirements"]
+                and states is not None and states >= c["min_req_states"])
+            or shape >= c["min_shape"]):
+        return "Complex"
+    return "Medium"
+
+
+def _generation_entry(family: str, case: str, data: dict) -> dict:
+    """Attach ``req`` tags to the (design-intent-extended) contract and return
+    the generation metadata for *family*/*case*."""
+    key = f"{family}/{case}"
+    spec = GENERATION[key]
+    requirements = list(spec["requirements"])
+    unverifiable = sorted(set(spec["unverifiable"]))
+    if not (4 <= len(requirements) <= 16):
+        raise ValueError(f"{key}: requirement count {len(requirements)} not in 4..16")
+    if len(requirements) not in unverifiable:
+        raise ValueError(f"{key}: the terminal requirement must be marked [U]")
+    terminal = terminal_line_for(key)
+    requirements[-1] = (f"The program must print exactly the line `{terminal}` "
+                        f"and then exit.")
+    contract = data["contract"]
+    props = contract.get("properties", [])
+    pres = contract.get("preserved", [])
+    cp = spec["clauses"]["properties"]
+    cpres = spec["clauses"]["preserved"]
+    if len(cp) != len(props) or len(cpres) != len(pres):
+        raise ValueError(
+            f"{key}: clause length mismatch (properties {len(cp)}!={len(props)}, "
+            f"preserved {len(cpres)}!={len(pres)})")
+    ids = {f"R{i}" for i in range(1, len(requirements) + 1)}
+    for refs in cp + cpres:
+        for rid in refs:
+            if rid not in ids:
+                raise ValueError(f"{key}: unknown requirement id {rid}")
+    covered = {rid for refs in cp + cpres for rid in refs}
+    for i, req in enumerate(requirements, 1):
+        if i not in unverifiable and f"R{i}" not in covered:
+            raise ValueError(f"{key}: R{i} is decidable but covered by no clause")
+        if i in unverifiable and f"R{i}" in covered:
+            raise ValueError(f"{key}: R{i} is [U] but referenced by a clause")
+    for prop, refs in zip(props, cp):
+        prop["req"] = list(refs)
+    for clause, refs in zip(pres, cpres):
+        clause["req"] = list(refs)
+    return {
+        "task": key,
+        "requirements": requirements,
+        "unverifiable": unverifiable,
+        "clauses": {"properties": [list(r) for r in cp],
+                    "preserved": [list(r) for r in cpres]},
+        "terminal": terminal,
+    }
+
+
+def render_requirements(meta: dict) -> str:
+    unv = set(meta["unverifiable"])
+    lines = ["# Requirements", ""]
+    for i, req in enumerate(meta["requirements"], 1):
+        mark = " [U]" if i in unv else ""
+        lines.append(f"R{i}. {req}{mark}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def check_requirement_text(meta: dict) -> list[str]:
+    import re
+    errors: list[str] = []
+    for i, req in enumerate(meta["requirements"], 1):
+        for pat in FORBIDDEN_GEN_PATTERNS:
+            if re.search(pat, req, flags=re.IGNORECASE):
+                errors.append(f"{meta['task']}: R{i} matches forbidden {pat!r}: {req}")
+    return errors
 
 
 def strip_comments(source: str) -> str:
@@ -1175,6 +1301,8 @@ def _apply_design_intent(family: str, case: str, data: dict) -> None:
 
 def write_case(family: str, case: str, data: dict) -> dict:
     _apply_design_intent(family, case, data)
+    key = f"{family}/{case}"
+    meta = _generation_entry(family, case, data) if key in GENERATION else None
     task = OUT / family / case
     task.mkdir(parents=True, exist_ok=True)
     # remove stale variants so an old buggy/fixed/correct file can never linger
@@ -1182,6 +1310,19 @@ def write_case(family: str, case: str, data: dict) -> dict:
         (task / stale).unlink(missing_ok=True)
     (task / "spec.md").write_text(data["spec"].strip() + "\n", encoding="utf-8")
     write_json(task / "contract.json", data["contract"])
+    if meta is not None:
+        gin = task / "generation_input"
+        gin.mkdir(exist_ok=True)
+        (gin / "REQUIREMENTS.md").write_text(render_requirements(meta),
+                                             encoding="utf-8")
+        write_json(gin / "requirements.json", {
+            "task": key,
+            "requirements": meta["requirements"],
+            "unverifiable": meta["unverifiable"],
+            "clauses": meta["clauses"],
+            "terminal": meta["terminal"],
+            "contract": f"{family}/{case}/contract.json",
+        })
     if data.get("buggy") is not None:
         write_json(task / "buggy.cir.json", data["buggy"])
     if data.get("fixed") is not None:
@@ -1212,14 +1353,21 @@ def write_case(family: str, case: str, data: dict) -> dict:
     files = {}
     for name in ("spec.md", "contract.json", "buggy.cir.json", "fixed.cir.json",
                  "correct.cir.json", "ground_truth.json", "repair_task.json",
-                 "rust/buggy.rs", "rust/fixed.rs"):
+                 "rust/buggy.rs", "rust/fixed.rs",
+                 "generation_input/REQUIREMENTS.md",
+                 "generation_input/requirements.json"):
         path = task / name
         if path.is_file():
             files[f"families/{family}/{case}/{name}"] = sha256(path)
-    return {"family": family, "case": case, "directory": f"families/{family}/{case}",
-            "files": files,
-            "spec": f"families/{family}/{case}/spec.md",
-            "contract": f"families/{family}/{case}/contract.json"}
+    entry = {"family": family, "case": case, "directory": f"families/{family}/{case}",
+             "files": files,
+             "spec": f"families/{family}/{case}/spec.md",
+             "contract": f"families/{family}/{case}/contract.json"}
+    if meta is not None:
+        entry["generation"] = True
+        entry["requirements"] = meta["requirements"]
+        entry["unverifiable"] = meta["unverifiable"]
+    return entry
 
 
 def add_reuse() -> list[dict]:
@@ -1263,11 +1411,34 @@ def add_reuse() -> list[dict]:
                             if st.get("kind") == "channel_recv" and st.get("channel") == "ch2":
                                 st["channel"] = "ch1"
                 data["fixed"] = fixed
+            if case == "two_independent_cycles":
+                # Fixed twin: both workers of each pair take the pair's two
+                # locks in one consistent order (a before b; c before d).
+                fixed = json.loads(json.dumps(prog))
+                order = {"t2": ("a", "b"), "t4": ("c", "d")}
+                for mm in fixed.get("modules", []):
+                    for fn in mm.get("functions", []):
+                        want = order.get(fn["name"])
+                        if not want:
+                            continue
+                        locks = [st for st in fn["body"]
+                                 if st.get("kind") == "mutex_lock"]
+                        unlocks = [st for st in fn["body"]
+                                   if st.get("kind") == "mutex_unlock"]
+                        if len(locks) != 2 or len(unlocks) != 2:
+                            continue
+                        locks[0]["resource"], locks[1]["resource"] = want
+                        unlocks[0]["resource"], unlocks[1]["resource"] = (
+                            want[1], want[0])
+                data["fixed"] = fixed
+                data["ground_truth"]["expected_outcome_fixed"] = "PASS"
         entries.append(write_case(family, case, data))
     return entries
 
 
 def main() -> int:
+    if "--check-generation" in sys.argv:
+        return check_generation_cli()
     OUT.mkdir(parents=True, exist_ok=True)
     tasks: list[dict] = []
     mismatches: list[str] = []
@@ -1364,6 +1535,9 @@ def main() -> int:
     tasks.extend(_legacy_entries())
     tasks.extend(_real_case_entries())
 
+    # §0 benchmark v3: generation manifest + complexity tiers.
+    gen_entries = build_generation(tasks)
+
     # R-1: generate de-leaked repair inputs for every ready buggy case.
     counters: dict[str, int] = {}
     for entry in tasks:
@@ -1393,7 +1567,12 @@ def main() -> int:
     write_json(ROOT / "benchmarks/MANIFEST.json", manifest)
 
     _write_families_md(tasks, mismatches)
+    failures.extend(validate_generation(gen_entries))
     print(f"families: {len(tasks)} cases, {len(mismatches)} pre-registration mismatches")
+    print(f"generation: {len(gen_entries)} tasks, "
+          f"{sum(1 for e in gen_entries if e['tier'] == 'Simple')}S/"
+          f"{sum(1 for e in gen_entries if e['tier'] == 'Medium')}M/"
+          f"{sum(1 for e in gen_entries if e['tier'] == 'Complex')}C")
     for m in mismatches:
         print(f"  mismatch: {m}")
     if failures:
@@ -1402,6 +1581,175 @@ def main() -> int:
             print(f"  {f}", file=sys.stderr)
         return 1
     return 0
+
+
+def build_generation(tasks: list[dict]) -> list[dict]:
+    """Build ``GENERATION_MANIFEST.json`` and ``TIERS.md`` from validated tasks."""
+    entries: list[dict] = []
+    for entry in tasks:
+        key = f"{entry.get('family')}/{entry.get('case')}"
+        if key not in GENERATION:
+            continue
+        task_dir = ROOT / "benchmarks/families" / entry["family"] / entry["case"]
+        ref_variant = ref_obj = None
+        for variant in ("fixed", "correct", "buggy"):
+            path = task_dir / f"{variant}.cir.json"
+            if path.is_file():
+                ref_variant, ref_obj = variant, json.loads(path.read_text(encoding="utf-8"))
+                break
+        if ref_obj is None:
+            continue
+        threads, resources = cir_shape(ref_obj)
+        reqs = GENERATION[key]["requirements"]
+        res = (entry.get("results") or {}).get(ref_variant) or {}
+        states = res.get("states")
+        contract = json.loads((task_dir / "contract.json").read_text(encoding="utf-8"))
+        entries.append({
+            "task": key, "family": entry["family"], "case": entry["case"],
+            "tier": classify_tier(len(reqs), threads + resources, states),
+            "requirements": len(reqs),
+            "unverifiable": len(GENERATION[key]["unverifiable"]),
+            "properties": len(contract.get("properties", [])),
+            "preserved": len(contract.get("preserved", [])),
+            "reference_variant": ref_variant,
+            "threads": threads, "resources": resources, "shape": threads + resources,
+            "states": states, "terminal": terminal_line_for(key),
+            "requirements_sha256": sha256(task_dir / "generation_input/REQUIREMENTS.md"),
+            "contract_sha256": sha256(task_dir / "contract.json"),
+        })
+    entries.sort(key=lambda e: (e["family"], e["case"]))
+    tiers = {t: [e["task"] for e in entries if e["tier"] == t]
+             for t in ("Simple", "Medium", "Complex")}
+    manifest = {
+        "version": 1,
+        "description": "Generation benchmark v3: per-task requirement documents, "
+                       "req-tagged frozen contracts and complexity tiers. status=ready "
+                       "means build_families validation passed.",
+        "families": list(GENERATION_FAMILIES),
+        "thresholds": {"Simple": TIER_SIMPLE, "Complex": TIER_COMPLEX,
+                       "Medium": "otherwise"},
+        "tiers": tiers,
+        "tasks": entries,
+    }
+    write_json(ROOT / "benchmarks/GENERATION_MANIFEST.json", manifest)
+    _write_tiers_md(entries, tiers)
+    return entries
+
+
+def _validate_generation_task(key: str, contract: dict, reqjson: dict) -> list[str]:
+    import re
+    errors: list[str] = []
+    reqs = reqjson["requirements"]
+    unverifiable = set(reqjson["unverifiable"])
+    ids = {f"R{i}" for i in range(1, len(reqs) + 1)}
+    props = contract.get("properties", [])
+    pres = contract.get("preserved", [])
+    for what, clauses in (("properties", props), ("preserved", pres)):
+        for i, clause in enumerate(clauses):
+            if "req" not in clause:
+                errors.append(f"{key}: {what}[{i}] carries no req tag")
+                continue
+            for rid in clause["req"]:
+                if rid not in ids:
+                    errors.append(f"{key}: {what}[{i}] references unknown {rid}")
+    covered = {rid for clause in props + pres for rid in clause.get("req", [])}
+    for i, req in enumerate(reqs, 1):
+        if i not in unverifiable and f"R{i}" not in covered:
+            errors.append(f"{key}: R{i} is decidable but covered by no clause")
+        if i in unverifiable and f"R{i}" in covered:
+            errors.append(f"{key}: R{i} is [U] but referenced by a clause")
+        for pat in FORBIDDEN_GEN_PATTERNS:
+            if re.search(pat, req, flags=re.IGNORECASE):
+                errors.append(f"{key}: R{i} matches forbidden pattern {pat!r}")
+    return errors
+
+
+def validate_generation(entries: list[dict]) -> list[str]:
+    errors: list[str] = []
+    ids = {e["task"] for e in entries}
+    expected = set(GENERATION)
+    for missing in sorted(expected - ids):
+        errors.append(f"generation task {missing} missing from the manifest")
+    for e in entries:
+        task_dir = ROOT / "benchmarks/families" / e["task"]
+        cpath = task_dir / "contract.json"
+        rpath = task_dir / "generation_input/requirements.json"
+        mpath = task_dir / "generation_input/REQUIREMENTS.md"
+        if not (cpath.is_file() and rpath.is_file() and mpath.is_file()):
+            errors.append(f"{e['task']}: missing generation artifact")
+            continue
+        contract = json.loads(cpath.read_text(encoding="utf-8"))
+        reqjson = json.loads(rpath.read_text(encoding="utf-8"))
+        errors.extend(_validate_generation_task(e["task"], contract, reqjson))
+        tier = classify_tier(len(reqjson["requirements"]), e["shape"], e.get("states"))
+        if tier != e["tier"]:
+            errors.append(f"{e['task']}: tier {e['tier']} != recomputed {tier}")
+        if sha256(cpath) != e["contract_sha256"]:
+            errors.append(f"{e['task']}: contract sha changed after manifest")
+        if sha256(mpath) != e["requirements_sha256"]:
+            errors.append(f"{e['task']}: REQUIREMENTS.md sha changed after manifest")
+        if mpath.read_text(encoding="utf-8") != render_requirements(
+                {"task": e["task"], "requirements": reqjson["requirements"],
+                 "unverifiable": reqjson["unverifiable"]}):
+            errors.append(f"{e['task']}: REQUIREMENTS.md is not the rendered form")
+    return errors
+
+
+def check_generation_cli() -> int:
+    """Offline acceptance check for the generation benchmark (no backend needed)."""
+    path = ROOT / "benchmarks/GENERATION_MANIFEST.json"
+    if not path.is_file():
+        print("GENERATION_MANIFEST.json missing", file=sys.stderr)
+        return 1
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    entries = manifest.get("tasks", [])
+    errors = validate_generation(entries)
+    tiers = {t: 0 for t in ("Simple", "Medium", "Complex")}
+    for e in entries:
+        tiers[e.get("tier")] = tiers.get(e.get("tier"), 0) + 1
+    print(f"check-generation: {len(entries)} tasks, "
+          f"{tiers.get('Simple', 0)}S/{tiers.get('Medium', 0)}M/"
+          f"{tiers.get('Complex', 0)}C, {len(errors)} errors")
+    for err in errors:
+        print(f"  error: {err}", file=sys.stderr)
+    return 1 if errors else 0
+
+
+def _write_tiers_md(entries: list[dict], tiers: dict[str, list[str]]) -> None:
+    lines = [
+        "# TIERS — generation benchmark complexity tiers",
+        "",
+        "Tiers are computed from `(requirement count, reference threads + resources, "
+        "reference model states)` where the reference model is the case's `fixed`, "
+        "`correct` or `buggy` CIR (in that order) and `states` is the petri state "
+        "count recorded by `explore`.",
+        "",
+        "Thresholds (frozen):",
+        "",
+        f"- **Simple**: requirements <= {TIER_SIMPLE['max_requirements']} and "
+        f"states <= {TIER_SIMPLE['max_states']} and shape <= {TIER_SIMPLE['max_shape']}.",
+        f"- **Complex**: states >= {TIER_COMPLEX['min_states']}, or (requirements >= "
+        f"{TIER_COMPLEX['min_requirements']} and states >= {TIER_COMPLEX['min_req_states']}), "
+        f"or shape >= {TIER_COMPLEX['min_shape']}.",
+        "- **Medium**: everything else.",
+        "",
+        "| task | tier | reqs | [U] | props | preserved | threads | resources | "
+        "shape | states | reference |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for e in entries:
+        lines.append(
+            f"| {e['task']} | {e['tier']} | {e['requirements']} | {e['unverifiable']} | "
+            f"{e['properties']} | {e['preserved']} | {e['threads']} | {e['resources']} | "
+            f"{e['shape']} | {e['states']} | {e['reference_variant']} |")
+    lines += ["", "## Tier membership", ""]
+    for tier in ("Simple", "Medium", "Complex"):
+        lines.append(f"### {tier} ({len(tiers.get(tier, []))})")
+        lines.append("")
+        for task in tiers.get(tier, []):
+            lines.append(f"- {task}")
+        lines.append("")
+    (ROOT / "benchmarks/TIERS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _legacy_entries() -> list[dict]:
