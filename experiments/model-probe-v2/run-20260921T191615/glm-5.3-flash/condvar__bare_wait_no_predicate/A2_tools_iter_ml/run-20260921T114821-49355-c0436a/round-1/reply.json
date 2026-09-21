@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    let pair = Arc::new((Mutex::new(false), Condvar::new()));\n\n    let pair_w = Arc::clone(&pair);\n    let waiter = thread::spawn(move || {\n        let (mtx, cv) = &*pair_w;\n        let mut guard = mtx.lock().unwrap();\n        while !*guard {\n            guard = cv.wait(guard).unwrap();\n        }\n        drop(guard);\n        println!(\"DONE ready=true\");\n    });\n\n    let pair_n = Arc::clone(&pair);\n    let notifier = thread::spawn(move || {\n        let (mtx, cv) = &*pair_n;\n        let mut ready = mtx.lock().unwrap();\n        *ready = true;\n        cv.notify_all();\n        drop(ready);\n    });\n\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n}\n```"
+}

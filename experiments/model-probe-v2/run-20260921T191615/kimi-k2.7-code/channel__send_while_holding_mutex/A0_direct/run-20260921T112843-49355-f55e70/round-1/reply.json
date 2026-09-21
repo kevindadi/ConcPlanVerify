@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{mpsc, Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let (tx, rx) = mpsc::sync_channel::<i32>(0);\n    let shared = Arc::new(Mutex::new(0));\n\n    let shared_s = Arc::clone(&shared);\n    let s = thread::spawn(move || {\n        // Communicate without holding the shared lock.\n        tx.send(1).unwrap();\n\n        // Then occasionally acquire the shared mutex.\n        let mut guard = shared_s.lock().unwrap();\n        *guard += 10;\n    });\n\n    let shared_r = Arc::clone(&shared);\n    let r = thread::spawn(move || {\n        // Receive while NOT holding the lock the sender may need.\n        let v = rx.recv().unwrap();\n\n        // Then use the shared mutex.\n        let mut guard = shared_r.lock().unwrap();\n        *guard += v;\n    });\n\n    s.join().unwrap();\n    r.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let mtx_a = Arc::new(Mutex::new(()));\n    let mtx_b = Arc::new(Mutex::new(()));\n\n    let (a1, b1) = (Arc::clone(&mtx_a), Arc::clone(&mtx_b));\n    let w1 = thread::spawn(move || {\n        // Lock in a consistent global order: A first, then B.\n        let ga = a1.lock().unwrap();\n        let gb = b1.lock().unwrap();\n        drop(gb);\n        drop(ga);\n    });\n\n    let (a2, b2) = (Arc::clone(&mtx_a), Arc::clone(&mtx_b));\n    let w2 = thread::spawn(move || {\n        // Same order: A first, then B. This removes the circular\n        // wait that caused the deadlock.\n        let ga = a2.lock().unwrap();\n        let gb = b2.lock().unwrap();\n        drop(gb);\n        drop(ga);\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    println!(\"DONE t1=1 t2=1\");\n}\n```"
+}

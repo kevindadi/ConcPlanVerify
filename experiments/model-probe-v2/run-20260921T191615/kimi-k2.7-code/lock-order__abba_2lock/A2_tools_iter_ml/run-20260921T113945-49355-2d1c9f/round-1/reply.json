@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let mtx_a = Arc::new(Mutex::new(()));\n    let mtx_b = Arc::new(Mutex::new(()));\n\n    let t1 = Arc::new(AtomicUsize::new(0));\n    let t2 = Arc::new(AtomicUsize::new(0));\n\n    let (a1, b1, done1) = (Arc::clone(&mtx_a), Arc::clone(&mtx_b), Arc::clone(&t1));\n    let w1 = thread::spawn(move || {\n        let ga = a1.lock().unwrap();\n        let gb = b1.lock().unwrap();\n        drop(gb);\n        drop(ga);\n        done1.store(1, Ordering::SeqCst);\n    });\n\n    let (a2, b2, done2) = (Arc::clone(&mtx_a), Arc::clone(&mtx_b), Arc::clone(&t2));\n    let w2 = thread::spawn(move || {\n        let ga = a2.lock().unwrap();\n        let gb = b2.lock().unwrap();\n        drop(gb);\n        drop(ga);\n        done2.store(1, Ordering::SeqCst);\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    println!(\n        \"DONE t1={} t2={}\",\n        t1.load(Ordering::SeqCst),\n        t2.load(Ordering::SeqCst)\n    );\n}\n```"
+}
