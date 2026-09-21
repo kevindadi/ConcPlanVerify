@@ -187,6 +187,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--postedit")
     p.add_argument("--mutation-v1")
     p.add_argument("--postedit-v1")
+    p.add_argument("--modelprobe")
     p.add_argument("--latex")
     p.add_argument("--output", required=True)
 
@@ -413,7 +414,8 @@ def main(argv: list[str] | None = None) -> int:
                          Path(args.mutation_v1) if args.mutation_v1 else None,
                          Path(args.postedit_v1) if args.postedit_v1 else None,
                          Path(args.mutation) if args.mutation else None,
-                         Path(args.postedit) if args.postedit else None)
+                         Path(args.postedit) if args.postedit else None,
+                         Path(args.modelprobe) if args.modelprobe else None)
             Path(args.output).write_text(text, encoding="utf-8")
             written = []
             if args.latex:
@@ -430,6 +432,24 @@ def main(argv: list[str] | None = None) -> int:
                 written = latex_tables(rows, candidates, trackd, scale, mutation,
                                        postedit, Path(args.latex), command, shas,
                                        mutation_v1)
+                if args.modelprobe:
+                    mp_runs = sorted(Path(args.modelprobe).glob("run-*"))
+                    if mp_runs:
+                        mp = json.loads((mp_runs[-1] / "SUMMARY.json").read_text())
+                        body = ("\\toprule\n\\textbf{model} & \\textbf{arm} & "
+                                "\\textbf{cells} & \\textbf{accepted} & \\textbf{false-acc} \\\\\n\\midrule\n")
+                        for model, v in mp.get("models", {}).items():
+                            for arm in ("A0_direct", "A2_tools_iter_ml", "A3_local"):
+                                rs = [c for c in v.get("cells", [])
+                                      if c.get("arm") == arm and not c.get("error")]
+                                acc = sum(1 for c in rs if c.get("accepted"))
+                                fa = sum(1 for c in rs if c.get("accepted")
+                                         and (c.get("oracle") or {}).get("bug_present") is True)
+                                body += f"{model} & {arm} & {len(rs)} & {acc} & {fa} \\\\\n"
+                        body += "\\bottomrule"
+                        (Path(args.latex) / "model_probe.tex").write_text(
+                            "% model_probe.tex\n\\begin{tabular}{llrrr}\n" + body + "\n\\end{tabular}\n")
+                        written.append("model_probe.tex")
             print(json.dumps({"out": args.output, "bytes": len(text),
                               "latex": written}, indent=2))
             return 0

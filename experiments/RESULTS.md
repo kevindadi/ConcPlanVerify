@@ -2,7 +2,7 @@
 
 > **Generated file — do not edit by hand.** Regenerate with:
 > ```
-> python -m cir_workflow results --out /tmp results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --expert experiments/flash-repair-main-v1/expert-labels/EXPERT_LABELS.json --extraction experiments/extraction-v5 --trackd experiments/detection-v3/TRACKD.json --scale experiments/scale-v2/SCALE.json --mutation experiments/conform-mutation-v2/SUMMARY.json --postedit experiments/post-edit-conform-v2/SUMMARY.json --mutation-v1 experiments/conform-mutation-v1/SUMMARY.json --postedit-v1 experiments/post-edit-conform-v1/SUMMARY.json --latex experiments/tables --output experiments/RESULTS.md
+> python -m cir_workflow results --out /tmp results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --expert experiments/flash-repair-main-v1/expert-labels/EXPERT_LABELS.json --extraction experiments/extraction-v5 --trackd experiments/detection-v3/TRACKD.json --scale experiments/scale-v2/SCALE.json --mutation experiments/conform-mutation-v2/SUMMARY.json --postedit experiments/post-edit-conform-v2/SUMMARY.json --mutation-v1 experiments/conform-mutation-v1/SUMMARY.json --postedit-v1 experiments/post-edit-conform-v1/SUMMARY.json --modelprobe experiments/model-probe-v2 --latex experiments/tables --output experiments/RESULTS.md
 > ```
 
 ## Provenance
@@ -13,6 +13,7 @@
 - track D: `experiments/detection-v3/TRACKD.json`
 - scale: `experiments/scale-v2/SCALE.json`
 - binary sha256: `4bec943dd486473caab24b17233b536e31641fbbb1e3d8d505d499b3113fb3f2`
+- binary v2 (conform) sha256: `073129de3a6d378a4e198bf712028c0c950cdf080981fb0073dfb7af5fa7ce5c`
 - protocol[0] sha256: `b869a532588c83b2520f4c8df40e4be36c848789e9b7714301b1a22f9159e7f0`
 - protocol[1] sha256: `b869a532588c83b2520f4c8df40e4be36c848789e9b7714301b1a22f9159e7f0`
 - protocol[2] sha256: `b869a532588c83b2520f4c8df40e4be36c848789e9b7714301b1a22f9159e7f0`
@@ -88,7 +89,7 @@
 
 | arm | cells | accepted | accept_rate | false_accept | conform_pass_rate | escalation_rate | tokens/correct_accept | by source |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| A0_direct | 30 | 30 | 1.00 | 11 | — | — | 456 | {'behavior': 8, 'expert': 9, 'by_construction': 3} |
+| A0_direct | 30 | 30 | 1.00 | 11 | — | — | 456 | {'expert': 9, 'behavior': 8, 'by_construction': 3} |
 | A1_self_iter | 30 | 23 | 0.77 | 1 | — | — | 1315 | {'expert': 1} |
 | A2_tools_iter_ml | 30 | 28 | 0.93 | 3 | — | — | 715 | {'expert': 3} |
 | A3_local | 30 | 24 | 0.80 | 0 | 24/24 = 1.00 | — | 675 | — |
@@ -335,6 +336,19 @@ Human review: 11 candidates; agent vs human **7/7** (agent unsure 4); human vs a
 | E1 | 19/19 | 0 | 22/22 | 0 |
 | E2 | 14/19 | 0 | 20/21 | 0 |
 | E3 | 17/19 | 0 | 18/21 | 0 |
+
+### Model probe (OpenCode Go)
+
+| model | arm | cells | accepted | false_accept |
+| --- | --- | --- | --- | --- |
+| kimi-k2.7-code | A0_direct | 5 | 5 | 0 |
+| kimi-k2.7-code | A2_tools_iter_ml | 6 | 6 | 0 |
+| kimi-k2.7-code | A3_local | 7 | 7 | 0 |
+| glm-5.3-flash | A0_direct | 8 | 7 | 1 |
+| glm-5.3-flash | A2_tools_iter_ml | 8 | 8 | 0 |
+| glm-5.3-flash | A3_local | 8 | 7 | 0 |
+
+Not part of the main table; 8 SMOKE tasks, 1 rep, K=4.
 
 ### Track D — tasks with a Rust reference
 

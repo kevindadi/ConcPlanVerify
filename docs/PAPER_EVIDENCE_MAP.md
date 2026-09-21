@@ -19,7 +19,7 @@ rebase after the `E102` fix is `03d343e5…` (0 verdict changes).
 | (h) | Expert track + human review | per-candidate labels 54, unsure 4/54 = 7.4%, agreement 108/117 = 0.923; **human review 17 rows = 11 candidates**, agent vs human 7/7, human vs auto 9/11 | `scripts/label_v2.py`; `scripts/merge_human_review.py` | `expert-labels/EXPERT_LABELS.json`, `HUMAN_REVIEW_QUEUE.md`, `HUMAN_MERGE.md`; `RESULTS.md` expert table | **ready** |
 | (i) | Extraction track (third Rust oracle) | validated 0/63 → limitation | `scripts/run_extraction_v6.py` | `extraction-v6/EXTRACTION_LIMITS.md` | **ready** (as a limitation) |
 
-| (j) | Generalization | main batch 10 tasks x 6 arms x 3 reps (added `abba_2lock`, `bare_wait_no_predicate`); A3_local 24/30, A3_whole 26/30 — whole wins on `bare_wait_no_predicate` (new predicate needed) while local is ~5x cheaper | `scripts/run_main_v1_extra.py`; `results` | `RESULTS.md` §1/§Per-arm | **partial** (no second model: endpoint aliases return Flash, `model-probe-v1/SUMMARY.md`) |
+| (j) | Generalization | main batch 10 tasks x 6 arms x 3 reps (A3_local 24/30, A3_whole 26/30; local ~5x cheaper); **two OpenCode Go models** (`kimi-k2.7-code`, `glm-5.3-flash`) reproduce the pattern on 8 tasks (A2-ml/A3_local 0 false-accept; A0 trivial) | `scripts/run_main_v1_extra.py`; `scripts/model_probe_v2.py`; `results` | `RESULTS.md`; `model-probe-v2/SUMMARY.md`; `tables/model_probe.tex` | **ready** |
 
 ## Notes
 

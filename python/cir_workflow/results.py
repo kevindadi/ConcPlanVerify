@@ -467,6 +467,22 @@ def render(rows: list[dict[str, Any]], expert_agg: dict[str, dict],
                      f"{b.get('drift_caught_only_by_conform','—')} |")
         L.append("")
 
+    # ---- Model probe
+    mp = header.get("modelprobe")
+    if mp:
+        L += ["### Model probe (OpenCode Go)", "",
+              "| model | arm | cells | accepted | false_accept |",
+              "| --- | --- | --- | --- | --- |"]
+        for model, v in mp.get("models", {}).items():
+            cells = v.get("cells", [])
+            for arm in ("A0_direct", "A2_tools_iter_ml", "A3_local"):
+                rs = [c for c in cells if c.get("arm") == arm and not c.get("error")]
+                acc = sum(1 for c in rs if c.get("accepted"))
+                fa = sum(1 for c in rs if c.get("accepted")
+                         and (c.get("oracle") or {}).get("bug_present") is True)
+                L.append(f"| {model} | {arm} | {len(rs)} | {acc} | {fa} |")
+        L += ["", "Not part of the main table; 8 SMOKE tasks, 1 rep, K=4.", ""]
+
     # ---- Track D
     if trackd:
         records = trackd.get("records") or trackd.get("tasks") or []
@@ -576,7 +592,8 @@ def build(batch_paths: list[Path], expert_paths: list[Path], extract_dirs: list[
           trackd_path: Path | None, scale_path: Path | None,
           reclass_path: Path | None, command: str,
           mutation_v1_path: Path | None = None, postedit_v1_path: Path | None = None,
-          mutation_path: Path | None = None, postedit_path: Path | None = None) -> str:
+          mutation_path: Path | None = None, postedit_path: Path | None = None,
+          modelprobe_dir: Path | None = None) -> str:
     summaries = load_summaries(batch_paths)
     expert_agg, expert_cell, candidates = expert_index(expert_paths)
     extract = extract_index(extract_dirs)
@@ -586,6 +603,11 @@ def build(batch_paths: list[Path], expert_paths: list[Path], extract_dirs: list[
     mutation_v1 = json.loads(mutation_v1_path.read_text()) if mutation_v1_path and mutation_v1_path.is_file() else None
     postedit_v1 = json.loads(postedit_v1_path.read_text()) if postedit_v1_path and postedit_v1_path.is_file() else None
     mutation_v2 = json.loads(mutation_path.read_text()) if mutation_path and mutation_path.is_file() else None
+    modelprobe = None
+    if modelprobe_dir and Path(modelprobe_dir).exists():
+        runs = sorted(Path(modelprobe_dir).glob("run-*"))
+        if runs:
+            modelprobe = json.loads((runs[-1] / "SUMMARY.json").read_text())
     postedit_v2 = json.loads(postedit_path.read_text()) if postedit_path and postedit_path.is_file() else None
     rows = aggregate(summaries, expert_agg, expert_cell, extract, reclass)
     inputs = []
@@ -602,10 +624,13 @@ def build(batch_paths: list[Path], expert_paths: list[Path], extract_dirs: list[
     if reclass_path and reclass_path.is_file():
         inputs.append(("reclass overlay", str(reclass_path)))
     shas = [("binary", s.get("binary_sha256") or "unknown") for s in summaries[:1]]
+    if mutation_v2 and mutation_v2.get("binary_sha256"):
+        shas.append(("binary v2 (conform)", mutation_v2["binary_sha256"]))
     shas += [(f"protocol[{i}]", s.get("protocol_sha256") or "unknown")
              for i, s in enumerate(summaries)]
     header = {"command": command, "inputs": inputs, "shas": shas,
-              "mutation": mutation_v2, "postedit": postedit_v2}
+              "mutation": mutation_v2, "postedit": postedit_v2,
+              "modelprobe": modelprobe}
     return render(rows, expert_agg, candidates, extract, trackd, scale, header,
                   DEFAULT_DEVIATIONS, mutation_v1, postedit_v1)
 
@@ -722,6 +747,7 @@ def latex_tables(rows: list[dict[str, Any]], candidates: list[dict],
         body += "\\bottomrule"
         write("mutation.tex", "\\begin{tabular}{lrrrl}\n" + body + "\n\\end{tabular}")
 
+    mp = (header_modelprobe := None)
     if mutation and mutation.get("ops"):
         ops1 = (mutation_v1 or {}).get("ops", {})
         body = ("\\toprule\n\\textbf{op} & \\textbf{v1 recall} & \\textbf{v2 recall} \\\\\n\\midrule\n")

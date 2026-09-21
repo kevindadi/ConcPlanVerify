@@ -55,3 +55,19 @@ Directory sha256 = sha256 of `find <dir> -type f -not -path '*/target/*' | sort 
 | §4 10-task extension | 55 |
 | §5 model probe | 0 |
 | total | 127 / 220 |
+
+## Freeze 2 (round m)
+
+- BIN_MAIN (main batch): `4bec943dd486473caab24b17233b536e31641fbbb1e3d8d505d499b3113fb3f2`
+- BIN_V2 (operation-bound conform / a3-to-rust-v2 / mutation-v2 / post-edit-v2): `073129de3a6d378a4e198bf712028c0c950cdf080981fb0073dfb7af5fa7ce5c`
+- ConcIR commit: cir_trace v2 + conform v2 (see `git log` in ConcIR)
+- Tags: ConcPV `experiments-v2-freeze-2`, ConcIR `concir-freeze-2`
+- model-probe-v2 dir sha256: see the directory list above after this commit.
+
+## Round m budgets
+
+| section | provider | requests |
+| --- | --- | --- |
+| §3 post-edit-v2 | DeepSeek | 64 |
+| §6 tiered addendum | DeepSeek | 18 |
+| §5 model probe | OpenCode Go | 58 (kimi 25 + glm 33) |
