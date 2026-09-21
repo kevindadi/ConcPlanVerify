@@ -1,4 +1,4 @@
-本轮目标：(1) 用冻结的人工 contract 重算契约强度表（离线，脚本入库）；(2) 把 A3 的主模式改为局部再生成 `A3_local`，整份重发降为消融臂，并放开 sid 规范化；(3) 抽取 oracle 改双围栏协议 + sid 补齐，盘上 12 个候选补跑；(4) 跑第一批可进论文的多臂批次 `flash-repair-smoke-v3`：8 个 hard 任务 × {A0, A1, A2-ml, A3_local, A3_whole}，带终态要求与新契约，三列 oracle 齐全。不做多模型、不写论文、不调 Lockbud、不改 conform 规则。
+本轮目标：(1) 用冻结的人工 contract 重算契约强度表（离线，脚本入库）；(2) 把 A3 的主模式改为局部再生成 `A3_local`，整份重发降为消融臂，并放开 sid 规范化；(3) 抽取 oracle 改双围栏协议 + sid 补齐，盘上 12 个候选补跑；(4) 跑第一批可进论文的多臂批次 `flash-repair-smoke-v3`：8 个 hard 任务 × {A0, A1, A2-ml, A3_local, A3_whole}，带终态要求与新契约，三列 oracle 齐全。不做多模型、不写论文、不调 Lockbud、不改 conform 规则。 
 
 先读：
 /Users/kevin/local-repos/ConcPlanVerify/reviews/experiments-v2-contract-strength-working-tree/REVIEW.md（G-1..G-6）
@@ -26,7 +26,7 @@
 
 三、抽取 oracle（G-3）
 
-1. `prompts/rust_to_cir_extract_v3.md`：输出两个围栏块 ```json（CIR）与 ```rust（标注源码），不再要求单个 JSON 对象；sid 可缺省（由 normalizer 补），但 `ev` 里的 sid 必须与 CIR 一致——为此要求 LLM 先写 CIR 再写 Rust，且 Rust 中的 `ev` 引用 CIR 里已写出的 sid。
+1. `prompts/rust_to_cir_extract_v3.md`：输出两个围栏块 `json（CIR）与` rust（标注源码），不再要求单个 JSON 对象；sid 可缺省（由 normalizer 补），但 `ev` 里的 sid 必须与 CIR 一致——为此要求 LLM 先写 CIR 再写 Rust，且 Rust 中的 `ev` 引用 CIR 里已写出的 sid。
 2. `extract.py`：解析双围栏；normalize（含 sid 补齐）；构建；20 native + 8 miri；全部 conformant 才 `extract_validated`。
 3. 对 v2 的 12 个盘上候选补跑（≤24 请求），更新 `oracle.model`（旧值留 `oracle.model_v2`）。报告 `extract_validated` 数与未验证原因分布；对未验证的给首个 violation 的事件索引与 frontier。
 4. 可选：对 `A3_free` 程序跑一次抽取（G-5），若验证通过则说明 66 违规是标注错而非代码错，写进 HANDOFF。
@@ -46,3 +46,4 @@
 - ConcIR：如无需改动则只记录 `cargo test` 数量与 binary sha；若为 E208/E931 增加诊断字段则单独 commit。
 - 验收线：强度表每条 record 带两个契约 sha，且 v2 partial v3 在冻结契约下 FAIL；规范化回归 valid 数有明确 x/y；抽取 `extract_validated` >0 或每格有 violation 定位；smoke-v3 至少 6 个任务跑完全部 5 臂，`A3_local` 的 `check_invalid` 轮次占比在 HANDOFF 中给出并与 `A3_whole` 对照；Rust 臂每个 accept 格的三列 oracle 都有非 `no_output` 值。
 - 做不完则停在当前节，已完成节全部提交，HANDOFF 写清停点。
+
