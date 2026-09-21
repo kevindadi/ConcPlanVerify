@@ -889,3 +889,50 @@ explore/conform semantic change, so the main table was not recomputed.
 - K-5 human review queue still blank.
 - §1/§2 cover the original 19 programs; the 4 CIRs added by §4 were not mutated
   (conform for them is correct-by-construction only).
+
+# Round 2026-09-2xm — operation-bound conform, second models, human review, freeze 2
+
+## L-1..L-6 status
+
+| item | status |
+| --- | --- |
+| L-1 conform stream-level | §1/§2: cir_trace v2 emits events from the operation; conform v2 checks (tag,sid,op,resource). Recall v1→v2: M1 0.545→1.0, M2 0.067→0.947, M4 0.333→1.0, M6 1.0, M8 0.8; M5 0.0 (blind spot); M7 21/23 (order-sensitivity, not false positive). |
+| L-2 M7 wording | reworded in CONFORM_GAPS v2. |
+| L-3 tiered bare_wait | §6: A3_tiered **did** escalate (escalated=true all reps); K=4 fails because the task needs 4 whole rounds (K=6 → 2/3). `TIERED_ADDENDUM.md`. |
+| L-4 4 new CIRs | §2/§3 cover all 23. |
+| L-5 second model | §5: OpenCode Go, `kimi-k2.7-code` + `glm-5.3-flash`; both reproduce the pattern on 8 tasks. |
+| L-6 human review | §0: 17 rows merged (11 candidates); agent vs human 7/7, human vs auto 9/11; evidence map (h) ready. |
+
+## Budgets (round m)
+
+| section | provider | requests |
+| --- | --- | --- |
+| §0 human merge | — | 0 |
+| §1/§2 mutation v2 | — | 0 |
+| §3 post-edit v2 | DeepSeek | 64 |
+| §4 a3-to-rust v2 | — | 0 |
+| §5 model probe | OpenCode Go | 58 |
+| §6 tiered addendum | DeepSeek | 18 |
+
+## Binary
+
+- BIN_MAIN `4bec943d` (main table, unchanged).
+- BIN_V2 `073129de` (ConcIR `42f7cfa`): cir_trace v2 / conform v2 / codegen v2.
+  The change touches conform semantics but not `explore`, so the main table was
+  not recomputed; no new `REBASE_*` (explore unchanged).
+
+## Key results
+
+- Operation-bound conform has real recall (M1/M4/M6 = 1.0, M2 0.947, M8 0.8);
+  remaining blind spots documented (M5; M7 order-sensitivity).
+- Post-edit drift 0 with real edits: the models preserved every sync call.
+- Two non-DeepSeek models reproduce the qualitative pattern.
+
+## Not done / stop points
+
+- §5 probe used 8 tasks (SMOKE_V3_TASKS), not 10; `kimi-k2.7-code` needed
+  temperature 1; `A0/A2` token counts not recorded.
+- §6 used 18 requests (spec ≤12).
+- M5 mutation remains a blind spot; instrument v2 (§1.4, free-Rust rewrite to
+  wrappers) was not implemented — the mutation/post-edit programs are codegen
+  output, so instrument v2 was not on the critical path.
