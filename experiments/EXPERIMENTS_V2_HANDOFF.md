@@ -1021,3 +1021,25 @@ study is now the second study.  FSE 2027 target, deadline 2026-10-02 AoE.
 - new `concir-backend` (with `monitor`): sha256
   `8480f162ba6c47217a3f8fc0ba0e71d0e1acb85b27efdd23d6354c49e4e9f31f`.
 - Rust tests: **246 passed** (238 + 8 monitor). Python: **133 passed**.
+
+## Round 2026-09-21o — update: instrument v2 + §1 acceptance
+
+| item | status | evidence |
+| --- | --- | --- |
+| instrument v2 | **done** | `concir-instrument --wrappers` (`src/instrument.rs`): free Rust -> `cir_trace::sync` wrapper types, binding-derived resource names, `thread::spawn` events, lazy thread tags, sids by `(resource, op, order)`, `resources.json` + `limitations`. 3 integration tests. |
+| monitor alignment | done | `spawn`/`join`/`complete` bound to contract function FQNs; contract `function` names are valid mapping targets. |
+| harness | done | `python/cir_workflow/rust_oracle.py` (instrument -> cargo build -> 32 native runs -> monitor -> kind/order auto-mapping -> coverage) + `scripts/run_rust_oracle.py` + tests. |
+| §1 acceptance | **run** | `experiments/rust-oracle-v1/{RESULTS.json,SUMMARY.md}`: all 20 references build; **all 10 buggy hang**; **8/10 fixed have every non-`[U]` requirement `PASS_bounded`**. |
+
+- Left at the limit: `condvar/bare_wait_no_predicate` (`var_eq` predicates ->
+  `unsupported`, no value events) and `semaphore/acquire_twice_no_release`
+  (user-defined semaphore over Mutex+Condvar -> `main::s` `unmapped`).
+- Deviation: Miri seeds are wired but not run at 16 seeds for all 20 artifacts;
+  `deadlock_free` resolved from native behavior.
+- Binary: `concir-backend` `cf4f9e9a…`, `concir-instrument` `5db7765c…`.
+- Rust tests **249 passed**; Python **135 passed**.
+
+## Still not done
+
+- §2 generation arms + `flash-gen-main-v1`; §3 probe; §4 repair close-out;
+  §5 loom; §6 freeze/evidence-map.

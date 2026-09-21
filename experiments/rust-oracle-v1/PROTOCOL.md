@@ -1,10 +1,27 @@
 # Rust-arm requirement oracle — bounded trace monitor (v1)
 
-Status: **partial**. The monitor and the Python harness are implemented and
-tested; the free-Rust instrumenter (instrument v2, wrapper types) is **not**
-implemented yet (see *Stop point*). Until then the trace producer for free Rust
-is the existing call-site annotator, which emits `lock`/`wait`/`notify`/`send`/
-`recv`/`join`/`spawn` events but not unlock-on-guard-drop.
+Status: **implemented**. `concir-instrument --wrappers` (v2) rewrites free Rust
+onto `cir_trace::sync` wrapper types, the monitor checks the contract against
+the observed traces, and `python/cir_workflow/rust_oracle.py` runs the whole
+pipeline. See *Acceptance* for the reference results and known limits.
+
+## Free-Rust instrumentation (instrument v2)
+
+`concir-instrument <input.rs> --out <dir> --wrappers` emits `annotated.rs`,
+`cir_trace.rs`, and `resources.json`. The transform:
+
+- replaces `std::sync::{Mutex, Condvar}` with wrappers whose `lock` and
+  `Guard::drop` (and `wait`/`notify_*`) emit operation-bound events, so
+  guard-drop unlocks are observed;
+- names each constructor from its binding (`let mtx_a = Arc::new(Mutex::new(())`
+  -> `mtx_a_mutex0`), so `Arc::clone`d handles share one name; tuple
+  components get `_mutex0`/`_condvar0` suffixes;
+- rewrites `thread::spawn(..)` to `cir_trace::spawn(name, ..)` (completion is
+  witnessed by the run finishing);
+- derives thread tags lazily (`t0` for main) and sids by
+  `(resource, op, occurrence)`;
+- lists what it cannot cover (`RwLock`, `Barrier`, atomics, async) in
+  `limitations` instead of failing silently.
 
 ## Two oracles, two words
 
@@ -78,10 +95,26 @@ concir-backend monitor --contract <contract.json> \
 Exit 0 unless a required-to-hold clause `FAIL`s. Python wrapper:
 `cir_workflow.bounded_monitor.run_monitor` / `.coverage`.
 
-## Stop point
+## Acceptance (10 fixed + 10 buggy references)
 
-`concir-instrument` v2 (free Rust -> `cir_trace::sync` wrapper types, sid by
-(resource, kind, order), `resources.json`, failure classification) is **not
-implemented**. Therefore the bounded oracle can, today, only score artifacts
-that already carry v2 events (codegen products, `G3_concir`), not arbitrary
-LLM-written Rust (`G0/G1/G2`). This is the first task of the next session.
+Run: `PYTHONPATH=python python3 scripts/run_rust_oracle.py`
+(-> `RESULTS.json`, `SUMMARY.md`).
+
+- All 20 artifacts instrument, build, and run (32 native runs each).
+- All 10 `buggy.rs` references **hang** (deadlock), so the defect is detected.
+- 8/10 `fixed.rs` references have every non-`[U]` requirement `PASS_bounded`.
+  The two exceptions are instrument/alignment limits, not program defects:
+  `condvar/bare_wait_no_predicate` (its flag clauses are `var_eq`; a free-Rust
+  trace carries no values -> `unsupported`) and
+  `semaphore/acquire_twice_no_release` (the reference implements its own
+  semaphore over `Mutex`+`Condvar`, so no `Semaphore` resource aligns to
+  `main::s` -> `unmapped`).
+
+## Stop points
+
+- `var_eq`/`var_cmp` predicates need value events; a future instrument could
+  hook atomics/shared writes.
+- User-defined semaphores are not recognized; only std primitives are wrapped.
+- Miri seeds are wired (`rust_oracle.run_miri`) but were not run at 16 seeds
+  for all 20 artifacts this round; `deadlock_free` is resolved from native
+  behavior. This is a deviation for the batch to record.
