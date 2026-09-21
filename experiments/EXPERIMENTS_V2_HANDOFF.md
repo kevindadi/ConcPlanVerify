@@ -1043,3 +1043,32 @@ study is now the second study.  FSE 2027 target, deadline 2026-10-02 AoE.
 
 - §2 generation arms + `flash-gen-main-v1`; §3 probe; §4 repair close-out;
   §5 loom; §6 freeze/evidence-map.
+
+## Round 2026-09-22o2 — generation main batch (§2)
+
+| item | status | evidence |
+| --- | --- | --- |
+| G arms | done | `scripts/run_gen_main.py`, `python/cir_workflow/generation.py`, `scripts/render_gen_main.py`, tests. |
+| `flash-gen-main-v1` | **run** | 288 cells (24 tasks x 4 arms x 3 reps), 629 + 170 requests, no stop. `run-20260922T001631` (Rust arms) + `run-20260922T015338` (G3 re-run after name alignment). |
+| tables | done | `experiments/tables/{gen_main,gen_arms,gen_tiers}.tex`, `SUMMARY.md`. |
+
+Key numbers (contract hidden in all arms):
+
+| arm | accept | RC | RF | defect | accepted-with-proof | tokens |
+| --- | --- | --- | --- | --- | --- | --- |
+| G0_direct | 0.944 | 0.650 | 0.422 | 6 | — | 58k |
+| G1_self_iter | 0.931 | 0.656 | 0.460 | 1 | — | 203k |
+| G2_tools_iter | 0.639 | 0.639 | 0.468 | 0 | — | 294k |
+| G3_concir | 0.625 | 0.776 | **0.504** | 2 | 20/72 | 539k |
+
+- G3 (model-first) has the **highest RF/RC** but ~10x the token cost, and its
+  defects are codegen programs that hang while the model passed
+  (`condvar/same_cv_different_locks`, 2 reps).
+- A **name-alignment** step was required: the model cannot know the contract's
+  resource/function FQNs, so candidate names are aligned to the reference by
+  kind/declaration order before explore (recorded per cell). Without it G3
+  accepted 25/72; with it 45/72.
+- Deviation: G2 uses Miri 16 per-seed bounded (15 s), no many-seeds pass (it is
+  unbounded on the non-terminating programs); expert-track labels for the
+  generation cells are **not run** yet; RESULTS integration and the evidence
+  map are §6.
