@@ -1,0 +1,89 @@
+{
+  "status": "accepted",
+  "task": "channel/bounded_backpressure_lock_held",
+  "requirements": "A sender and a receiver use a channel of capacity one, plus a mutex both occasionally need. The sender sends two values. Every interleaving must terminate; neither side may block on the channel while holding the lock the other needs. On completion the program must print exactly one line `DONE done=1` and then exit; it must terminate.\n",
+  "contract_sha256": "9b4f8ef4d7b79dfbcd00c58313394e668ca5b5a4f4e077da0aff3a26168f8ebb",
+  "out_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/model-probe-v2/run-20260921T165337/glm-5.3-flash/channel__bounded_backpressure_lock_held/A3_local/run-20260921T092322-30586-69bd26",
+  "max_rounds": 4,
+  "engine": "petri",
+  "diagnostics": true,
+  "check_fidelity": true,
+  "fidelity_name": null,
+  "versions": [
+    {
+      "version": 1,
+      "source": "frozen",
+      "raw_text": null,
+      "program_sha256": "405bd8a5c6b1b0a990739bba99c9e19881f96af284867362b5f3477c6c731bc2",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/model-probe-v2/run-20260921T165337/glm-5.3-flash/channel__bounded_backpressure_lock_held/A3_local/run-20260921T092322-30586-69bd26/revision-1.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "valid",
+      "support_status": "supported",
+      "explore_outcome": "FAIL",
+      "explore_complete": true,
+      "fidelity": null,
+      "accepted": false,
+      "decision": "explore_fail",
+      "request_sha256": null,
+      "feedback_sha256": "ba73342d6c65d2b9c8f90d099d8fef387f8fd19cbd4e820837d0e900ed4c6d0b",
+      "prompt_tokens": null,
+      "completion_tokens": null,
+      "llm_wall_ms": 0,
+      "tool_wall_ms": 31,
+      "tool_output_sha256": "43aa39b3dcbeea724ea0765ce04ce01971706cba45a782106bd062b03275e9d9",
+      "normalizations": [
+        {
+          "rule": "add_local",
+          "function": "receiver",
+          "names": [
+            "_"
+          ]
+        }
+      ],
+      "sid_issues": [],
+      "local_patch_function": null
+    },
+    {
+      "version": 2,
+      "source": "llm",
+      "raw_text": "```json\n{\"functions\": {\"main::sender\": [{\"sid\": \"s1\", \"kind\": \"channel_send\", \"channel\": \"main::ch\", \"value\": \"1\"}, {\"sid\": \"s2\", \"kind\": \"channel_send\", \"channel\": \"main::ch\", \"value\": \"2\"}, {\"sid\": \"s3\", \"kind\": \"return\"}], \"main::receiver\": [{\"sid\": \"s1\", \"kind\": \"channel_recv\", \"channel\": \"main::ch\", \"dst\": \"_\"}, {\"sid\": \"s2\", \"kind\": \"channel_recv\", \"channel\": \"main::ch\", \"dst\": \"_\"}, {\"sid\": \"s3\", \"kind\": \"return\"}]}, \"new_resources\": [], \"removed_resources\": []}\n```",
+      "program_sha256": "6dee7d7f06cff0250c6f8379b99f84396d5ae4075dd2699e1be4cd7c371bcba3",
+      "artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/model-probe-v2/run-20260921T165337/glm-5.3-flash/channel__bounded_backpressure_lock_held/A3_local/run-20260921T092322-30586-69bd26/revision-2.normalized.cir.json",
+      "parse_error": null,
+      "provider_error": null,
+      "check_status": "valid",
+      "support_status": "supported",
+      "explore_outcome": "PASS",
+      "explore_complete": true,
+      "fidelity": null,
+      "accepted": true,
+      "decision": "accepted",
+      "request_sha256": "0a09d70b850b51de2e0edbd87103070b83051cadb828228380a81d33f0a86d04",
+      "feedback_sha256": null,
+      "prompt_tokens": 1898,
+      "completion_tokens": 252,
+      "llm_wall_ms": 5129,
+      "tool_wall_ms": 25,
+      "tool_output_sha256": "225beb282cb6748a1adf6e98267d1c6c735853204fd15344f76f26833f49af62",
+      "normalizations": [],
+      "sid_issues": [],
+      "local_patch_function": null
+    }
+  ],
+  "accepted_version": 2,
+  "repair_mode": "llm_revision",
+  "candidate_source": "llm",
+  "consumption": {
+    "http_requests": 1,
+    "prompt_tokens": 1898,
+    "completion_tokens": 252,
+    "total_tokens": 2150,
+    "llm_wall_ms": 5129,
+    "tool_wall_ms": 56,
+    "rounds": 1,
+    "first_correct_round": 2
+  },
+  "error": null,
+  "accepted": true
+}

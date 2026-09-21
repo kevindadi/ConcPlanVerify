@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    // Resource a is owned by module main, resource b by module other.\n    // Both tasks declare the cross-module dependency by acquiring both\n    // resources. To avoid deadlock, all tasks acquire the resources in a\n    // single global lock order (a before b), so every interleaving\n    // terminates and both tasks complete.\n    let a = Arc::new(Mutex::new(())); // resource a (module main)\n    let b = Arc::new(Mutex::new(())); // resource b (module other)\n\n    let (a1, b1) = (Arc::clone(&a), Arc::clone(&b));\n    let t1 = thread::spawn(move || {\n        let _ga = a1.lock().unwrap();\n        let _gb = b1.lock().unwrap();\n        // task 1 holds both resources: cross-module dependency declared\n    });\n\n    let (a2, b2) = (Arc::clone(&a), Arc::clone(&b));\n    let t2 = thread::spawn(move || {\n        let _ga = a2.lock().unwrap();\n        let _gb = b2.lock().unwrap();\n        // task 2 holds both resources: cross-module dependency declared\n    });\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\n\nstruct Sem {\n    n: Mutex<u32>,\n    cv: Condvar,\n}\n\nimpl Sem {\n    fn new(n: u32) -> Self {\n        Self {\n            n: Mutex::new(n),\n            cv: Condvar::new(),\n        }\n    }\n\n    fn acq(&self) {\n        let mut c = self.n.lock().unwrap();\n        while *c == 0 {\n            c = self.cv.wait(c).unwrap();\n        }\n        *c -= 1;\n    }\n\n    fn rel(&self) {\n        let mut c = self.n.lock().unwrap();\n        *c += 1;\n        drop(c);\n        self.cv.notify_one();\n    }\n}\n\nfn main() {\n    let s = Arc::new(Sem::new(1));\n\n    let s1 = Arc::clone(&s);\n    let w1 = std::thread::spawn(move || {\n        // Worker 1 acquires the permit twice and must release it\n        // exactly as many times before returning.\n        s1.acq();\n        s1.acq();\n        s1.rel();\n        s1.rel();\n    });\n\n    let s2 = Arc::clone(&s);\n    let w2 = std::thread::spawn(move || {\n        s2.acq();\n        s2.rel();\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

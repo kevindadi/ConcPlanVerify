@@ -1,0 +1,64 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260921T091913-30586-c3f3a3/round-2/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+error[E0106]: missing lifetime specifiers
+  --> src/main.rs:19:18
+   |
+17 |     first: &Mutex<()>,
+   |            ----------
+18 |     second: &Mutex<()>,
+   |             ----------
+19 | ) -> (MutexGuard<'_, ()>, MutexGuard<'_, ()>) {
+   |                  ^^                  ^^ expected named lifetime parameter
+   |                  |
+   |                  expected named lifetime parameter
+   |
+   = help: this function's return type contains a borrowed value, but the signature does not say whether it is borrowed from `first` or `second`
+help: consider introducing a named lifetime parameter
+   |
+16 ~ fn lock_pair<'a>(
+17 ~     first: &'a Mutex<()>,
+18 ~     second: &'a Mutex<()>,
+19 ~ ) -> (MutexGuard<'a, ()>, MutexGuard<'a, ()>) {
+   |
+
+error[E0277]: `std::sync::MutexGuard<'_, ()>` cannot be sent between threads safely
+   --> src/main.rs:30:39
+    |
+ 30 |                 std::panic::panic_any(p);
+    |                 --------------------- ^ `std::sync::MutexGuard<'_, ()>` cannot be sent between threads safely
+    |                 |
+    |                 required by a bound introduced by this call
+    |
+    = help: within `PoisonError<std::sync::MutexGuard<'_, ()>>`, the trait `Send` is not implemented for `std::sync::MutexGuard<'_, ()>`
+note: required because it appears within the type `PoisonError<std::sync::MutexGuard<'_, ()>>`
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/poison.rs:194:12
+    |
+194 | pub struct PoisonError<T> {
+    |            ^^^^^^^^^^^
+note: required by a bound in `panic_any`
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/panic.rs:259:37
+    |
+259 | pub fn panic_any<M: 'static + Any + Send>(msg: M) -> ! {
+    |                                     ^^^^ required by this bound in `panic_any`
+
+Some errors have detailed explanations: E0106, E0277.
+For more information about an error, try `rustc --explain E0106`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors

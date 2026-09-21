@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "```rust\nuse std::sync::mpsc;\nstruct Sem {\n    n: std::sync::Mutex<u32>,\n    cv: std::sync::Condvar,\n}\nimpl Sem {\n    fn new(n: u32) -> Self {\n        Self {\n            n: std::sync::Mutex::new(n),\n            cv: std::sync::Condvar::new(),\n        }\n    }\n    fn acq(&self) {\n        let mut c = self.n.lock().unwrap();\n        while *c == 0 {\n            c = self.cv.wait(c).unwrap();\n        }\n        *c -= 1;\n    }\n    fn rel(&self) {\n        *self.n.lock().unwrap() += 1;\n        self.cv.notify_one();\n    }\n}\nfn main() {\n    let (tx, rx) = mpsc::sync_channel::<u32>(0);\n    let s = std::sync::Arc::new(Sem::new(1));\n    let s1 = std::sync::Arc::clone(&s);\n    let tx1 = tx.clone();\n    let w1 = std::thread::spawn(move || {\n        s1.acq();\n        s1.acq();\n        s1.rel();\n        s1.rel();\n        let _ = tx1;\n        let _ = rx;\n    });\n    let s2 = std::sync::Arc::clone(&s);\n    let w2 = std::thread::spawn(move || {\n        s2.acq();\n        s2.rel();\n    });\n    w1.join().unwrap();\n    w2.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```"
+}

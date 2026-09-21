@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{mpsc, Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    let (tx1, rx1) = mpsc::sync_channel::<i32>(0);\n    let (tx2, rx2) = mpsc::sync_channel::<i32>(0);\n    let shared = Arc::new((Mutex::new(0i32), Condvar::new()));\n\n    let s_shared = Arc::clone(&shared);\n    let sender = thread::spawn(move || {\n        // Sender briefly takes the shared mutex, but does NOT hold it\n        // while blocking on the channel send.\n        {\n            let mut guard = s_shared.0.lock().unwrap();\n            *guard += 1;\n        }\n        tx1.send(1).unwrap();\n        let _ = tx2; // keep tx2 alive; receiver drops rx2\n    });\n\n    let r_shared = Arc::clone(&shared);\n    let receiver = thread::spawn(move || {\n        // Receiver must not block on the channel while holding the lock\n        // the sender needs: take the lock only after receiving.\n        let v = rx1.recv().unwrap();\n        {\n            let mut guard = r_shared.0.lock().unwrap();\n            *guard += v;\n        }\n        let _ = rx2; // drop rx2 so tx2's implicit drop never blocks\n    });\n\n    sender.join().unwrap();\n    receiver.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```"
+}

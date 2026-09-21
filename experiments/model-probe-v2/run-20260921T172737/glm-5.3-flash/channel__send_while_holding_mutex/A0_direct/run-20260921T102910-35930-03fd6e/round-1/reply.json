@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{mpsc, Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let (tx, rx) = mpsc::sync_channel::<i32>(0);\n    let lock = Arc::new(Mutex::new(0i32));\n\n    let lock_s = Arc::clone(&lock);\n    let sender = thread::spawn(move || {\n        // Take the shared mutex only while NOT blocked on the channel:\n        // send happens after the lock guard is dropped.\n        {\n            let mut g = lock_s.lock().unwrap();\n            *g += 1;\n        }\n        tx.send(1).unwrap();\n    });\n\n    let lock_r = Arc::clone(&lock);\n    let receiver = thread::spawn(move || {\n        // Receive first (not holding the lock), then touch the mutex.\n        let v = rx.recv().unwrap();\n        let mut g = lock_r.lock().unwrap();\n        *g += v;\n    });\n\n    sender.join().unwrap();\n    receiver.join().unwrap();\n\n    let done = *lock.lock().unwrap();\n    assert_eq!(done, 2);\n    println!(\"DONE done=1\");\n}\n```"
+}

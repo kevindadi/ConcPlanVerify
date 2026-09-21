@@ -1,0 +1,51 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260921T102830-35930-b5fd08/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+error[E0308]: mismatched types
+  --> src/main.rs:42:15
+   |
+42 |         *g += a + b;
+   |               ^^^^^ expected `usize`, found `i32`
+
+error[E0277]: cannot add-assign `i32` to `usize`
+   --> src/main.rs:42:12
+    |
+ 42 |         *g += a + b;
+    |            ^^ no implementation for `usize += i32`
+    |
+    = help: the trait `AddAssign<i32>` is not implemented for `usize`
+help: `usize` implements trait `AddAssign<Rhs>`
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/arith.rs:786:9
+    |
+786 |         const impl AddAssign for $t {
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `AddAssign`
+...
+799 | add_assign_impl! { usize u8 u16 u32 u64 u128 isize i8 i16 i32 i64 i128 f16 f32 f64 f128 }
+    | ----------------------------------------------------------------------------------------- in this macro invocation
+    |
+   ::: /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/internal_macros.rs:61:9
+    |
+ 61 |         const impl $imp<&$u> for $t {
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `AddAssign<&usize>`
+    = note: this error originates in the macro `add_assign_impl` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+Some errors have detailed explanations: E0277, E0308.
+For more information about an error, try `rustc --explain E0277`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors

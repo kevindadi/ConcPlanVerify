@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{mpsc, Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let (tx, rx) = mpsc::sync_channel::<i32>(1);\n    let m = Arc::new(Mutex::new(()));\n    let m1 = Arc::clone(&m);\n\n    let s = thread::spawn(move || {\n        tx.send(1).unwrap();\n        {\n            let _g = m1.lock().unwrap();\n        }\n        tx.send(2).unwrap();\n    });\n\n    let r = thread::spawn(move || {\n        rx.recv().unwrap();\n        {\n            let _g = m.lock().unwrap();\n        }\n        rx.recv().unwrap();\n    });\n\n    s.join().unwrap();\n    r.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "```rust\nuse std::sync::{mpsc, Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let (tx, rx) = mpsc::sync_channel::<i32>(0);\n    let shared = Arc::new(Mutex::new(0));\n\n    let shared_s = Arc::clone(&shared);\n    let s = thread::spawn(move || {\n        {\n            let mut data = shared_s.lock().unwrap();\n            *data += 1;\n        }\n        tx.send(1).unwrap();\n    });\n\n    let shared_r = Arc::clone(&shared);\n    let r = thread::spawn(move || {\n        let _ = rx.recv().unwrap();\n        {\n            let mut data = shared_r.lock().unwrap();\n            *data += 1;\n        }\n    });\n\n    s.join().unwrap();\n    r.join().unwrap();\n\n    assert_eq!(*shared.lock().unwrap(), 2);\n    println!(\"DONE done=1\");\n}\n```"
+}

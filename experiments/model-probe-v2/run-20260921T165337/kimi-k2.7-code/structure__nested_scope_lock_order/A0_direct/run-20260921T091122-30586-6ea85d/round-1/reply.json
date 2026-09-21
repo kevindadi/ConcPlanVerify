@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let (a1, b1) = (Arc::clone(&a), Arc::clone(&b));\n    let x1 = thread::spawn(move || {\n        // Always acquire A before B to avoid circular wait.\n        let _ga = a1.lock().unwrap();\n        let _gb = b1.lock().unwrap();\n    });\n\n    let (a2, b2) = (Arc::clone(&a), Arc::clone(&b));\n    let x2 = thread::spawn(move || {\n        // Same lock ordering as the other task: A before B.\n        let _ga = a2.lock().unwrap();\n        let _gb = b2.lock().unwrap();\n    });\n\n    x1.join().unwrap();\n    x2.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 3,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let mtx_a = Arc::new(Mutex::new(()));\n    let mtx_b = Arc::new(Mutex::new(()));\n    let mtx_c = Arc::new(Mutex::new(()));\n\n    // Global lock order: A < B < C.\n    // Every worker acquires its two mutexes in this order, which makes a\n    // circular wait impossible, so every interleaving terminates.\n\n    let (a1, b1) = (Arc::clone(&mtx_a), Arc::clone(&mtx_b));\n    let w1 = thread::spawn(move || {\n        let ga = a1.lock().unwrap(); // A then B: correct order\n        let gb = b1.lock().unwrap();\n        drop(gb);\n        drop(ga);\n    });\n\n    let (b2, c2) = (Arc::clone(&mtx_b), Arc::clone(&mtx_c));\n    let w2 = thread::spawn(move || {\n        let gb = b2.lock().unwrap(); // B then C: correct order\n        let gc = c2.lock().unwrap();\n        drop(gc);\n        drop(gb);\n    });\n\n    let (a3, c3) = (Arc::clone(&mtx_a), Arc::clone(&mtx_c));\n    let w3 = thread::spawn(move || {\n        // Was C then A, which created a cycle (A->B, B->C, C->A).\n        // Now acquire in global order: A first, then C.\n        let ga = a3.lock().unwrap();\n        let gc = c3.lock().unwrap();\n        drop(gc);\n        drop(ga);\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n    w3.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    // Outer worker: starts a nested group of two inner tasks.\n    let worker = {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        thread::spawn(move || {\n            // Both inner tasks acquire the mutexes in the same global order\n            // (A before B), so no circular wait can occur and every\n            // interleaving terminates.\n            let a1 = Arc::clone(&a);\n            let b1 = Arc::clone(&b);\n            let t1 = thread::spawn(move || {\n                let _ga = a1.lock().unwrap();\n                let _gb = b1.lock().unwrap();\n            });\n\n            let a2 = Arc::clone(&a);\n            let b2 = Arc::clone(&b);\n            let t2 = thread::spawn(move || {\n                let _ga = a2.lock().unwrap();\n                let _gb = b2.lock().unwrap();\n            });\n\n            t1.join().unwrap();\n            t2.join().unwrap();\n        })\n    };\n\n    worker.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```"
+}
