@@ -936,3 +936,35 @@ explore/conform semantic change, so the main table was not recomputed.
 - M5 mutation remains a blind spot; instrument v2 (§1.4, free-Rust rewrite to
   wrappers) was not implemented — the mutation/post-edit programs are codegen
   output, so instrument v2 was not on the critical path.
+
+# Round 2026-09-2xn — experiment close-out, paper alignment
+
+## M-1..M-5 status
+
+| item | status |
+| --- | --- |
+| M-1 probe incomplete | §A1: 10 MAIN tasks x 3 arms for kimi/glm, reusing prior cells; glm 30/30, kimi 27/30 + 3 `not_run` (APIConnectionError) with reasons; A0/A2 tokens recorded; kimi temperature 1 noted; accepted A0/A2 expert-labelled; A3 -> a3-to-rust-v2 (10 PASS / 1 FAIL). |
+| M-2 post-edit no-op | §A2: `no_edit` excluded from the denominator; forced retry E2 15/15 real (14 PASS), E3 3/11 real (one moved 5 sync calls, build failed) -> drift 0. |
+| M-3 human/auto | §A3: `HUMAN_DISAGREEMENT_EVIDENCE.md` for both candidates; `owner_verdict` blank. |
+| M-4 stale text | §A4: RESULTS deviation reworded; commit `4971f650` message/content mismatch noted below. |
+| M-5 instrument v2 | not done (optional); scope in the paper stated as codegen products + edits. |
+
+## Note on commit `4971f650`
+
+Its message says "Update CELLS.json and SUMMARY.md …" but the commit actually
+contains `HUMAN_REVIEW_QUEUE.md` and old prompt/review files — the user's local
+auto-generated message. History is not rewritten; recorded here.
+
+## Budgets (round n)
+
+| section | provider | requests |
+| --- | --- | --- |
+| §A1 probe completion | OpenCode Go | 26 (kimi 18 + glm 8) |
+| §A2 forced edit | DeepSeek | 26 |
+| §A3 evidence | — | 0 |
+
+## Freeze 3
+
+- ConcPV tag `experiments-v2-freeze-3`; ConcIR unchanged this round, so no new
+  ConcIR tag (`concir-freeze-2` still applies).
+- BIN_MAIN `4bec943d` (main table), BIN_V2 `073129de` (conform/a3-to-rust/mutation/post-edit).

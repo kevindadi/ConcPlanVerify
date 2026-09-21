@@ -71,3 +71,10 @@ Directory sha256 = sha256 of `find <dir> -type f -not -path '*/target/*' | sort 
 | §3 post-edit-v2 | DeepSeek | 64 |
 | §6 tiered addendum | DeepSeek | 18 |
 | §5 model probe | OpenCode Go | 58 (kimi 25 + glm 33) |
+
+## Freeze 3 (round n)
+
+- ConcPV tag: `experiments-v2-freeze-3`
+- ConcIR: unchanged this round; `concir-freeze-2` still applies (BIN_V2 `073129de`).
+- BIN_MAIN `4bec943d`; model-probe-v2 completed to 10x3.
+- Round n budgets: OpenCode Go 26, DeepSeek 26.

@@ -89,7 +89,7 @@
 
 | arm | cells | accepted | accept_rate | false_accept | conform_pass_rate | escalation_rate | tokens/correct_accept | by source |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| A0_direct | 30 | 30 | 1.00 | 11 | — | — | 456 | {'expert': 9, 'behavior': 8, 'by_construction': 3} |
+| A0_direct | 30 | 30 | 1.00 | 11 | — | — | 456 | {'behavior': 8, 'expert': 9, 'by_construction': 3} |
 | A1_self_iter | 30 | 23 | 0.77 | 1 | — | — | 1315 | {'expert': 1} |
 | A2_tools_iter_ml | 30 | 28 | 0.93 | 3 | — | — | 715 | {'expert': 3} |
 | A3_local | 30 | 24 | 0.80 | 0 | 24/24 = 1.00 | — | 675 | — |
@@ -334,19 +334,19 @@ Human review: 11 candidates; agent vs human **7/7** (agent unsure 4); human vs a
 | edit | v1 conform PASS | v1 drift-only-conform | v2 conform PASS | v2 drift-only-conform |
 | --- | --- | --- | --- | --- |
 | E1 | 19/19 | 0 | 22/22 | 0 |
-| E2 | 14/19 | 0 | 20/21 | 0 |
-| E3 | 17/19 | 0 | 18/21 | 0 |
+| E2 | 14/19 | 0 | 5/6 | 0 |
+| E3 | 17/19 | 0 | 7/10 | 0 |
 
 ### Model probe (OpenCode Go)
 
 | model | arm | cells | accepted | false_accept |
 | --- | --- | --- | --- | --- |
-| kimi-k2.7-code | A0_direct | 5 | 5 | 0 |
-| kimi-k2.7-code | A2_tools_iter_ml | 6 | 6 | 0 |
-| kimi-k2.7-code | A3_local | 7 | 7 | 0 |
-| glm-5.3-flash | A0_direct | 8 | 7 | 1 |
-| glm-5.3-flash | A2_tools_iter_ml | 8 | 8 | 0 |
-| glm-5.3-flash | A3_local | 8 | 7 | 0 |
+| kimi-k2.7-code | A0_direct | 10 | 9 | 1 |
+| kimi-k2.7-code | A2_tools_iter_ml | 10 | 8 | 0 |
+| kimi-k2.7-code | A3_local | 10 | 9 | 0 |
+| glm-5.3-flash | A0_direct | 10 | 9 | 1 |
+| glm-5.3-flash | A2_tools_iter_ml | 10 | 10 | 0 |
+| glm-5.3-flash | A3_local | 10 | 8 | 0 |
 
 Not part of the main table; 8 SMOKE tasks, 1 rep, K=4.
 
@@ -470,5 +470,5 @@ Lockbud: available=True commit=`None` (miri seeds=16).
 ## Deviations and threats to validity
 
 - D-19: the main batch is not gated on Rust-arm oracle completeness; missing `oracle.model` cells are `inconclusive` and backfilled by extraction/expert labels.
-- Expert labels are LLM-assisted (agent-proxy); the human review queue (`HUMAN_REVIEW_QUEUE.md`) is left blank for the owner.
-- All offline recomputation uses a single BIN_MAIN; any result on another binary sha is listed here.
+- Expert labels are LLM-assisted (agent-proxy) with the owner's human review merged (17 rows / 11 candidates); 2 human/auto disagreements await the owner (`HUMAN_DISAGREEMENT_EVIDENCE.md`).
+- All offline recomputation uses BIN_MAIN (main table) or BIN_V2 (conform/a3-to-rust/mutation/post-edit); both shas are listed above.

@@ -461,10 +461,13 @@ def render(rows: list[dict[str, Any]], expert_agg: dict[str, dict],
         for eid in sorted(set(p1) | set(p2)):
             a = p1.get(eid, {})
             b = p2.get(eid, {})
+            b_pass = b.get("conform_pass_real", b.get("conform_pass", "—"))
+            b_cells = b.get("real_edits", b.get("cells", "—"))
+            b_drift = b.get("drift_only_conform_real",
+                            b.get("drift_caught_only_by_conform", "—"))
             L.append(f"| {eid} | {a.get('conform_pass','—')}/{a.get('cells','—')} | "
                      f"{a.get('drift_caught_only_by_conform','—')} | "
-                     f"{b.get('conform_pass','—')}/{b.get('cells','—')} | "
-                     f"{b.get('drift_caught_only_by_conform','—')} |")
+                     f"{b_pass}/{b_cells} | {b_drift} |")
         L.append("")
 
     # ---- Model probe
@@ -581,10 +584,11 @@ def _sum_tokens(row: dict[str, Any]) -> float:
 DEFAULT_DEVIATIONS = [
     "D-19: the main batch is not gated on Rust-arm oracle completeness; missing "
     "`oracle.model` cells are `inconclusive` and backfilled by extraction/expert labels.",
-    "Expert labels are LLM-assisted (agent-proxy); the human review queue "
-    "(`HUMAN_REVIEW_QUEUE.md`) is left blank for the owner.",
-    "All offline recomputation uses a single BIN_MAIN; any result on another binary "
-    "sha is listed here.",
+    "Expert labels are LLM-assisted (agent-proxy) with the owner's human review "
+    "merged (17 rows / 11 candidates); 2 human/auto disagreements await the owner "
+    "(`HUMAN_DISAGREEMENT_EVIDENCE.md`).",
+    "All offline recomputation uses BIN_MAIN (main table) or BIN_V2 (conform/"
+    "a3-to-rust/mutation/post-edit); both shas are listed above.",
 ]
 
 
@@ -760,8 +764,10 @@ def latex_tables(rows: list[dict[str, Any]], candidates: list[dict],
         body = ("\\toprule\n\\textbf{edit} & \\textbf{cells} & \\textbf{build} & "
                 "\\textbf{conform PASS} & \\textbf{drift-only-conform} \\\\\n\\midrule\n")
         for eid, s in postedit["ops"].items():
-            body += (f"{eid} & {s['cells']} & {s['build_ok']} & {s['conform_pass']} & "
-                     f"{s['drift_caught_only_by_conform']} \\\\\n")
+            body += (f"{eid} & {s.get('cells')} & {s.get('real_edits', s.get('build_ok'))} & "
+                     f"{s.get('conform_pass_real', s.get('conform_pass'))} & "
+                     f"{s.get('drift_only_conform_real', s.get('drift_caught_only_by_conform'))} "
+                     f"\\\\\n")
         body += "\\bottomrule"
         write("postedit.tex", "\\begin{tabular}{lrrrr}\n" + body + "\n\\end{tabular}")
     return written
