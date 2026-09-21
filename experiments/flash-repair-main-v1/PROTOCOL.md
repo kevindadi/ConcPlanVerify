@@ -66,3 +66,11 @@ is a bug.
   carries a `holds_all` / `never_holds_all` preservation hint and the candidate
   diff against the input only releases or reorders locks. Evidence:
   `case-partial-deadlock-v1/CASE.md` "Tiered escalation".
+
+## A3_tiered trigger T3 (§6)
+
+Escalate when two **consecutive** decisions are not `accepted` (any of
+`explore_fail`, `check_invalid`, `check_schema_error`, `stalled*`). This is the
+behaviour the main `A3_tiered` already exhibits on `bare_wait_no_predicate`; the
+K=4 failure there is the round budget (the task needs 4 whole rounds), see
+`TIERED_ADDENDUM.md`.

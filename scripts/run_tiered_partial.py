@@ -24,8 +24,8 @@ from cir_workflow.live import (  # noqa: E402
     DeepSeekFlashClient, LiveBudget, RecordingLocalProvider, RecordingProvider)
 from cir_workflow.revision_workflow import WholeArtifactRevisionWorkflow  # noqa: E402
 
-TASK = "lock-order/partial_deadlock_bystander"
-OUT = REPO / "experiments/case-partial-deadlock-v1/tiered"
+TASK = os.environ.get("TIERED_TASK", "lock-order/partial_deadlock_bystander")
+OUT = REPO / (os.environ.get("TIERED_OUT", "experiments/case-partial-deadlock-v1/tiered"))
 MAX_REQUESTS = int(os.environ.get("TIERED_PARTIAL_MAX", "20"))
 
 
