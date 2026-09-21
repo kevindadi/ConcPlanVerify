@@ -255,7 +255,8 @@ def render(rows: list[dict[str, Any]], expert_agg: dict[str, dict],
            candidates: list[dict], extract: dict[str, dict],
            trackd: dict[str, Any] | None,
            scale: dict[str, Any] | None, header: dict[str, Any],
-           deviations: list[str]) -> str:
+           deviations: list[str], mutation_v1: dict | None = None,
+           postedit_v1: dict | None = None) -> str:
     L: list[str] = ["# RESULTS — ConcIR repair/extraction benchmark", "",
                     "> **Generated file — do not edit by hand.** Regenerate with:",
                     "> ```", f"> {header['command']}", "> ```", ""]
@@ -434,6 +435,38 @@ def render(rows: list[dict[str, Any]], expert_agg: dict[str, dict],
                  f"{_extract_verdict(rec)} | {rec.get('reason','')} |")
     L.append("")
 
+    # ---- conform recall (v1 vs v2)
+    if trackd is not None or True:
+        pass
+    mut_v2 = header.get("mutation")
+    post_v2 = header.get("postedit")
+    if mut_v2 or postedit_v1:
+        L += ["### Conform recall (mutation, v1 vs v2)", "",
+              "| op | v1 recall | v2 recall | v2 failure reason |",
+              "| --- | --- | --- | --- |"]
+        ops_v1 = (mutation_v1 or {}).get("ops", {})
+        ops_v2 = (mut_v2 or {}).get("ops", {})
+        for op in sorted(set(ops_v1) | set(ops_v2)):
+            r1 = ops_v1.get(op, {}).get("conform_recall", "—")
+            r2 = ops_v2.get(op, {}).get("conform_recall", "—")
+            reason = (mut_v2 or {}).get("reasons", {}).get(op, "—")
+            L.append(f"| {op} | {r1} | {r2} | {reason} |")
+        L.append("")
+    if post_v2 or postedit_v1:
+        L += ["### Post-edit drift (v1 vs v2)", "",
+              "| edit | v1 conform PASS | v1 drift-only-conform | v2 conform PASS | v2 drift-only-conform |",
+              "| --- | --- | --- | --- | --- |"]
+        p1 = (postedit_v1 or {}).get("ops", {})
+        p2 = (post_v2 or {}).get("ops", {})
+        for eid in sorted(set(p1) | set(p2)):
+            a = p1.get(eid, {})
+            b = p2.get(eid, {})
+            L.append(f"| {eid} | {a.get('conform_pass','—')}/{a.get('cells','—')} | "
+                     f"{a.get('drift_caught_only_by_conform','—')} | "
+                     f"{b.get('conform_pass','—')}/{b.get('cells','—')} | "
+                     f"{b.get('drift_caught_only_by_conform','—')} |")
+        L.append("")
+
     # ---- Track D
     if trackd:
         records = trackd.get("records") or trackd.get("tasks") or []
@@ -541,13 +574,19 @@ DEFAULT_DEVIATIONS = [
 
 def build(batch_paths: list[Path], expert_paths: list[Path], extract_dirs: list[Path],
           trackd_path: Path | None, scale_path: Path | None,
-          reclass_path: Path | None, command: str) -> str:
+          reclass_path: Path | None, command: str,
+          mutation_v1_path: Path | None = None, postedit_v1_path: Path | None = None,
+          mutation_path: Path | None = None, postedit_path: Path | None = None) -> str:
     summaries = load_summaries(batch_paths)
     expert_agg, expert_cell, candidates = expert_index(expert_paths)
     extract = extract_index(extract_dirs)
     reclass = json.loads(reclass_path.read_text()) if reclass_path and reclass_path.is_file() else None
     trackd = json.loads(trackd_path.read_text()) if trackd_path and trackd_path.is_file() else None
     scale = json.loads(scale_path.read_text()) if scale_path and scale_path.is_file() else None
+    mutation_v1 = json.loads(mutation_v1_path.read_text()) if mutation_v1_path and mutation_v1_path.is_file() else None
+    postedit_v1 = json.loads(postedit_v1_path.read_text()) if postedit_v1_path and postedit_v1_path.is_file() else None
+    mutation_v2 = json.loads(mutation_path.read_text()) if mutation_path and mutation_path.is_file() else None
+    postedit_v2 = json.loads(postedit_path.read_text()) if postedit_path and postedit_path.is_file() else None
     rows = aggregate(summaries, expert_agg, expert_cell, extract, reclass)
     inputs = []
     for p in batch_paths:
@@ -565,9 +604,10 @@ def build(batch_paths: list[Path], expert_paths: list[Path], extract_dirs: list[
     shas = [("binary", s.get("binary_sha256") or "unknown") for s in summaries[:1]]
     shas += [(f"protocol[{i}]", s.get("protocol_sha256") or "unknown")
              for i, s in enumerate(summaries)]
-    header = {"command": command, "inputs": inputs, "shas": shas}
+    header = {"command": command, "inputs": inputs, "shas": shas,
+              "mutation": mutation_v2, "postedit": postedit_v2}
     return render(rows, expert_agg, candidates, extract, trackd, scale, header,
-                  DEFAULT_DEVIATIONS)
+                  DEFAULT_DEVIATIONS, mutation_v1, postedit_v1)
 
 
 def _tex_header(name: str, command: str, shas: list[tuple[str, str]]) -> str:
@@ -588,7 +628,8 @@ def _tex_escape(text: Any) -> str:
 def latex_tables(rows: list[dict[str, Any]], candidates: list[dict],
                  trackd: dict[str, Any] | None, scale: dict[str, Any] | None,
                  mutation: dict[str, Any] | None, postedit: dict[str, Any] | None,
-                 out_dir: Path, command: str, shas: list[tuple[str, str]]) -> list[str]:
+                 out_dir: Path, command: str, shas: list[tuple[str, str]],
+                 mutation_v1: dict[str, Any] | None = None) -> list[str]:
     out_dir.mkdir(parents=True, exist_ok=True)
     written = []
 
@@ -680,6 +721,14 @@ def latex_tables(rows: list[dict[str, Any]], candidates: list[dict],
                      f"{s['conform_recall']} & {_tex_escape(rtext)} \\\\\n")
         body += "\\bottomrule"
         write("mutation.tex", "\\begin{tabular}{lrrrl}\n" + body + "\n\\end{tabular}")
+
+    if mutation and mutation.get("ops"):
+        ops1 = (mutation_v1 or {}).get("ops", {})
+        body = ("\\toprule\n\\textbf{op} & \\textbf{v1 recall} & \\textbf{v2 recall} \\\\\n\\midrule\n")
+        for op, s2 in mutation["ops"].items():
+            body += f"{op} & {ops1.get(op, {}).get('conform_recall', '--')} & {s2['conform_recall']} \\\\\n"
+        body += "\\bottomrule"
+        write("conform_recall_v1v2.tex", "\\begin{tabular}{lrr}\n" + body + "\n\\end{tabular}")
 
     if postedit and postedit.get("ops"):
         body = ("\\toprule\n\\textbf{edit} & \\textbf{cells} & \\textbf{build} & "

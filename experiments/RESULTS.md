@@ -2,7 +2,7 @@
 
 > **Generated file — do not edit by hand.** Regenerate with:
 > ```
-> python -m cir_workflow results --out /tmp results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --expert experiments/flash-repair-main-v1/expert-labels/EXPERT_LABELS.json --extraction experiments/extraction-v5 --trackd experiments/detection-v3/TRACKD.json --scale experiments/scale-v2/SCALE.json --mutation experiments/conform-mutation-v1/SUMMARY.json --postedit experiments/post-edit-conform-v1/SUMMARY.json --latex experiments/tables --output experiments/RESULTS.md
+> python -m cir_workflow results --out /tmp results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --expert experiments/flash-repair-main-v1/expert-labels/EXPERT_LABELS.json --extraction experiments/extraction-v5 --trackd experiments/detection-v3/TRACKD.json --scale experiments/scale-v2/SCALE.json --mutation experiments/conform-mutation-v2/SUMMARY.json --postedit experiments/post-edit-conform-v2/SUMMARY.json --mutation-v1 experiments/conform-mutation-v1/SUMMARY.json --postedit-v1 experiments/post-edit-conform-v1/SUMMARY.json --latex experiments/tables --output experiments/RESULTS.md
 > ```
 
 ## Provenance
@@ -314,6 +314,27 @@ Human review: 11 candidates; agent vs human **7/7** (agent unsure 4); human vs a
 | structure/nested_scope_lock_order | A2_tools_iter_ml | 0 | conform | False | — | traces not all conformant |
 | structure/nested_scope_lock_order | A2_tools_iter_ml | 1 | conform | False | — | traces not all conformant |
 | structure/nested_scope_lock_order | A2_tools_iter_ml | 2 | conform | False | — | traces not all conformant |
+
+### Conform recall (mutation, v1 vs v2)
+
+| op | v1 recall | v2 recall | v2 failure reason |
+| --- | --- | --- | --- |
+| M1 | 0.545 | 1.0 | {'violation': 11, 'timeout': 2} |
+| M2 | 0.067 | 0.947 | {'violation': 16, 'timeout': 2} |
+| M3 | 0.0 | — | — |
+| M4 | 0.333 | 1.0 | {'violation': 5} |
+| M5 | — | 0.0 | {} |
+| M6 | 1.0 | 1.0 | {'violation': 22, 'timeout': 1} |
+| M7 | 0.105 | 0.087 | {'violation': 2} |
+| M8 | — | 0.8 | {'violation': 8} |
+
+### Post-edit drift (v1 vs v2)
+
+| edit | v1 conform PASS | v1 drift-only-conform | v2 conform PASS | v2 drift-only-conform |
+| --- | --- | --- | --- | --- |
+| E1 | 19/19 | 0 | 22/22 | 0 |
+| E2 | 14/19 | 0 | 20/21 | 0 |
+| E3 | 17/19 | 0 | 18/21 | 0 |
 
 ### Track D — tasks with a Rust reference
 

@@ -185,6 +185,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--reclass")
     p.add_argument("--mutation")
     p.add_argument("--postedit")
+    p.add_argument("--mutation-v1")
+    p.add_argument("--postedit-v1")
     p.add_argument("--latex")
     p.add_argument("--output", required=True)
 
@@ -407,7 +409,11 @@ def main(argv: list[str] | None = None) -> int:
             text = build(batch, expert, extraction,
                          Path(args.trackd) if args.trackd else None,
                          Path(args.scale) if args.scale else None,
-                         Path(args.reclass) if args.reclass else None, command)
+                         Path(args.reclass) if args.reclass else None, command,
+                         Path(args.mutation_v1) if args.mutation_v1 else None,
+                         Path(args.postedit_v1) if args.postedit_v1 else None,
+                         Path(args.mutation) if args.mutation else None,
+                         Path(args.postedit) if args.postedit else None)
             Path(args.output).write_text(text, encoding="utf-8")
             written = []
             if args.latex:
@@ -419,8 +425,11 @@ def main(argv: list[str] | None = None) -> int:
                 mutation = json.loads(Path(args.mutation).read_text()) if args.mutation else None
                 postedit = json.loads(Path(args.postedit).read_text()) if args.postedit else None
                 shas = [("binary", summaries[0].get("binary_sha256") if summaries else "unknown")]
+                mutation_v1 = (json.loads(Path(args.mutation_v1).read_text())
+                               if args.mutation_v1 else None)
                 written = latex_tables(rows, candidates, trackd, scale, mutation,
-                                       postedit, Path(args.latex), command, shas)
+                                       postedit, Path(args.latex), command, shas,
+                                       mutation_v1)
             print(json.dumps({"out": args.output, "bytes": len(text),
                               "latex": written}, indent=2))
             return 0
