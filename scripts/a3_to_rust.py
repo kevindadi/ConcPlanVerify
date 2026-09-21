@@ -23,7 +23,7 @@ from cir_workflow.live import DeepSeekFlashClient, LiveBudget  # noqa: E402
 
 BATCH = REPO / ("experiments/flash-repair-main-v1/"
                 "run-20260920T083344-41096-8172c5")
-OUT = REPO / "experiments/a3-to-rust-v1"
+OUT = Path(os.environ.get("A3_OUT", str(REPO / "experiments/a3-to-rust-v1")))
 MAX_REQUESTS = int(os.environ.get("A3_MAX_REQUESTS", "110"))
 
 
