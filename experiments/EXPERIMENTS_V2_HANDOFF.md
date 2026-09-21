@@ -979,3 +979,45 @@ auto-generated message. History is not rewritten; recorded here.
   (`notes/FIGURES_TODO.md`).
 - The paper repo changes are committed separately in
   `/Users/kevin/paper-review` (commit `2c74d7d`).
+
+---
+
+# Round 2026-09-21o (in progress) — generation benchmark v3, bounded monitor
+
+Repositioned to **generation-first** (requirements -> program); the repair
+study is now the second study.  FSE 2027 target, deadline 2026-10-02 AoE.
+
+## Done
+
+| item | status | evidence |
+| --- | --- | --- |
+| §0 benchmark v3 | **done** | `benchmarks/{TIERS.md,GENERATION_MANIFEST.json,generation_requirements.py}`; 24 tasks across the six families, tiers 8 Simple / 8 Medium / 8 Complex; every frozen contract clause carries `req` tags; `python benchmarks/build_families.py --check-generation` -> 0 errors. Tag `contracts-v3` (commit `b0c346b8`). |
+| §0 reference CIR | done | authored `lock-order/two_independent_cycles/fixed.cir.json` (unified pair order), validated FAIL/PASS in both engines. |
+| §1 monitor | done | ConcIR `concir-backend monitor` (`src/monitor.rs`) + 8 integration tests; bounded statuses `PASS_bounded/FAIL/not_observed/unmapped/unsupported/deferred`. ConcIR commit `1097b79`. |
+| §1 harness | done | `python/cir_workflow/bounded_monitor.py` + `python/tests/test_bounded_monitor.py`; maps clause verdicts onto `req` ids and computes RC/RF. `experiments/rust-oracle-v1/PROTOCOL.md`. |
+
+## Not done / stop points
+
+- **§1 instrument v2** (free Rust -> `cir_trace::sync` wrapper types, sid by
+  (resource, kind, order), `resources.json`, failure classification) is **not
+  implemented**. Consequence: the bounded oracle can only score artifacts that
+  already carry v2 events (codegen products / `G3_concir`), not arbitrary
+  LLM-written Rust (`G0`/`G1`/`G2`). This is the first task of the next session.
+  The existing call-site annotator does not emit unlock-on-guard-drop, so it
+  cannot support `holds_all`/`mutex_exclusive` over time.
+- §1 acceptance (fixed.rs -> all non-`[U]` `PASS_bounded`; buggy.rs -> >=1 FAIL
+  or hang) was therefore **not run**.
+- §2/§3/§4/§5/§6 not started.
+
+## Budgets
+
+| provider | requests |
+| --- | --- |
+| DeepSeek Flash | 0 |
+| OpenCode Go | 0 |
+
+## Binary
+
+- new `concir-backend` (with `monitor`): sha256
+  `8480f162ba6c47217a3f8fc0ba0e71d0e1acb85b27efdd23d6354c49e4e9f31f`.
+- Rust tests: **246 passed** (238 + 8 monitor). Python: **133 passed**.
