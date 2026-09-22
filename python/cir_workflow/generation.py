@@ -409,6 +409,256 @@ def run_rust_generation(client, arm: str, task: GenTask, out_dir: Path, *,
     return run, record
 
 
+# ───────────────────── §1 G3 v2: LLM code from a verified CIR ─────────────────
+
+_DROP_OPS = {"spawn", "join", "scope", "complete", "ev"}
+
+
+def _cir_json_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8").strip()
+
+
+def _llmcode_system() -> str:
+    from .prompts import PROMPT_ASSET_DIR
+    return (PROMPT_ASSET_DIR / "rust_from_cir_v1.md").read_text(encoding="utf-8")
+
+
+def _cir_plan(cir: dict[str, Any]) -> str:
+    """A compact, authoritative thread/step plan derived from the CIR."""
+    lines = ["Thread plan (authoritative; mirror it exactly):"]
+    for mod in cir.get("modules", []):
+        lines.append(f"module {mod.get('name')}:")
+        for fn in mod.get("functions", []):
+            steps = []
+            for st in fn.get("body", []):
+                kind = st.get("kind")
+                if kind == "spawn":
+                    steps.append(f"spawn {st.get('func')}")
+                elif kind == "scope":
+                    steps.append("start [" + ", ".join(st.get("funcs", [])) + "]")
+                elif kind == "join":
+                    steps.append("join")
+                elif kind in ("mutex_lock", "mutex_unlock", "semaphore_acquire",
+                              "semaphore_release"):
+                    steps.append(f"{kind} {st.get('resource')}")
+                elif kind == "channel_send" or kind == "channel_recv":
+                    steps.append(f"{kind} {st.get('channel')}")
+                elif kind == "condvar_wait":
+                    steps.append(f"condvar_wait {st.get('condvar')} on {st.get('lock')}")
+                elif kind in ("condvar_notify", "condvar_notify_all"):
+                    steps.append(f"{kind} {st.get('condvar')}")
+            lines.append(f"- {fn.get('name')}: " + ("; ".join(steps) or "no operations"))
+    return "\n".join(lines)
+
+
+def _llmcode_user(task: GenTask, cir_path: Path, feedback: str | None) -> str:
+    cir = json.loads(cir_path.read_text(encoding="utf-8"))
+    parts = [
+        "Requirement document:",
+        task.requirements_md.strip(),
+        "",
+        _cir_plan(cir),
+        "",
+        "Verified ConcIR design (authoritative):",
+        "```json",
+        _cir_json_text(cir_path),
+        "```",
+    ]
+    if feedback:
+        parts += ["", "Post-verification feedback on your previous Rust:",
+                  feedback, "Fix the Rust; do not change the design."]
+    parts += ["", "Output only the complete Rust program in one ```rust fence."]
+    return "\n".join(parts)
+
+
+def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
+                   ) -> tuple[dict[str, str], dict[str, Any]]:
+    """Map instrumented resource/handle names to the CIR's FQNs by kind/order."""
+    kinds = rust_oracle.reference_kinds(cir)
+    by_kind: dict[str, list[str]] = {}
+    for fqn, kind in kinds.items():
+        by_kind.setdefault(kind, []).append(fqn)
+    mapping: dict[str, str] = {}
+    seen: dict[str, int] = {}
+    for res in rust_resources:
+        kind = res.get("kind", "")
+        if kind == "Spawn":
+            continue
+        k = seen.get(kind, 0)
+        seen[kind] = k + 1
+        targets = by_kind.get(kind, [])
+        if k < len(targets):
+            mapping[res["name"]] = targets[k]
+    spawns = [r["name"] for r in rust_resources if r.get("kind") == "Spawn"]
+    workers: list[str] = []
+    for mod in cir.get("modules", []):
+        for fn in mod.get("functions", []):
+            if fn.get("name") != "main":
+                workers.append(f"{mod['name']}::{fn['name']}")
+    for src, dst in zip(spawns, workers):
+        mapping[src] = dst
+    return mapping, {"by_kind": {k: v for k, v in by_kind.items()}}
+
+
+def _rewrite_traces(src_dir: Path, dst_dir: Path, mapping: dict[str, str],
+                    drop_ops: set[str]) -> None:
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    for trace in sorted(src_dir.glob("*.jsonl")):
+        out = []
+        for line in trace.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            event = json.loads(line)
+            if event.get("op") in drop_ops:
+                continue
+            event["r"] = mapping.get(event.get("r", ""), event.get("r", ""))
+            out.append(json.dumps(event))
+        (dst_dir / trace.name).write_text("\n".join(out) + ("\n" if out else ""),
+                                          encoding="utf-8")
+
+
+def _conform_all_op_resource(binary: Path, cir_path: Path, traces_dir: Path) -> dict[str, Any]:
+    from collections import Counter
+    statuses = Counter()
+    first: dict[str, Any] | None = None
+    traces = sorted(traces_dir.glob("*.jsonl"))
+    for trace in traces:
+        proc = subprocess.run(
+            [str(binary), "conform", str(cir_path), str(trace), "--op-resource"],
+            capture_output=True, text=True, timeout=120)
+        try:
+            result = json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            result = {"status": "error", "detail": proc.stderr[-200:]}
+        statuses[result.get("status")] += 1
+        if result.get("status") != "conformant" and first is None:
+            first = result
+    return {"traces": len(traces), "statuses": dict(statuses),
+            "conformant": statuses.get("conformant", 0), "first_violation": first}
+
+
+def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path,
+                         out_dir: Path, *, k_code: int = 3, instrument_binary=None
+                         ) -> dict[str, Any]:
+    """LLM generates Rust from a verified CIR; tools instrument/conform/monitor."""
+    from . import bounded_monitor
+    from .json_utils import extract_json  # noqa: F401 (kept for parity)
+    from .prompts import requirements_only_user_prompt  # noqa: F401
+
+    system = _llmcode_system()
+    cir = json.loads(cir_path.read_text(encoding="utf-8"))
+    contract = task.contract
+    out_dir.mkdir(parents=True, exist_ok=True)
+    record: dict[str, Any] = {
+        "arm": "G3_concir_llmcode", "task": task.id, "cir_path": str(cir_path),
+        "rounds": [], "accepted": False, "accepted_with_proof": False,
+        "status": "generation_failed", "instrument_limit": None,
+    }
+    feedback: str | None = None
+    for round_no in range(1, k_code + 1):
+        info: dict[str, Any] = {"round": round_no, "decision": None}
+        record["rounds"].append(info)
+        user = _llmcode_user(task, cir_path, feedback)
+        outcome = llm_client.complete(system, user)
+        info["prompt_tokens"] = _usage_get(outcome, "prompt_tokens")
+        info["completion_tokens"] = _usage_get(outcome, "completion_tokens")
+        info["llm_ms"] = getattr(outcome, "wall_ms", None)
+        rust = _extract_rust_body(outcome.text)
+        if rust is None:
+            info["decision"] = "format_error"
+            feedback = ("Reply was not one Rust program in a ```rust fence. "
+                        "Output the complete file.")
+            continue
+        (out_dir / f"round-{round_no}.rs").write_text(rust, encoding="utf-8")
+        inst = out_dir / f"round-{round_no}" / "instrument"
+        try:
+            wrapped = rust_oracle.instrument_wrappers(rust, inst,
+                                                      binary=instrument_binary)
+        except Exception as exc:  # noqa: BLE001
+            info["decision"] = "instrument_error"
+            info["instrument_error"] = str(exc)[:300]
+            feedback = (f"concir-instrument could not instrument your Rust: {exc}. "
+                        "Use only std::sync::{Mutex, Condvar}, Arc, and thread::spawn.")
+            continue
+        info["instrument_limit"] = wrapped["limitations"]
+        project = out_dir / f"round-{round_no}" / "proj"
+        rust_oracle.prepare_project(project, wrapped["annotated"], wrapped["runtime"])
+        built, build_log = rust_oracle.cargo_build(project)
+        if not built:
+            info["decision"] = "build_failed"
+            feedback = f"Your Rust did not build:\n{build_log[-1200:]}"
+            continue
+        traces_dir = out_dir / f"round-{round_no}" / "traces"
+        runs = rust_oracle.run_native(project, traces_dir, n=32, timeout=10.0)
+        behavior_ok = all(r["completed"] for r in runs) if runs else False
+        info["behavior_ok"] = behavior_ok
+        mapping, _ = mapping_to_cir(wrapped["resources"], cir)
+        mapping_path = out_dir / f"round-{round_no}" / "mapping.json"
+        mapping_path.write_text(json.dumps({"mapping": mapping}, indent=2) + "\n",
+                                encoding="utf-8")
+        conform_dir = out_dir / f"round-{round_no}" / "conform-traces"
+        monitor_dir = out_dir / f"round-{round_no}" / "monitor-traces"
+        _rewrite_traces(traces_dir, conform_dir, mapping, _DROP_OPS)
+        # monitor keeps the runtime resource names and lets --mapping align them
+        _rewrite_traces(traces_dir, monitor_dir, {}, set())
+        conform = _conform_all_op_resource(binary, cir_path, conform_dir)
+        info["conform"] = {"conformant": conform["conformant"],
+                           "traces": conform["traces"], "statuses": conform["statuses"]}
+        report = bounded_monitor.run_monitor(
+            task.contract_path, monitor_dir,
+            resources=inst / "resources.json", mapping=mapping_path, binary=binary)
+        info["monitor_status"] = report.get("status")
+        info["monitor_fail"] = [p["id"] for p in report.get("properties", [])
+                                if p.get("status") == "FAIL"]
+        conform_ok = (conform["traces"] > 0
+                      and conform["conformant"] == conform["traces"])
+        monitor_ok = report.get("status") != "fail"
+        if conform_ok and monitor_ok and behavior_ok:
+            info["decision"] = "accepted"
+            record["accepted"] = True
+            record["status"] = "accepted"
+            record["accepted_with_proof"] = bool(conform_ok and monitor_ok)
+            record["coverage"] = bounded_monitor.coverage(
+                contract, report, task.requirements, task.unverifiable,
+                behavior_ok=behavior_ok).as_dict()
+            record["final_rust"] = str(out_dir / f"round-{round_no}.rs")
+            break
+        info["decision"] = "post_verify_fail"
+        pieces = []
+        if not behavior_ok:
+            pieces.append("The program did not terminate on all runs; ensure every "
+                          "thread is joined and main prints the terminal line.")
+        if not conform_ok and conform["first_violation"]:
+            fv = conform["first_violation"]
+            pieces.append(f"Conformance violation: {fv.get('detail')} "
+                          f"(event {fv.get('event_index')}).")
+        if not monitor_ok:
+            pieces.append("Requirement checks that failed: "
+                          + ", ".join(info["monitor_fail"]) + ".")
+        feedback = " ".join(pieces)
+    return record
+
+
+def _usage_get(outcome, key: str):
+    usage = getattr(outcome, "usage", None) or {}
+    return usage.get(key)
+
+
+def _extract_rust_body(text: str) -> str | None:
+    if "```" in text:
+        blocks = text.split("```")[1::2]
+        if not blocks:
+            return None
+        best = max(blocks, key=len)
+        lines = best.splitlines()
+        if lines and lines[0].strip().lower() in ("rust", "rs"):
+            lines = lines[1:]
+        body = "\n".join(lines).strip()
+        return body + "\n" if "fn main" in body else None
+    return text.strip() + "\n" if "fn main" in text else None
+
+
 def rust_arm_oracle(artifact: Path, task: GenTask, work_dir: Path, *, binary) -> dict[str, Any]:
     result = rust_oracle.evaluate(
         artifact.read_text(encoding="utf-8"), task.contract_path,

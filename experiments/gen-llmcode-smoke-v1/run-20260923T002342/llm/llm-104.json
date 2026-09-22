@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "11a3a27c-9f32-4dc5-9e38-f442bf7f81bb",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust from a verified ConcIR design (v1)\n\nYou are a Rust concurrency engineer. You are given (a) a **verified ConcIR\ndesign** and (b) the original requirement document. Output one self-contained\nRust program that implements the design.\n\n## Authority\n\nThe ConcIR design is **authoritative** for everything it models:\n\n- every CIR function corresponds to one thread body or function; the entry\n  scope starts the threads it names;\n- every CIR resource corresponds to one synchronization primitive or shared\n  variable: a mutex, a condition variable, a semaphore, a channel, an atomic,\n  or a plain shared variable;\n- the order of synchronization operations and shared-state updates in your Rust\n  must follow the order of the CIR statements in each function;\n- every function or variable name in the CIR must appear in your Rust under the\n  same name.\n\nThe requirement document only supplements what the CIR does not model: payload\ncomputation, data formatting, and the exact terminal output line. If the two\ndisagree, **follow the CIR**. If the requirement document names a thread or a\nresource, use that name.\n\n## Rules\n\n- One file, compiled as a binary crate; define `fn main`.\n- Standard library only: `std::thread`, `std::sync::{Mutex, Condvar, Arc,\n  atomic::*}`, `std::sync::mpsc`, `std::time`. No external crates, no `unsafe`,\n  no `#![feature]`.\n- Implement the CIR's mutexes with `Mutex`, condition variables with `Condvar`\n  (wait in a predicate loop guarded by the mutex), semaphores with a\n  counter+`Condvar`, and channels with `mpsc` (use `sync_channel` for a bounded\n  channel; a zero-capacity `sync_channel` is a rendezvous).\n- Preserve the intended contention and synchronization structure. Do not make\n  the program sequential and do not remove a critical section.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  avoid a concurrency problem; coordinate only with synchronization primitives.\n- Ensure every spawned thread is joined and `main` terminates, printing the\n  terminal status line required by the requirements.\n- Do not mention design-internal identifiers in comments. Output only the Rust\n  source inside one ```rust code fence. No prose outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Requirement document:\n# Requirements\n\nR1. A main task calls an auxiliary routine and then begins the same call sequence again. [U]\nR2. The main task and the auxiliary routine share no mutexes, counters, or other shared state, so no two tasks contend for a resource.\nR3. Each auxiliary call runs to completion before the calling task starts the next call.\nR4. Every schedule and interleaving of the tasks must terminate.\nR5. The program must print exactly the line `DONE done=1` and then exit. [U]\n\nThread plan (authoritative; mirror it exactly):\nmodule main:\n- main: no operations\n- aux: no operations\n\nVerified ConcIR design (authoritative):\n```json\n{\n  \"program\": \"seq_calls\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [],\n        \"functions\": [\n          \"main\",\n          \"aux\"\n        ]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"call\",\n              \"func\": \"main::aux\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"call\",\n              \"func\": \"main::aux\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"aux\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"return\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}\n```\n\nOutput only the complete Rust program in one ```rust fence."
+    }
+  ],
+  "prompt_sha256": "ce32db6707b960b2cff55c96a1287dc2d9d4780de1e15198d1c7c5ee130212a6",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 29,
+    "prompt_tokens": 963,
+    "total_tokens": 992,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 768
+    },
+    "prompt_cache_hit_tokens": 768,
+    "prompt_cache_miss_tokens": 195
+  },
+  "content_sha256": "0b0fd73f56d5b6ac0242705f0bc8994ceb80398a997785f98170809c60b1c3ce",
+  "content": "```rust\nfn aux() {\n}\n\nfn main() {\n    aux();\n    aux();\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 556
+}

@@ -1113,3 +1113,44 @@ skipped.
 - Expert labels for the generation cells not run (`gen-main` defect uses
   behavior/monitor/conform; expert track pending).
 - Part B (paper §B1–§B3) not started.
+
+---
+
+# Round 2026-09-22o (in progress) — G3 v2: LLM code from verified CIR
+
+Architecture correction (REVIEW N-1): ConcIR verifies the CIR; the **LLM**, not
+the tool, writes the executable Rust from the verified CIR. Tools post-verify:
+`concir-instrument` v2, `conform --op-resource`, `monitor`. Tool `codegen`
+becomes the ablation arm.
+
+## Done
+
+| item | status | evidence |
+| --- | --- | --- |
+| `rust_from_cir_v1.md` | done | `prompts/rust_from_cir_v1.md` (CIR authoritative; requirements supplement). |
+| conform op-resource | done | ConcIR `eb3efe4`: `conform --op-resource` matches `(op, resource)` per event (tags/child-tags ignored; scope/spawn/join silent); instrument v2 assigns spawn-order tags. |
+| G3 v2 arm | done | `generation.py: run_llmcode_from_cir` (LLM Rust -> instrument -> build -> conform -> monitor -> behavior, conform/monitor feedback, K_code=3). |
+| §1.3 smoke | **run** | `experiments/gen-llmcode-smoke-v1/SUMMARY.md`: 45 CIRs, 107 requests, build 45/45, **conform PASS 15/45 (33%)**, accepted-with-proof 15/45; 8 of the 23 codegen-error CIRs now land. |
+
+## Stop point (stop-loss met)
+
+- conform PASS 33% **< 40%**, and the cause is **not** instrument coverage
+  (`instrument_limit` empty for almost every cell): it is CIR/code structural
+  fidelity (the accepted v1 CIRs often have unusual nested `spawn`/`join`
+  graphs that the LLM's Rust does not mirror) and repeated build failures.
+- Per the stop-loss rule, **G3 v2 is reported alongside `G3_codegen`, not
+  substituted**. The smoke is the v1-CIR diagnostic; §2 (entity names +
+  intent-driven requirements) and the §3 rerun are expected to improve the CIRs.
+- `run_llmcode_from_cir` returns `accepted_with_proof = conform PASS ∧ monitor no
+  FAIL` (model PASS is given by the input CIR).
+
+## Not done
+
+- §2 benchmark v3.1 (entity names, drop heuristic alignment, same_cv intent,
+  ConcIR condvar-multi-mutex UNSUPPORTED).
+- §3 `flash-gen-main-v2`, §4 probe v2, §5 freeze-5.
+- Part B update for the LLM-code architecture.
+
+## Budgets
+
+DeepSeek Flash this round: 2 × 107–115 ≈ **222** (smoke reruns).
