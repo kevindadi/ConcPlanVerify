@@ -115,7 +115,8 @@ def render_tex(cells: dict) -> dict[str, str]:
                     f"{a['rf']} \\\\")
     arms += ["\\bottomrule", "\\end{tabular}"]
     tiers = ["\\begin{tabular}{l" + "r" * len(ARMS) + "}", "\\toprule",
-             "tier & " + " & ".join(ARMS) + " \\\\", "\\midrule"]
+             "tier & " + " & ".join(a.replace("_", "\\_") for a in ARMS) + " \\\\",
+             "\\midrule"]
     for tier in TIERS:
         row = [tier]
         for arm in ARMS:
