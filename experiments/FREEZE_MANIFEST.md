@@ -78,3 +78,30 @@ Directory sha256 = sha256 of `find <dir> -type f -not -path '*/target/*' | sort 
 - ConcIR: unchanged this round; `concir-freeze-2` still applies (BIN_V2 `073129de`).
 - BIN_MAIN `4bec943d`; model-probe-v2 completed to 10x3.
 - Round n budgets: OpenCode Go 26, DeepSeek 26.
+
+---
+
+# Freeze 4 — generation-first round (2026-09-22)
+
+Directory hash recipe as above (sha256 of the sorted per-file sha256 lines,
+excluding `*/target/*`).
+
+- `experiments/rust-oracle-v1`: files=3 sha256=`bdc32a4741003837fee2704b6dbe9f6db7f9a63465551007f48161c11d9ab6bd`
+- `experiments/flash-gen-main-v1`: files=34688 sha256=`f218c65f33accf70928a6ff3db4e8661409f7ba8fa84606b70aa2bf8aa3d2494`
+- `experiments/gen-model-probe-v1`: files=6120 sha256=`a5cb943ce80db01f19ffeb820bc28f25f1432dde4b1f42658aa700cc8529b608`
+- `experiments/tables`: files=13 sha256=`00dbd9baf2f55a25b671a2eaf50c3ee5d44898ba75d339eac43f15133b37ea24`
+
+## Provenance
+
+- ConcPlanVerify commit at freeze: (this commit; tag `experiments-v2-freeze-4`)
+- ConcIR commit at freeze: `6e2a3de` (tag `concir-freeze-3`)
+- `concir-backend` sha256: `cf4f9e9a183d252a4abe95d702302151951af82f8a877e9d172a38b53a1acbf2`
+- `concir-instrument` sha256: `5db7765c315ef36c90511f452451b5f0e766c0ab18c16ada1db2c992076becaf`
+- Main generation batch: `flash-gen-main-v1` (288 cells; Rust arms 629 requests + G3 re-run 170 requests).
+- Frontier probe: `gen-model-probe-v1` kimi-k3 (72 cells; 112 OpenCode Go requests).
+- Bounded Rust oracle: instrument v2 (wrapper types) + monitor; 20 references (10 buggy hang, 8/10 fixed all non-[U] PASS_bounded).
+
+## Tags
+
+- ConcPV `experiments-v2-freeze-1`, `-2`, `-3`, `-4`
+- ConcIR `concir-freeze-1`, `-2`, `-3`

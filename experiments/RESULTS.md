@@ -2,7 +2,7 @@
 
 > **Generated file — do not edit by hand.** Regenerate with:
 > ```
-> python -m cir_workflow results --out /tmp results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --expert experiments/flash-repair-main-v1/expert-labels/EXPERT_LABELS.json --extraction experiments/extraction-v5 --trackd experiments/detection-v3/TRACKD.json --scale experiments/scale-v2/SCALE.json --mutation experiments/conform-mutation-v2/SUMMARY.json --postedit experiments/post-edit-conform-v2/SUMMARY.json --mutation-v1 experiments/conform-mutation-v1/SUMMARY.json --postedit-v1 experiments/post-edit-conform-v1/SUMMARY.json --modelprobe experiments/model-probe-v2 --latex experiments/tables --output experiments/RESULTS.md
+> python -m cir_workflow results results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --expert experiments/flash-repair-main-v1/expert-labels/EXPERT_LABELS.json --extraction experiments/extraction-v5 --trackd experiments/detection-v3/TRACKD.json --scale experiments/scale-v2/SCALE.json --mutation experiments/conform-mutation-v2/SUMMARY.json --postedit experiments/post-edit-conform-v2/SUMMARY.json --mutation-v1 experiments/conform-mutation-v1/SUMMARY.json --postedit-v1 experiments/post-edit-conform-v1/SUMMARY.json --modelprobe experiments/model-probe-v2 --gen experiments/flash-gen-main-v1/run-20260922T001631 --gen experiments/flash-gen-main-v1/run-20260922T015338 --genprobe experiments/gen-model-probe-v1 --latex experiments/tables --output experiments/RESULTS.md
 > ```
 
 ## Provenance
@@ -12,6 +12,9 @@
 - extraction: `experiments/extraction-v5`
 - track D: `experiments/detection-v3/TRACKD.json`
 - scale: `experiments/scale-v2/SCALE.json`
+- generation batch: `experiments/flash-gen-main-v1/run-20260922T001631`
+- generation batch: `experiments/flash-gen-main-v1/run-20260922T015338`
+- generation probe: `experiments/gen-model-probe-v1`
 - binary sha256: `4bec943dd486473caab24b17233b536e31641fbbb1e3d8d505d499b3113fb3f2`
 - binary v2 (conform) sha256: `073129de3a6d378a4e198bf712028c0c950cdf080981fb0073dfb7af5fa7ce5c`
 - protocol[0] sha256: `b869a532588c83b2520f4c8df40e4be36c848789e9b7714301b1a22f9159e7f0`
@@ -89,7 +92,7 @@
 
 | arm | cells | accepted | accept_rate | false_accept | conform_pass_rate | escalation_rate | tokens/correct_accept | by source |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| A0_direct | 30 | 30 | 1.00 | 11 | — | — | 456 | {'expert': 9, 'behavior': 8, 'by_construction': 3} |
+| A0_direct | 30 | 30 | 1.00 | 11 | — | — | 456 | {'behavior': 8, 'expert': 9, 'by_construction': 3} |
 | A1_self_iter | 30 | 23 | 0.77 | 1 | — | — | 1315 | {'expert': 1} |
 | A2_tools_iter_ml | 30 | 28 | 0.93 | 3 | — | — | 715 | {'expert': 3} |
 | A3_local | 30 | 24 | 0.80 | 0 | 24/24 = 1.00 | — | 675 | — |
@@ -472,3 +475,40 @@ Lockbud: available=True commit=`None` (miri seeds=16).
 - D-19: the main batch is not gated on Rust-arm oracle completeness; missing `oracle.model` cells are `inconclusive` and backfilled by extraction/expert labels.
 - Expert labels are LLM-assisted (agent-proxy) with the owner's human review merged (17 rows / 11 candidates); 2 human/auto disagreements await the owner (`HUMAN_DISAGREEMENT_EVIDENCE.md`).
 - All offline recomputation uses BIN_MAIN (main table) or BIN_V2 (conform/a3-to-rust/mutation/post-edit); both shas are listed above.
+
+## Generation (main) — `flash-gen-main-v1`
+
+Requirements -> program, four arms, 24 tasks, K=4, 3 reps. The contract
+is hidden from every model prompt. Rust arms are scored by the bounded
+monitor (§1); G3 by the exhaustive model verdict + conform.
+
+Batches (later overrides earlier): `run-20260922T001631`, `run-20260922T015338`.
+
+| arm | cells | accepted | accept rate | RC | RF | defect | awp | tokens |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| G0_direct | 72 | 68 | 0.944 | 0.65 | 0.422 | 6 | 0 | 58145 |
+| G1_self_iter | 72 | 67 | 0.931 | 0.656 | 0.46 | 1 | 0 | 202663 |
+| G2_tools_iter | 72 | 46 | 0.639 | 0.639 | 0.468 | 0 | 0 | 293973 |
+| G3_concir | 72 | 45 | 0.625 | 0.776 | 0.504 | 2 | 20 | 539360 |
+| **all** | 288 | 226 | 0.785 | 0.686 | 0.466 | 9 | 20 | 1094141 |
+
+Per tier (RF):
+
+| tier | G0_direct | G1_self_iter | G2_tools_iter | G3_concir |
+| --- | --- | --- | --- | --- |
+| Simple | 0.396 | 0.39 | 0.421 | 0.666 |
+| Medium | 0.517 | 0.53 | 0.53 | 0.305 |
+| Complex | 0.369 | 0.464 | 0.46 | 0.542 |
+
+`defect` = accepted and (hang/behavior or monitor/conform violation). `awp` is G3-only (model PASS and conform PASS).
+
+## Generation with a frontier model — `gen-model-probe-v1`
+
+Model `kimi-k3` (OpenCode Go, chat/completions), 1 rep, K=4, temperature 0.0.
+
+| arm | cells | not_run | accepted | accept rate | RC | RF | defect | awp | tokens |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| G0_direct | 24 | 0 | 22 | 0.917 | 0.651 | 0.499 | 0 | 0 | 48968 |
+| G2_tools_iter | 24 | 0 | 15 | 0.625 | 0.58 | 0.434 | 0 | 0 | 27763 |
+| G3_concir | 24 | 0 | 17 | 0.708 | 0.776 | 0.684 | 0 | 10 | 133420 |
+| **all** | 72 | 0 | 54 | 0.75 | 0.678 | 0.549 | 0 | 10 | 210151 |

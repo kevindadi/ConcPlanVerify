@@ -597,7 +597,9 @@ def build(batch_paths: list[Path], expert_paths: list[Path], extract_dirs: list[
           reclass_path: Path | None, command: str,
           mutation_v1_path: Path | None = None, postedit_v1_path: Path | None = None,
           mutation_path: Path | None = None, postedit_path: Path | None = None,
-          modelprobe_dir: Path | None = None) -> str:
+          modelprobe_dir: Path | None = None,
+          gen_batches: list[Path] | None = None,
+          genprobe_dir: Path | None = None) -> str:
     summaries = load_summaries(batch_paths)
     expert_agg, expert_cell, candidates = expert_index(expert_paths)
     extract = extract_index(extract_dirs)
@@ -632,11 +634,27 @@ def build(batch_paths: list[Path], expert_paths: list[Path], extract_dirs: list[
         shas.append(("binary v2 (conform)", mutation_v2["binary_sha256"]))
     shas += [(f"protocol[{i}]", s.get("protocol_sha256") or "unknown")
              for i, s in enumerate(summaries)]
+    for p in (gen_batches or []):
+        inputs.append(("generation batch", str(p)))
+    if genprobe_dir:
+        inputs.append(("generation probe", str(genprobe_dir)))
     header = {"command": command, "inputs": inputs, "shas": shas,
               "mutation": mutation_v2, "postedit": postedit_v2,
               "modelprobe": modelprobe}
-    return render(rows, expert_agg, candidates, extract, trackd, scale, header,
+    text = render(rows, expert_agg, candidates, extract, trackd, scale, header,
                   DEFAULT_DEVIATIONS, mutation_v1, postedit_v1)
+    if gen_batches:
+        from . import gen_results
+        cells = gen_results.load_cells(gen_batches)
+        text += gen_results.render_md(cells, gen_batches)
+    if genprobe_dir:
+        from . import gen_results
+        summary = gen_results.latest_probe_summary(Path(genprobe_dir))
+        if summary:
+            text += gen_results.render_probe_md(summary.get("model", "?"),
+                                                summary.get("cells", []),
+                                                summary.get("temperature"))
+    return text
 
 
 def _tex_header(name: str, command: str, shas: list[tuple[str, str]]) -> str:
@@ -658,7 +676,9 @@ def latex_tables(rows: list[dict[str, Any]], candidates: list[dict],
                  trackd: dict[str, Any] | None, scale: dict[str, Any] | None,
                  mutation: dict[str, Any] | None, postedit: dict[str, Any] | None,
                  out_dir: Path, command: str, shas: list[tuple[str, str]],
-                 mutation_v1: dict[str, Any] | None = None) -> list[str]:
+                 mutation_v1: dict[str, Any] | None = None,
+                 gen_cells: dict | None = None,
+                 probe_cells: list[dict] | None = None) -> list[str]:
     out_dir.mkdir(parents=True, exist_ok=True)
     written = []
 
@@ -771,6 +791,14 @@ def latex_tables(rows: list[dict[str, Any]], candidates: list[dict],
                      f"\\\\\n")
         body += "\\bottomrule"
         write("postedit.tex", "\\begin{tabular}{lrrrr}\n" + body + "\n\\end{tabular}")
+
+    if gen_cells:
+        from . import gen_results
+        for name, body in gen_results.render_tex(gen_cells).items():
+            write(name, body.rstrip("\n"))
+    if probe_cells:
+        from . import gen_results
+        write("gen_probe.tex", gen_results.render_probe_tex(probe_cells).rstrip("\n"))
     return written
 
 
@@ -786,15 +814,20 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--reclass")
     parser.add_argument("--mutation")
     parser.add_argument("--postedit")
+    parser.add_argument("--gen", action="append", default=[])
+    parser.add_argument("--genprobe")
     parser.add_argument("--latex")
     parser.add_argument("--out", required=True)
     args = parser.parse_args(argv)
     command = "python -m cir_workflow results " + " ".join(shlex.quote(a) for a in argv)
+    gen_batches = [Path(p) for p in args.gen]
+    genprobe_dir = Path(args.genprobe) if args.genprobe else None
     text = build([Path(p) for p in args.batch], [Path(p) for p in args.expert],
                  [Path(p) for p in args.extraction],
                  Path(args.trackd) if args.trackd else None,
                  Path(args.scale) if args.scale else None,
-                 Path(args.reclass) if args.reclass else None, command)
+                 Path(args.reclass) if args.reclass else None, command,
+                 gen_batches=gen_batches, genprobe_dir=genprobe_dir)
     Path(args.out).write_text(text, encoding="utf-8")
     written = []
     if args.latex:
@@ -808,8 +841,16 @@ def main(argv: list[str]) -> int:
         mutation = json.loads(Path(args.mutation).read_text()) if args.mutation else None
         postedit = json.loads(Path(args.postedit).read_text()) if args.postedit else None
         shas = [("binary", summaries[0].get("binary_sha256") if summaries else "unknown")]
+        from . import gen_results
+        gen_cells = gen_results.load_cells(gen_batches) if gen_batches else None
+        probe_cells = None
+        if genprobe_dir:
+            summary = gen_results.latest_probe_summary(genprobe_dir)
+            if summary:
+                probe_cells = summary.get("cells", [])
         written = latex_tables(rows, candidates, trackd, scale, mutation, postedit,
-                               Path(args.latex), command, shas)
+                               Path(args.latex), command, shas,
+                               gen_cells=gen_cells, probe_cells=probe_cells)
     print(json.dumps({"out": args.out, "bytes": len(text), "latex": written}, indent=2))
     return 0
 

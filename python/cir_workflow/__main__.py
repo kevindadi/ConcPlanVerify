@@ -188,6 +188,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--mutation-v1")
     p.add_argument("--postedit-v1")
     p.add_argument("--modelprobe")
+    p.add_argument("--gen", action="append", default=[],
+                   help="generation batch dir with SUMMARY.json (repeatable)")
+    p.add_argument("--genprobe", help="gen-model-probe-v1 directory")
     p.add_argument("--latex")
     p.add_argument("--output", required=True)
 
@@ -415,7 +418,9 @@ def main(argv: list[str] | None = None) -> int:
                          Path(args.postedit_v1) if args.postedit_v1 else None,
                          Path(args.mutation) if args.mutation else None,
                          Path(args.postedit) if args.postedit else None,
-                         Path(args.modelprobe) if args.modelprobe else None)
+                         Path(args.modelprobe) if args.modelprobe else None,
+                         gen_batches=[Path(p) for p in args.gen],
+                         genprobe_dir=(Path(args.genprobe) if args.genprobe else None))
             Path(args.output).write_text(text, encoding="utf-8")
             written = []
             if args.latex:
@@ -429,9 +434,18 @@ def main(argv: list[str] | None = None) -> int:
                 shas = [("binary", summaries[0].get("binary_sha256") if summaries else "unknown")]
                 mutation_v1 = (json.loads(Path(args.mutation_v1).read_text())
                                if args.mutation_v1 else None)
+                from . import gen_results
+                gen_cells = (gen_results.load_cells([Path(p) for p in args.gen])
+                             if args.gen else None)
+                probe_cells = None
+                if args.genprobe:
+                    summary = gen_results.latest_probe_summary(Path(args.genprobe))
+                    if summary:
+                        probe_cells = summary.get("cells", [])
                 written = latex_tables(rows, candidates, trackd, scale, mutation,
                                        postedit, Path(args.latex), command, shas,
-                                       mutation_v1)
+                                       mutation_v1, gen_cells=gen_cells,
+                                       probe_cells=probe_cells)
                 if args.modelprobe:
                     mp_runs = sorted(Path(args.modelprobe).glob("run-*"))
                     if mp_runs:

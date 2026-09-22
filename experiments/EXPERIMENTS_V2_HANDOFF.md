@@ -1072,3 +1072,44 @@ Key numbers (contract hidden in all arms):
   unbounded on the non-terminating programs); expert-track labels for the
   generation cells are **not run** yet; RESULTS integration and the evidence
   map are §6.
+
+---
+
+# Round 2026-09-22n — generation-first freeze (freeze-4)
+
+Repositioned to generation-first (requirements -> program); repair is the
+second study. Sections §0–§3 done; §4 was completed in round n; §5 (loom)
+skipped.
+
+| item | status | evidence |
+| --- | --- | --- |
+| §0 benchmark v3 | done | 24 tasks, tiers 8/8/8, `req`-tagged contracts, `GENERATION_MANIFEST.json`, `--check-generation`. |
+| §1 bounded oracle | done | instrument v2 + `monitor`; 10/10 buggy hang, 8/10 fixed all non-`[U]` PASS_bounded. |
+| §2 `flash-gen-main-v1` | done | 288 cells; G3 RF 0.504 (best), 539k tok, 2 defects; G2 0 defects. `RESULTS.md` §"Generation (main)". |
+| §3 `gen-model-probe-v1` | done | kimi-k3, 72 cells, 112 requests; G3 RF 0.684 with 0 defects. |
+| §6 freeze | done | `RESULTS.md` regenerated with generation sections; 12 `tables/*.tex`; `FREEZE_MANIFEST.md` Freeze 4; evidence map v3; tags `experiments-v2-freeze-4`, `concir-freeze-3`. |
+
+## Headline
+
+- Model-first generation (G3) has the **highest requirement satisfaction**
+  (RF 0.504 on Flash, 0.684 on kimi-k3) and coverage, but is ~10x the token
+  cost of direct generation and is not defect-free: 2 cells passed the model yet
+  the codegen Rust hangs (`condvar/same_cv_different_locks`).
+- The tool-loop arm (G2) is the only zero-defect Rust arm.
+- A **name-alignment** step is required for G3 (the model cannot know the
+  contract's resource/function FQNs); without it G3 accepted 25/72, with it
+  45/72.
+
+## Budgets (this round)
+
+| provider | requests |
+| --- | --- |
+| DeepSeek Flash (main batch) | 629 + 170 |
+| OpenCode Go (probe) | 112 |
+
+## Not done / stop points
+
+- §5 loom column (optional) not run.
+- Expert labels for the generation cells not run (`gen-main` defect uses
+  behavior/monitor/conform; expert track pending).
+- Part B (paper §B1–§B3) not started.
