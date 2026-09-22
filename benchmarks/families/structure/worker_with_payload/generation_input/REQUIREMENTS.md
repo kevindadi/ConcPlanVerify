@@ -8,3 +8,10 @@ R5. A worker that cannot take a held mutex waits until it becomes free.
 R6. Every schedule and interleaving of the workers must terminate.
 R7. Both workers complete.
 R8. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2, compute.
+- Shared resources: m (lock), acc (shared variable).

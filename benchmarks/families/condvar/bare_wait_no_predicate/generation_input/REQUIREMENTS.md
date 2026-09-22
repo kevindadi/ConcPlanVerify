@@ -10,3 +10,10 @@ R7. Every schedule and interleaving of the two roles must terminate with both ro
 R8. The shared flag becomes true in every schedule.
 R9. The waiter must not pass its wait until the flag is true.
 R10. The program must print exactly the line `DONE ready=true` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): waiter, notifier.
+- Shared resources: m (lock), cv (condition variable), ready (shared variable).

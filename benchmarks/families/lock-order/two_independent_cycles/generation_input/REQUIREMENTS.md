@@ -12,3 +12,10 @@ R9. Every worker must release each lock it holds before it finishes.
 R10. The main thread starts all four workers and only finishes after all four have finished.
 R11. Every possible schedule or interleaving of the workers must terminate.
 R12. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): t1, t2, t3, t4.
+- Shared resources: a (lock), b (lock), c (lock), d (lock).

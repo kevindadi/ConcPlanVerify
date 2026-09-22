@@ -19,7 +19,7 @@ Thresholds (frozen):
 | condvar/bare_wait_no_predicate | Complex | 10 | 2 | 2 | 3 | 2 | 3 | 5 | 43 | fixed |
 | condvar/lost_wakeup_notify_before_wait | Complex | 10 | 2 | 2 | 3 | 2 | 3 | 5 | 43 | fixed |
 | condvar/notify_one_multi_waiter_wrong_pick | Complex | 10 | 2 | 1 | 1 | 3 | 4 | 7 | 74 | fixed |
-| condvar/same_cv_different_locks | Complex | 10 | 2 | 1 | 0 | 3 | 4 | 7 | 90 | correct |
+| condvar/same_cv_different_locks | Complex | 10 | 2 | 1 | 0 | 3 | 4 | 7 | 0 | correct |
 | lock-order/abba_2lock | Medium | 9 | 1 | 1 | 4 | 2 | 2 | 4 | 39 | fixed |
 | lock-order/cross_module_cycle | Medium | 10 | 1 | 1 | 4 | 2 | 2 | 4 | 39 | fixed |
 | lock-order/cycle_3lock | Complex | 10 | 1 | 1 | 6 | 3 | 3 | 6 | 286 | fixed |

@@ -225,9 +225,9 @@ GENERATION: dict[str, dict] = {
     "condvar/same_cv_different_locks": {
         "requirements": [
             "A main task starts two waiter roles and one notifier role that run at the same time.",
-            "The two waiters guard their work with two different locks.",
-            "Both waiters block on the same condition variable.",
-            "A waiter must hold its own lock while it waits on the shared condition variable.",
+            "Each waiter guards its own data with its own lock; the two waiters need not share one lock.",
+            "Each waiter must be notified before it proceeds, and the notifier must be able to wake every waiter without depending on a race between them.",
+            "A waiter must hold its own lock while it waits for the notification.",
             "Each waiter must announce that it is about to wait before it blocks, so the notifier knows how many waits to expect.",
             "The notifier must wait until both waiters have announced themselves before it wakes them.",
             "When the notifier wakes the waiters it must hold each lock that a waiter needs in order to wake and finish.",

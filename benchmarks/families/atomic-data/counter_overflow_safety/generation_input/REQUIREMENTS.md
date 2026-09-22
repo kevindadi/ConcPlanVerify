@@ -7,3 +7,10 @@ R4. A worker must hold the mutual-exclusion lock whenever it reads or writes the
 R5. In every state that can occur, the counter never exceeds one, even though its declared range allows up to two.
 R6. Every possible schedule and interleaving of the two workers must terminate.
 R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2.
+- Shared resources: m (lock), c (shared variable).

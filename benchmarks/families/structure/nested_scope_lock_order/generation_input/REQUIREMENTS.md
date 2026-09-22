@@ -7,3 +7,10 @@ R4. The two inner tasks take the mutexes in the same order so that no wait cycle
 R5. The outer worker completes, and it only completes after both inner tasks have finished.
 R6. Every schedule and interleaving of the tasks must terminate.
 R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): outer, x1, x2.
+- Shared resources: a (lock), b (lock).

@@ -7,3 +7,10 @@ R4. No task may wait forever for a partner that never arrives.
 R5. Every schedule and interleaving must terminate with both tasks finished and no value left in the channel.
 R6. The channel is empty once both tasks have finished.
 R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): s1, r.
+- Shared resources: ch (channel).

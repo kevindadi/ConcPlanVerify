@@ -8,3 +8,10 @@ R5. No role may wait on the channel while holding the shared lock that the other
 R6. Every schedule and interleaving must terminate with the sender and the receiver both finished.
 R7. The sender must not pass its second value before the receiver has taken the first, because the channel holds only one value.
 R8. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): sender, receiver.
+- Shared resources: m (lock), ch (channel).

@@ -10,3 +10,10 @@ R7. A starting thread launches both tasks and only finishes after both tasks hav
 R8. Both tasks must finish even though they run in different modules.
 R9. Every possible schedule or interleaving must terminate.
 R10. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): t1, t2.
+- Shared resources: a (lock), b (lock).

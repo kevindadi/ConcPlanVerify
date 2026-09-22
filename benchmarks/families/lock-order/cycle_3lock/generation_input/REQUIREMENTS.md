@@ -10,3 +10,10 @@ R7. The main thread starts all three workers and only finishes after all three h
 R8. Every worker must finish eventually, whatever order the workers run in.
 R9. Every possible schedule or interleaving of the workers must terminate.
 R10. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): t1, t2, t3.
+- Shared resources: a (lock), b (lock), c (lock).

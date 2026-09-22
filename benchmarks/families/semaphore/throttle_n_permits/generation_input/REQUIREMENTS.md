@@ -7,3 +7,10 @@ R4. At most two workers may hold permits at the same time, so a third worker wai
 R5. While a worker waits for a permit, a holder must remain able to release it so the waiting worker can eventually proceed.
 R6. Every possible schedule and interleaving of the three workers must terminate.
 R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2, w3.
+- Shared resources: s (semaphore).

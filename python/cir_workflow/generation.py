@@ -284,7 +284,6 @@ def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
     out_dir.mkdir(parents=True, exist_ok=True)
     backend = ConcirClient(str(binary), workdir=out_dir / "calls", timeout=60.0)
     provider = CirGenProvider(llm_client)
-    reference = json.loads(task.reference_cir_path.read_text(encoding="utf-8"))
     contract = task.contract
 
     record: dict[str, Any] = {"arm": "G3_concir", "task": task.id,
@@ -317,9 +316,6 @@ def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
             feedback = f"Reply was not one JSON object: {exc}. Output only the JSON object."
             continue
         parsed, norm_records, _ = normalize_program(parsed)
-        aligned = align_resource_names(parsed, reference)
-        round_info["name_alignment"] = aligned
-        record["name_alignment"].extend(aligned)
         program_path = out_dir / f"revision-{round_no}.cir.json"
         program_path.write_text(json.dumps(parsed, ensure_ascii=False, indent=2) + "\n",
                                 encoding="utf-8")
@@ -347,7 +343,14 @@ def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
             accepted_path = program_path
             break
         round_info["decision"] = "explore_fail"
-        feedback = render_feedback(build_explore_feedback(explore))
+        if explore.outcome == "INVALID":
+            feedback = ("The design cannot be evaluated against the contract because "
+                        "it does not use the entity names given in the requirements "
+                        "(see the Entities section): every role and shared resource "
+                        "must appear with exactly that name in the design. "
+                        + render_feedback(build_explore_feedback(explore)))
+        else:
+            feedback = render_feedback(build_explore_feedback(explore))
 
     if accepted_path is not None:
         record["cir_path"] = str(accepted_path)

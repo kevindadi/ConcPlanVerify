@@ -10,3 +10,10 @@ R7. Waking a single waiter is not enough; every blocked waiter must be woken.
 R8. Every schedule and interleaving must terminate with every waiter and the notifier finished.
 R9. Every waiter completes in every schedule.
 R10. The program must print exactly the line `DONE waiters=0` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2, notifier.
+- Shared resources: m (lock), cv (condition variable), g12 (semaphore), gN (semaphore).

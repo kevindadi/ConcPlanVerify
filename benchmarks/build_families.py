@@ -260,13 +260,43 @@ def _generation_entry(family: str, case: str, data: dict) -> dict:
     }
 
 
-def render_requirements(meta: dict) -> str:
+_KIND_WORD = {"Mutex": "lock", "Condvar": "condition variable",
+              "Semaphore": "semaphore", "Channel": "channel",
+              "Var": "shared variable", "Atomic": "atomic counter"}
+
+
+def entities_of(program: dict) -> dict[str, Any]:
+    """Role and resource names a requirement document must use (v3.1)."""
+    roles: list[str] = []
+    resources: list[dict[str, str]] = []
+    for mod in program.get("modules", []):
+        for fn in mod.get("functions", []):
+            if fn.get("name") != "main":
+                roles.append(fn["name"])
+        for res in mod.get("resources", []):
+            resources.append({"name": res["name"],
+                              "kind": _KIND_WORD.get(res.get("type", ""), "resource")})
+    return {"roles": roles, "resources": resources}
+
+
+def render_requirements(meta: dict, entities: dict | None = None) -> str:
     unv = set(meta["unverifiable"])
     lines = ["# Requirements", ""]
     for i, req in enumerate(meta["requirements"], 1):
         mark = " [U]" if i in unv else ""
         lines.append(f"R{i}. {req}{mark}")
     lines.append("")
+    if entities:
+        lines += ["## Entities", "",
+                  "Use these exact names in the design and in the program.", ""]
+        if entities.get("roles"):
+            lines.append("- Roles (threads/functions): "
+                         + ", ".join(entities["roles"]) + ".")
+        if entities.get("resources"):
+            lines.append("- Shared resources: "
+                         + ", ".join(f"{r['name']} ({r['kind']})"
+                                     for r in entities["resources"]) + ".")
+        lines.append("")
     return "\n".join(lines)
 
 
@@ -1311,9 +1341,11 @@ def write_case(family: str, case: str, data: dict) -> dict:
     (task / "spec.md").write_text(data["spec"].strip() + "\n", encoding="utf-8")
     write_json(task / "contract.json", data["contract"])
     if meta is not None:
+        reference = data.get("fixed") or data.get("correct") or data.get("buggy")
+        entities = entities_of(reference) if reference else None
         gin = task / "generation_input"
         gin.mkdir(exist_ok=True)
-        (gin / "REQUIREMENTS.md").write_text(render_requirements(meta),
+        (gin / "REQUIREMENTS.md").write_text(render_requirements(meta, entities),
                                              encoding="utf-8")
         write_json(gin / "requirements.json", {
             "task": key,
@@ -1321,6 +1353,7 @@ def write_case(family: str, case: str, data: dict) -> dict:
             "unverifiable": meta["unverifiable"],
             "clauses": meta["clauses"],
             "terminal": meta["terminal"],
+            "entities": entities,
             "contract": f"{family}/{case}/contract.json",
         })
     if data.get("buggy") is not None:
@@ -1389,7 +1422,13 @@ def add_reuse() -> list[dict]:
                     "expected_outcome_buggy": expected,
                     "provenance": provenance},
                 "rust": None}
-        if expected == "PASS":
+        if case == "same_cv_different_locks":
+            # v3.1: the target binds a Condvar to one mutex, so this design is
+            # UNSUPPORTED rather than PASS (ConcIR W1xx condvar_multiple_locks).
+            data["correct"] = prog
+            data["ground_truth"].pop("expected_outcome_buggy", None)
+            data["ground_truth"]["expected_outcome_correct"] = "UNSUPPORTED"
+        elif expected == "PASS":
             data["correct"] = prog
         else:
             data["buggy"] = prog
@@ -1620,14 +1659,18 @@ def build_generation(tasks: list[dict]) -> list[dict]:
     entries.sort(key=lambda e: (e["family"], e["case"]))
     tiers = {t: [e["task"] for e in entries if e["tier"] == t]
              for t in ("Simple", "Medium", "Complex")}
+    total_reqs = sum(e["requirements"] for e in entries)
+    total_unv = sum(e["unverifiable"] for e in entries)
     manifest = {
-        "version": 1,
-        "description": "Generation benchmark v3: per-task requirement documents, "
-                       "req-tagged frozen contracts and complexity tiers. status=ready "
-                       "means build_families validation passed.",
+        "version": "3.1",
+        "description": "Generation benchmark v3.1: per-task requirement documents "
+                       "with an Entities section (role/resource names), req-tagged "
+                       "frozen contracts and complexity tiers. status=ready means "
+                       "build_families validation passed.",
         "families": list(GENERATION_FAMILIES),
         "thresholds": {"Simple": TIER_SIMPLE, "Complex": TIER_COMPLEX,
                        "Medium": "otherwise"},
+        "unverifiable_share": round(total_unv / total_reqs, 3) if total_reqs else 0.0,
         "tiers": tiers,
         "tasks": entries,
     }
@@ -1690,7 +1733,8 @@ def validate_generation(entries: list[dict]) -> list[str]:
             errors.append(f"{e['task']}: REQUIREMENTS.md sha changed after manifest")
         if mpath.read_text(encoding="utf-8") != render_requirements(
                 {"task": e["task"], "requirements": reqjson["requirements"],
-                 "unverifiable": reqjson["unverifiable"]}):
+                 "unverifiable": reqjson["unverifiable"]},
+                reqjson.get("entities")):
             errors.append(f"{e['task']}: REQUIREMENTS.md is not the rendered form")
     return errors
 

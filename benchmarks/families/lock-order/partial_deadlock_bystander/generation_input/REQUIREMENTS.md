@@ -12,3 +12,10 @@ R9. Neither worker may wait forever for a permit or a lock that the other worker
 R10. Every worker must release each lock it holds before it finishes.
 R11. The main thread starts all three tasks and only finishes after both workers have finished, even though the bystander may keep running.
 R12. The program must print exactly the line `DONE a=1 b=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): a, b, bystander.
+- Shared resources: a (lock), b (lock), sa (semaphore), sb (semaphore), flag (shared variable).
