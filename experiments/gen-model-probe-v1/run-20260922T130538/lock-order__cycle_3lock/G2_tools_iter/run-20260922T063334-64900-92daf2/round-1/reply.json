@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    // Three locks shared among the workers.\n    let locks = [\n        Arc::new(Mutex::new(())),\n        Arc::new(Mutex::new(())),\n        Arc::new(Mutex::new(())),\n    ];\n\n    let mut handles = Vec::new();\n\n    for i in 0..3 {\n        let locks = locks.clone();\n        handles.push(thread::spawn(move || {\n            // Worker i needs locks i and (i + 1) % 3:\n            //   worker 0 -> locks 0 and 1\n            //   worker 1 -> locks 1 and 2\n            //   worker 2 -> locks 2 and 0\n            let a = i;\n            let b = (i + 1) % 3;\n\n            // Always acquire the lower-indexed lock first. This global\n            // ordering breaks any circular wait, so deadlock is impossible\n            // and every schedule terminates.\n            let (first, second) = if a < b { (a, b) } else { (b, a) };\n\n            let guard1 = locks[first].lock().unwrap();\n            let guard2 = locks[second].lock().unwrap();\n\n            // Critical work: both locks are held simultaneously here.\n            let _hold_both = (&guard1, &guard2);\n\n            // Guards are dropped here, releasing both locks before the\n            // worker finishes.\n        }));\n    }\n\n    // The main thread finishes only after all workers have finished.\n    for handle in handles {\n        handle.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}

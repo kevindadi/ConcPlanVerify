@@ -1,0 +1,132 @@
+{
+  "arm": "G3_concir",
+  "task": "semaphore/permit_leak",
+  "accepted": true,
+  "status": "accepted",
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "check_invalid",
+      "check": "invalid",
+      "explore": null,
+      "prompt_tokens": 1590,
+      "completion_tokens": 1263,
+      "llm_ms": 61098,
+      "name_alignment": [
+        {
+          "module": "main",
+          "old": "perm",
+          "new": "s"
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "decision": "accepted",
+      "check": "valid",
+      "explore": "PASS",
+      "prompt_tokens": 2273,
+      "completion_tokens": 594,
+      "llm_ms": 58043,
+      "name_alignment": [
+        {
+          "module": "main",
+          "old": "perm",
+          "new": "s"
+        }
+      ]
+    }
+  ],
+  "llm_calls": [
+    {
+      "attempt": 1,
+      "request_id": "b7abff15-932f-4e9d-a425-08759a629d21",
+      "response_model": "kimi-k3",
+      "usage": {
+        "completion_tokens": 1263,
+        "prompt_tokens": 1590,
+        "total_tokens": 2853,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": 0,
+          "reasoning_tokens": 790,
+          "rejected_prediction_tokens": null
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 0,
+          "cache_write_tokens": 0
+        }
+      },
+      "wall_ms": 61098,
+      "prompt_sha256": "19d63e6da476e405f94903133f178414b568afe11b05d0ae6389561b7ce2888a"
+    },
+    {
+      "attempt": 2,
+      "request_id": "f82d78bd-0326-4d48-9d3f-21be437e0318",
+      "response_model": "kimi-k3",
+      "usage": {
+        "completion_tokens": 594,
+        "prompt_tokens": 2273,
+        "total_tokens": 2867,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": 0,
+          "reasoning_tokens": 298,
+          "rejected_prediction_tokens": null
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 2176,
+          "cache_write_tokens": 0
+        }
+      },
+      "wall_ms": 58043,
+      "prompt_sha256": "17efbe5bb73aaec49c8c680e25b20d108be7c6152d0bc0ce2f1f0a2f3d51dd19"
+    }
+  ],
+  "accepted_with_proof": true,
+  "name_alignment": [
+    {
+      "module": "main",
+      "old": "perm",
+      "new": "s"
+    },
+    {
+      "module": "main",
+      "old": "perm",
+      "new": "s"
+    }
+  ],
+  "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/gen-model-probe-v1/run-20260922T130538/semaphore__permit_leak/G3_concir/revision-2.cir.json",
+  "model": {
+    "outcome": "PASS",
+    "complete": true
+  },
+  "coverage": {
+    "total": 7,
+    "decidable": 6,
+    "satisfied": 6,
+    "failed": [],
+    "statuses": {
+      "R1": "PASS",
+      "R2": "PASS",
+      "R3": "PASS",
+      "R4": "PASS",
+      "R5": "PASS",
+      "R6": "PASS",
+      "R7": "unverifiable"
+    },
+    "rc": 0.8571428571428571,
+    "rf": 0.8571428571428571
+  },
+  "holes": [],
+  "conform": {
+    "traces_total": 32,
+    "conformant": 32,
+    "violation": 0,
+    "timeout": 0,
+    "missing": 0
+  },
+  "behavior_hang": false
+}

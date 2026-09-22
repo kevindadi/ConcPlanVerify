@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\n// Each worker contends for the same two mutexes A and B.\n// Both workers acquire them in the same order (A first, then B),\n// so no wait cycle can form and every interleaving terminates.\n// A worker that cannot take a held mutex blocks in `lock()` until\n// it becomes free. Each mutex is held by at most one worker at a\n// time, and each guard is released when the worker's work finishes.\nfn worker(a: &Mutex<u64>, b: &Mutex<u64>) {\n    let mut guard_a = a.lock().unwrap(); // acquire A (blocks if held)\n    let mut guard_b = b.lock().unwrap(); // acquire B (blocks if held)\n\n    // Critical section: both A and B are held simultaneously.\n    *guard_a += 1;\n    *guard_b += 1;\n\n    // `guard_b` and `guard_a` are dropped here, releasing each\n    // mutex exactly once now that the work is finished.\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(0u64));\n    let b = Arc::new(Mutex::new(0u64));\n\n    // Start a group of two workers sharing both mutexes.\n    let mut workers = Vec::new();\n    for _ in 0..2 {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        workers.push(thread::spawn(move || worker(&a, &b)));\n    }\n\n    // The group finishes only after both workers have completed.\n    for w in workers {\n        w.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}

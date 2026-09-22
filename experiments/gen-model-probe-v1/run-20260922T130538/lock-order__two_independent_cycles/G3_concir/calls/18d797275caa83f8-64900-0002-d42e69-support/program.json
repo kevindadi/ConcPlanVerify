@@ -1,0 +1,267 @@
+{
+  "program": "two_pair_locks",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "done"
+        ],
+        "functions": [
+          "main",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "c",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "d",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "done",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::t1",
+              "handle": "h1"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "main::t2",
+              "handle": "h2"
+            },
+            {
+              "sid": "s3",
+              "kind": "spawn",
+              "func": "main::t3",
+              "handle": "h3"
+            },
+            {
+              "sid": "s4",
+              "kind": "spawn",
+              "func": "main::t4",
+              "handle": "h4"
+            },
+            {
+              "sid": "s5",
+              "kind": "join",
+              "handle": "h1"
+            },
+            {
+              "sid": "s6",
+              "kind": "join",
+              "handle": "h2"
+            },
+            {
+              "sid": "s7",
+              "kind": "join",
+              "handle": "h3"
+            },
+            {
+              "sid": "s8",
+              "kind": "join",
+              "handle": "h4"
+            },
+            {
+              "sid": "s9",
+              "kind": "write_shared",
+              "resource": "main::done",
+              "expr": "1"
+            },
+            {
+              "sid": "s10",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "t1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s3",
+              "kind": "nop"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "t2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s3",
+              "kind": "nop"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "t3",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::c"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::d"
+            },
+            {
+              "sid": "s3",
+              "kind": "nop"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::d"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::c"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "t4",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::c"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::d"
+            },
+            {
+              "sid": "s3",
+              "kind": "nop"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::d"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::c"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

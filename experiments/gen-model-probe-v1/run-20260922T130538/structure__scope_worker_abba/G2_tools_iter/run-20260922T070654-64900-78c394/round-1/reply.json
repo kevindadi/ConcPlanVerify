@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn worker(a: Arc<Mutex<i32>>, b: Arc<Mutex<i32>>) {\n    // Both workers acquire the mutexes in the same order (A then B),\n    // so no wait cycle can form.\n    let mut guard_a = a.lock().unwrap();\n    let mut guard_b = b.lock().unwrap();\n\n    // Both mutexes are held at the same time while work is performed.\n    *guard_a += 1;\n    *guard_b += 1;\n\n    // Release each mutex once the work is finished.\n    drop(guard_b);\n    drop(guard_a);\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(0i32));\n    let b = Arc::new(Mutex::new(0i32));\n\n    let mut handles = Vec::new();\n    for _ in 0..2 {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        handles.push(thread::spawn(move || worker(a, b)));\n    }\n\n    // The group finishes only after both workers have completed.\n    for handle in handles {\n        handle.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}

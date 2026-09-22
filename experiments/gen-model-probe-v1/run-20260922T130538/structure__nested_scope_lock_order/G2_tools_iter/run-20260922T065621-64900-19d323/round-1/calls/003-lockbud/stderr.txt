@@ -1,0 +1,28 @@
+   Compiling cir_arm_probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/gen-model-probe-v1/run-20260922T130538/structure__nested_scope_lock_order/G2_tools_iter/run-20260922T065621-64900-19d323/round-1/lockbud-probe)
+[2026-09-22T06:56:42Z WARN  lockbud::callbacks] [
+      {
+        "ConflictLock": {
+          "bug_kind": "ConflictLock",
+          "possibility": "Possibly",
+          "diagnosis": [
+            {
+              "first_lock_type": "StdMutex(u64)",
+              "first_lock_span": "src/main.rs:25:17: 25:23 (#0)",
+              "second_lock_type": "StdMutex(u64)",
+              "second_lock_span": "src/main.rs:26:17: 26:23 (#0)",
+              "callchains": []
+            },
+            {
+              "first_lock_type": "StdMutex(u64)",
+              "first_lock_span": "src/main.rs:18:17: 18:23 (#0)",
+              "second_lock_type": "StdMutex(u64)",
+              "second_lock_span": "src/main.rs:19:17: 19:23 (#0)",
+              "callchains": []
+            }
+          ],
+          "explanation": "Locks mutually wait for each other to form a cycle"
+        }
+      }
+    ]
+[2026-09-22T06:56:42Z WARN  lockbud::callbacks] crate cir_arm_probe contains bugs: { probably: 0, possibly: 0 }, conflictlock: { probably: 0, possibly: 1 }, condvar_deadlock: { probably: 0, possibly: 0 }, atomicity_violation: { possibly: 0 }, invalid_free: { possibly: 0 }, use_after_free: { possibly: 0 }
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.54s

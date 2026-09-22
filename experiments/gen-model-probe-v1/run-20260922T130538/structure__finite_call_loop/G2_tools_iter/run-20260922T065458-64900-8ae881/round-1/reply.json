@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::thread;\n\n/// Auxiliary routine: performs purely local work.\n///\n/// R2: It shares no mutexes, counters, or any other state with the\n/// main task, so no two tasks ever contend for a resource.\nfn auxiliary(round: u64) {\n    let mut acc: u64 = 0;\n    for i in 0..10_000u64 {\n        acc = acc.wrapping_add(i).wrapping_add(round);\n    }\n    // Consume the result without producing any output.\n    std::hint::black_box(acc);\n}\n\nfn main() {\n    // R1/R3: The main task calls the auxiliary routine; the call runs\n    // to completion (the worker thread is joined) before the calling\n    // task begins the same call sequence again.\n    let first = thread::spawn(|| auxiliary(1));\n    first.join().expect(\"auxiliary worker must not panic\");\n\n    let second = thread::spawn(|| auxiliary(2));\n    second.join().expect(\"auxiliary worker must not panic\");\n\n    // R4: No locks and no unbounded loops, so every schedule terminates.\n    // R5: Print exactly this line and then exit.\n    println!(\"DONE done=1\");\n}\n```"
+}

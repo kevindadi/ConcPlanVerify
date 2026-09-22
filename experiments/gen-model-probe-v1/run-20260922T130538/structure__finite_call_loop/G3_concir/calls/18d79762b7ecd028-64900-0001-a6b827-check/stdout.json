@@ -1,0 +1,61 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E931",
+      "severity": "error",
+      "message": "undefined name 'r2'",
+      "location": "main::main.s3",
+      "path": "modules[0].functions[1].body[2]",
+      "fix_hint": "fix the expression syntax, or use a declared slot or enum variant"
+    },
+    {
+      "code": "E912",
+      "severity": "warning",
+      "message": "'done' in function 'aux' is modeled: false; the value is Unknown in the net",
+      "location": "main::aux",
+      "path": "modules[0].functions[0]",
+      "fix_hint": "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled"
+    },
+    {
+      "code": "E912",
+      "severity": "warning",
+      "message": "'done' in function 'main' is modeled: false; the value is Unknown in the net",
+      "location": "main::main",
+      "path": "modules[0].functions[1]",
+      "fix_hint": "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled"
+    },
+    {
+      "code": "E921",
+      "severity": "error",
+      "message": "'r1' is not a writable slot (local, param, Var, or Atomic)",
+      "location": "main::main.s1",
+      "path": "modules[0].functions[1].body[0]",
+      "fix_hint": "bind dst to a declared local, parameter, Var, or Atomic"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::aux') captures a return into 'r1', but 'main::aux' has no modeled return",
+      "location": "main::main.s1",
+      "path": "modules[0].functions[1].body[0]",
+      "fix_hint": "declare a modeled return on the callee, or drop dst"
+    },
+    {
+      "code": "E921",
+      "severity": "error",
+      "message": "'r2' is not a writable slot (local, param, Var, or Atomic)",
+      "location": "main::main.s2",
+      "path": "modules[0].functions[1].body[1]",
+      "fix_hint": "bind dst to a declared local, parameter, Var, or Atomic"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::aux') captures a return into 'r2', but 'main::aux' has no modeled return",
+      "location": "main::main.s2",
+      "path": "modules[0].functions[1].body[1]",
+      "fix_hint": "declare a modeled return on the callee, or drop dst"
+    }
+  ]
+}

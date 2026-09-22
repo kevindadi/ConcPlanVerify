@@ -1,0 +1,183 @@
+{
+  "program": "two_module_ordered_locks",
+  "version": "3.5.0",
+  "entry": "alpha::main",
+  "modules": [
+    {
+      "name": "alpha",
+      "provides": {
+        "resources": [
+          "ra",
+          "done"
+        ],
+        "functions": [
+          "main",
+          "task_a"
+        ]
+      },
+      "requires": {
+        "resources": [
+          "beta::rb"
+        ],
+        "functions": [
+          "beta::task_b"
+        ]
+      },
+      "resources": [
+        {
+          "name": "ra",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "done",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "alpha::task_a",
+              "handle": "h1"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "beta::task_b",
+              "handle": "h2"
+            },
+            {
+              "sid": "s3",
+              "kind": "join",
+              "handle": "h1"
+            },
+            {
+              "sid": "s4",
+              "kind": "join",
+              "handle": "h2"
+            },
+            {
+              "sid": "s5",
+              "kind": "write_shared",
+              "resource": "alpha::done",
+              "expr": "1"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "task_a",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "alpha::ra"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "beta::rb"
+            },
+            {
+              "sid": "s3",
+              "kind": "nop"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "beta::rb"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "alpha::ra"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "beta",
+      "provides": {
+        "resources": [
+          "rb"
+        ],
+        "functions": [
+          "task_b"
+        ]
+      },
+      "requires": {
+        "resources": [
+          "alpha::ra"
+        ],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "rb",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "task_b",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "alpha::ra"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "beta::rb"
+            },
+            {
+              "sid": "s3",
+              "kind": "nop"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "beta::rb"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "alpha::ra"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

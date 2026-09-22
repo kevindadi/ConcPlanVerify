@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::thread;\n\nfn main() {\n    // R1: Repeatedly start a worker, wait for it to finish, then begin\n    // the same start-and-wait cycle again.\n    for _ in 0..3 {\n        // R2: The worker performs no shared work and shares no mutexes\n        // or counters with the main task; it captures nothing.\n        let worker = thread::spawn(|| {\n            // Independent worker: no shared state, always terminates (R4).\n        });\n\n        // R3: Each started worker is joined exactly once before the next\n        // worker is started. Since the worker always finishes, this join\n        // cannot stall (R4), so every schedule terminates (R5).\n        worker.join().expect(\"worker must finish\");\n    }\n\n    // R6: Print exactly the required line and exit.\n    println!(\"DONE done=1\");\n}\n```"
+}

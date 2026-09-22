@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::thread;\n\nfn main() {\n    let mut done: u32 = 0;\n\n    // Start a worker, wait for it to finish, then repeat the cycle.\n    // The worker performs no shared work and shares nothing with main.\n    while done < 1 {\n        let worker = thread::spawn(|| {\n            // No shared state: this worker touches no mutexes or counters.\n        });\n        // Wait exactly once for this worker before the next cycle begins.\n        worker.join().expect(\"worker must be able to finish\");\n        done += 1;\n    }\n\n    println!(\"DONE done={}\", done);\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::Arc;\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::thread;\n\nfn worker(counter: Arc<AtomicUsize>) {\n    // Atomic read-modify-write retry loop: a failed CAS is retried with the\n    // freshly observed value, so a competing update is never silently lost\n    // and this worker's increment eventually takes effect.\n    let mut current = counter.load(Ordering::Acquire);\n    loop {\n        match counter.compare_exchange_weak(\n            current,\n            current + 1,\n            Ordering::AcqRel,\n            Ordering::Acquire,\n        ) {\n            Ok(_) => break,\n            Err(actual) => current = actual,\n        }\n    }\n}\n\nfn main() {\n    // Supervising task: shared counter starts at zero.\n    let counter = Arc::new(AtomicUsize::new(0));\n\n    // Launch two worker threads.\n    let mut handles = Vec::with_capacity(2);\n    for _ in 0..2 {\n        let shared = Arc::clone(&counter);\n        handles.push(thread::spawn(move || worker(shared)));\n    }\n\n    // Wait for both workers to finish; counter is now exactly two.\n    for handle in handles {\n        handle.join().expect(\"worker thread panicked\");\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let a = Arc::new(Mutex::new(0u64));\n    let b = Arc::new(Mutex::new(0u64));\n\n    // R1: main starts one outer worker.\n    let outer = thread::spawn(move || {\n        let a1 = Arc::clone(&a);\n        let b1 = Arc::clone(&b);\n        let a2 = Arc::clone(&a);\n        let b2 = Arc::clone(&b);\n\n        // R2: nested group of two inner tasks.\n        let t1 = thread::spawn(move || {\n            // R3 + R4: lock A then B, holding both simultaneously.\n            let mut ga = a1.lock().unwrap();\n            let mut gb = b1.lock().unwrap();\n            *ga += 1;\n            *gb += 1;\n        });\n        let t2 = thread::spawn(move || {\n            // R3 + R4: same order (A then B), so no wait cycle can form.\n            let mut ga = a2.lock().unwrap();\n            let mut gb = b2.lock().unwrap();\n            *ga += 1;\n            *gb += 1;\n        });\n\n        // R5: outer completes only after both inner tasks finish.\n        t1.join().unwrap();\n        t2.join().unwrap();\n    });\n\n    outer.join().unwrap();\n\n    // R7: exact output line.\n    println!(\"DONE done=1\");\n}\n```"
+}

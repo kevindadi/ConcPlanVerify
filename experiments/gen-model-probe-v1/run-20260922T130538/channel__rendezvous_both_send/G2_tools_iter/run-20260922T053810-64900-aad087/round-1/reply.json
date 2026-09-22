@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::mpsc;\nuse std::thread;\n\nfn main() {\n    // Rendezvous channel: zero capacity, so send and recv must meet.\n    let (tx, rx) = mpsc::sync_channel::<i32>(0);\n\n    let sender = thread::spawn(move || {\n        // Blocks until the receiver is ready to take the value.\n        tx.send(1).expect(\"receiver must be alive\");\n    });\n\n    let receiver = thread::spawn(move || {\n        // Blocks until the sender hands over the value.\n        rx.recv().expect(\"sender must be alive\")\n    });\n\n    sender.join().expect(\"sender panicked\");\n    let done = receiver.join().expect(\"receiver panicked\");\n\n    // Both tasks finished; the rendezvous channel holds nothing.\n    println!(\"DONE done={}\", done);\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    // One lock guarding a boolean flag, plus one condition variable,\n    // shared between the waiter and the notifier.\n    let shared = Arc::new((Mutex::new(false), Condvar::new()));\n\n    // Waiter role.\n    let waiter_shared = Arc::clone(&shared);\n    let waiter = thread::spawn(move || {\n        let (lock, cvar) = &*waiter_shared;\n        let mut ready = lock.lock().unwrap();\n        // Check the flag first; wait only while it is false, and\n        // re-check after every wake. Condvar::wait releases the lock\n        // while blocked and reacquires it before returning.\n        while !*ready {\n            ready = cvar.wait(ready).unwrap();\n        }\n        // The flag is true here in every schedule.\n        println!(\"DONE ready={}\", *ready);\n    });\n\n    // Notifier role.\n    let notifier_shared = Arc::clone(&shared);\n    let notifier = thread::spawn(move || {\n        let (lock, cvar) = &*notifier_shared;\n        let mut ready = lock.lock().unwrap();\n        *ready = true;\n        cvar.notify_one();\n        drop(ready); // release the lock after signaling\n    });\n\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n}\n```"
+}

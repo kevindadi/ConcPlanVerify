@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\n// Sequential helper: performs only local computation, no shared state access.\nfn compute() -> u64 {\n    let mut acc: u64 = 0;\n    for i in 0..512u64 {\n        acc = acc.wrapping_mul(31).wrapping_add(i);\n    }\n    acc\n}\n\nstruct Shared {\n    counter: u64,\n    sink: u64,\n}\n\nfn worker(shared: Arc<Mutex<Shared>>) {\n    // Take the shared mutex (blocks until it is free).\n    let mut guard = shared.lock().unwrap();\n    // Sequential helper doing purely local computation.\n    let result = compute();\n    // Update the shared counter while still holding the mutex.\n    guard.counter += 1;\n    guard.sink = guard.sink.wrapping_add(result);\n    // Release the mutex before finishing.\n    drop(guard);\n}\n\nfn main() {\n    let shared = Arc::new(Mutex::new(Shared { counter: 0, sink: 0 }));\n\n    let mut handles = Vec::new();\n    for _ in 0..2 {\n        let s = Arc::clone(&shared);\n        handles.push(thread::spawn(move || worker(s)));\n    }\n    for h in handles {\n        h.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}

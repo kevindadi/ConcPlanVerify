@@ -1,0 +1,58 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E108",
+      "severity": "error",
+      "message": "unresolved import of resource 'other::r2'",
+      "path": "modules[0].requires.resources[0]",
+      "fix_hint": "export it from the owning module's provides.resources"
+    },
+    {
+      "code": "E108",
+      "severity": "error",
+      "message": "unresolved import of resource 'main::r1'",
+      "path": "modules[1].requires.resources[0]",
+      "fix_hint": "export it from the owning module's provides.resources"
+    },
+    {
+      "code": "E101",
+      "severity": "error",
+      "message": "undefined resource 'other::r2'",
+      "location": "main::t1.s2",
+      "path": "modules[0].functions[1].body[1]",
+      "fix_hint": "declare the resource or import it via requires"
+    },
+    {
+      "code": "E101",
+      "severity": "error",
+      "message": "undefined resource 'other::r2'",
+      "location": "main::t1.s4",
+      "path": "modules[0].functions[1].body[3]",
+      "fix_hint": "declare the resource or import it via requires"
+    },
+    {
+      "code": "E101",
+      "severity": "error",
+      "message": "undefined resource 'main::r1'",
+      "location": "other::t2.s1",
+      "path": "modules[1].functions[0].body[0]",
+      "fix_hint": "declare the resource or import it via requires"
+    },
+    {
+      "code": "E101",
+      "severity": "error",
+      "message": "undefined resource 'main::r1'",
+      "location": "other::t2.s5",
+      "path": "modules[1].functions[0].body[4]",
+      "fix_hint": "declare the resource or import it via requires"
+    },
+    {
+      "code": "E704",
+      "severity": "warning",
+      "message": "Var resource 'done' has no protection mapping",
+      "path": "modules[0].resources[1]",
+      "fix_hint": "add a protection mapping or change to Atomic type"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    // The single shared permit. A Mutex<()> acts as a 1-permit semaphore:\n    // at most one activation may hold it at any moment (R3), and lock()\n    // blocks until it becomes available (R4).\n    let permit = Arc::new(Mutex::new(()));\n\n    // R1: start three worker roles.\n    let mut roles = Vec::new();\n    for _role in 0..3 {\n        let permit = Arc::clone(&permit);\n        roles.push(thread::spawn(move || {\n            // Each role has up to two activations running at once.\n            let mut activations = Vec::new();\n            for _ in 0..2 {\n                let permit = Arc::clone(&permit);\n                activations.push(thread::spawn(move || {\n                    // R2/R4: wait for the permit, then hold it during work.\n                    let _guard = permit.lock().unwrap();\n                    // ... activation work happens while holding the permit ...\n                    // R2: the guard is dropped here, releasing the permit.\n                }));\n            }\n            for activation in activations {\n                activation.join().unwrap();\n            }\n        }));\n    }\n\n    // R6: wait for all three roles to complete.\n    for role in roles {\n        role.join().unwrap();\n    }\n\n    // R7: print exactly this line, then exit.\n    println!(\"DONE done=1\");\n}\n```"
+}

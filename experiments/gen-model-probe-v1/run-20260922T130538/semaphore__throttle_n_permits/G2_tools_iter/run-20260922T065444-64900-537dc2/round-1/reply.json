@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Semaphore {\n    permits: Mutex<usize>,\n    available: Condvar,\n}\n\nimpl Semaphore {\n    fn new(permits: usize) -> Self {\n        Semaphore {\n            permits: Mutex::new(permits),\n            available: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut guard = self.permits.lock().unwrap();\n        while *guard == 0 {\n            guard = self.available.wait(guard).unwrap();\n        }\n        *guard -= 1;\n    }\n\n    fn release(&self) {\n        let mut guard = self.permits.lock().unwrap();\n        *guard += 1;\n        drop(guard);\n        self.available.notify_one();\n    }\n}\n\nfn main() {\n    // Supervising task: create the shared pool with exactly two permits,\n    // launch three workers, and wait for all of them to finish.\n    let pool = Arc::new(Semaphore::new(2));\n\n    let mut workers = Vec::new();\n    for _ in 0..3 {\n        let pool = Arc::clone(&pool);\n        workers.push(thread::spawn(move || {\n            pool.acquire();\n            // Perform work while holding one permit.\n            pool.release();\n        }));\n    }\n\n    for worker in workers {\n        worker.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}

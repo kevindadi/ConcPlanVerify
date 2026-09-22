@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::mpsc::sync_channel;\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    // One shared lock used by both roles.\n    let shared = Arc::new(Mutex::new(0u32));\n\n    // Rendezvous channel: sender and receiver must meet (capacity 0).\n    let (tx, rx) = sync_channel::<u32>(0);\n\n    let sender_shared = Arc::clone(&shared);\n    let sender = thread::spawn(move || {\n        // Use the shared lock, then release it BEFORE waiting on the channel.\n        {\n            let mut guard = sender_shared.lock().unwrap();\n            *guard += 1;\n        }\n        // No lock is held while blocking on the rendezvous send.\n        tx.send(1u32).unwrap();\n    });\n\n    let receiver_shared = Arc::clone(&shared);\n    let receiver = thread::spawn(move || {\n        // No lock is held while blocking on the rendezvous receive.\n        let value = rx.recv().unwrap();\n        // Use the shared lock only after the channel exchange completed.\n        {\n            let mut guard = receiver_shared.lock().unwrap();\n            *guard += value;\n        }\n        value\n    });\n\n    sender.join().unwrap();\n    let done = receiver.join().unwrap();\n\n    println!(\"DONE done={}\", done);\n}\n```"
+}

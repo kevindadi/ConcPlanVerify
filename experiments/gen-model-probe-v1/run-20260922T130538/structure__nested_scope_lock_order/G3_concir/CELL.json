@@ -1,0 +1,115 @@
+{
+  "arm": "G3_concir",
+  "task": "structure/nested_scope_lock_order",
+  "accepted": true,
+  "status": "accepted",
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "accepted",
+      "check": "valid",
+      "explore": "PASS",
+      "prompt_tokens": 1567,
+      "completion_tokens": 1519,
+      "llm_ms": 50224,
+      "name_alignment": [
+        {
+          "module": "main",
+          "old": "A",
+          "new": "a"
+        },
+        {
+          "module": "main",
+          "old": "B",
+          "new": "b"
+        },
+        {
+          "module": "main",
+          "old": "inner1",
+          "new": "x1",
+          "kind": "function"
+        },
+        {
+          "module": "main",
+          "old": "inner2",
+          "new": "x2",
+          "kind": "function"
+        }
+      ]
+    }
+  ],
+  "llm_calls": [
+    {
+      "attempt": 1,
+      "request_id": "0feae9a6-c5e0-4bb2-94d4-e976438c6756",
+      "response_model": "kimi-k3",
+      "usage": {
+        "completion_tokens": 1519,
+        "prompt_tokens": 1567,
+        "total_tokens": 3086,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": 0,
+          "reasoning_tokens": 989,
+          "rejected_prediction_tokens": null
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cached_tokens": 0,
+          "cache_write_tokens": 0
+        }
+      },
+      "wall_ms": 50224,
+      "prompt_sha256": "7a2b176e40e7340605fa9a1a4b3def06eb318f36245c918e6a3078f4ad6fb839"
+    }
+  ],
+  "accepted_with_proof": false,
+  "name_alignment": [
+    {
+      "module": "main",
+      "old": "A",
+      "new": "a"
+    },
+    {
+      "module": "main",
+      "old": "B",
+      "new": "b"
+    },
+    {
+      "module": "main",
+      "old": "inner1",
+      "new": "x1",
+      "kind": "function"
+    },
+    {
+      "module": "main",
+      "old": "inner2",
+      "new": "x2",
+      "kind": "function"
+    }
+  ],
+  "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/gen-model-probe-v1/run-20260922T130538/structure__nested_scope_lock_order/G3_concir/revision-1.cir.json",
+  "model": {
+    "outcome": "PASS",
+    "complete": true
+  },
+  "coverage": {
+    "total": 7,
+    "decidable": 4,
+    "satisfied": 4,
+    "failed": [],
+    "statuses": {
+      "R1": "unverifiable",
+      "R2": "unverifiable",
+      "R3": "PASS",
+      "R4": "PASS",
+      "R5": "PASS",
+      "R6": "PASS",
+      "R7": "unverifiable"
+    },
+    "rc": 0.5714285714285714,
+    "rf": 0.5714285714285714
+  },
+  "holes": [],
+  "codegen_error": "RuntimeError: filled project failed to build"
+}

@@ -1,0 +1,93 @@
+{
+  "program": "done_seq",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [],
+        "functions": [
+          "main",
+          "aux"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "aux",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "done",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "done",
+              "expr": "1"
+            },
+            {
+              "sid": "s2",
+              "kind": "return",
+              "value": "done"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "r1",
+              "type": "Int"
+            },
+            {
+              "name": "r2",
+              "type": "Int"
+            },
+            {
+              "name": "done",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::aux",
+              "dst": "r1"
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::aux",
+              "dst": "r2"
+            },
+            {
+              "sid": "s3",
+              "kind": "assign_local",
+              "target": "done",
+              "expr": "r2"
+            },
+            {
+              "sid": "s4",
+              "kind": "return",
+              "value": "done"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
