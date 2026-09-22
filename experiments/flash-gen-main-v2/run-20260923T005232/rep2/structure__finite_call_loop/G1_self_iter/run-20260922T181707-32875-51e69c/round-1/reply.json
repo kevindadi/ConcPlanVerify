@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::thread;\n\nfn helper() {\n    // Auxiliary routine: no shared state, runs to completion.\n}\n\nfn main() {\n    // R1: main calls helper, then begins the same call sequence again.\n    // R3: each call runs to completion before the next starts.\n    helper();\n    helper();\n\n    // R5: print exactly the required line and exit.\n    println!(\"DONE done=1\");\n}\n```"
+}

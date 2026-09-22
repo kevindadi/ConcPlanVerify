@@ -1,0 +1,9 @@
+{
+  "round": 2,
+  "kind": "claims_no_issue",
+  "matched": [
+    "is correct"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program:\n\n- The waiter locks `m`, checks `ready`, and waits on `cv` while `ready` is false, re-checking after each wake. This correctly handles the lost-wakeup problem because the flag is checked under the lock.\n- The notifier locks `m`, sets `ready = true`, calls `cv.notify_one()`, then releases the lock (at end of scope).\n- The flag is set before the signal, and both accesses are under the lock.\n- If the notifier runs first, `ready` is already true when the waiter checks, so it won't wait — no lost wakeup.\n- If the waiter runs first, it waits, then the notifier sets the flag and signals, waking it.\n- Both threads terminate, and `ready` is true in every schedule.\n\nThe program satisfies all requirements. There is no concurrency defect.\n\nNO_ISSUES"
+}

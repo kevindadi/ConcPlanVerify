@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Arc;\nuse std::thread;\n\nfn worker(c: Arc<AtomicUsize>) {\n    loop {\n        let current = c.load(Ordering::SeqCst);\n        let next = current + 1;\n        if c.compare_exchange(current, next, Ordering::SeqCst, Ordering::SeqCst).is_ok() {\n            break;\n        }\n    }\n}\n\nfn main() {\n    let c = Arc::new(AtomicUsize::new(0));\n\n    let c1 = Arc::clone(&c);\n    let w1 = thread::spawn(move || worker(c1));\n\n    let c2 = Arc::clone(&c);\n    let w2 = thread::spawn(move || worker(c2));\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    let done = c.load(Ordering::SeqCst);\n    println!(\"DONE done={}\", done);\n}\n```"
+}

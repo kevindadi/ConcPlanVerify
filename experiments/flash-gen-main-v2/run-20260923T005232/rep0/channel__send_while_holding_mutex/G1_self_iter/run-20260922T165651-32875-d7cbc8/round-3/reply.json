@@ -1,0 +1,10 @@
+{
+  "round": 3,
+  "kind": "claims_no_issue",
+  "matched": [
+    "there is no (bug|deadlock|defect)",
+    "no deadlock"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program:\n\n- `s` locks, unlocks, sends on `tx1`, then receives on `rx2`, then locks/unlocks.\n- `r` locks, unlocks, receives on `rx1`, sends on `tx2`, then locks/unlocks.\n\nThe lock is always released before any channel operation. The channel operations are:\n- `s`: send on ch1, recv on ch2\n- `r`: recv on ch1, send on ch2\n\nThis is a proper rendezvous: `s` sends, `r` receives, then `r` sends, `s` receives. No lock is held during channel operations, so R3 is satisfied. Both threads terminate, and `sv + rv - 1 = 1 + 1 - 1 = 1`, printing `DONE done=1`.\n\nThere is no deadlock, lost wakeup, data race, or indefinite block. The lock is never held across a channel operation.\n\nNO_ISSUES"
+}

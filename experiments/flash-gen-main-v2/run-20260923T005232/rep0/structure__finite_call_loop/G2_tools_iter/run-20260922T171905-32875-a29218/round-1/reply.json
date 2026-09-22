@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::thread;\n\nfn helper() {\n    // Auxiliary routine: performs its work and returns.\n}\n\nfn main() {\n    // R1: main task calls the auxiliary routine, then begins the same call sequence again.\n    // R3: each auxiliary call runs to completion before the next call starts.\n    let h1 = thread::spawn(helper);\n    h1.join().unwrap();\n\n    let h2 = thread::spawn(helper);\n    h2.join().unwrap();\n\n    // R5: print exactly the required line and exit.\n    println!(\"DONE done=1\");\n}\n```"
+}

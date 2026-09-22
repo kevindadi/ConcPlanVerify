@@ -1,0 +1,10 @@
+{
+  "round": 2,
+  "kind": "claims_no_issue",
+  "matched": [
+    "is correct",
+    "no deadlock"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program, I need to check for concurrency defects.\n\nThe design uses a global lock ordering `a < b < c` to prevent deadlock:\n- t1 acquires a then b (a < b ✓)\n- t2 acquires b then c (b < c ✓)\n- t3 acquires a then c (a < c ✓)\n\nAll three workers acquire their locks in a consistent global order, which is the classic deadlock prevention technique. Let me verify each requirement:\n\n- R1: One main + three workers ✓\n- R2: Three locks, each held by at most one worker (Mutex guarantees this) ✓\n- R3: t1 needs a,b; t2 needs b,c; t3 needs c,a ✓\n- R4: Each holds both locks simultaneously ✓\n- R5: Global ordering prevents circular wait ✓\n- R6: Locks released via RAII drop at end of closure ✓\n- R7: Main joins all three ✓\n- R8/R9: With consistent ordering, no deadlock; all terminate ✓\n- R10: Prints `DONE done=1` ✓\n\nWait — let me re-examine R3 carefully. The spec says \"the third worker needs the third and the first lock.\" The third lock is `c` and the first is `a`. So t3 needs `c` and `a`. The program has t3 acquire `a` then `c`. That's fine — it still holds both `c` and `a` simultaneously, just in the order a < c.\n\nThe lock ordering is consistent across all threads, so there's no circular wait. No deadlock, no lost wakeup, no data race (Mutex provides mutual exclusion), and no thread blocks forever.\n\nThe program is correct.\n\nNO_ISSUES"
+}

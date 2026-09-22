@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::mpsc::sync_channel;\nuse std::thread;\n\nfn main() {\n    // ch: a rendezvous channel with zero capacity (no buffering).\n    // A send blocks until a take meets it, and vice versa.\n    let (ch_tx, ch_rx) = sync_channel::<u32>(0);\n\n    // s1: the sending task.\n    let s1 = thread::spawn(move || {\n        ch_tx.send(1).expect(\"s1: send failed\");\n    });\n\n    // r: the receiving task.\n    let r = thread::spawn(move || {\n        let _value = ch_rx.recv().expect(\"r: recv failed\");\n    });\n\n    s1.join().expect(\"s1 panicked\");\n    r.join().expect(\"r panicked\");\n\n    println!(\"DONE done=1\");\n}\n```"
+}

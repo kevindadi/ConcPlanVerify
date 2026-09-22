@@ -1,0 +1,7 @@
+{
+  "round": 2,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let m = Arc::new(Mutex::new(0u8));\n\n    let w1 = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || {\n            let mut guard = m.lock().unwrap();\n            *guard += 1;\n        })\n    };\n\n    let w2 = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || {\n            let mut guard = m.lock().unwrap();\n            *guard += 1;\n        })\n    };\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    let done = *m.lock().unwrap();\n    println!(\"DONE done={}\", done);\n}\n```"
+}

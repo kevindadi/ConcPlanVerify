@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex, mpsc};\nuse std::thread;\n\nfn main() {\n    let lock = Arc::new(Mutex::new(()));\n    let (tx1, rx1) = mpsc::channel::<i32>();\n    let (tx2, rx2) = mpsc::channel::<i32>();\n\n    let lock_s = Arc::clone(&lock);\n    let s = thread::spawn(move || {\n        {\n            let _g = lock_s.lock().unwrap();\n        }\n        tx1.send(1).unwrap();\n        let v = rx2.recv().unwrap();\n        {\n            let _g = lock_s.lock().unwrap();\n        }\n        v\n    });\n\n    let lock_r = Arc::clone(&lock);\n    let r = thread::spawn(move || {\n        {\n            let _g = lock_r.lock().unwrap();\n        }\n        let v = rx1.recv().unwrap();\n        tx2.send(v).unwrap();\n        {\n            let _g = lock_r.lock().unwrap();\n        }\n        v\n    });\n\n    let sv = s.join().unwrap();\n    let rv = r.join().unwrap();\n    println!(\"DONE done={}\", sv + rv - 1);\n}\n```"
+}

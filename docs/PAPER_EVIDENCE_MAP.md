@@ -1,78 +1,74 @@
-# Paper evidence map (v3 — generation-first)
+# Paper evidence map (v4 — requirements → verified CIR → LLM code)
 
-Each claim → number → command → artefact → status. Ordered as the evaluation
-will read: generation is primary, repair is the second study.
+Ordered as the evaluation reads. Binaries: `concir-backend` (freeze-5),
+`concir-instrument`. Frozen at `experiments-v2-freeze-5` / tag `contracts-v3.1`.
 
-Binaries: `concir-backend` `cf4f9e9a…`, `concir-instrument` `5db7765c…`
-(ConcIR `6e2a3de`, tag `concir-freeze-3`). Frozen at `experiments-v2-freeze-4`.
-
-## (1) Generation: requirement satisfaction and defects (primary)
+## (1) Requirement satisfaction and defects (primary)
 
 | # | claim | number | command | artefact | status |
 | --- | --- | --- | --- | --- | --- |
-| g1 | Model-first generation (G3) satisfies more requirements than direct/tool-loop Rust at equal-or-better tractability | G0 RF 0.422, G1 0.460, G2 0.468, **G3 0.504**; G3 RC 0.776; G3 20/72 accepted-with-proof | `scripts/render_gen_main.py …`; `python -m cir_workflow results … --gen …` | `flash-gen-main-v1/SUMMARY.md`; `tables/{gen_main,gen_arms,gen_tiers}.tex`; `RESULTS.md` §"Generation (main)" | **ready** |
-| g2 | The advantage is not free: G3 costs ~10x tokens and is not defect-free | G3 539k tokens vs G0 58k; G3 defect 2 (model PASS, codegen hangs on `same_cv_different_locks`), G0 6, G1 1, G2 0 | same | `RESULTS.md` §"Generation (main)" | **ready** |
-| g3 | Complexity tiers | 8 Simple / 8 Medium / 8 Complex; per-tier RF in `gen_tiers.tex` | `benchmarks/build_families.py --check-generation` | `benchmarks/GENERATION_MANIFEST.json`; `benchmarks/TIERS.md` | **ready** |
+| g1 | Model-first generation satisfies the most requirement clauses (RF_all), and the tool-loop arm is the only zero-defect one | G0 RF_all 0.523 / RF_acc 0.531, G1 0.549/0.541, G2 0.592/0.661 (defect 0), G3_concir 0.670/0.670 (defect 0); G0 defect 6, G1 3 | `scripts/render_gen_main.py`; `results --gen` | `flash-gen-main-v2/SUMMARY.md`; `tables/{gen_main,gen_arms,gen_tiers}.tex`; `RESULTS.md` §"Generation (main)" | **ready** |
+| g2 | Complexity tiers | 8 Simple / 8 Medium / 8 Complex, 24 tasks, entities in requirements (v3.1) | `benchmarks/build_families.py --check-generation` | `benchmarks/GENERATION_MANIFEST.json` v3.1; `benchmarks/TIERS.md` | **ready** |
 
-## (2) Frontier-model increment
-
-| # | claim | number | command | artefact | status |
-| --- | --- | --- | --- | --- | --- |
-| p1 | With a strong base model, G3 still adds RF and stays defect-free | kimi-k3: G0 RF 0.499, G2 0.434, **G3 0.684**; G3 RC 0.776, defect 0, awp 10/24 | `scripts/run_gen_probe.py` | `gen-model-probe-v1/SUMMARY.md`; `tables/gen_probe.tex` | **ready** |
-
-## (3) Landing and post-verification
+## (2) From verified CIR to code: LLM vs tool codegen
 
 | # | claim | number | command | artefact | status |
 | --- | --- | --- | --- | --- | --- |
-| l1 | Accepted CIRs land in buildable Rust and conform (operation-bound recall) | conform v2 recall M1 1.0, M2 0.947, M4 1.0, M6 1.0, M8 0.8; M5 0.0 blind spot; a3-to-rust-v2 23/23 conform PASS; post-edit drift 0 | `scripts/mutate_v2.py`; `scripts/post_edit_v2.py`; `scripts/a3_to_rust.py` | `conform-mutation-v2/{SUMMARY,CONFORM_GAPS}.md`; `post-edit-conform-v2/SUMMARY.md`; `tables/{mutation,conform_recall_v1v2,postedit}.tex` | **ready** |
-| l2 | Free LLM Rust can be scored without a model | instrument v2 + monitor: 10/10 buggy references hang; 8/10 fixed references have every non-`[U]` requirement `PASS_bounded`; 2 explained instrument limits (`var_eq`, user semaphore) | `scripts/run_rust_oracle.py` | `rust-oracle-v1/{RESULTS.json,SUMMARY.md}`; `experiments/rust-oracle-v1/PROTOCOL.md` | **ready** |
+| c1 | Entity names in the requirements lift the CIR stage (INVALID collapses) | G3 CIR stage **59/72 PASS** (v1 had 25/72 accepted, 46 INVALID); only `name_alignment` removed | `scripts/run_gen_main.py` | `flash-gen-main-v2` G3 cells | **ready** |
+| c2 | The LLM-code stage is the current bottleneck; tool codegen still lands more | G3_concir accept 31/72 (rep0 10/24), 0.431 overall; G3_codegen ablation accept 20/24, RF_acc 0.765 vs 0.670 | `results --gen` | `tables/gen_codegen_ablation.tex`; `tables/gen_g3_stages.tex` | **ready** |
+| c3 | Free-Rust smoke: code fidelity is the limit, not instrument coverage | 45 CIRs, build 45/45, **conform PASS 15/45 (33%)**; instrument limits empty | `scripts/run_llmcode_smoke.py` | `gen-llmcode-smoke-v1/SUMMARY.md` | **ready** |
 
-## (4) Repair study (second study)
-
-| # | claim | number | command | artefact | status |
-| --- | --- | --- | --- | --- | --- |
-| r1 | Verification-driven repair has 0 false-accepts; tool-driven baselines accept buggy programs | A3_local 0/21, A3_whole 0/20, A3_tiered 0/21; A0 11/24, A2-ml 3/24 (`cycle_3lock` 3/3) | `python -m cir_workflow results …` | `RESULTS.md` §1, §Per-arm; `flash-repair-main-v1/…/SUMMARY.json` | **ready** |
-| r2 | Miri + Lockbud are green on the accepted 3-lock cycle | Track D `cycle_3lock` buggy: ConcIR FAIL, Miri clean 16, Lockbud clean, expert `bug_present=yes` | `scripts/rebuild_trackd.py` | `detection-v3/TRACKD.json`; `tables/trackd.tex` | **ready** |
-| r3 | Local regeneration is cheaper than whole-artifact at equal acceptance | A3_local 24/30, 675 tok/correct; A3_whole 26/30, 3267; A3_tiered 24/30, 676 | `results` | `RESULTS.md` §Per-arm | **ready** |
-| r4 | The design-preservation contract blocks the empty fix | `partial_deadlock_bystander`: A3_local 0/3 (stalled) vs A3_whole 2/3 | `scripts/run_case_partial.py` | `case-partial-deadlock-v1/CASE.md` | **ready** |
-
-## (5) Detection capability
+## (3) Conform catches deviations the model verdict cannot
 
 | # | claim | number | command | artefact | status |
 | --- | --- | --- | --- | --- | --- |
-| d1 | ConcIR decides every CIR case; dynamic/static Rust tools miss | Track D tables (10 Rust tasks + CIR-only appendix) | `scripts/rebuild_trackd.py`; `results` | `detection-v3/TRACKD.json`; `tables/trackd.tex` | **ready** |
-| d2 | loom cross-check | not run | — | — | **missing** (§5 optional) |
+| v1 | Post-verification rejects code rounds | **30 of 59** G3 code cells had `conform` reject at least one round | `results --gen` | `tables/gen_conform_value.tex` | **ready** |
+| v2 | Operation-bound conform recall | M1 1.0, M2 0.947, M4 1.0, M6 1.0, M8 0.8; M5 0.0; M7 order-sensitive | `scripts/mutate_v2.py` | `conform-mutation-v2/{SUMMARY,CONFORM_GAPS}.md`; `tables/{mutation,conform_recall_v1v2}.tex` | **ready** |
 
-## (6) Scale
-
-| # | claim | number | command | artefact | status |
-| --- | --- | --- | --- | --- | --- |
-| s1 | State growth and the UNKNOWN boundary | 24 generated lock-chain runs | `python -m cir_workflow scale` | `scale-v2/SCALE.json`; `tables/scale.tex` | **ready** |
-
-## (7) Expert track and human review
+## (4) Frontier model
 
 | # | claim | number | command | artefact | status |
 | --- | --- | --- | --- | --- | --- |
-| e1 | Agent-proxy labels agree with the automatic oracle; human review merged | per-candidate labels 54, unsure 4/54; agreement 108/117; human review 17 rows = 11 candidates, agent vs human 7/7 | `scripts/label_v2.py`; `scripts/merge_human_review.py` | `expert-labels/EXPERT_LABELS.json`; `tables/expert.tex`; `RESULTS.md` | **ready** |
-| e2 | Generation-cell expert labels | not run | — | — | **missing** |
+| f1 | kimi-k3 G3 v2 still leads G0 on RF_all | G3 0.598 vs G0 0.509; G3 accept 0.458, awp 11/24 | `scripts/run_gen_probe_v2.py` | `gen-model-probe-v2/SUMMARY.md`; `tables/gen_probe.tex` | **ready** |
 
-## (8) Extraction limitation
+## (5) Cost
 
 | # | claim | number | command | artefact | status |
 | --- | --- | --- | --- | --- | --- |
-| x1 | LLM extraction of CIR from Rust is a limitation | validated 0/63 | `scripts/run_extraction_v6.py` | `extraction-v6/EXTRACTION_LIMITS.md` | **ready (as limitation)** |
+| k1 | G3 splits into CIR and code stages; code stage dominates rounds | CIR mean 1.54 rounds / 346k tokens; code mean 2.0 rounds / 221k tokens | `results --gen` | `tables/gen_g3_stages.tex` | **ready** |
 
-## (9) Threats to validity
+## (6) Repair study (second study)
 
-- Single provider family for the main batch (DeepSeek Flash); the frontier probe
-  covers one stronger model (kimi-k3, 1 rep).
-- 24 tasks, 3 reps (main), 1 rep (probe).
-- The Rust-arm oracle is **bounded** (`PASS_bounded`); the model arm is
-  exhaustive. The two words are never mixed.
-- G3 requires a **name-alignment** step (candidate resources/functions aligned
-  to the contract by kind/declaration order) because the model cannot see the
-  contract's names; recorded per cell.
-- `var_eq`/`var_cmp` clauses are `unsupported` for free Rust (no value events);
-  user-defined semaphores are `unmapped`.
-- Expert labels are agent-proxy for the generation cells (not yet run).
-- Miri is bounded; `deadlock_free` is resolved from native behavior.
+| # | claim | number | reference | status |
+| --- | --- | --- | --- | --- |
+| r1 | Repair has 0 false-accepts; tool-driven baseline accepts a green 3-lock cycle | A3_local 0/21, A3_whole 0/20; A0 11/24, A2-ml 3/24 (`cycle_3lock`) | `tables/main.tex`, `tables/arms.tex`, `tables/trackd.tex` | **ready** |
+
+## (7) Detection capability and scale
+
+| # | claim | number | reference | status |
+| --- | --- | --- | --- | --- |
+| d1 | ConcIR decides every CIR case; Miri/Lockbud miss the cycle | Track D | `tables/trackd.tex` | **ready** |
+| d2 | State growth and the UNKNOWN boundary | 24 lock-chain runs | `tables/scale.tex` | **ready** |
+| d3 | loom cross-check | not run | — | **missing** |
+
+## (8) Expert track and human review
+
+| # | claim | number | reference | status |
+| --- | --- | --- | --- | --- |
+| e1 | Agent-proxy labels; human review merged (repair study) | agreement 108/117; human 11 candidates | `tables/expert.tex` | **ready** |
+| e2 | Generation-cell expert labels | not run | — | **missing** |
+
+## (9) Extraction limitation
+
+| # | claim | number | reference | status |
+| --- | --- | --- | --- | --- |
+| x1 | CIR extraction from Rust failed | 0/63 | `extraction-v6/EXTRACTION_LIMITS.md` | **ready (limitation)** |
+
+## (10) Threats
+
+- Author-constructed requirements/contracts; entity names are part of the requirements.
+- G3's code stage is bounded by the LLM's fidelity to the CIR (33% smoke).
+- Main batch single provider (DeepSeek Flash); probe one model, one rep.
+- Rust-arm oracle bounded (`PASS_bounded`); model arm exhaustive; words not mixed.
+- `same_cv_different_locks` is `UNSUPPORTED` (ConcIR W1xx); `var_eq` and user semaphores are instrument limits.
+- Expert labels for generation cells not run; loom not run.

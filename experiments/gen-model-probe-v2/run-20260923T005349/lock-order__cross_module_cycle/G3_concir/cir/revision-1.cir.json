@@ -1,0 +1,183 @@
+{
+  "program": "two_module_ordered_locks",
+  "version": "3.5.0",
+  "entry": "mod_a::main",
+  "modules": [
+    {
+      "name": "mod_a",
+      "provides": {
+        "resources": [
+          "a",
+          "done"
+        ],
+        "functions": [
+          "main",
+          "t1"
+        ]
+      },
+      "requires": {
+        "resources": [
+          "b"
+        ],
+        "functions": [
+          "t2"
+        ]
+      },
+      "resources": [
+        {
+          "name": "a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "done",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "mod_a::t1",
+              "handle": "h1"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "mod_b::t2",
+              "handle": "h2"
+            },
+            {
+              "sid": "s3",
+              "kind": "join",
+              "handle": "h1"
+            },
+            {
+              "sid": "s4",
+              "kind": "join",
+              "handle": "h2"
+            },
+            {
+              "sid": "s5",
+              "kind": "write_shared",
+              "resource": "mod_a::done",
+              "expr": "1"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "t1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "mod_a::a"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "mod_b::b"
+            },
+            {
+              "sid": "s3",
+              "kind": "nop"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "mod_b::b"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "mod_a::a"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mod_b",
+      "provides": {
+        "resources": [
+          "b"
+        ],
+        "functions": [
+          "t2"
+        ]
+      },
+      "requires": {
+        "resources": [
+          "a"
+        ],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "t2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "mod_a::a"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "mod_b::b"
+            },
+            {
+              "sid": "s3",
+              "kind": "nop"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "mod_b::b"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "mod_a::a"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

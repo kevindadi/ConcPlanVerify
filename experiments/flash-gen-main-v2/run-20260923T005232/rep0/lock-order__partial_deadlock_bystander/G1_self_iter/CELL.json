@@ -1,0 +1,431 @@
+{
+  "arm": "G1_self_iter",
+  "task": "lock-order/partial_deadlock_bystander",
+  "rounds": [
+    {
+      "round": 1,
+      "request_sha256": "0e2085cfd6e005ffbe2835b2e70751e84d9adda2c4818f1723a3346dc7525be8",
+      "feedback_sha256": "f55d8a9ccd065b9c48071828e4217878c03953fc23146fd859a7eebead027ce4",
+      "prompt_tokens": 484,
+      "completion_tokens": 736,
+      "llm_wall_ms": 2840,
+      "tool_wall_ms": 949,
+      "tool_output_sha256": "dc75964c60a1facde6fe7449d421543234c26dcf9926e14546eb58da745b1abf",
+      "decision": "continue"
+    },
+    {
+      "round": 2,
+      "request_sha256": "978fb0ea000766bfdab64f883779a2c58713c97b1836b2a28ec11de1a5fdd32a",
+      "feedback_sha256": "f55d8a9ccd065b9c48071828e4217878c03953fc23146fd859a7eebead027ce4",
+      "prompt_tokens": 1243,
+      "completion_tokens": 4096,
+      "llm_wall_ms": 18139,
+      "tool_wall_ms": 0,
+      "tool_output_sha256": null,
+      "decision": "claims_no_issue"
+    }
+  ],
+  "accepted": true,
+  "accepted_round": 1,
+  "consumption": {
+    "http_requests": 2,
+    "prompt_tokens": 1727,
+    "completion_tokens": 4832,
+    "total_tokens": 6559,
+    "llm_wall_ms": 20979,
+    "tool_wall_ms": 949,
+    "rounds": 2,
+    "first_correct_round": 1
+  },
+  "final_artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/candidate.rs",
+  "final_artifact_sha256": "986531c4c67734e34b4bcc1675db74e4aa54a0d0d3b701e57029a9230f6c75ea",
+  "notes": {
+    "tools_tier": "ml",
+    "tool_rounds": [
+      {
+        "source_sha256": "986531c4c67734e34b4bcc1675db74e4aa54a0d0d3b701e57029a9230f6c75ea",
+        "project_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/probe",
+        "calls_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls",
+        "build": {
+          "tool": "build",
+          "argv": [
+            "cargo",
+            "build",
+            "--offline",
+            "--quiet"
+          ],
+          "exit_code": 0,
+          "wall_ms": 465,
+          "timed_out": false,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "e6095b4290f9a1c6ca0b89b4bba86abc900d44c709b70f9ef83e87182b3a6068",
+          "error": null,
+          "extra": {
+            "argv_sha256": "51d4b0625f45fe9585239fe76dec294b56b0ea7ad18021c97dde6893dc068974",
+            "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"
+          },
+          "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls/001-build",
+          "files": {
+            "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls/001-build/argv.json",
+            "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls/001-build/env.json",
+            "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls/001-build/stdout.txt",
+            "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls/001-build/stderr.txt",
+            "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls/001-build/exit.txt",
+            "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls/001-build/wall_ms.txt"
+          }
+        },
+        "build_ok": true,
+        "behavior_test": {
+          "tool": "test",
+          "argv": [
+            "cargo",
+            "test",
+            "--offline",
+            "--quiet"
+          ],
+          "exit_code": 0,
+          "wall_ms": 484,
+          "timed_out": false,
+          "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd",
+          "stderr_sha256": "e6095b4290f9a1c6ca0b89b4bba86abc900d44c709b70f9ef83e87182b3a6068",
+          "error": null,
+          "extra": {
+            "argv_sha256": "41a0767151d7289936ffa5f2b2b750d98f67857ecfcb674ed794817b41cf7a80",
+            "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"
+          },
+          "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls/002-test",
+          "files": {
+            "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls/002-test/argv.json",
+            "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls/002-test/env.json",
+            "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls/002-test/stdout.txt",
+            "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls/002-test/stderr.txt",
+            "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls/002-test/exit.txt",
+            "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/run-20260922T171042-32875-f4a0e4/round-1/calls/002-test/wall_ms.txt"
+          }
+        },
+        "behavior_test_passed": 0,
+        "behavior_test_ok": null,
+        "behavior_test_reason": "no_tests",
+        "lockbud": {
+          "tool": "lockbud",
+          "status": "skipped"
+        },
+        "miri": [],
+        "miri_extended": null
+      }
+    ],
+    "round_columns": [
+      {
+        "round": 1,
+        "build_ok": true,
+        "test_ok": null,
+        "miri_green": false,
+        "miri_detected": false,
+        "lockbud_green": true,
+        "lockbud_detected": false,
+        "lockbud_status": "skipped"
+      }
+    ],
+    "build_ok_rounds": [
+      1
+    ],
+    "claims_no_issue_rounds": [
+      2
+    ],
+    "accepted_candidate_round": 1
+  },
+  "error": null,
+  "llm_calls": [
+    {
+      "attempt": 1,
+      "request_id": "d92e36de-fd3f-4f1c-a1db-81bec9238988",
+      "response_model": "deepseek-flash",
+      "usage": {
+        "completion_tokens": 736,
+        "prompt_tokens": 484,
+        "total_tokens": 1220,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 256
+        },
+        "prompt_cache_hit_tokens": 256,
+        "prompt_cache_miss_tokens": 228
+      },
+      "wall_ms": 2840,
+      "transport_attempt": 1,
+      "prompt_sha256": "b2d6608da7ffdae321634d0714a054698a699d345c6459c613b278d1eb1a558a"
+    },
+    {
+      "attempt": 2,
+      "request_id": "6962a99a-2221-48a0-8955-0783c677da39",
+      "response_model": "deepseek-flash",
+      "usage": {
+        "completion_tokens": 4096,
+        "prompt_tokens": 1243,
+        "total_tokens": 5339,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 384
+        },
+        "prompt_cache_hit_tokens": 384,
+        "prompt_cache_miss_tokens": 859
+      },
+      "wall_ms": 18139,
+      "transport_attempt": 1,
+      "prompt_sha256": "e4d3152c5da57380d1466624ea9952536a2e78e8dcb9a885fd27305d2ef3843e"
+    }
+  ],
+  "oracle": {
+    "built": true,
+    "build_log_tail": "   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/oracle)\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.30s\n",
+    "resources": [
+      {
+        "kind": "Mutex",
+        "name": "a_mutex0"
+      },
+      {
+        "kind": "Mutex",
+        "name": "b_mutex0"
+      },
+      {
+        "kind": "Mutex",
+        "name": "flag_mutex0"
+      },
+      {
+        "kind": "Spawn",
+        "name": "worker_a"
+      },
+      {
+        "kind": "Spawn",
+        "name": "worker_b"
+      },
+      {
+        "kind": "Spawn",
+        "name": "bystander"
+      }
+    ],
+    "limitations": [],
+    "runs": [
+      {
+        "index": 0,
+        "source": "native",
+        "completed": false,
+        "timed_out": true,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/oracle/traces/native-000.jsonl",
+        "trace_exists": false
+      }
+    ],
+    "behavior_ok": false,
+    "hang": true,
+    "monitor": {
+      "binary_sha256": "a54e0f42f5f399e385903502634cdf869121c517d71c6e5244f857653654d437",
+      "bounded": true,
+      "events": 0,
+      "git_rev": "eb3efe40442ee4012d00314367fd47373cbcdcb0",
+      "properties": [
+        {
+          "detail": "decided by behavior (hang/timeout) and Miri",
+          "id": "no-deadlock",
+          "kind": "deadlock_free",
+          "req": [
+            "R6",
+            "R9",
+            "R10",
+            "R11"
+          ],
+          "source": "properties",
+          "status": "deferred"
+        },
+        {
+          "detail": "no traces",
+          "id": "a-completes",
+          "kind": "always_reachable",
+          "req": [
+            "R6",
+            "R7",
+            "R11"
+          ],
+          "source": "properties",
+          "status": "not_observed"
+        },
+        {
+          "detail": "no traces",
+          "id": "b-completes",
+          "kind": "always_reachable",
+          "req": [
+            "R6",
+            "R8",
+            "R11"
+          ],
+          "source": "properties",
+          "status": "not_observed"
+        },
+        {
+          "detail": "no traces",
+          "id": "main::a completes",
+          "kind": "reachable",
+          "req": [
+            "R1",
+            "R7",
+            "R11"
+          ],
+          "source": "preserved",
+          "status": "not_observed"
+        },
+        {
+          "detail": "no traces",
+          "id": "main::b completes",
+          "kind": "reachable",
+          "req": [
+            "R1",
+            "R8",
+            "R11"
+          ],
+          "source": "preserved",
+          "status": "not_observed"
+        },
+        {
+          "detail": "no traces",
+          "id": "main::a holds [main::a, main::b] at once",
+          "kind": "reachable",
+          "req": [
+            "R3",
+            "R4",
+            "R5"
+          ],
+          "source": "preserved",
+          "status": "not_observed"
+        },
+        {
+          "detail": "no traces",
+          "id": "main::b holds [main::a, main::b] at once",
+          "kind": "reachable",
+          "req": [
+            "R3",
+            "R4",
+            "R5"
+          ],
+          "source": "preserved",
+          "status": "not_observed"
+        }
+      ],
+      "resource_map": {
+        "a_mutex0": "main::a",
+        "b_mutex0": "main::b",
+        "bystander": null,
+        "flag_mutex0": null,
+        "worker_a": "main::a",
+        "worker_b": "main::b"
+      },
+      "status": "ok",
+      "traces": 0,
+      "unmapped_resources": [
+        "bystander",
+        "flag_mutex0"
+      ],
+      "_exit": 0,
+      "_argv": [
+        "/Users/kevin/local-repos/ConcIR/target/release/concir-backend",
+        "monitor",
+        "--contract",
+        "/Users/kevin/local-repos/ConcPlanVerify/benchmarks/families/lock-order/partial_deadlock_bystander/contract.json",
+        "--traces",
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/oracle/traces",
+        "--resources",
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/oracle/instrument/resources.json",
+        "--mapping",
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G1_self_iter/oracle/mapping.json"
+      ],
+      "_stderr": ""
+    },
+    "mapping": {
+      "a_mutex0": "main::a",
+      "b_mutex0": "main::b",
+      "worker_a": "main::a",
+      "worker_b": "main::b"
+    },
+    "mapping_provenance": {
+      "by_kind": {
+        "Mutex": [
+          [
+            "a_mutex0",
+            "main::a"
+          ],
+          [
+            "b_mutex0",
+            "main::b"
+          ]
+        ]
+      },
+      "spawns": [
+        [
+          "worker_a",
+          "main::a"
+        ],
+        [
+          "worker_b",
+          "main::b"
+        ]
+      ]
+    },
+    "coverage": {
+      "total": 12,
+      "decidable": 10,
+      "satisfied": 0,
+      "failed": 4,
+      "not_observed": 6,
+      "unmapped": 0,
+      "unsupported": 0,
+      "deferred": 0,
+      "unverifiable": 2,
+      "rc": 0.8333333333333334,
+      "rf": 0.0,
+      "statuses": {
+        "R1": "not_observed",
+        "R2": "unverifiable",
+        "R3": "not_observed",
+        "R4": "not_observed",
+        "R5": "not_observed",
+        "R6": "FAIL",
+        "R7": "not_observed",
+        "R8": "not_observed",
+        "R9": "FAIL",
+        "R10": "FAIL",
+        "R11": "FAIL",
+        "R12": "unverifiable"
+      }
+    },
+    "status": "ok",
+    "monitor_fail": []
+  },
+  "coverage": {
+    "total": 12,
+    "decidable": 10,
+    "satisfied": 0,
+    "failed": 4,
+    "not_observed": 6,
+    "unmapped": 0,
+    "unsupported": 0,
+    "deferred": 0,
+    "unverifiable": 2,
+    "rc": 0.8333333333333334,
+    "rf": 0.0,
+    "statuses": {
+      "R1": "not_observed",
+      "R2": "unverifiable",
+      "R3": "not_observed",
+      "R4": "not_observed",
+      "R5": "not_observed",
+      "R6": "FAIL",
+      "R7": "not_observed",
+      "R8": "not_observed",
+      "R9": "FAIL",
+      "R10": "FAIL",
+      "R11": "FAIL",
+      "R12": "unverifiable"
+    }
+  },
+  "monitor_fail": []
+}

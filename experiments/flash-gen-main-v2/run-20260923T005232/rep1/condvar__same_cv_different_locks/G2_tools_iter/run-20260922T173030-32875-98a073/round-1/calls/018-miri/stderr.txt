@@ -1,0 +1,102 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...0260922T173030-32875-98a073/round-1/probe/target/miri/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+
+thread '<unnamed>' (57955) panicked at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/condvar/pthread.rs:39:18:
+attempted to use a condition variable with two mutexes
+stack backtrace:
+   0: std::panicking::panic_handler
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/panicking.rs:676:5
+   1: std::rt::panic_fmt
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:80:14
+   2: std::sys::sync::condvar::pthread::Condvar::verify
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/condvar/pthread.rs:39:18
+   3: std::sys::sync::condvar::pthread::Condvar::wait
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/condvar/pthread.rs:60:9
+   4: std::sync::Condvar::wait::<bool>
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/poison/condvar.rs:128:13
+   5: main::{closure#1}
+             at src/main.rs:59:21
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+thread '<unnamed>' (57956) panicked at src/main.rs:74:41:
+called `Result::unwrap()` on an `Err` value: PoisonError { .. }
+stack backtrace:
+   0: std::panicking::panic_handler
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/panicking.rs:676:5
+   1: std::rt::panic_fmt
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:80:14
+   2: std::result::unwrap_failed
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:1870:5
+   3: std::result::Result::<std::sync::MutexGuard<'_, bool>, std::sync::PoisonError<std::sync::MutexGuard<'_, bool>>>::unwrap
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:1232:23
+   4: main::{closure#2}
+             at src/main.rs:74:22
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+error: the evaluated program deadlocked
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66
+    |
+135 |         let ret = unsafe { libc::pthread_join(id, ptr::null_mut()) };
+    |                                                                  ^ thread got stuck here
+    |
+    = note: this is on thread `main`
+    = note: stack backtrace:
+            0: std::sys::thread::unix::Thread::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66: 135:67
+            1: std::thread::lifecycle::JoinInner::<'_, ()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/lifecycle.rs:220:9: 220:27
+            2: std::thread::JoinHandle::<()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/join_handle.rs:150:9: 150:22
+            3: main
+                at src/main.rs:82:5: 82:14
+
+error: the evaluated program deadlocked
+  --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73
+   |
+47 |         let r = unsafe { libc::pthread_cond_wait(self.raw(), mutex.raw()) };
+   |                                                                         ^ thread got stuck here
+   |
+   = note: this is on thread `unnamed-1`
+   = note: stack backtrace:
+           0: std::sys::pal::unix::sync::condvar::Condvar::wait
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73: 47:74
+           1: std::sys::sync::condvar::pthread::Condvar::wait
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/condvar/pthread.rs:64:18: 64:40
+           2: std::sync::Condvar::wait::<bool>
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/poison/condvar.rs:128:13: 128:34
+           3: main::{closure#0}
+               at src/main.rs:46:21: 46:38
+note: the last function in that backtrace got called indirectly due to this code
+  --> src/main.rs:42:14
+   |
+42 |       let w1 = thread::spawn(move || {
+   |  ______________^
+43 | |         let mut guard = m1_w1.lock().unwrap();
+44 | |         ready_w1.signal();
+45 | |         while !*guard {
+...  |
+48 | |         *guard = true;
+49 | |     });
+   | |______^
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: aborting due to 2 previous errors
+

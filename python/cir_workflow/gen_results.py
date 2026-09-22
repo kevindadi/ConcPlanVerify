@@ -12,7 +12,7 @@ import statistics
 from pathlib import Path
 from typing import Any
 
-ARMS = ("G0_direct", "G1_self_iter", "G2_tools_iter", "G3_concir")
+ARMS = ("G0_direct", "G1_self_iter", "G2_tools_iter", "G3_concir", "G3_codegen")
 PROBE_ARMS = ("G0_direct", "G2_tools_iter", "G3_concir")
 TIERS = ("Simple", "Medium", "Complex")
 
@@ -55,6 +55,7 @@ def aggregate(cells: list[dict]) -> dict:
         "accept_rate": round(len(accepted) / len(cells), 3) if cells else None,
         "rc": _mean([c.get("rc") for c in cells]),
         "rf": _mean([c.get("rf") for c in cells]),
+        "rf_acc": _mean([c.get("rf") for c in accepted]),
         "defect": sum(1 for c in cells if _defect(c)),
         "awp": sum(1 for c in cells if c.get("accepted_with_proof")),
         "tokens": sum(_tokens(c) for c in cells),
@@ -64,23 +65,26 @@ def aggregate(cells: list[dict]) -> dict:
 def render_md(cells: dict, batches: list[Path] | None = None) -> str:
     all_cells = list(cells.values())
     lines = [
-        "", "## Generation (main) — `flash-gen-main-v1`", "",
-        "Requirements -> program, four arms, 24 tasks, K=4, 3 reps. The contract",
-        "is hidden from every model prompt. Rust arms are scored by the bounded",
-        "monitor (§1); G3 by the exhaustive model verdict + conform.",
+        "", "## Generation (main) — `flash-gen-main-v2`", "",
+        "Requirements -> verified CIR -> LLM code -> tool post-verification, "
+        "24 tasks, 3 reps. G0/G1/G2 are bounded-monitored; G3_concir verifies the "
+        "CIR exhaustively, the LLM writes the Rust, and conform/monitor "
+        "post-verify; G3_codegen is the tool-codegen ablation (rep 0).",
     ]
     if batches:
         lines += ["", "Batches (later overrides earlier): "
                   + ", ".join(f"`{Path(b).name}`" for b in batches) + "."]
-    lines += ["", "| arm | cells | accepted | accept rate | RC | RF | defect | awp | tokens |",
-              "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    lines += ["", "| arm | cells | accepted | accept rate | RC | RF_all | RF_acc | defect | awp | tokens |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for arm in ARMS:
         a = aggregate([c for c in all_cells if c["arm"] == arm])
         lines.append(f"| {arm} | {a['n']} | {a['accepted']} | {a['accept_rate']} | "
-                     f"{a['rc']} | {a['rf']} | {a['defect']} | {a['awp']} | {a['tokens']} |")
+                     f"{a['rc']} | {a['rf']} | {a['rf_acc']} | {a['defect']} | "
+                     f"{a['awp']} | {a['tokens']} |")
     a = aggregate(all_cells)
     lines.append(f"| **all** | {a['n']} | {a['accepted']} | {a['accept_rate']} | "
-                 f"{a['rc']} | {a['rf']} | {a['defect']} | {a['awp']} | {a['tokens']} |")
+                 f"{a['rc']} | {a['rf']} | {a['rf_acc']} | {a['defect']} | "
+                 f"{a['awp']} | {a['tokens']} |")
     lines += ["", "Per tier (RF):", "",
               "| tier | " + " | ".join(ARMS) + " |",
               "| --- | " + " | ".join("---" for _ in ARMS) + " |"]
@@ -97,16 +101,18 @@ def render_md(cells: dict, batches: list[Path] | None = None) -> str:
 
 def render_tex(cells: dict) -> dict[str, str]:
     all_cells = list(cells.values())
-    main = ["\\begin{tabular}{lrrrrrr}", "\\toprule",
-            "arm & cells & acc. & RF & defect & awp & tokens \\\\", "\\midrule"]
+    main = ["\\begin{tabular}{lrrrrrrr}", "\\toprule",
+            "arm & cells & acc. & RF\\_all & RF\\_acc & defect & awp & tokens \\\\",
+            "\\midrule"]
     for arm in ARMS:
         a = aggregate([c for c in all_cells if c["arm"] == arm])
         main.append(f"{arm.replace('_', chr(92)+'_')} & {a['n']} & {a['accept_rate']} & "
-                    f"{a['rf']} & {a['defect']} & {a['awp']} & {a['tokens']} \\\\")
+                    f"{a['rf']} & {a['rf_acc']} & {a['defect']} & {a['awp']} & "
+                    f"{a['tokens']} \\\\")
     a = aggregate(all_cells)
     main += ["\\midrule", f"all & {a['n']} & {a['accept_rate']} & {a['rf']} & "
-             f"{a['defect']} & {a['awp']} & {a['tokens']} \\\\", "\\bottomrule",
-             "\\end{tabular}"]
+             f"{a['rf_acc']} & {a['defect']} & {a['awp']} & {a['tokens']} \\\\",
+             "\\bottomrule", "\\end{tabular}"]
     arms = ["\\begin{tabular}{lrrr}", "\\toprule", "arm & acc. rate & RC & RF \\\\",
             "\\midrule"]
     for arm in ARMS:
@@ -124,9 +130,52 @@ def render_tex(cells: dict) -> dict[str, str]:
             row.append(str(a["rf"]))
         tiers.append(" & ".join(row) + " \\\\")
     tiers += ["\\bottomrule", "\\end{tabular}"]
+
+    g3 = [c for c in all_cells if c["arm"] == "G3_concir"]
+    v2recs = [c.get("record") or {} for c in g3]
+    cir_rounds = [r.get("cir_rounds") for r in v2recs if r.get("cir_rounds") is not None]
+    code_rounds = [len((r.get("code_stage") or {}).get("rounds", []))
+                   for r in v2recs if r.get("code_stage")]
+    cir_tokens = sum((rnd.get("prompt_tokens") or 0) + (rnd.get("completion_tokens") or 0)
+                     for r in v2recs for rnd in (r.get("rounds") or [])
+                     if rnd.get("stage") == "cir")
+    code_tokens = sum((rnd.get("prompt_tokens") or 0) + (rnd.get("completion_tokens") or 0)
+                      for r in v2recs for rnd in (r.get("rounds") or [])
+                      if rnd.get("stage") == "code")
+    stages = ["\\begin{tabular}{lrrr}", "\\toprule",
+              "stage & cells & mean rounds & tokens \\\\", "\\midrule",
+              f"CIR & {len(cir_rounds)} & {_mean(cir_rounds)} & {cir_tokens} \\\\",
+              f"code & {len(code_rounds)} & {_mean(code_rounds)} & {code_tokens} \\\\",
+              "\\bottomrule", "\\end{tabular}"]
+
+    ablation = ["\\begin{tabular}{lrrrrr}", "\\toprule",
+                "arm & cells & acc. & RF\\_all & RF\\_acc & awp \\\\", "\\midrule"]
+    for arm in ("G3_concir", "G3_codegen"):
+        a = aggregate([c for c in all_cells if c["arm"] == arm])
+        ablation.append(f"{arm.replace('_', chr(92)+'_')} & {a['n']} & {a['accept_rate']} & "
+                        f"{a['rf']} & {a['rf_acc']} & {a['awp']} \\\\")
+    ablation += ["\\bottomrule", "\\end{tabular}"]
+
+    conform_caught = 0
+    code_cells = 0
+    for r in v2recs:
+        for rnd in (r.get("code_stage") or {}).get("rounds", []):
+            code_cells += 1
+            conform = rnd.get("conform") or {}
+            if conform and conform.get("conformant", 0) < conform.get("traces", 0):
+                conform_caught += 1
+                break
+    conform_value = ["\\begin{tabular}{lr}", "\\toprule",
+                     "G3 code cells & " + str(len(code_rounds)) + " \\\\",
+                     "conform rejected a round & " + str(conform_caught) + " \\\\",
+                     "\\bottomrule", "\\end{tabular}"]
+
     return {"gen_main.tex": "\n".join(main) + "\n",
             "gen_arms.tex": "\n".join(arms) + "\n",
-            "gen_tiers.tex": "\n".join(tiers) + "\n"}
+            "gen_tiers.tex": "\n".join(tiers) + "\n",
+            "gen_g3_stages.tex": "\n".join(stages) + "\n",
+            "gen_codegen_ablation.tex": "\n".join(ablation) + "\n",
+            "gen_conform_value.tex": "\n".join(conform_value) + "\n"}
 
 
 def probe_aggregate(cells: list[dict]) -> dict:

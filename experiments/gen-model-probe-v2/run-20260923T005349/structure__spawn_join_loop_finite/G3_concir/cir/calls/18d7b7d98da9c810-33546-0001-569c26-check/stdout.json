@@ -1,0 +1,36 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E108",
+      "severity": "error",
+      "message": "requires function 'print' must be an FQN (module::entity)",
+      "path": "modules[0].requires.functions[0]",
+      "fix_hint": "write the function as module::name"
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::print' referenced",
+      "location": "main::main.s6",
+      "path": "modules[0].functions[0].body[5]",
+      "fix_hint": "define the function or import it via requires"
+    },
+    {
+      "code": "E931",
+      "severity": "error",
+      "message": "undefined name 'DONE'",
+      "location": "main::main.s6",
+      "path": "modules[0].functions[0].body[5]",
+      "fix_hint": "fix the expression syntax, or use a declared slot or enum variant"
+    },
+    {
+      "code": "E912",
+      "severity": "warning",
+      "message": "'done' in function 'main' is modeled: false; the value is Unknown in the net",
+      "location": "main::main",
+      "path": "modules[0].functions[0]",
+      "fix_hint": "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled"
+    }
+  ]
+}

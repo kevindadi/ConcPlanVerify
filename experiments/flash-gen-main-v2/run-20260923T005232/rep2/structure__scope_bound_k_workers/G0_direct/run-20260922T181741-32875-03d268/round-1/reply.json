@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Semaphore {\n    count: Mutex<usize>,\n    cond: Condvar,\n}\n\nimpl Semaphore {\n    fn new(count: usize) -> Self {\n        Semaphore {\n            count: Mutex::new(count),\n            cond: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut c = self.count.lock().unwrap();\n        while *c == 0 {\n            c = self.cond.wait(c).unwrap();\n        }\n        *c -= 1;\n    }\n\n    fn release(&self) {\n        let mut c = self.count.lock().unwrap();\n        *c += 1;\n        self.cond.notify_one();\n    }\n}\n\nfn activation(s: &Semaphore) {\n    s.acquire();\n    // critical section: hold the single permit while doing work\n    s.release();\n}\n\nfn worker(s: Arc<Semaphore>) {\n    // each role may have up to two activations running at once\n    let mut handles = Vec::new();\n    for _ in 0..2 {\n        let s2 = Arc::clone(&s);\n        handles.push(thread::spawn(move || {\n            activation(&s2);\n        }));\n    }\n    for h in handles {\n        h.join().unwrap();\n    }\n}\n\nfn main() {\n    let s = Arc::new(Semaphore::new(1));\n\n    let mut roles = Vec::new();\n    for _ in 0..3 {\n        let s2 = Arc::clone(&s);\n        roles.push(thread::spawn(move || {\n            worker(s2);\n        }));\n    }\n\n    for r in roles {\n        r.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}

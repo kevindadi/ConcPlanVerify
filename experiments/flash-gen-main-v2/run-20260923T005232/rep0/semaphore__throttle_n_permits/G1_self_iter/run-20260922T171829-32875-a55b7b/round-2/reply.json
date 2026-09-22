@@ -1,0 +1,9 @@
+{
+  "round": 2,
+  "kind": "claims_no_issue",
+  "matched": [
+    "no deadlock"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program, I need to check for concurrency defects.\n\nThe semaphore implementation:\n- `acquire`: locks, waits while permits == 0, then decrements. Correct.\n- `release`: locks, increments, notifies one. Correct.\n\nThe `Condvar::wait` releases the mutex while waiting, so a holder can acquire the lock and release. No lost wakeup since the check is in a `while` loop and `notify_one` is called while holding the lock (or at least after incrementing). This is a standard correct semaphore.\n\nThe main thread spawns 3 workers, joins them, then checks `done == 3` and prints. All workers increment `done` under the mutex. No data race.\n\nLet me check R7 carefully: \"print exactly the line `DONE done=1`\". The program prints `DONE done=1` only if `*d == 3`. Since all three workers increment, `d` will be 3. So it prints correctly.\n\nWait — is there any issue? Let me reconsider. The spec says \"print exactly the line `DONE done=1`\". The current code prints `DONE done=1` when done==3. That's fine.\n\nLet me look for subtle issues. The semaphore starts with 2 permits, 3 workers. Two acquire, one waits. When a holder releases, it notifies one waiter. The waiter wakes, rechecks, acquires. All terminate. No deadlock.\n\nIs there a lost wakeup? `notify_one` is called while holding the lock after incrementing. A waiter in `wait` will be woken. Even if the notify happens before the waiter calls wait, the waiter rechecks the condition (`while *permits == 0`) under the lock, so it won't sleep if a permit is available. No lost wakeup.\n\nEverything looks correct. The program satisfies all requirements.\n\nNO_ISSUES"
+}

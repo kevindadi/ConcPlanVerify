@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Semaphore {\n    permits: Mutex<usize>,\n    condvar: Condvar,\n}\n\nimpl Semaphore {\n    fn new(initial: usize) -> Self {\n        Semaphore {\n            permits: Mutex::new(initial),\n            condvar: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            permits = self.condvar.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        *permits += 1;\n        self.condvar.notify_one();\n    }\n\n    fn count(&self) -> usize {\n        *self.permits.lock().unwrap()\n    }\n}\n\nfn worker(s: Arc<Semaphore>) {\n    s.acquire();\n    // perform work while holding the permit\n    s.release();\n}\n\nfn main() {\n    let s = Arc::new(Semaphore::new(1));\n\n    let s1 = Arc::clone(&s);\n    let w1 = thread::spawn(move || worker(s1));\n\n    let s2 = Arc::clone(&s);\n    let w2 = thread::spawn(move || worker(s2));\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    println!(\"DONE permits={}\", s.count());\n}\n```"
+}

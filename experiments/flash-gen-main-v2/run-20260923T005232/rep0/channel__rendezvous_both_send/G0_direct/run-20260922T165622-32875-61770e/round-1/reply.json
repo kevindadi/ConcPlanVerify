@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Channel<T> {\n    slot: Mutex<Option<T>>,\n    cond: Condvar,\n}\n\nimpl<T> Channel<T> {\n    fn new() -> Self {\n        Channel {\n            slot: Mutex::new(None),\n            cond: Condvar::new(),\n        }\n    }\n\n    fn send(&self, value: T) {\n        let mut guard = self.slot.lock().unwrap();\n        while guard.is_some() {\n            guard = self.cond.wait(guard).unwrap();\n        }\n        *guard = Some(value);\n        self.cond.notify_all();\n    }\n\n    fn recv(&self) -> T {\n        let mut guard = self.slot.lock().unwrap();\n        loop {\n            if let Some(value) = guard.take() {\n                self.cond.notify_all();\n                return value;\n            }\n            guard = self.cond.wait(guard).unwrap();\n        }\n    }\n}\n\nfn main() {\n    let ch: Arc<Channel<i32>> = Arc::new(Channel::new());\n\n    let ch_s1 = Arc::clone(&ch);\n    let s1 = thread::spawn(move || {\n        ch_s1.send(1);\n    });\n\n    let ch_r = Arc::clone(&ch);\n    let r = thread::spawn(move || {\n        let value = ch_r.recv();\n        value\n    });\n\n    s1.join().unwrap();\n    let done = r.join().unwrap();\n\n    println!(\"DONE done={}\", done);\n}\n```"
+}

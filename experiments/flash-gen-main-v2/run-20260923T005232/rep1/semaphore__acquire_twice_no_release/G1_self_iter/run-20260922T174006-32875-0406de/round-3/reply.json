@@ -1,0 +1,9 @@
+{
+  "round": 3,
+  "kind": "claims_no_issue",
+  "matched": [
+    "no deadlock"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program, I need to check for concurrency defects.\n\nThe semaphore implementation looks correct:\n- `acquire` uses a `while` loop (not `if`) to handle spurious wakeups and re-check the condition after waking.\n- `release` increments the count and notifies one waiter while holding the lock.\n\nLet me trace through the requirements:\n\n- R1: Two worker threads spawned and joined. ✓\n- R2: One permit pool starting with 1 permit. ✓\n- R3: Workers hold permit during work. ✓\n- R4: Each worker acquires once and releases once. ✓\n- R5: While a worker waits, the holder can release — the `wait` releases the mutex, so the holder can acquire the lock and release. ✓\n- R6: Termination — with 1 permit, one worker acquires, does work, releases, then the other acquires. Both terminate. ✓\n- R7: Prints `DONE done=1`. ✓\n\nThe `while` loop in `acquire` correctly guards against spurious wakeups. The `notify_one` in `release` is sufficient since only one permit is added. There's no lost wakeup because the count is modified under the lock and the waiter re-checks the condition under the lock.\n\nNo deadlock, no lost wakeup, no data race, no thread that can block forever.\n\nNO_ISSUES"
+}

@@ -1,0 +1,69 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...0260922T175410-32875-42aca2/round-2/probe/target/miri/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+
+thread '<unnamed>' (73419) panicked at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/condvar/pthread.rs:39:18:
+attempted to use a condition variable with two mutexes
+stack backtrace:
+   0: std::panicking::panic_handler
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/panicking.rs:676:5
+   1: std::rt::panic_fmt
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:80:14
+   2: std::sys::sync::condvar::pthread::Condvar::verify
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/condvar/pthread.rs:39:18
+   3: std::sys::sync::condvar::pthread::Condvar::wait
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/condvar/pthread.rs:60:9
+   4: std::sync::Condvar::wait::<bool>
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/poison/condvar.rs:128:13
+   5: main::{closure#1}
+             at src/main.rs:59:21
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+thread '<unnamed>' (73420) panicked at src/main.rs:79:38:
+called `Result::unwrap()` on an `Err` value: PoisonError { .. }
+stack backtrace:
+   0: std::panicking::panic_handler
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/panicking.rs:676:5
+   1: std::rt::panic_fmt
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:80:14
+   2: std::result::unwrap_failed
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:1870:5
+   3: std::result::Result::<std::sync::MutexGuard<'_, bool>, std::sync::PoisonError<std::sync::MutexGuard<'_, bool>>>::unwrap
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:1232:23
+   4: main::{closure#2}
+             at src/main.rs:79:26
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+thread 'main' (73417) panicked at src/main.rs:86:15:
+called `Result::unwrap()` on an `Err` value: Any { .. }
+stack backtrace:
+   0: std::panicking::panic_handler
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/panicking.rs:676:5
+   1: std::rt::panic_fmt
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:80:14
+   2: std::result::unwrap_failed
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:1870:5
+   3: std::result::Result::<(), std::boxed::Box<dyn std::any::Any + std::marker::Send>>::unwrap
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:1232:23
+   4: main
+             at src/main.rs:86:5
+   5: <fn() as std::ops::FnOnce<()>>::call_once - shim(fn())
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.

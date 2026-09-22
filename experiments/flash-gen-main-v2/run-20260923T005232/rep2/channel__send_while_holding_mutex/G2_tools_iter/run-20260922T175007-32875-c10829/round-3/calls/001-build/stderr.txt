@@ -1,0 +1,50 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260922T175007-32875-c10829/round-3/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+error[E0382]: use of moved value: `tx2`
+  --> src/main.rs:37:27
+   |
+ 8 |     let (tx2, rx2) = mpsc::channel::<i32>();
+   |          --- move occurs because `tx2` has type `std::sync::mpsc::Sender<i32>`, which does not implement the `Copy` trait
+...
+17 |     let s = thread::spawn(move || {
+   |                           ------- value moved into closure here
+...
+33 |         tx2.send(1).unwrap();
+   |         --- variable moved due to use in closure
+...
+37 |     let r = thread::spawn(move || {
+   |                           ^^^^^^^ value used here after move
+...
+53 |         tx2.send(v).unwrap();
+   |         --- use occurs due to use in closure
+   |
+help: consider cloning the value before moving it into the closure
+   |
+17 ~     let value = tx2.clone();
+18 ~     let s = thread::spawn(move || {
+19 |         // Occasionally use the shared lock, but never while waiting on ch1.
+...
+33 |
+34 ~         value.send(1).unwrap();
+   |
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 1 previous error

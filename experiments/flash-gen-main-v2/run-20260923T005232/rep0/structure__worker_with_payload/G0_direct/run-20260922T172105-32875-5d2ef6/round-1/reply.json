@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_fail",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn compute() -> i32 {\n    let mut x = 0;\n    for i in 0..1000 {\n        x = x.wrapping_add(i);\n    }\n    x\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(0i32));\n    let acc = Arc::new(Mutex::new(0i32));\n\n    let m1 = Arc::clone(&m);\n    let acc1 = Arc::clone(&acc);\n    let w1 = thread::spawn(move || {\n        let _guard = m1.lock().unwrap();\n        let _ = compute();\n        let mut a = acc1.lock().unwrap();\n        *a += 1;\n    });\n\n    let m2 = Arc::clone(&m);\n    let acc2 = Arc::clone(&acc);\n    let w2 = thread::spawn(move || {\n        let _guard = m2.lock().unwrap();\n        let _ = compute();\n        let mut a = acc2.lock().unwrap();\n        *a += 1;\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    let done = *acc.lock().unwrap();\n    println!(\"DONE done={}\", done);\n}\n```"
+}

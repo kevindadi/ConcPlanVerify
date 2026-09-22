@@ -1,0 +1,38 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260922T173340-32875-8d01eb/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+error: non-binding let on a synchronization lock
+  --> src/main.rs:98:17
+   |
+98 |             let _ = s_by.flag.lock().unwrap();
+   |                 ^ this lock is not assigned to a binding and is immediately dropped
+   |
+   = note: `#[deny(let_underscore_lock)]` (part of `#[deny(let_underscore)]`) on by default
+help: consider binding to an unused variable to avoid immediately dropping the value
+   |
+98 |             let _unused = s_by.flag.lock().unwrap();
+   |                  ++++++
+help: consider immediately dropping the value
+   |
+98 -             let _ = s_by.flag.lock().unwrap();
+98 +             drop(s_by.flag.lock().unwrap());
+   |
+
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 1 previous error

@@ -1,0 +1,9 @@
+{
+  "round": 2,
+  "kind": "claims_no_issue",
+  "matched": [
+    "is correct"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program:\n\n- The waiter locks `m`, checks `ready`, and waits on `cv` while `ready` is false, re-checking after each wake. This correctly handles the signal-before-wait case because the flag is checked under the lock.\n- The notifier locks `m`, sets `ready = true`, calls `notify_one()`, then releases the lock (at end of scope).\n- The flag is only accessed while holding the lock.\n- The waiter releases the lock while blocked in `cv.wait`.\n\nOne subtle issue: the waiter returns `*ready` (a `bool`) from the closure, which is fine. The notifier's `ready` guard is dropped at the end of the closure, releasing the lock.\n\nChecking R6: the flag is set to true before the signal is issued — yes, `*ready = true;` precedes `cv.notify_one();`.\n\nChecking R5: if the notifier signals before the waiter waits, the waiter still sees `ready == true` when it acquires the lock (or re-checks after wake), so it won't block forever. The `while !*ready` loop with re-check handles spurious wakeups and missed signals correctly.\n\nChecking R8/R9: both threads terminate, and `ready` becomes true in every schedule.\n\nThere is no concurrency defect here. The pattern is the canonical correct condition-variable usage.\n\nNO_ISSUES"
+}

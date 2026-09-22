@@ -1,0 +1,9 @@
+{
+  "round": 2,
+  "kind": "claims_no_issue",
+  "matched": [
+    "same order"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program:\n\n- `t1` and `t2` both lock `a` then `b` (same order).\n- `t3` and `t4` both lock `c` then `d` (same order).\n- The two pairs use disjoint locks, so they're independent.\n- No worker holds one lock while waiting for the other in a way that could deadlock, since within each pair the order is consistent.\n- All locks are released when the guards drop at the end of each closure.\n- Main joins all four threads before printing.\n\nThere is no lock-ordering inversion, no lost wakeup, no data race, and no indefinite blocking. The program terminates and prints `DONE done=1`.\n\nNO_ISSUES"
+}

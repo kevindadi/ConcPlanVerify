@@ -1,0 +1,60 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+use std::sync::{Arc};
+use std::thread;
+
+struct Semaphore {
+    count: Mutex<usize>,
+    cond: Condvar,
+}
+
+impl Semaphore {
+    fn new(count: usize) -> Self {
+        Semaphore {
+            count: Mutex::new(count),
+            cond: Condvar::new(),
+        }
+    }
+
+    fn acquire(&self, n: usize) {
+        let mut count = self.count.lock().unwrap();
+        while *count < n {
+            count = self.cond.wait(count).unwrap();
+        }
+        *count -= n;
+    }
+
+    fn release(&self, n: usize) {
+        let mut count = self.count.lock().unwrap();
+        *count += n;
+        self.cond.notify_all();
+    }
+}
+
+fn main() { cir_trace::init();
+    let s = Arc::new(Semaphore::new(2));
+
+    let s1 = Arc::clone(&s);
+    let w1 = cir_trace::spawn("w1", move || {
+        s1.acquire(1);
+        s1.release(1);
+    });
+
+    let s2 = Arc::clone(&s);
+    let w2 = cir_trace::spawn("w2", move || {
+        s2.acquire(1);
+        s2.release(1);
+    });
+
+    let s3 = Arc::clone(&s);
+    let w3 = cir_trace::spawn("w3", move || {
+        s3.acquire(1);
+        s3.release(1);
+    });
+
+    w1.join().unwrap();
+    w2.join().unwrap();
+    w3.join().unwrap();
+
+    println!("DONE done=1");
+ cir_trace::finish();}

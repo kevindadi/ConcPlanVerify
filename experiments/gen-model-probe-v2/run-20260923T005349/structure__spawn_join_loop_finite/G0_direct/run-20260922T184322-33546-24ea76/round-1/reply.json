@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::thread;\n\n/// The worker role.\n///\n/// R2: The worker performs no shared work and shares no mutexes or\n/// counters with the main task; all of its state is purely local.\nfn worker() {\n    let mut local: u64 = 0;\n    for i in 0..10_000u64 {\n        local = local.wrapping_mul(31).wrapping_add(i);\n    }\n    // Keep the local computation observable to the compiler without\n    // introducing any shared state or output.\n    std::hint::black_box(local);\n}\n\nfn main() {\n    // R1/R3: Main repeatedly starts a worker and waits for it exactly\n    // once before the next worker is started.\n    //\n    // R4/R5: Each worker runs finite local work and always returns, so\n    // every `join` completes and every schedule terminates.\n    for _ in 0..3 {\n        let handle = thread::spawn(worker);\n        handle.join().expect(\"worker always finishes\");\n    }\n\n    // R6: Print exactly this line and then exit.\n    println!(\"DONE done=1\");\n}\n```"
+}

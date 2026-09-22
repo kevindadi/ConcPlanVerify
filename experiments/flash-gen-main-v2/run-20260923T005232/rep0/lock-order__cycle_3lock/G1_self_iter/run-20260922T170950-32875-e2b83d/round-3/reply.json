@@ -1,0 +1,9 @@
+{
+  "round": 3,
+  "kind": "claims_no_issue",
+  "matched": [
+    "no deadlock"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program, I need to check for deadlock potential.\n\nThe three workers acquire locks as follows:\n- t1: a, then b\n- t2: b, then c\n- t3: a, then c\n\nFor a deadlock (circular wait), we'd need a cycle in the wait-for graph. Let's check the lock ordering:\n\n- t1 holds a, wants b\n- t2 holds b, wants c\n- t3 holds a, wants c\n\nConsider the ordering a < b < c. Then:\n- t1 acquires a then b (increasing order) ✓\n- t2 acquires b then c (increasing order) ✓\n- t3 acquires a then c (increasing order) ✓\n\nAll three acquire locks in a consistent global order (a before b before c). This is the classic lock-ordering deadlock prevention technique. Since every thread acquires locks in the same global order, no circular wait can form.\n\nLet me verify there's no other cycle. The wait-for edges would be:\n- t1 waits for b (held by t2)\n- t2 waits for c (held by t3)\n- t3 waits for c (held by t2) or a (held by t1)\n\nFor a deadlock cycle, we'd need t1→t2→t3→t1 or similar. But t3 never waits for b, and t1 never waits for c. The only possible cycle would require t3 to wait for something t1 holds while t1 waits for something t3 holds. t1 holds a and wants b; t3 holds a and wants c. They can't both hold a. So no cycle.\n\nThe lock ordering is consistent: a < b < c. No deadlock possible.\n\nR6: locks are released via RAII (drop at end of scope). ✓\nR7: main joins all three. ✓\nR10: prints exactly `DONE done=1`. ✓\n\nNo concurrency defect exists.\n\nNO_ISSUES"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Shared {\n    m: Mutex<bool>,\n    cv: Condvar,\n}\n\nfn waiter(shared: Arc<Shared>) {\n    let mut ready = shared.m.lock().unwrap();\n    while !*ready {\n        ready = shared.cv.wait(ready).unwrap();\n    }\n    // flag is true here\n}\n\nfn notifier(shared: Arc<Shared>) {\n    let mut ready = shared.m.lock().unwrap();\n    *ready = true;\n    shared.cv.notify_one();\n}\n\nfn main() {\n    let shared = Arc::new(Shared {\n        m: Mutex::new(false),\n        cv: Condvar::new(),\n    });\n\n    let waiter_shared = Arc::clone(&shared);\n    let notifier_shared = Arc::clone(&shared);\n\n    let waiter_handle = thread::spawn(move || waiter(waiter_shared));\n    let notifier_handle = thread::spawn(move || notifier(notifier_shared));\n\n    waiter_handle.join().unwrap();\n    notifier_handle.join().unwrap();\n\n    let ready = shared.m.lock().unwrap();\n    println!(\"DONE ready={}\", *ready);\n}\n```"
+}

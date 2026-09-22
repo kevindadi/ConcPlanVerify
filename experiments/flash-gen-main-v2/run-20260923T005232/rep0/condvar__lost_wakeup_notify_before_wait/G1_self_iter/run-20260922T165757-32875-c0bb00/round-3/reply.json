@@ -1,0 +1,9 @@
+{
+  "round": 3,
+  "kind": "claims_no_issue",
+  "matched": [
+    "is correct"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program:\n\n- The waiter locks `m`, checks `ready`, and waits on `cv` while `ready` is false, re-checking after each wake. This correctly handles the lost-wakeup problem because the flag is checked under the lock.\n- The notifier locks `m`, sets `ready = true`, calls `notify_one()`, and releases the lock when the guard drops.\n- The flag is only accessed under the lock.\n- The waiter releases the lock while blocked (via `Condvar::wait`).\n- Both threads are joined, and the final print reads `ready` under the lock.\n\nChecking the interleavings:\n- If the notifier runs first: it sets `ready = true` and signals. When the waiter later locks, it sees `ready == true` and skips waiting. No lost wakeup.\n- If the waiter runs first: it locks, sees `ready == false`, and waits (releasing the lock). The notifier then locks, sets `ready = true`, signals, and unlocks. The waiter wakes, re-checks, sees `true`, and exits.\n\nThe signal is issued after the flag is set (R6), and the flag is set while holding the lock (R3, R7). Every schedule terminates, and `ready` becomes true in every schedule.\n\nThere is no concurrency defect.\n\nNO_ISSUES"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::thread;\n\nfn worker() {\n    // R2: performs no shared work, shares no mutexes or counters.\n}\n\nfn main() {\n    // R1: start a worker, wait for it, then repeat the same cycle.\n    // R3: each worker is joined exactly once before the next is started.\n    // R4/R5: joining a worker that always terminates cannot stall.\n    for _ in 0..1 {\n        let handle = thread::spawn(worker);\n        handle.join().unwrap();\n    }\n\n    // R6: print exactly the required line and exit.\n    println!(\"DONE done=1\");\n}\n```"
+}

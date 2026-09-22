@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Arc;\nuse std::thread;\n\nfn worker(c: &AtomicUsize) {\n    // Atomic read-modify-write retry loop: a failed compare_exchange\n    // reports the current value, which becomes the basis for the next\n    // attempt, so no competing update is ever silently lost and every\n    // increment eventually takes effect.\n    let mut old = c.load(Ordering::Acquire);\n    loop {\n        match c.compare_exchange_weak(old, old + 1, Ordering::AcqRel, Ordering::Acquire) {\n            Ok(_) => break,\n            Err(actual) => old = actual,\n        }\n    }\n}\n\nfn main() {\n    // Shared atomic counter, initially zero.\n    let c = Arc::new(AtomicUsize::new(0));\n\n    // Supervising task: launch w1 and w2, then wait for both to finish.\n    let c1 = Arc::clone(&c);\n    let w1 = thread::Builder::new()\n        .name(\"w1\".to_string())\n        .spawn(move || worker(&c1))\n        .expect(\"failed to spawn w1\");\n\n    let c2 = Arc::clone(&c);\n    let w2 = thread::Builder::new()\n        .name(\"w2\".to_string())\n        .spawn(move || worker(&c2))\n        .expect(\"failed to spawn w2\");\n\n    w1.join().expect(\"w1 panicked\");\n    w2.join().expect(\"w2 panicked\");\n\n    // Both workers have finished; each added exactly one, so c == 2.\n    debug_assert_eq!(c.load(Ordering::Acquire), 2);\n\n    println!(\"DONE done=1\");\n}\n```"
+}

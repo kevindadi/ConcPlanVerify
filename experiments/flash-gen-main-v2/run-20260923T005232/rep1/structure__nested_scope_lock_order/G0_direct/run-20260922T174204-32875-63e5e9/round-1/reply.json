@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let a_outer = Arc::clone(&a);\n    let b_outer = Arc::clone(&b);\n\n    let outer = thread::spawn(move || {\n        let a1 = Arc::clone(&a_outer);\n        let b1 = Arc::clone(&b_outer);\n        let x1 = thread::spawn(move || {\n            let _ga = a1.lock().unwrap();\n            let _gb = b1.lock().unwrap();\n        });\n\n        let a2 = Arc::clone(&a_outer);\n        let b2 = Arc::clone(&b_outer);\n        let x2 = thread::spawn(move || {\n            let _ga = a2.lock().unwrap();\n            let _gb = b2.lock().unwrap();\n        });\n\n        x1.join().unwrap();\n        x2.join().unwrap();\n    });\n\n    outer.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```"
+}

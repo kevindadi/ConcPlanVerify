@@ -22,14 +22,14 @@ sys.path.insert(0, str(REPO / "python"))
 
 from cir_workflow.env import load_dotenv  # noqa: E402
 from cir_workflow.generation import (  # noqa: E402
-    load_gen_tasks, run_g3, run_rust_generation, rust_arm_oracle,
+    load_gen_tasks, run_g3, run_g3_v2, run_rust_generation, rust_arm_oracle,
 )
 from cir_workflow.flash_smoke import assert_protocol_confirmed  # noqa: E402
 from cir_workflow.live import (  # noqa: E402
     ALLOWED_PROVIDER, DeepSeekFlashClient, LiveBudget, assert_allowed_model,
 )
 
-ARMS = ("G0_direct", "G1_self_iter", "G2_tools_iter", "G3_concir")
+ARMS = ("G0_direct", "G1_self_iter", "G2_tools_iter", "G3_concir", "G3_codegen")
 
 
 def sha256(path: Path) -> str:
@@ -111,8 +111,9 @@ def main() -> int:
     }
     stop = None
     for rep in range(args.reps):
+        rep_arms = arms if rep == 0 else tuple(a for a in arms if a != "G3_codegen")
         for task in tasks:
-            for arm in arms:
+            for arm in rep_arms:
                 reason = budget.exhausted()
                 if reason:
                     summary["cells"].append({"rep": rep, "task": task.id, "arm": arm,
@@ -128,7 +129,11 @@ def main() -> int:
                         api_key=api_key, budget=budget, evidence_dir=batch / "llm",
                         timeout=90.0, max_tokens=4096)
                     if arm == "G3_concir":
+                        record = run_g3_v2(client, binary, task, cell_dir,
+                                           k_cir=args.k, k_code=3)
+                    elif arm == "G3_codegen":
                         record = run_g3(client, binary, task, cell_dir, k=args.k)
+                        record["arm"] = "G3_codegen"
                     else:
                         run, record = run_rust_generation(client, arm, task, cell_dir,
                                                           k=args.k, miri_seeds=16)

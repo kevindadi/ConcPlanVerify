@@ -1,0 +1,81 @@
+{
+  "program": "helper_sequence",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [],
+        "functions": [
+          "main",
+          "helper"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::helper"
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::helper"
+            },
+            {
+              "sid": "s3",
+              "kind": "assign_local",
+              "target": "done",
+              "expr": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "done",
+              "type": "Int"
+            }
+          ]
+        },
+        {
+          "name": "helper",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "x",
+              "expr": "1"
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "x",
+              "type": "Int"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

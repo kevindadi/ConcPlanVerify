@@ -1,0 +1,179 @@
+{
+  "arm": "G3_concir",
+  "task": "channel/send_while_holding_mutex",
+  "cir_stage": {
+    "accepted": true,
+    "status": "accepted",
+    "model": {
+      "outcome": "PASS",
+      "complete": true
+    },
+    "coverage": {
+      "total": 5,
+      "decidable": 4,
+      "satisfied": 4,
+      "failed": [],
+      "statuses": {
+        "R1": "PASS",
+        "R2": "PASS",
+        "R3": "PASS",
+        "R4": "PASS",
+        "R5": "unverifiable"
+      },
+      "rc": 0.8,
+      "rf": 0.8
+    }
+  },
+  "cir_rounds": 2,
+  "code_stage": {
+    "arm": "G3_concir_llmcode",
+    "task": "channel/send_while_holding_mutex",
+    "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/gen-model-probe-v2/run-20260923T005349/channel__send_while_holding_mutex/G3_concir/cir/revision-2.cir.json",
+    "rounds": [
+      {
+        "round": 1,
+        "decision": "post_verify_fail",
+        "prompt_tokens": 1791,
+        "completion_tokens": 3175,
+        "llm_ms": 36573,
+        "instrument_limit": [
+          "thread::scope tags are runtime-derived, scope event absent"
+        ],
+        "behavior_ok": true,
+        "conform": {
+          "conformant": 0,
+          "traces": 32,
+          "statuses": {
+            "violation": 32
+          }
+        },
+        "monitor_status": "ok",
+        "monitor_fail": [],
+        "stage": "code"
+      },
+      {
+        "round": 2,
+        "decision": "build_failed",
+        "prompt_tokens": 1835,
+        "completion_tokens": 3756,
+        "llm_ms": 79721,
+        "instrument_limit": [
+          "thread::scope tags are runtime-derived, scope event absent"
+        ],
+        "stage": "code"
+      },
+      {
+        "round": 3,
+        "decision": "post_verify_fail",
+        "prompt_tokens": 2142,
+        "completion_tokens": 1837,
+        "llm_ms": 23431,
+        "instrument_limit": [
+          "thread::scope tags are runtime-derived, scope event absent"
+        ],
+        "behavior_ok": true,
+        "conform": {
+          "conformant": 0,
+          "traces": 32,
+          "statuses": {
+            "violation": 32
+          }
+        },
+        "monitor_status": "ok",
+        "monitor_fail": [],
+        "stage": "code"
+      }
+    ],
+    "accepted": false,
+    "accepted_with_proof": false,
+    "status": "generation_failed",
+    "instrument_limit": null
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "parse_error",
+      "check": null,
+      "explore": null,
+      "prompt_tokens": 1580,
+      "completion_tokens": 4096,
+      "llm_ms": 52922,
+      "stage": "cir"
+    },
+    {
+      "round": 2,
+      "decision": "accepted",
+      "check": "valid",
+      "explore": "PASS",
+      "prompt_tokens": 1623,
+      "completion_tokens": 2533,
+      "llm_ms": 20372,
+      "stage": "cir"
+    },
+    {
+      "round": 1,
+      "decision": "post_verify_fail",
+      "prompt_tokens": 1791,
+      "completion_tokens": 3175,
+      "llm_ms": 36573,
+      "instrument_limit": [
+        "thread::scope tags are runtime-derived, scope event absent"
+      ],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 0,
+        "traces": 32,
+        "statuses": {
+          "violation": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "stage": "code"
+    },
+    {
+      "round": 2,
+      "decision": "build_failed",
+      "prompt_tokens": 1835,
+      "completion_tokens": 3756,
+      "llm_ms": 79721,
+      "instrument_limit": [
+        "thread::scope tags are runtime-derived, scope event absent"
+      ],
+      "stage": "code"
+    },
+    {
+      "round": 3,
+      "decision": "post_verify_fail",
+      "prompt_tokens": 2142,
+      "completion_tokens": 1837,
+      "llm_ms": 23431,
+      "instrument_limit": [
+        "thread::scope tags are runtime-derived, scope event absent"
+      ],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 0,
+        "traces": 32,
+        "statuses": {
+          "violation": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "stage": "code"
+    }
+  ],
+  "accepted": false,
+  "accepted_with_proof": false,
+  "status": "generation_failed",
+  "coverage": null,
+  "monitor_fail": [],
+  "oracle": {
+    "hang": false
+  },
+  "model": {
+    "outcome": "PASS",
+    "complete": true
+  }
+}

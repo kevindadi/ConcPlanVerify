@@ -105,3 +105,30 @@ excluding `*/target/*`).
 
 - ConcPV `experiments-v2-freeze-1`, `-2`, `-3`, `-4`
 - ConcIR `concir-freeze-1`, `-2`, `-3`
+
+---
+
+# Freeze 5 — LLM code from verified CIR (2026-09-23)
+
+Directory hash recipe as above (excluding `*/target/*`).
+
+- `experiments/flash-gen-main-v2`: files=42041 sha256=`a36bd92cdc73e653a04c8cdfe28f61cb60c4cfc1a98598d0e482a212cdcf598c`
+- `experiments/gen-model-probe-v2`: files=5171 sha256=`e65b1e3a09c09fe95caf564ca14d55b0c2f975e40cac240b574c11f3fb2c44f4`
+- `experiments/gen-llmcode-smoke-v1`: files=7685 sha256=`6b6bd7f2ecf647a49fc8e48377156015909e04687e97f740a11b5300e439acd3`
+- `experiments/tables`: files=16 sha256=`62084fa1287c859e41c0b508429dd8d77e5e9ef7200f8291d08c0ac783bb4055`
+
+## Provenance
+
+- ConcPlanVerify commit at freeze: this commit (tag `experiments-v2-freeze-5`).
+- ConcIR commit: `43168bb` (tag `concir-freeze-4`).
+- `concir-backend` sha256: `a54e0f42f5f399e385903502634cdf869121c517d71c6e5244f857653654d437`
+- `concir-instrument` sha256: `03f9be9c4c2a8bc4b449d6587504c9b31debb323a3d41a171180a9cb2a3d6004`
+- Main v2 batch: 312 cells (4 arms x 3 reps + G3_codegen ablation rep0), 680 requests.
+- Probe v2: kimi-k3, 48 cells, 100 requests.
+- LLM-code smoke: 45 CIRs, 107 requests (second run).
+- Benchmark tag: `contracts-v3.1`.
+
+## Tags
+
+- ConcPV `experiments-v2-freeze-1..5`, `contracts-v3`, `contracts-v3.1`
+- ConcIR `concir-freeze-1..4`

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::thread;\n\n/// Auxiliary routine.\n///\n/// R2: It touches no mutexes, counters, or any other shared state, so no two\n/// tasks ever contend for a resource.\nfn helper() {\n    // Purely local work; nothing is shared with the calling task.\n    let _local_work = 0u32;\n}\n\nfn main() {\n    // R1 + R3: The main task calls the auxiliary routine and, only after that\n    // call has run to completion (enforced by `join`), begins the same call\n    // sequence again.\n    let first = thread::spawn(helper);\n    first.join().expect(\"first helper call must not fail\");\n\n    let second = thread::spawn(helper);\n    second.join().expect(\"second helper call must not fail\");\n\n    // R4: Both helper threads are joined, so every schedule terminates.\n    // R5: Print exactly the required line and then exit.\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "aa12e128-6ba3-480c-b701-8a3ebedbb29b",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. A main task calls an auxiliary routine and then begins the same call sequence again. [U]\nR2. The main task and the auxiliary routine share no mutexes, counters, or other shared state, so no two tasks contend for a resource.\nR3. Each auxiliary call runs to completion before the calling task starts the next call.\nR4. Every schedule and interleaving of the tasks must terminate.\nR5. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): helper.\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "f6eba3db9ad8deed77cb85de906f66ad6fd9f4e42312e2f6e82851179cb71e9b",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 168,
+    "prompt_tokens": 384,
+    "total_tokens": 552,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 128
+    },
+    "prompt_cache_hit_tokens": 128,
+    "prompt_cache_miss_tokens": 256
+  },
+  "content_sha256": "575c71faccacd7bd029e25a5956697c517c53cff17f55bab081396d73e26f450",
+  "content": "```rust\nuse std::thread;\n\nfn helper() {\n    // Auxiliary routine: no shared state, no contention.\n    // It simply runs to completion.\n}\n\nfn main() {\n    // R1: main task calls the auxiliary routine, then begins the same call sequence again.\n    // R3: each auxiliary call runs to completion before the next call starts.\n    // R2: no shared mutexes, counters, or other shared state.\n    // R4: every schedule terminates.\n    // R5: print exactly `DONE done=1` and exit.\n\n    let h1 = thread::spawn(helper);\n    h1.join().unwrap();\n\n    let h2 = thread::spawn(helper);\n    h2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 1176
+}

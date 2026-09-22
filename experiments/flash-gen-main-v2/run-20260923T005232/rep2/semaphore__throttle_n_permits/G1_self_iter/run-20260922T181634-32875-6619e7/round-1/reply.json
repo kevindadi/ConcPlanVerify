@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Semaphore {\n    permits: Mutex<usize>,\n    condvar: Condvar,\n}\n\nimpl Semaphore {\n    fn new(permits: usize) -> Self {\n        Semaphore {\n            permits: Mutex::new(permits),\n            condvar: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            permits = self.condvar.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        *permits += 1;\n        self.condvar.notify_one();\n    }\n}\n\nfn main() {\n    let s = Arc::new(Semaphore::new(2));\n    let done = Arc::new(Mutex::new(0usize));\n\n    let mut handles = Vec::new();\n\n    for _ in 0..3 {\n        let s = Arc::clone(&s);\n        let done = Arc::clone(&done);\n        handles.push(thread::spawn(move || {\n            s.acquire();\n            // perform work\n            s.release();\n            let mut d = done.lock().unwrap();\n            *d += 1;\n        }));\n    }\n\n    for h in handles {\n        h.join().unwrap();\n    }\n\n    let d = done.lock().unwrap();\n    if *d == 3 {\n        println!(\"DONE done=1\");\n    }\n}\n```"
+}

@@ -1,0 +1,70 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260922T175129-32875-a52bd2/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:38:9
+   |
+38 |     let gN = Arc::new(Semaphore::new(0));
+   |         ^^ help: convert the identifier to snake case: `g_n`
+   |
+   = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `gN_1` should have a snake case name
+  --> src/main.rs:46:9
+   |
+46 |     let gN_1 = Arc::clone(&gN);
+   |         ^^^^ help: convert the identifier to snake case: `g_n_1`
+
+warning: variable `gN_2` should have a snake case name
+  --> src/main.rs:73:9
+   |
+73 |     let gN_2 = Arc::clone(&gN);
+   |         ^^^^ help: convert the identifier to snake case: `g_n_2`
+
+warning: variable `mN` should have a snake case name
+  --> src/main.rs:91:9
+   |
+91 |     let mN = Arc::clone(&m);
+   |         ^^ help: convert the identifier to snake case: `m_n`
+
+warning: variable `cvN` should have a snake case name
+  --> src/main.rs:92:9
+   |
+92 |     let cvN = Arc::clone(&cv);
+   |         ^^^ help: convert the identifier to snake case: `cv_n`
+
+warning: variable `g12N` should have a snake case name
+  --> src/main.rs:93:9
+   |
+93 |     let g12N = Arc::clone(&g12);
+   |         ^^^^ help: convert the identifier to snake case: `g12_n`
+
+warning: variable `gNN` should have a snake case name
+  --> src/main.rs:94:9
+   |
+94 |     let gNN = Arc::clone(&gN);
+   |         ^^^ help: convert the identifier to snake case: `g_nn`
+
+warning: variable `wbN` should have a snake case name
+  --> src/main.rs:95:9
+   |
+95 |     let wbN = Arc::clone(&waiters_blocked);
+   |         ^^^ help: convert the identifier to snake case: `wb_n`
+

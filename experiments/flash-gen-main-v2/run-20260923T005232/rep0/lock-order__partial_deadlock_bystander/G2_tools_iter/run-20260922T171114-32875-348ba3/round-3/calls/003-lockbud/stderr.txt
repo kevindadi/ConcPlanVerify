@@ -1,0 +1,38 @@
+   Compiling cir_arm_probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep0/lock-order__partial_deadlock_bystander/G2_tools_iter/run-20260922T171114-32875-348ba3/round-3/lockbud-probe)
+[2026-09-22T17:15:40Z WARN  lockbud::callbacks] [
+      {
+        "CondvarDeadlock": {
+          "bug_kind": "Deadlock before Condvar::wait and notify",
+          "possibility": "Possibly",
+          "diagnosis": {
+            "condvar_wait_type": "std::sync::Condvar::wait",
+            "condvar_wait_callsite_span": "src/main.rs:16:17: 16:32 (#0)",
+            "condvar_notify_type": "std::sync::Condvar::notify",
+            "condvar_notify_callsite_span": "src/main.rs:23:9: 23:29 (#0)",
+            "deadlocks": [
+              {
+                "wait_lock_type": "StdMutex(())",
+                "wait_lock_span": "src/main.rs:64:13: 64:15 (#0)",
+                "notify_lock_type": "StdMutex(())",
+                "notify_lock_span": "src/main.rs:48:13: 48:15 (#0)"
+              },
+              {
+                "wait_lock_type": "StdMutex(())",
+                "wait_lock_span": "src/main.rs:44:13: 44:15 (#0)",
+                "notify_lock_type": "StdMutex(())",
+                "notify_lock_span": "src/main.rs:64:13: 64:15 (#0)"
+              },
+              {
+                "wait_lock_type": "StdMutex(())",
+                "wait_lock_span": "src/main.rs:64:13: 64:15 (#0)",
+                "notify_lock_type": "StdMutex(())",
+                "notify_lock_span": "src/main.rs:44:13: 44:15 (#0)"
+              }
+            ]
+          },
+          "explanation": "The same lock before Condvar::wait and notify"
+        }
+      }
+    ]
+[2026-09-22T17:15:40Z WARN  lockbud::callbacks] crate cir_arm_probe contains bugs: { probably: 0, possibly: 0 }, conflictlock: { probably: 0, possibly: 0 }, condvar_deadlock: { probably: 0, possibly: 1 }, atomicity_violation: { possibly: 0 }, invalid_free: { possibly: 0 }, use_after_free: { possibly: 0 }
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.23s

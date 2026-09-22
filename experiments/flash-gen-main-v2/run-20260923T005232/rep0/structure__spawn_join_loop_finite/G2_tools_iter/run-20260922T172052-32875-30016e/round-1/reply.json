@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::thread;\n\nfn worker() {\n    // R2: performs no shared work and shares no mutexes or counters.\n}\n\nfn main() {\n    // R1: start-and-wait cycle performed twice.\n    for _ in 0..2 {\n        // R3: each started worker is waited for exactly once before the next is started.\n        let handle = thread::spawn(worker);\n        handle.join().unwrap();\n    }\n\n    // R6: print exactly the required line.\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,209 @@
+{
+  "program": "mutex_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m",
+          "acc"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2",
+          "compute"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "acc",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [
+        {
+          "var": "acc",
+          "lock": "m"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::w1",
+                "main::w2"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::compute"
+            },
+            {
+              "sid": "s3",
+              "kind": "read_shared",
+              "resource": "main::acc",
+              "dst": "tmp"
+            },
+            {
+              "sid": "s4",
+              "kind": "assign_local",
+              "target": "tmp2",
+              "expr": "tmp + 1"
+            },
+            {
+              "sid": "s5",
+              "kind": "write_shared",
+              "resource": "main::acc",
+              "expr": "tmp2"
+            },
+            {
+              "sid": "s6",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "tmp",
+              "type": "Int"
+            },
+            {
+              "name": "tmp2",
+              "type": "Int"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::compute"
+            },
+            {
+              "sid": "s3",
+              "kind": "read_shared",
+              "resource": "main::acc",
+              "dst": "tmp"
+            },
+            {
+              "sid": "s4",
+              "kind": "assign_local",
+              "target": "tmp2",
+              "expr": "tmp + 1"
+            },
+            {
+              "sid": "s5",
+              "kind": "write_shared",
+              "resource": "main::acc",
+              "expr": "tmp2"
+            },
+            {
+              "sid": "s6",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "tmp",
+              "type": "Int"
+            },
+            {
+              "name": "tmp2",
+              "type": "Int"
+            }
+          ]
+        },
+        {
+          "name": "compute",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "x",
+              "expr": "1"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "y",
+              "expr": "x + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "x",
+              "type": "Int"
+            },
+            {
+              "name": "y",
+              "type": "Int"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nstruct ModuleA {\n    a: Mutex<()>,\n}\n\nstruct ModuleB {\n    b: Mutex<()>,\n}\n\nfn main() {\n    let module_a = Arc::new(ModuleA { a: Mutex::new(()) });\n    let module_b = Arc::new(ModuleB { b: Mutex::new(()) });\n\n    let a1 = Arc::clone(&module_a);\n    let b1 = Arc::clone(&module_b);\n\n    let a2 = Arc::clone(&module_a);\n    let b2 = Arc::clone(&module_b);\n\n    // t1 runs in module A, depends on resource b owned by module B.\n    let t1 = thread::spawn(move || {\n        // Acquire in a globally consistent order: a then b.\n        let _ga = a1.a.lock().unwrap();\n        let _gb = b1.b.lock().unwrap();\n        // Hold both resources while performing work.\n        // Release happens automatically at end of scope.\n    });\n\n    // t2 runs in module B, depends on resource a owned by module A.\n    let t2 = thread::spawn(move || {\n        // Same global order: a then b, preventing deadlock.\n        let _ga = a2.a.lock().unwrap();\n        let _gb = b2.b.lock().unwrap();\n        // Hold both resources while performing work.\n    });\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,602 @@
+{
+  "arm": "G1_self_iter",
+  "task": "condvar/notify_one_multi_waiter_wrong_pick",
+  "rounds": [
+    {
+      "round": 1,
+      "request_sha256": "4be3a41e81d7b834515fa784a8fa3ce17f55cc7713b40c32171f75c663d0e948",
+      "feedback_sha256": "f55d8a9ccd065b9c48071828e4217878c03953fc23146fd859a7eebead027ce4",
+      "prompt_tokens": 434,
+      "completion_tokens": 536,
+      "llm_wall_ms": 2271,
+      "tool_wall_ms": 718,
+      "tool_output_sha256": "e563bbda0c6ae12dc6b57cde53a1b19d14ead44a456263b0013fd16a12ea0d06",
+      "decision": "continue"
+    },
+    {
+      "round": 2,
+      "request_sha256": "7daaae3a0bc391db30c38ddc3b1f78fb79247ab4332c41267041c6592e87e985",
+      "feedback_sha256": "f55d8a9ccd065b9c48071828e4217878c03953fc23146fd859a7eebead027ce4",
+      "prompt_tokens": 993,
+      "completion_tokens": 1515,
+      "llm_wall_ms": 6545,
+      "tool_wall_ms": 0,
+      "tool_output_sha256": null,
+      "decision": "claims_no_issue"
+    }
+  ],
+  "accepted": true,
+  "accepted_round": 1,
+  "consumption": {
+    "http_requests": 2,
+    "prompt_tokens": 1427,
+    "completion_tokens": 2051,
+    "total_tokens": 3478,
+    "llm_wall_ms": 8816,
+    "tool_wall_ms": 718,
+    "rounds": 2,
+    "first_correct_round": 1
+  },
+  "final_artifact_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/candidate.rs",
+  "final_artifact_sha256": "7f05e63843ed986a883a66296e7a441fd4440dc0655a941566cdddb489415608",
+  "notes": {
+    "tools_tier": "ml",
+    "tool_rounds": [
+      {
+        "source_sha256": "7f05e63843ed986a883a66296e7a441fd4440dc0655a941566cdddb489415608",
+        "project_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/probe",
+        "calls_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls",
+        "build": {
+          "tool": "build",
+          "argv": [
+            "cargo",
+            "build",
+            "--offline",
+            "--quiet"
+          ],
+          "exit_code": 0,
+          "wall_ms": 212,
+          "timed_out": false,
+          "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderr_sha256": "399ba17244a534a00d18d05e663a4da918e3b6e338c71367d7a0203aa6d5e703",
+          "error": null,
+          "extra": {
+            "argv_sha256": "c615542bc5e66c04c05c2363f2b6ad95dac785521b93dc973728af5fa960e3a7",
+            "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"
+          },
+          "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls/001-build",
+          "files": {
+            "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls/001-build/argv.json",
+            "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls/001-build/env.json",
+            "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls/001-build/stdout.txt",
+            "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls/001-build/stderr.txt",
+            "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls/001-build/exit.txt",
+            "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls/001-build/wall_ms.txt"
+          }
+        },
+        "build_ok": true,
+        "behavior_test": {
+          "tool": "test",
+          "argv": [
+            "cargo",
+            "test",
+            "--offline",
+            "--quiet"
+          ],
+          "exit_code": 0,
+          "wall_ms": 506,
+          "timed_out": false,
+          "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd",
+          "stderr_sha256": "399ba17244a534a00d18d05e663a4da918e3b6e338c71367d7a0203aa6d5e703",
+          "error": null,
+          "extra": {
+            "argv_sha256": "ca41062b666287e595de21c124984b15226e62c8b093817dde3d564d106eb23c",
+            "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"
+          },
+          "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls/002-test",
+          "files": {
+            "argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls/002-test/argv.json",
+            "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls/002-test/env.json",
+            "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls/002-test/stdout.txt",
+            "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls/002-test/stderr.txt",
+            "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls/002-test/exit.txt",
+            "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/run-20260922T175143-32875-040e43/round-1/calls/002-test/wall_ms.txt"
+          }
+        },
+        "behavior_test_passed": 0,
+        "behavior_test_ok": null,
+        "behavior_test_reason": "no_tests",
+        "lockbud": {
+          "tool": "lockbud",
+          "status": "skipped"
+        },
+        "miri": [],
+        "miri_extended": null
+      }
+    ],
+    "round_columns": [
+      {
+        "round": 1,
+        "build_ok": true,
+        "test_ok": null,
+        "miri_green": false,
+        "miri_detected": false,
+        "lockbud_green": true,
+        "lockbud_detected": false,
+        "lockbud_status": "skipped"
+      }
+    ],
+    "build_ok_rounds": [
+      1
+    ],
+    "claims_no_issue_rounds": [
+      2
+    ],
+    "accepted_candidate_round": 1
+  },
+  "error": null,
+  "llm_calls": [
+    {
+      "attempt": 1,
+      "request_id": "3aab9c50-bed1-41f7-800f-a47e672514ab",
+      "response_model": "deepseek-flash",
+      "usage": {
+        "completion_tokens": 536,
+        "prompt_tokens": 434,
+        "total_tokens": 970,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 256
+        },
+        "prompt_cache_hit_tokens": 256,
+        "prompt_cache_miss_tokens": 178
+      },
+      "wall_ms": 2271,
+      "transport_attempt": 1,
+      "prompt_sha256": "108a36dd6444b8ca75a18888dde8eb3d4ab98d1fdd03c7909598d4143914791b"
+    },
+    {
+      "attempt": 2,
+      "request_id": "841e0a91-fe09-470b-a370-5b51be1adc04",
+      "response_model": "deepseek-flash",
+      "usage": {
+        "completion_tokens": 1515,
+        "prompt_tokens": 993,
+        "total_tokens": 2508,
+        "completion_tokens_details": null,
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 384
+        },
+        "prompt_cache_hit_tokens": 384,
+        "prompt_cache_miss_tokens": 609
+      },
+      "wall_ms": 6545,
+      "transport_attempt": 1,
+      "prompt_sha256": "70cafbed1d55147f0250defaee7277599515677399ddad5c33d3ba1cfcacead0"
+    }
+  ],
+  "oracle": {
+    "built": true,
+    "build_log_tail": "   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle)\nwarning: unused import: `std::thread`\n --> src/main.rs:4:5\n  |\n4 | use std::thread;\n  |     ^^^^^^^^^^^\n  |\n  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default\n\nwarning: `probe` (bin \"probe\") generated 1 warning (run `cargo fix --bin \"probe\" -p probe` to apply 1 suggestion)\n    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.29s\n",
+    "resources": [
+      {
+        "kind": "Mutex",
+        "name": "shared_mutex0"
+      },
+      {
+        "kind": "Condvar",
+        "name": "shared_condvar0"
+      },
+      {
+        "kind": "Spawn",
+        "name": "w1"
+      },
+      {
+        "kind": "Spawn",
+        "name": "w2"
+      },
+      {
+        "kind": "Spawn",
+        "name": "notifier"
+      }
+    ],
+    "limitations": [],
+    "runs": [
+      {
+        "index": 0,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-000.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 1,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-001.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 2,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-002.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 3,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-003.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 4,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-004.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 5,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-005.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 6,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-006.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 7,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-007.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 8,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-008.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 9,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-009.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 10,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-010.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 11,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-011.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 12,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-012.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 13,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-013.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 14,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-014.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 15,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-015.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 16,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-016.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 17,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-017.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 18,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-018.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 19,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-019.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 20,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-020.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 21,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-021.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 22,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-022.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 23,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-023.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 24,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-024.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 25,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-025.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 26,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-026.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 27,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-027.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 28,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-028.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 29,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-029.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 30,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-030.jsonl",
+        "trace_exists": true
+      },
+      {
+        "index": 31,
+        "source": "native",
+        "completed": true,
+        "timed_out": false,
+        "trace": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces/native-031.jsonl",
+        "trace_exists": true
+      }
+    ],
+    "behavior_ok": true,
+    "hang": false,
+    "monitor": {
+      "binary_sha256": "a54e0f42f5f399e385903502634cdf869121c517d71c6e5244f857653654d437",
+      "bounded": true,
+      "events": 710,
+      "git_rev": "eb3efe40442ee4012d00314367fd47373cbcdcb0",
+      "properties": [
+        {
+          "detail": "decided by behavior (hang/timeout) and Miri",
+          "id": "deadlock",
+          "kind": "deadlock_free",
+          "req": [
+            "R2",
+            "R3",
+            "R5",
+            "R7",
+            "R8",
+            "R9"
+          ],
+          "source": "properties",
+          "status": "deferred"
+        },
+        {
+          "id": "main::w1 holds [main::m] at once",
+          "kind": "reachable",
+          "req": [
+            "R4",
+            "R5",
+            "R6"
+          ],
+          "source": "preserved",
+          "status": "PASS_bounded"
+        }
+      ],
+      "resource_map": {
+        "notifier": null,
+        "shared_condvar0": null,
+        "shared_mutex0": "main::m",
+        "w1": "main::w1",
+        "w2": null
+      },
+      "status": "ok",
+      "traces": 32,
+      "unmapped_resources": [
+        "notifier",
+        "shared_condvar0",
+        "w2"
+      ],
+      "_exit": 0,
+      "_argv": [
+        "/Users/kevin/local-repos/ConcIR/target/release/concir-backend",
+        "monitor",
+        "--contract",
+        "/Users/kevin/local-repos/ConcPlanVerify/benchmarks/families/condvar/notify_one_multi_waiter_wrong_pick/contract.json",
+        "--traces",
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/traces",
+        "--resources",
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/instrument/resources.json",
+        "--mapping",
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/condvar__notify_one_multi_waiter_wrong_pick/G1_self_iter/oracle/mapping.json"
+      ],
+      "_stderr": ""
+    },
+    "mapping": {
+      "shared_mutex0": "main::m",
+      "w1": "main::w1"
+    },
+    "mapping_provenance": {
+      "by_kind": {
+        "Mutex": [
+          [
+            "shared_mutex0",
+            "main::m"
+          ]
+        ]
+      },
+      "spawns": [
+        [
+          "w1",
+          "main::w1"
+        ]
+      ]
+    },
+    "coverage": {
+      "total": 10,
+      "decidable": 8,
+      "satisfied": 8,
+      "failed": 0,
+      "not_observed": 0,
+      "unmapped": 0,
+      "unsupported": 0,
+      "deferred": 0,
+      "unverifiable": 2,
+      "rc": 0.8,
+      "rf": 0.8,
+      "statuses": {
+        "R1": "unverifiable",
+        "R2": "PASS_bounded",
+        "R3": "PASS_bounded",
+        "R4": "PASS_bounded",
+        "R5": "PASS_bounded",
+        "R6": "PASS_bounded",
+        "R7": "PASS_bounded",
+        "R8": "PASS_bounded",
+        "R9": "PASS_bounded",
+        "R10": "unverifiable"
+      }
+    },
+    "status": "ok",
+    "monitor_fail": []
+  },
+  "coverage": {
+    "total": 10,
+    "decidable": 8,
+    "satisfied": 8,
+    "failed": 0,
+    "not_observed": 0,
+    "unmapped": 0,
+    "unsupported": 0,
+    "deferred": 0,
+    "unverifiable": 2,
+    "rc": 0.8,
+    "rf": 0.8,
+    "statuses": {
+      "R1": "unverifiable",
+      "R2": "PASS_bounded",
+      "R3": "PASS_bounded",
+      "R4": "PASS_bounded",
+      "R5": "PASS_bounded",
+      "R6": "PASS_bounded",
+      "R7": "PASS_bounded",
+      "R8": "PASS_bounded",
+      "R9": "PASS_bounded",
+      "R10": "unverifiable"
+    }
+  },
+  "monitor_fail": []
+}

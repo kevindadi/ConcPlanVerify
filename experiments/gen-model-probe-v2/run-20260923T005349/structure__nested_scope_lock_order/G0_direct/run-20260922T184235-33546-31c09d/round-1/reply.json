@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    // Shared resources: a (lock), b (lock).\n    let a = Arc::new(Mutex::new(0u64));\n    let b = Arc::new(Mutex::new(0u64));\n\n    let a_outer = Arc::clone(&a);\n    let b_outer = Arc::clone(&b);\n\n    // R1: main starts one outer worker.\n    let outer = thread::spawn(move || {\n        // R2: outer starts a nested group of two inner tasks, x1 and x2.\n\n        let a_x1 = Arc::clone(&a_outer);\n        let b_x1 = Arc::clone(&b_outer);\n        let x1 = thread::spawn(move || {\n            // R3/R4: take a then b; both are held simultaneously.\n            let mut ga = a_x1.lock().unwrap();\n            let mut gb = b_x1.lock().unwrap();\n            *ga += 1;\n            *gb += 1;\n        });\n\n        let a_x2 = Arc::clone(&a_outer);\n        let b_x2 = Arc::clone(&b_outer);\n        let x2 = thread::spawn(move || {\n            // R3/R4: same lock order (a then b) — no wait cycle can form.\n            let mut ga = a_x2.lock().unwrap();\n            let mut gb = b_x2.lock().unwrap();\n            *ga += 1;\n            *gb += 1;\n        });\n\n        // R5: outer completes only after both inner tasks have finished.\n        x1.join().unwrap();\n        x2.join().unwrap();\n    });\n\n    outer.join().unwrap();\n\n    // R7: print exactly this line and exit.\n    println!(\"DONE done=1\");\n}\n```"
+}

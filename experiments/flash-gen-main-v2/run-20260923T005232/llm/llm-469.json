@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "716177f9-dd66-4cc4-b0b3-a79e5907a6a6",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.\nR2. Both worker threads share a single atomic counter that starts at zero.\nR3. Each worker adds exactly one to the shared counter, so once both have finished the counter equals two.\nR4. Each worker updates the counter with an atomic read-modify-write retry loop, so a competing update can never be silently lost.\nR5. A failed update attempt must be retried rather than abandoned, so every worker's increment eventually takes effect.\nR6. From every state that can occur, it must remain possible for the counter to still reach two.\nR7. Each increment appears to happen in a single indivisible step, so no partial update is ever observable.\nR8. Every possible schedule and interleaving of the two workers must terminate.\nR9. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2.\n- Shared resources: c (atomic counter).\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "ecf02aad4f275a7b737dae1fa4f13174fee4fbe01df90c8865c016b305ec8666",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 217,
+    "prompt_tokens": 489,
+    "total_tokens": 706,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 256
+    },
+    "prompt_cache_hit_tokens": 256,
+    "prompt_cache_miss_tokens": 233
+  },
+  "content_sha256": "aae04a4593dcab7134fe6323ea56e325361838d9a451564ffda067ba42bde240",
+  "content": "```rust\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Arc;\nuse std::thread;\n\nfn worker(c: Arc<AtomicUsize>) {\n    loop {\n        let current = c.load(Ordering::SeqCst);\n        let next = current + 1;\n        if c.compare_exchange(current, next, Ordering::SeqCst, Ordering::SeqCst).is_ok() {\n            break;\n        }\n    }\n}\n\nfn main() {\n    let c = Arc::new(AtomicUsize::new(0));\n\n    let c1 = Arc::clone(&c);\n    let w1 = thread::spawn(move || worker(c1));\n\n    let c2 = Arc::clone(&c);\n    let w2 = thread::spawn(move || worker(c2));\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    let done = c.load(Ordering::SeqCst);\n    println!(\"DONE done={}\", done);\n}\n```",
+  "wall_ms": 1245
+}

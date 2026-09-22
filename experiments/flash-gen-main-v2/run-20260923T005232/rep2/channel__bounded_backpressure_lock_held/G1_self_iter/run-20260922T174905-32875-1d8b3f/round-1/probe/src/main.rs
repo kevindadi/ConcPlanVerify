@@ -1,0 +1,83 @@
+use std::sync::{Arc, Mutex, Condvar};
+use std::thread;
+
+struct Channel<T> {
+    slot: Option<T>,
+    closed: bool,
+}
+
+struct Chan<T> {
+    state: Mutex<Channel<T>>,
+    not_empty: Condvar,
+    not_full: Condvar,
+}
+
+impl<T> Chan<T> {
+    fn new() -> Self {
+        Chan {
+            state: Mutex::new(Channel { slot: None, closed: false }),
+            not_empty: Condvar::new(),
+            not_full: Condvar::new(),
+        }
+    }
+
+    fn send(&self, value: T) {
+        let mut guard = self.state.lock().unwrap();
+        while guard.slot.is_some() {
+            guard = self.not_full.wait(guard).unwrap();
+        }
+        guard.slot = Some(value);
+        self.not_empty.notify_one();
+    }
+
+    fn recv(&self) -> T {
+        let mut guard = self.state.lock().unwrap();
+        while guard.slot.is_none() {
+            guard = self.not_empty.wait(guard).unwrap();
+        }
+        let value = guard.slot.take().unwrap();
+        self.not_full.notify_one();
+        value
+    }
+}
+
+fn main() {
+    let ch: Arc<Chan<i32>> = Arc::new(Chan::new());
+    let m = Arc::new(Mutex::new(()));
+
+    let ch_s = Arc::clone(&ch);
+    let m_s = Arc::clone(&m);
+    let sender = thread::spawn(move || {
+        // First value: take lock, then release before sending.
+        {
+            let _g = m_s.lock().unwrap();
+        }
+        ch_s.send(1);
+
+        // Second value: take lock, then release before sending.
+        {
+            let _g = m_s.lock().unwrap();
+        }
+        ch_s.send(2);
+    });
+
+    let ch_r = Arc::clone(&ch);
+    let m_r = Arc::clone(&m);
+    let receiver = thread::spawn(move || {
+        let a = ch_r.recv();
+        {
+            let _g = m_r.lock().unwrap();
+        }
+        let b = ch_r.recv();
+        {
+            let _g = m_r.lock().unwrap();
+        }
+        assert_eq!(a, 1);
+        assert_eq!(b, 2);
+    });
+
+    sender.join().unwrap();
+    receiver.join().unwrap();
+
+    println!("DONE done=1");
+}

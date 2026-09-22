@@ -1,0 +1,57 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260922T172701-32875-ee1255/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+warning: field `ready` is never read
+ --> src/main.rs:6:5
+  |
+4 | struct State {
+  |        ----- field in this struct
+5 |     // permit counter: number of waiters that have arrived and are ready to wait
+6 |     ready: usize,
+  |     ^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:14:9
+   |
+14 |     let gN = Arc::new((Mutex::new(0usize), Condvar::new()));
+   |         ^^ help: convert the identifier to snake case: `g_n`
+   |
+   = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `gN_1` should have a snake case name
+  --> src/main.rs:18:9
+   |
+18 |     let gN_1 = Arc::clone(&gN);
+   |         ^^^^ help: convert the identifier to snake case: `g_n_1`
+
+warning: variable `gN_2` should have a snake case name
+  --> src/main.rs:45:9
+   |
+45 |     let gN_2 = Arc::clone(&gN);
+   |         ^^^^ help: convert the identifier to snake case: `g_n_2`
+
+warning: variable `gN_3` should have a snake case name
+  --> src/main.rs:69:9
+   |
+69 |     let gN_3 = Arc::clone(&gN);
+   |         ^^^^ help: convert the identifier to snake case: `g_n_3`
+

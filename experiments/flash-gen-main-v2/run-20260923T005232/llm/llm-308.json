@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "a66d807d-af72-450f-9d51-ba5de3d9dd2d",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. A main task starts a waiter role and a notifier role that run at the same time.\nR2. The waiter and the notifier share one lock and one condition variable, and the lock guards a boolean flag. [U]\nR3. The notifier sets the shared flag to true while holding the lock, signals the condition variable, and then releases the lock.\nR4. While holding the lock, the waiter checks the flag first, waits on the condition variable only while the flag is false, and re-checks the flag after each wake.\nR5. The waiter must complete even when the notifier signals before the waiter starts waiting.\nR6. The waiter must not wait on the condition variable while the flag is already true, and must not keep the lock while blocked.\nR7. Every schedule and interleaving of the two roles must terminate with both roles finished.\nR8. The shared flag becomes true in every schedule.\nR9. The waiter must not pass its wait until the flag is true.\nR10. The program must print exactly the line `DONE ready=true` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): waiter, notifier.\n- Shared resources: m (lock), cv (condition variable), ready (shared variable).\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "4c5f3aae322113835ad686e3f5d3cd1d29a2bb98ad114cdd746687aa4216e946",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 267,
+    "prompt_tokens": 528,
+    "total_tokens": 795,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 384
+    },
+    "prompt_cache_hit_tokens": 384,
+    "prompt_cache_miss_tokens": 144
+  },
+  "content_sha256": "2c852def3bf84a850c97ef015c7e8c6c632ff50ed7de5b206a6d62a9c2fca6e0",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Shared {\n    m: Mutex<bool>,\n    cv: Condvar,\n}\n\nfn waiter(shared: Arc<Shared>) {\n    let mut ready = shared.m.lock().unwrap();\n    while !*ready {\n        ready = shared.cv.wait(ready).unwrap();\n    }\n    // flag is true here\n}\n\nfn notifier(shared: Arc<Shared>) {\n    let mut ready = shared.m.lock().unwrap();\n    *ready = true;\n    shared.cv.notify_one();\n}\n\nfn main() {\n    let shared = Arc::new(Shared {\n        m: Mutex::new(false),\n        cv: Condvar::new(),\n    });\n\n    let waiter_shared = Arc::clone(&shared);\n    let notifier_shared = Arc::clone(&shared);\n\n    let waiter_handle = thread::spawn(move || waiter(waiter_shared));\n    let notifier_handle = thread::spawn(move || notifier(notifier_shared));\n\n    waiter_handle.join().unwrap();\n    notifier_handle.join().unwrap();\n\n    let ready = shared.m.lock().unwrap();\n    println!(\"DONE ready={}\", *ready);\n}\n```",
+  "wall_ms": 1317
+}

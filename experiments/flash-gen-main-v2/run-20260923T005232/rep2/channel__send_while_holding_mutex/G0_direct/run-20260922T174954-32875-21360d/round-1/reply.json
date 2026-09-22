@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Channel {\n    slot: Mutex<Option<i32>>,\n    ready: Condvar,\n    taken: Condvar,\n}\n\nimpl Channel {\n    fn new() -> Self {\n        Channel {\n            slot: Mutex::new(None),\n            ready: Condvar::new(),\n            taken: Condvar::new(),\n        }\n    }\n\n    fn send(&self, value: i32) {\n        let mut slot = self.slot.lock().unwrap();\n        while slot.is_some() {\n            slot = self.taken.wait(slot).unwrap();\n        }\n        *slot = Some(value);\n        self.ready.notify_one();\n    }\n\n    fn recv(&self) -> i32 {\n        let mut slot = self.slot.lock().unwrap();\n        while slot.is_none() {\n            slot = self.ready.wait(slot).unwrap();\n        }\n        let value = slot.take().unwrap();\n        self.taken.notify_one();\n        value\n    }\n}\n\nfn main() {\n    let ch1 = Arc::new(Channel::new());\n    let ch2 = Arc::new(Channel::new());\n\n    let ch1_s = Arc::clone(&ch1);\n    let ch2_s = Arc::clone(&ch2);\n\n    let s = thread::spawn(move || {\n        ch1_s.send(1);\n        let _ = ch2_s.recv();\n    });\n\n    let ch1_r = Arc::clone(&ch1);\n    let ch2_r = Arc::clone(&ch2);\n\n    let r = thread::spawn(move || {\n        let v = ch1_r.recv();\n        ch2_r.send(v);\n    });\n\n    s.join().unwrap();\n    r.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

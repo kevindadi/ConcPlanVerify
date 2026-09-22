@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn compute() -> u64 {\n    // Sequential helper routine performing only local computation.\n    let mut x: u64 = 0;\n    for i in 0..1000u64 {\n        x = x.wrapping_add(i.wrapping_mul(3).wrapping_add(1));\n    }\n    x\n}\n\nfn worker(m: Arc<Mutex<u64>>, done: Arc<Mutex<u64>>) {\n    let local = compute();\n    {\n        let mut acc = m.lock().unwrap();\n        *acc = acc.wrapping_add(local % 2);\n    }\n    {\n        let mut d = done.lock().unwrap();\n        *d += 1;\n    }\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(0u64));\n    let done = Arc::new(Mutex::new(0u64));\n\n    let m1 = Arc::clone(&m);\n    let d1 = Arc::clone(&done);\n    let w1 = thread::spawn(move || worker(m1, d1));\n\n    let m2 = Arc::clone(&m);\n    let d2 = Arc::clone(&done);\n    let w2 = thread::spawn(move || worker(m2, d2));\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    let acc = *m.lock().unwrap();\n    let d = *done.lock().unwrap();\n    println!(\"DONE done={}\", d);\n    let _ = acc;\n}\n```"
+}

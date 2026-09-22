@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n    let c = Arc::new(Mutex::new(()));\n\n    // To prevent deadlock (R5, R8, R9), impose a global lock ordering.\n    // Order: a < b < c. Each worker acquires its two locks in this order.\n    // t1 needs a and b -> acquire a then b.\n    // t2 needs b and c -> acquire b then c.\n    // t3 needs c and a -> acquire a then c (a before c).\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let t1 = thread::spawn(move || {\n        let _ga = a1.lock().unwrap();\n        let _gb = b1.lock().unwrap();\n        // critical work with both locks held\n    });\n\n    let b2 = Arc::clone(&b);\n    let c2 = Arc::clone(&c);\n    let t2 = thread::spawn(move || {\n        let _gb = b2.lock().unwrap();\n        let _gc = c2.lock().unwrap();\n        // critical work with both locks held\n    });\n\n    let a3 = Arc::clone(&a);\n    let c3 = Arc::clone(&c);\n    let t3 = thread::spawn(move || {\n        let _ga = a3.lock().unwrap();\n        let _gc = c3.lock().unwrap();\n        // critical work with both locks held\n    });\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n    t3.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

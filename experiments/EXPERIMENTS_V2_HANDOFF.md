@@ -1154,3 +1154,58 @@ becomes the ablation arm.
 ## Budgets
 
 DeepSeek Flash this round: 2 × 107–115 ≈ **222** (smoke reruns).
+
+---
+
+# Round 2026-09-22o — LLM code from verified CIR (freeze-5)
+
+Architecture correction (REVIEW N-1): ConcIR verifies the CIR; the **LLM**
+writes the Rust from the verified CIR; tools post-verify (instrument v2,
+`conform --op-resource`, `monitor`). Tool codegen is the ablation arm.
+
+## N-1..N-5 status
+
+| item | status |
+| --- | --- |
+| N-1 codegen bottleneck | addressed: §1 G3 v2 (LLM code) implemented; codegen kept as `G3_codegen` ablation. |
+| N-2 name alignment | addressed: benchmark v3.1 puts **entity names** in the requirements (Entities section); heuristic `name_alignment` removed; CIR-stage INVALID collapses (G3 model PASS 59/72 vs 25/72). |
+| N-3 RF dual reporting | done: `RF_all` and `RF_acc` in `tables/gen_main.tex` and SUMMARY. |
+| N-4 same_cv anti-pattern | done: requirement rewritten to intent; ConcIR `W1xx condvar_multiple_locks` -> `UNSUPPORTED`. |
+| N-5 not done | generation expert labels not run; loom not run; Part B update for the LLM-code architecture pending. |
+
+## §3 flash-gen-main-v2 (312 cells, 680 requests)
+
+| arm | accept | RF_all | RF_acc | defect | awp |
+| --- | --- | --- | --- | --- | --- |
+| G0_direct | 0.972 | 0.523 | 0.531 | 6 | — |
+| G1_self_iter | 0.931 | 0.549 | 0.541 | 3 | — |
+| G2_tools_iter | 0.653 | 0.592 | 0.661 | 0 | — |
+| G3_concir (v2) | 0.431 | **0.670** | 0.670 | 0 | 31/72 |
+| G3_codegen (ablation, rep0) | 0.833 | 0.672 | 0.765 | 0 | 17/24 |
+
+- **CIR stage improved a lot** with entities: 59/72 model PASS (v1: 25/72
+  accepted, 46 INVALID);
+- **code stage is the bottleneck**: only 31/59 CIR-PASS cells produce Rust that
+  passes conform+monitor; `tables/gen_conform_value.tex` shows conform rejected a
+  code round in **30/59** cells;
+- the ablation still accepts more (0.833 vs 0.417 rep0) — the LLM-code arm is
+  reported **alongside**, not substituted (stop-loss met).
+
+## §4 gen-model-probe-v2 (kimi-k3, 100 requests)
+
+G3 v2 RF_all 0.598 vs G0 0.509; G3 accept 0.458, awp 11/24.
+
+## §1.3 smoke
+
+`gen-llmcode-smoke-v1/SUMMARY.md`: 45 CIRs, build 45/45, conform PASS 15/45
+(33%); cause is code fidelity, not instrument coverage.
+
+## Budgets
+
+DeepSeek Flash: 680 (main v2) + 107x2 (smoke) ≈ 894. OpenCode Go: 100.
+
+## Not done / stop points
+
+- Generation-cell expert labels; loom.
+- Part B (§B1–§B3) not yet updated for the LLM-code architecture (freeze-4
+  tables still in the paper).

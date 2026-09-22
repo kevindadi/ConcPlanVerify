@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "8f52954d-946a-4828-af61-feda24300a6b",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. A main task starts two waiter roles and one notifier role that run at the same time. [U]\nR2. Each waiter guards its own data with its own lock; the two waiters need not share one lock.\nR3. Each waiter must be notified before it proceeds, and the notifier must be able to wake every waiter without depending on a race between them.\nR4. A waiter must hold its own lock while it waits for the notification.\nR5. Each waiter must announce that it is about to wait before it blocks, so the notifier knows how many waits to expect.\nR6. The notifier must wait until both waiters have announced themselves before it wakes them.\nR7. When the notifier wakes the waiters it must hold each lock that a waiter needs in order to wake and finish.\nR8. The waking step must not leave any waiter blocked and must not depend on a race between the waiters.\nR9. Every schedule and interleaving must terminate with all roles finished.\nR10. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2, notifier.\n- Shared resources: m1 (lock), m2 (lock), cv (condition variable), ready (semaphore).\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "2713e193ba646d5af8f4a079759232d32be605efab0755c1b6616697c34d145a",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 618,
+    "prompt_tokens": 541,
+    "total_tokens": 1159,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 384
+    },
+    "prompt_cache_hit_tokens": 384,
+    "prompt_cache_miss_tokens": 157
+  },
+  "content_sha256": "91286b0447371d29c4fea5a74141b5e5a7415e1252bfc4f8570a89cd64856105",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct WaiterState {\n    announced: bool,\n    notified: bool,\n}\n\nfn main() {\n    let m1 = Arc::new(Mutex::new(WaiterState {\n        announced: false,\n        notified: false,\n    }));\n    let m2 = Arc::new(Mutex::new(WaiterState {\n        announced: false,\n        notified: false,\n    }));\n    let cv = Arc::new(Condvar::new());\n    let ready = Arc::new((Mutex::new(0usize), Condvar::new()));\n\n    let m1_w1 = Arc::clone(&m1);\n    let cv_w1 = Arc::clone(&cv);\n    let ready_w1 = Arc::clone(&ready);\n\n    let w1 = thread::spawn(move || {\n        let mut guard = m1_w1.lock().unwrap();\n        guard.announced = true;\n        {\n            let (lock, cvar) = &*ready_w1;\n            let mut count = lock.lock().unwrap();\n            *count += 1;\n            cvar.notify_all();\n        }\n        while !guard.notified {\n            guard = cv_w1.wait(guard).unwrap();\n        }\n    });\n\n    let m2_w2 = Arc::clone(&m2);\n    let cv_w2 = Arc::clone(&cv);\n    let ready_w2 = Arc::clone(&ready);\n\n    let w2 = thread::spawn(move || {\n        let mut guard = m2_w2.lock().unwrap();\n        guard.announced = true;\n        {\n            let (lock, cvar) = &*ready_w2;\n            let mut count = lock.lock().unwrap();\n            *count += 1;\n            cvar.notify_all();\n        }\n        while !guard.notified {\n            guard = cv_w2.wait(guard).unwrap();\n        }\n    });\n\n    let m1_n = Arc::clone(&m1);\n    let m2_n = Arc::clone(&m2);\n    let cv_n = Arc::clone(&cv);\n    let ready_n = Arc::clone(&ready);\n\n    let notifier = thread::spawn(move || {\n        {\n            let (lock, cvar) = &*ready_n;\n            let mut count = lock.lock().unwrap();\n            while *count < 2 {\n                count = cvar.wait(count).unwrap();\n            }\n        }\n\n        let mut g1 = m1_n.lock().unwrap();\n        let mut g2 = m2_n.lock().unwrap();\n\n        g1.notified = true;\n        g2.notified = true;\n\n        cv_n.notify_all();\n\n        drop(g1);\n        drop(g2);\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n    notifier.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 2233
+}

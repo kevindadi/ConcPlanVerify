@@ -1,0 +1,50 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260922T172629-32875-1964a2/round-2/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+error[E0382]: the type `Arc` does not implement `Copy`
+    --> src/main.rs:26:25
+     |
+   5 |     let m = Arc::new((Mutex::new(false), Condvar::new()));
+     |         - this move could be avoided by cloning the original `Arc`, which is inexpensive
+...
+   8 |     let waiter = thread::spawn(move || {
+     |                                ------- value moved into closure here
+   9 |         let (lock, cv) = &*m;
+     |                            - variable moved due to use in closure
+...
+  26 |     let (lock, _cv) = &*m;
+     |                         ^ value borrowed here after move
+     |
+     = note: consider using `Arc::clone`
+     = note: borrow occurs due to deref coercion to `(std::sync::Mutex<bool>, std::sync::Condvar)`
+note: deref defined here
+    --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/sync.rs:2569:5
+     |
+2569 |     type Target = T;
+     |     ^^^^^^^^^^^
+help: consider cloning the value before moving it into the closure
+     |
+   8 ~     let value = m.clone();
+   9 ~     let waiter = thread::spawn(move || {
+  10 ~         let (lock, cv) = &*value;
+     |
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 1 previous error

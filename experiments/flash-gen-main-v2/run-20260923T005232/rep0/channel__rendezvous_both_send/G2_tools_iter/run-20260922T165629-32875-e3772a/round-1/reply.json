@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::mpsc::{sync_channel, SyncSender, Receiver};\nuse std::thread;\n\nfn s1(tx: SyncSender<i32>) {\n    tx.send(1).unwrap();\n}\n\nfn r(rx: Receiver<i32>) -> i32 {\n    rx.recv().unwrap()\n}\n\nfn main() {\n    let (tx, rx) = sync_channel::<i32>(0);\n\n    let sender = thread::spawn(move || s1(tx));\n    let receiver = thread::spawn(move || r(rx));\n\n    sender.join().unwrap();\n    let done = receiver.join().unwrap();\n\n    println!(\"DONE done={}\", done);\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 2,
+  "kind": "other",
+  "matched": [],
+  "decision": "format_error",
+  "raw_text": "Looking at this program:\n\n- The waiter locks `m`, checks `ready`, and waits on `cv` while `ready` is false. It re-checks after each wake. ✓\n- The notifier locks `m`, sets `ready = true`, calls `notify_one()`, then releases the lock (at end of scope). ✓\n- The flag is set before the signal. ✓\n- The waiter holds the lock while checking the flag, and `Condvar::wait` releases the lock while blocked. ✓\n- If the notifier runs first, `ready` is already true when the waiter locks, so the waiter skips the wait. ✓\n- Both threads are joined, and the final print reads `ready` under the lock. ✓\n\nThe program correctly handles the signal-before-wait case via the predicate loop, and there is no lost wakeup, deadlock, or data race. The output is `DONE ready=true`.\n\nNO_ISSUES"
+}

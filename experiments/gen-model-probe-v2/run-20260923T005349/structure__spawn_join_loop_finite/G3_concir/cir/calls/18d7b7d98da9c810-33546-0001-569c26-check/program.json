@@ -1,0 +1,95 @@
+{
+  "program": "worker_cycle",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [],
+        "functions": [
+          "main",
+          "worker"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": [
+          "print"
+        ]
+      },
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::worker",
+              "handle": "h1"
+            },
+            {
+              "sid": "s2",
+              "kind": "join",
+              "handle": "h1"
+            },
+            {
+              "sid": "s3",
+              "kind": "spawn",
+              "func": "main::worker",
+              "handle": "h2"
+            },
+            {
+              "sid": "s4",
+              "kind": "join",
+              "handle": "h2"
+            },
+            {
+              "sid": "s5",
+              "kind": "assign_local",
+              "target": "done",
+              "expr": "1"
+            },
+            {
+              "sid": "s6",
+              "kind": "call",
+              "func": "main::print",
+              "args": [
+                "DONE done=1"
+              ]
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "done",
+              "type": "Int"
+            }
+          ]
+        },
+        {
+          "name": "worker",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "nop"
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

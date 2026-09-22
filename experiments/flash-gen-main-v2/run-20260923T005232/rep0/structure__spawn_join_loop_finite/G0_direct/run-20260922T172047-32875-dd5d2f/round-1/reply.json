@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::thread;\n\nfn worker() {\n    // R2: The worker performs no shared work and shares no state with main.\n}\n\nfn main() {\n    // R1: Start a worker and wait for it to finish, then repeat the cycle.\n    // R3: Each worker is joined exactly once before the next is started.\n    // R4/R5: Every worker can finish, so no stall; all schedules terminate.\n    for _ in 0..2 {\n        let handle = thread::spawn(worker);\n        handle.join().expect(\"worker panicked\");\n    }\n\n    // R6: Print exactly the required line and exit.\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "4d2ae36d-749c-4575-820f-4c648f6c953f",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. A main task starts a group of two workers. [U]\nR2. Each worker takes a shared mutex, calls a sequential helper routine that performs only local computation, then updates a shared counter while still holding the mutex. [U]\nR3. Each worker releases the mutex it took before it finishes. [U]\nR4. At most one worker may hold the shared mutex at any moment.\nR5. A worker that cannot take a held mutex waits until it becomes free.\nR6. Every schedule and interleaving of the workers must terminate.\nR7. Both workers complete.\nR8. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2, compute.\n- Shared resources: m (lock), acc (shared variable).\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "f0cc7b28ff0ac2d2f6b4085b0ea26a622aa9e79a8674f9822bd78466bc45ea60",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 279,
+    "prompt_tokens": 445,
+    "total_tokens": 724,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 256
+    },
+    "prompt_cache_hit_tokens": 256,
+    "prompt_cache_miss_tokens": 189
+  },
+  "content_sha256": "fde39d12141a934a5edab796f7110e826406aef648f0f8f47c608c1f94b03f6a",
+  "content": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn compute() -> i32 {\n    let mut x = 0;\n    for i in 0..1000 {\n        x = x.wrapping_add(i);\n    }\n    x\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(0i32));\n    let acc = Arc::new(Mutex::new(0i32));\n\n    let m1 = Arc::clone(&m);\n    let acc1 = Arc::clone(&acc);\n    let w1 = thread::spawn(move || {\n        let _guard = m1.lock().unwrap();\n        let _ = compute();\n        let mut a = acc1.lock().unwrap();\n        *a += 1;\n    });\n\n    let m2 = Arc::clone(&m);\n    let acc2 = Arc::clone(&acc);\n    let w2 = thread::spawn(move || {\n        let _guard = m2.lock().unwrap();\n        let _ = compute();\n        let mut a = acc2.lock().unwrap();\n        *a += 1;\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    let done = *acc.lock().unwrap();\n    println!(\"DONE done={}\", done);\n}\n```",
+  "wall_ms": 1332
+}

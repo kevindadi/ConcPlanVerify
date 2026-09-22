@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn compute() {\n    // sequential helper routine: only local computation\n    let mut x = 0u64;\n    for i in 0..1000 {\n        x = x.wrapping_add(i);\n    }\n    std::hint::black_box(x);\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(()));\n    let acc = Arc::new(Mutex::new(0u32));\n\n    let m1 = Arc::clone(&m);\n    let acc1 = Arc::clone(&acc);\n    let w1 = thread::spawn(move || {\n        let _guard = m1.lock().unwrap();\n        compute();\n        let mut a = acc1.lock().unwrap();\n        *a += 1;\n    });\n\n    let m2 = Arc::clone(&m);\n    let acc2 = Arc::clone(&acc);\n    let w2 = thread::spawn(move || {\n        let _guard = m2.lock().unwrap();\n        compute();\n        let mut a = acc2.lock().unwrap();\n        *a += 1;\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    let done = *acc.lock().unwrap();\n    println!(\"DONE done={}\", done);\n}\n```"
+}

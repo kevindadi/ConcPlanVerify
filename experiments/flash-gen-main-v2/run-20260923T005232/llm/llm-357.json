@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "30ee0293-5281-4fff-8f1a-4323dd582935",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. The design contains one main thread and two worker threads.\nR2. Both worker threads share the same two locks, and neither lock may be held by more than one worker at a time.\nR3. Each worker must hold both locks at the same time while it performs its critical work.\nR4. A worker that finds a lock busy must wait for it to become free and then continue.\nR5. It must never be possible for the two workers to leave each other waiting forever, each holding one lock and needing the other.\nR6. The main thread starts both workers and only finishes after both workers have finished.\nR7. Every worker must release each lock it holds before it finishes.\nR8. Every possible schedule or interleaving of the workers must terminate.\nR9. The program must print exactly the line `DONE t1=1 t2=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): t1, t2.\n- Shared resources: a (lock), b (lock).\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "a7964450b5547c6c06ab5e21452cee5937066dc75f5af759897842825db408ae",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 590,
+    "prompt_tokens": 478,
+    "total_tokens": 1068,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 256
+    },
+    "prompt_cache_hit_tokens": 256,
+    "prompt_cache_miss_tokens": 222
+  },
+  "content_sha256": "d6a22ec131292e2ae63fb78de9251bbace55b0f2e810161aebec14918169cda6",
+  "content": "```rust\nuse std::sync::{Arc, Mutex, Condvar};\nuse std::thread;\n\nstruct Locks {\n    a: Mutex<bool>,\n    b: Mutex<bool>,\n    cv: Condvar,\n}\n\nfn worker(name: &str, locks: Arc<Locks>, done: Arc<Mutex<Vec<String>>>) {\n    // Acquire both locks in a consistent global order to avoid deadlock (R5).\n    // Wait until a is free, then take it.\n    {\n        let mut a = locks.a.lock().unwrap();\n        while *a {\n            a = locks.cv.wait(a).unwrap();\n        }\n        *a = true;\n    }\n\n    // Now acquire b, waiting if busy.\n    {\n        let mut b = locks.b.lock().unwrap();\n        while *b {\n            b = locks.cv.wait(b).unwrap();\n        }\n        *b = true;\n    }\n\n    // Critical work: both locks held simultaneously (R3).\n    // Simulate the critical section.\n    let mut guard = locks.a.lock().unwrap();\n    // We already hold a and b; just do work.\n    drop(guard);\n\n    // Release b (R7).\n    {\n        let mut b = locks.b.lock().unwrap();\n        *b = false;\n        locks.cv.notify_all();\n    }\n\n    // Release a (R7).\n    {\n        let mut a = locks.a.lock().unwrap();\n        *a = false;\n        locks.cv.notify_all();\n    }\n\n    // Record completion.\n    let mut d = done.lock().unwrap();\n    d.push(name.to_string());\n}\n\nfn main() {\n    let locks = Arc::new(Locks {\n        a: Mutex::new(false),\n        b: Mutex::new(false),\n        cv: Condvar::new(),\n    });\n\n    let done = Arc::new(Mutex::new(Vec::new()));\n\n    let locks1 = Arc::clone(&locks);\n    let done1 = Arc::clone(&done);\n    let t1 = thread::spawn(move || worker(\"t1\", locks1, done1));\n\n    let locks2 = Arc::clone(&locks);\n    let done2 = Arc::clone(&done);\n    let t2 = thread::spawn(move || worker(\"t2\", locks2, done2));\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    let d = done.lock().unwrap();\n    let t1_done = d.iter().filter(|s| *s == \"t1\").count();\n    let t2_done = d.iter().filter(|s| *s == \"t2\").count();\n\n    println!(\"DONE t1={} t2={}\", t1_done, t2_done);\n}\n```",
+  "wall_ms": 2380
+}

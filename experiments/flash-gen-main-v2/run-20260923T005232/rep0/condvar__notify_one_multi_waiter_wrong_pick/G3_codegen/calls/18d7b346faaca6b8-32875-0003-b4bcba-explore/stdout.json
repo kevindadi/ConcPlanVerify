@@ -1,0 +1,331 @@
+{
+  "analysis_started": true,
+  "assumptions": {
+    "no_spurious_wakeups": true,
+    "sequential_consistency": true
+  },
+  "binary_sha256": "a54e0f42f5f399e385903502634cdf869121c517d71c6e5244f857653654d437",
+  "boundary_events": [],
+  "bounds": {
+    "max_boundary_events": 4096,
+    "max_depth": 40,
+    "max_frames_per_thread": 32,
+    "max_states": 10000,
+    "max_threads": 16
+  },
+  "complete": true,
+  "contract_fingerprint": "3d8229ff960a9606",
+  "diagnostics": [
+    {
+      "blocked": [
+        {
+          "detail": "waiting for scope members",
+          "holder": null,
+          "kind": "scope",
+          "resource": null,
+          "resource_name": null,
+          "thread": 0,
+          "waiting": 0
+        },
+        {
+          "detail": "waiting for a lock",
+          "holder": null,
+          "kind": "condvar",
+          "resource": 1,
+          "resource_name": "main::cv",
+          "thread": 1,
+          "waiting": 2
+        },
+        {
+          "detail": "waiting for a lock",
+          "holder": null,
+          "kind": "condvar",
+          "resource": 1,
+          "resource_name": "main::cv",
+          "thread": 2,
+          "waiting": 2
+        },
+        {
+          "detail": "waiting for semaphore permits",
+          "holder": null,
+          "kind": "semaphore",
+          "resource": 3,
+          "resource_name": "main::gN",
+          "thread": 3,
+          "waiting": 1
+        }
+      ],
+      "cir_statements": [
+        {
+          "function": "main",
+          "module": "main",
+          "sid": "s1"
+        },
+        {
+          "function": "w1",
+          "module": "main",
+          "sid": "s3"
+        },
+        {
+          "function": "w2",
+          "module": "main",
+          "sid": "s3"
+        },
+        {
+          "function": "notifier",
+          "module": "main",
+          "sid": "s5"
+        }
+      ],
+      "complete": true,
+      "counterexample": [
+        {
+          "frame": 0,
+          "origin": {
+            "function": 0,
+            "module": 0,
+            "phase": "statement",
+            "sid": 0
+          },
+          "thread": 0
+        },
+        {
+          "frame": 1,
+          "origin": {
+            "function": 1,
+            "module": 0,
+            "phase": "statement",
+            "sid": 0
+          },
+          "thread": 1
+        },
+        {
+          "frame": 2,
+          "origin": {
+            "function": 2,
+            "module": 0,
+            "phase": "statement",
+            "sid": 0
+          },
+          "thread": 2
+        },
+        {
+          "frame": 3,
+          "origin": {
+            "function": 3,
+            "module": 0,
+            "phase": "statement",
+            "sid": 0
+          },
+          "thread": 3
+        },
+        {
+          "frame": 3,
+          "origin": {
+            "function": 3,
+            "module": 0,
+            "phase": "statement",
+            "sid": 1
+          },
+          "thread": 3
+        },
+        {
+          "frame": 3,
+          "origin": {
+            "function": 3,
+            "module": 0,
+            "phase": "statement",
+            "sid": 2
+          },
+          "thread": 3
+        },
+        {
+          "frame": 3,
+          "origin": {
+            "function": 3,
+            "module": 0,
+            "phase": "statement",
+            "sid": 3
+          },
+          "thread": 3
+        },
+        {
+          "frame": 1,
+          "origin": {
+            "function": 1,
+            "module": 0,
+            "phase": "statement",
+            "sid": 1
+          },
+          "thread": 1
+        },
+        {
+          "frame": 1,
+          "origin": {
+            "function": 1,
+            "module": 0,
+            "phase": "statement",
+            "sid": 2
+          },
+          "thread": 1
+        },
+        {
+          "frame": 2,
+          "origin": {
+            "function": 2,
+            "module": 0,
+            "phase": "statement",
+            "sid": 1
+          },
+          "thread": 2
+        },
+        {
+          "frame": 2,
+          "origin": {
+            "function": 2,
+            "module": 0,
+            "phase": "statement",
+            "sid": 2
+          },
+          "thread": 2
+        },
+        {
+          "frame": 3,
+          "origin": {
+            "function": 3,
+            "module": 0,
+            "phase": "statement",
+            "sid": 4
+          },
+          "thread": 3
+        }
+      ],
+      "counterexample_names": [
+        "main::main::s1",
+        "main::w1::s1",
+        "main::w2::s1",
+        "main::notifier::s1",
+        "main::notifier::s2",
+        "main::notifier::s3",
+        "main::notifier::s4",
+        "main::w1::s2",
+        "main::w1::s3",
+        "main::w2::s2",
+        "main::w2::s3",
+        "main::notifier::s5"
+      ],
+      "doom_state": {
+        "free_resources": [
+          "main::m"
+        ],
+        "threads": [
+          {
+            "at_sid": "s1",
+            "entry_function": "main::main",
+            "function": "main::main",
+            "holds": [],
+            "thread": 0,
+            "waiting_on": {
+              "kind": "scope",
+              "resource": null
+            }
+          },
+          {
+            "at_sid": "s3",
+            "entry_function": "main::w1",
+            "function": "main::w1",
+            "holds": [],
+            "thread": 1,
+            "waiting_on": {
+              "kind": "condvar",
+              "resource": "main::cv"
+            }
+          },
+          {
+            "at_sid": "s3",
+            "entry_function": "main::w2",
+            "function": "main::w2",
+            "holds": [],
+            "thread": 2,
+            "waiting_on": {
+              "kind": "condvar",
+              "resource": "main::cv"
+            }
+          },
+          {
+            "at_sid": "s5",
+            "entry_function": "main::notifier",
+            "function": "main::notifier",
+            "holds": [],
+            "thread": 3,
+            "waiting_on": {
+              "kind": "semaphore",
+              "resource": "main::gN"
+            }
+          }
+        ]
+      },
+      "final_instances": [
+        {
+          "frame": 0,
+          "function": 0,
+          "sid": 0,
+          "status": "running",
+          "thread": 0
+        },
+        {
+          "frame": 1,
+          "function": 1,
+          "sid": 2,
+          "status": "running",
+          "thread": 1
+        },
+        {
+          "frame": 2,
+          "function": 2,
+          "sid": 2,
+          "status": "running",
+          "thread": 2
+        },
+        {
+          "frame": 3,
+          "function": 3,
+          "sid": 4,
+          "status": "running",
+          "thread": 3
+        }
+      ],
+      "message": "reachable global deadlock",
+      "outcome": "FAIL",
+      "property": "deadlock",
+      "proven_facts": [
+        "reached a counterexample state after 12 step(s)",
+        "explored 374 reachable states"
+      ],
+      "repair_hints": [
+        "thread main::w1 (at s3) is waiting on condvar main::cv; ensure some runnable thread reaches the matching notify after the predicate is set",
+        "thread main::w2 (at s3) is waiting on condvar main::cv; ensure some runnable thread reaches the matching notify after the predicate is set",
+        "check lock acquisition order, channel capacity, and missing notify/join"
+      ]
+    }
+  ],
+  "git_rev": "eb3efe40442ee4012d00314367fd47373cbcdcb0",
+  "invalid": [],
+  "model_fingerprint": "7bfc0eb4c457b04d",
+  "outcome": "FAIL",
+  "properties": [
+    {
+      "detail": "a reachable state has no enabled step and unfinished threads",
+      "id": "deadlock",
+      "outcome": "FAIL"
+    },
+    {
+      "detail": "preserved reachability: holds_all(f1, [r0])",
+      "id": "preserved: main::w1 holds [main::m] at once",
+      "outcome": "PASS"
+    }
+  ],
+  "states_explored": 374,
+  "transitions_explored": 769,
+  "unsupported": []
+}

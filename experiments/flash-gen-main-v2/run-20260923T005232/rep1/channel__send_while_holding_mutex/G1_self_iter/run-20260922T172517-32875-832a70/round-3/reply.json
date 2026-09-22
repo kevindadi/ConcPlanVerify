@@ -1,0 +1,9 @@
+{
+  "round": 3,
+  "kind": "claims_no_issue",
+  "matched": [
+    "no deadlock"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program:\n\n- `s` locks, unlocks, sends on `tx1`, then blocks on `rx2.recv()`.\n- `r` locks, unlocks, blocks on `rx1.recv()`, then sends on `tx2`.\n\nThe lock is acquired and released before any channel operation in both roles. So no role holds the lock while waiting on the channel. The channel rendezvous: `s` sends on `tx1` (received by `r`), `r` sends on `tx2` (received by `s`). Both complete. No deadlock, no lost wakeup, no data race.\n\nThe output: `sv = 1`, `rv = 1`, so `sv + rv - 1 = 1`, printing `DONE done=1`.\n\nNo concurrency defect.\n\nNO_ISSUES"
+}

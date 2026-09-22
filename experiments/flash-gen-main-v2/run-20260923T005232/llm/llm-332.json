@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "05199cbd-800d-4a12-b0d6-cfb72713775a",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. A main task starts two waiter roles and one notifier role that run at the same time. [U]\nR2. Each waiter blocks on a shared condition variable until it is told to proceed.\nR3. The notifier must wake every waiter that is still blocked, so no waiter is left waiting forever.\nR4. A waiter must hold the lock while it waits on the condition variable.\nR5. The notifier must take the lock before it wakes the waiters and release the lock afterwards.\nR6. The waiters and the notifier use a separate permit counter so that the notifier only wakes the waiters after both are ready to wait.\nR7. Waking a single waiter is not enough; every blocked waiter must be woken.\nR8. Every schedule and interleaving must terminate with every waiter and the notifier finished.\nR9. Every waiter completes in every schedule.\nR10. The program must print exactly the line `DONE waiters=0` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2, notifier.\n- Shared resources: m (lock), cv (condition variable), g12 (semaphore), gN (semaphore).\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "ce1e60858271f8bcfb725378149272bf37396d7d885a2abf73416f34ed874b41",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 889,
+    "prompt_tokens": 518,
+    "total_tokens": 1407,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 384
+    },
+    "prompt_cache_hit_tokens": 384,
+    "prompt_cache_miss_tokens": 134
+  },
+  "content_sha256": "457b0d498a9a6f4b26c67ba4081775444f17dfe6bdcd228c7d9a359b3a266356",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\n// Semaphore implemented with Mutex + Condvar\nstruct Semaphore {\n    count: Mutex<usize>,\n    cv: Condvar,\n}\n\nimpl Semaphore {\n    fn new(count: usize) -> Self {\n        Semaphore {\n            count: Mutex::new(count),\n            cv: Condvar::new(),\n        }\n    }\n\n    fn wait(&self) {\n        let mut c = self.count.lock().unwrap();\n        while *c == 0 {\n            c = self.cv.wait(c).unwrap();\n        }\n        *c -= 1;\n    }\n\n    fn signal(&self) {\n        let mut c = self.count.lock().unwrap();\n        *c += 1;\n        self.cv.notify_one();\n    }\n}\n\nfn main() {\n    // Shared resources\n    let m = Arc::new(Mutex::new(()));\n    let cv = Arc::new(Condvar::new());\n    let g12 = Arc::new(Semaphore::new(0));\n    let gN = Arc::new(Semaphore::new(0));\n\n    // Shared state: number of waiters still blocked\n    let waiters_blocked = Arc::new(Mutex::new(0usize));\n\n    let m1 = Arc::clone(&m);\n    let cv1 = Arc::clone(&cv);\n    let g12_1 = Arc::clone(&g12);\n    let gN_1 = Arc::clone(&gN);\n    let wb1 = Arc::clone(&waiters_blocked);\n\n    let w1 = thread::spawn(move || {\n        // Signal that this waiter is ready\n        g12_1.signal();\n\n        // Wait for notifier to be ready\n        gN_1.wait();\n\n        // Hold lock while waiting on cv\n        let mut guard = m1.lock().unwrap();\n        // Increment blocked count\n        {\n            let mut wb = wb1.lock().unwrap();\n            *wb += 1;\n        }\n        // Wait until notified\n        while *wb1.lock().unwrap() > 0 {\n            guard = cv1.wait(guard).unwrap();\n        }\n        drop(guard);\n    });\n\n    let m2 = Arc::clone(&m);\n    let cv2 = Arc::clone(&cv);\n    let g12_2 = Arc::clone(&g12);\n    let gN_2 = Arc::clone(&gN);\n    let wb2 = Arc::clone(&waiters_blocked);\n\n    let w2 = thread::spawn(move || {\n        g12_2.signal();\n        gN_2.wait();\n\n        let mut guard = m2.lock().unwrap();\n        {\n            let mut wb = wb2.lock().unwrap();\n            *wb += 1;\n        }\n        while *wb2.lock().unwrap() > 0 {\n            guard = cv2.wait(guard).unwrap();\n        }\n        drop(guard);\n    });\n\n    let mN = Arc::clone(&m);\n    let cvN = Arc::clone(&cv);\n    let g12N = Arc::clone(&g12);\n    let gNN = Arc::clone(&gN);\n    let wbN = Arc::clone(&waiters_blocked);\n\n    let notifier = thread::spawn(move || {\n        // Wait for both waiters to be ready\n        g12N.wait();\n        g12N.wait();\n\n        // Signal waiters that notifier is ready\n        gNN.signal();\n        gNN.signal();\n\n        // Take lock before waking\n        let mut guard = mN.lock().unwrap();\n\n        // Wait until both waiters are actually blocked\n        while *wbN.lock().unwrap() < 2 {\n            guard = cvN.wait(guard).unwrap();\n        }\n\n        // Wake all waiters\n        *wbN.lock().unwrap() = 0;\n        cvN.notify_all();\n\n        drop(guard);\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n    notifier.join().unwrap();\n\n    println!(\"DONE waiters=0\");\n}\n```",
+  "wall_ms": 3898
+}

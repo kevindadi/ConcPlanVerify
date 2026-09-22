@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Semaphore {\n    permits: Mutex<usize>,\n    condvar: Condvar,\n}\n\nimpl Semaphore {\n    fn new(permits: usize) -> Self {\n        Semaphore {\n            permits: Mutex::new(permits),\n            condvar: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            permits = self.condvar.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        *permits += 1;\n        self.condvar.notify_one();\n    }\n}\n\nfn worker(s: Arc<Semaphore>) {\n    s.acquire();\n    // perform work\n    s.release();\n}\n\nfn main() {\n    let s = Arc::new(Semaphore::new(2));\n\n    let mut handles = Vec::new();\n    for _ in 0..3 {\n        let s_clone = Arc::clone(&s);\n        handles.push(thread::spawn(move || {\n            worker(s_clone);\n        }));\n    }\n\n    for handle in handles {\n        handle.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}

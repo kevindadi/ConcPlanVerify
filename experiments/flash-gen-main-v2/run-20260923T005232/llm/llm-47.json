@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "32497218-707a-4f99-9002-4641ded1f5e9",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. A main task starts one sending task and one receiving task that run at the same time.\nR2. The two tasks communicate over a channel with no buffering, so a send and a take must meet to exchange the value.\nR3. The sender passes one value and the receiver takes one value, so both tasks finish.\nR4. No task may wait forever for a partner that never arrives.\nR5. Every schedule and interleaving must terminate with both tasks finished and no value left in the channel.\nR6. The channel is empty once both tasks have finished.\nR7. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): s1, r.\n- Shared resources: ch (channel).\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "2f44a5889e36c2c8eb01f0f313e17fdacf185e213cb7c4c11c60012c49d236a4",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 338,
+    "prompt_tokens": 429,
+    "total_tokens": 767,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 128
+    },
+    "prompt_cache_hit_tokens": 128,
+    "prompt_cache_miss_tokens": 301
+  },
+  "content_sha256": "4be935cc1641b05b789a96a32b076b82c76f9d903226a37092956b26a6916fc4",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Channel<T> {\n    slot: Mutex<Option<T>>,\n    cond: Condvar,\n}\n\nimpl<T> Channel<T> {\n    fn new() -> Self {\n        Channel {\n            slot: Mutex::new(None),\n            cond: Condvar::new(),\n        }\n    }\n\n    fn send(&self, value: T) {\n        let mut guard = self.slot.lock().unwrap();\n        while guard.is_some() {\n            guard = self.cond.wait(guard).unwrap();\n        }\n        *guard = Some(value);\n        self.cond.notify_all();\n    }\n\n    fn recv(&self) -> T {\n        let mut guard = self.slot.lock().unwrap();\n        loop {\n            if let Some(value) = guard.take() {\n                self.cond.notify_all();\n                return value;\n            }\n            guard = self.cond.wait(guard).unwrap();\n        }\n    }\n}\n\nfn main() {\n    let ch: Arc<Channel<i32>> = Arc::new(Channel::new());\n\n    let ch_s1 = Arc::clone(&ch);\n    let s1 = thread::spawn(move || {\n        ch_s1.send(1);\n    });\n\n    let ch_r = Arc::clone(&ch);\n    let r = thread::spawn(move || {\n        let value = ch_r.recv();\n        value\n    });\n\n    s1.join().unwrap();\n    let done = r.join().unwrap();\n\n    println!(\"DONE done={}\", done);\n}\n```",
+  "wall_ms": 1927
+}
