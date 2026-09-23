@@ -1288,3 +1288,19 @@ DeepSeek Flash: 140 (v4). OpenCode Go: 0.
 - P-3 full channel-wrapper instrumentation (prompt-only); channel `unmapped` remains.
 - kimi G3 code stage (probe v2 carried).
 - Generation-cell expert labels; §5 evidence tiering; §6 supplement packaging.
+
+## Round q — §5 cleanup and §6 supplement
+
+- §5: `experiments/EVIDENCE_TIERS.md` (Tier A/B/C), 21 superseded dirs `git mv`-ed to
+  `experiments/_archive/` with `WHY_ARCHIVED.md`; active vs legacy scripts split
+  (`scripts/README.md`, `scripts/legacy/`); `git clean -fdX -- experiments`
+  removed 2466 ignored `target/` dirs, freeing ~12 GB (13 GB → 860 MB).
+- §6: `scripts/make_supplement.py` + `make supplement`; produced
+  `dist/concplanverify-supplement-experiments-v2-freeze-7.zip` (8.6 MB, 8219
+  files) with `SUPPLEMENT_MANIFEST.md` inside; gates all passed (anonymization,
+  secret scan, size ≤ 200 MB, self-check re-running `cir_workflow results` to a
+  byte-identical `RESULTS.md` and `tables/*.tex`). `dist/` is gitignored.
+- Deviation: the secret scan flags secret *values* (`sk-…`, `Bearer …`,
+  `KEY=value`), not the environment-variable names the scripts read
+  (`os.environ.get("DEEPSEEK_API_KEY")`), which are safe and would otherwise
+  exclude every script.
