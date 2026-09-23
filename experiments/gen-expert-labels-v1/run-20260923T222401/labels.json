@@ -1,0 +1,2474 @@
+[
+  {
+    "sha256": "07afe0fec004d8e24ed064d0d787e3633b73b92a4df6883d7a1a68686e769a9f",
+    "arm": "G3_concir",
+    "task": "atomic-data/bounded_counter_invariant",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main: thread::spawn(move || w1(m1)); thread::spawn(move || w2(m2)); h1.join().unwrap(); h2.join().unwrap();"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "struct Shared { c: i32 } and Mutex::new(Shared { c: 0 })"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "w1/w2: let tmp2 = tmp + 1; guard.c = tmp2;"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "w1/w2: let mut guard = m.lock().unwrap(); ... drop(guard);"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "w1/w2: guard.c = tmp2; (0 -> 1 -> 2 under lock)"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "w1/w2: m.lock().unwrap() ... drop(guard); no loops or blocking waits"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done={}\", done); with done = guard.c after both joins"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 300,
+      "prompt_tokens": 654,
+      "total_tokens": 954,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 654
+    }
+  },
+  {
+    "sha256": "42530fc02b4a0df4d0b1cc14229cca0ae58baf0d7f53f98719d39f20bd87f27f",
+    "arm": "G3_concir",
+    "task": "atomic-data/counter_overflow_safety",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main spawns h1 and h2 and joins both"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "Shared { c: 0 }"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "if tmp < 1 { guard.c = tmp + 1; }"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "m.lock().unwrap() in w1 and w2"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "if tmp < 1"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "no loops; both threads terminate"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done={}\", done)"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 205,
+      "prompt_tokens": 653,
+      "total_tokens": 858,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 653
+    }
+  },
+  {
+    "sha256": "56da8bd84ed9573e295112a7751850aaa5b95b6232ac2560bbd4717968a4e683",
+    "arm": "G3_concir",
+    "task": "channel/bounded_backpressure_lock_held",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "thread::spawn(move || { sender(tx); }); thread::spawn(move || { receiver(rx); });"
+      },
+      "R2": {
+        "satisfied": "no",
+        "line": "sync_channel(1) provides the bounded channel, but no shared lock m exists in the program"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "sender: ch.send(1); ch.send(2); receiver: ch.recv(); ch.recv()"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "sync_channel(1) blocks send when full and recv when empty"
+      },
+      "R5": {
+        "satisfied": "unsure",
+        "line": "no lock m is present, so the condition is vacuously unverifiable"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "sender_handle.join().unwrap(); receiver_handle.join().unwrap();"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "sync_channel(1) capacity 1 forces sender's second send to wait until receiver's first recv"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 305,
+      "prompt_tokens": 599,
+      "total_tokens": 904,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 599
+    }
+  },
+  {
+    "sha256": "1af51bf899c631121a7742c032ad86570f9ffe42cf0defdaea3a18ba4f67ad50",
+    "arm": "G3_concir",
+    "task": "channel/rendezvous_both_send",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "let s1 = thread::spawn(move || { s1(tx); }); let r = thread::spawn(move || { r(rx); });"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "let (tx, rx): (SyncSender<i32>, Receiver<i32>) = sync_channel(0);"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "ch.send(1).unwrap(); ... let v = ch.recv().unwrap();"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "ch.send(1).unwrap(); ... let v = ch.recv().unwrap();"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "s1.join().unwrap(); r.join().unwrap();"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "let (tx, rx): (SyncSender<i32>, Receiver<i32>) = sync_channel(0);"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 278,
+      "prompt_tokens": 526,
+      "total_tokens": 804,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 526
+    }
+  },
+  {
+    "sha256": "e39c38dd648e04deef2679bfda7b93d09453afb091570ce2ebd6695783e76343",
+    "arm": "G3_concir",
+    "task": "condvar/bare_wait_no_predicate",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "waiter = thread::spawn(...); notifier = thread::spawn(...)"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "Arc<Mutex<Shared { ready: bool }>> and Arc<Condvar>"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "guard.ready = true; cv_notifier.notify_one(); drop(guard);"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "while !guard.ready { guard = cv_waiter.wait(guard).unwrap(); }"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "while !guard.ready { ... } (flag checked before waiting)"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "while !guard.ready { guard = cv_waiter.wait(guard).unwrap(); }"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "waiter.join().unwrap(); notifier.join().unwrap();"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "guard.ready = true;"
+      },
+      "R9": {
+        "satisfied": "yes",
+        "line": "while !guard.ready { guard = cv_waiter.wait(guard).unwrap(); }"
+      },
+      "R10": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE ready={}\", guard.ready);"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 345,
+      "prompt_tokens": 715,
+      "total_tokens": 1060,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 715
+    }
+  },
+  {
+    "sha256": "f34602b468bf68bed1ab9b575e54d92567f6ce945af621bfe66bc0e7f989a7e7",
+    "arm": "G3_concir",
+    "task": "lock-order/abba_2lock",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main spawns t1 and t2"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "a and b are Arc<Mutex<()>> shared by both workers"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "let _ga = a1.lock().unwrap(); let _gb = b1.lock().unwrap();"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "Mutex::lock blocks until available"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "both workers acquire a then b in the same order"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "t1.join().unwrap(); t2.join().unwrap();"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "guards dropped at end of block"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "consistent lock ordering prevents deadlock"
+      },
+      "R9": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE t1=1 t2=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 275,
+      "prompt_tokens": 618,
+      "total_tokens": 893,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 618
+    }
+  },
+  {
+    "sha256": "f53ea172041bed90e69a3688d901daa91ebd78d4030428031e6fb8482accfc89",
+    "arm": "G3_concir",
+    "task": "lock-order/cross_module_cycle",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "no",
+        "line": "struct Resources { a: Mutex<()>, b: Mutex<()> } (lines 4-7); both resources owned by a single struct, not two modules"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "thread::spawn(move || t1(res1)); thread::spawn(move || t2(res2)); (lines 33-34)"
+      },
+      "R3": {
+        "satisfied": "no",
+        "line": "t1 and t2 both lock res.a then res.b (lines 11-16, 20-25); no declaration of cross-module dependency"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "let _ga = res.a.lock().unwrap(); let _gb = res.b.lock().unwrap(); (lines 11-14, 20-23)"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "both t1 and t2 acquire a then b in the same order (lines 11-14, 20-23), preventing circular wait"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "guards _ga and _gb drop at end of scope (lines 11-16, 20-25)"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "h1.join().unwrap(); h2.join().unwrap(); (lines 36-37)"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "h1.join().unwrap(); h2.join().unwrap(); (lines 36-37)"
+      },
+      "R9": {
+        "satisfied": "yes",
+        "line": "consistent lock ordering a then b (lines 11-14, 20-23)"
+      },
+      "R10": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\"); (line 39)"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 445,
+      "prompt_tokens": 665,
+      "total_tokens": 1110,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 665
+    }
+  },
+  {
+    "sha256": "7f565d54edd39b16c49917947cd8628a5ca6be32ad559c55307d1ca5edb14842",
+    "arm": "G3_concir",
+    "task": "lock-order/cycle_3lock",
+    "bug_present": "yes",
+    "bug_evidence": "t1 lines 11-12 (a then b), t2 lines 18-19 (b then c), t3 lines 25-26 (a then c): inconsistent lock ordering allows deadlock, e.g. t1 holds a waits b, t2 holds b waits c, t3 holds c waits a",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main + thread::spawn at lines 10, 17, 24"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "a, b, c are Mutexes (lines 5-7); Mutex guarantees mutual exclusion"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "t1: a1,b1 (11-12); t2: b2,c2 (18-19); t3: a3,c3 (25-26)"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "each worker holds both guards simultaneously (11-12, 18-19, 25-26)"
+      },
+      "R5": {
+        "satisfied": "no",
+        "line": "inconsistent lock order across 11-12, 18-19, 25-26 enables circular wait/deadlock"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "guards dropped at end of each closure (12, 19, 26)"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "t1.join(), t2.join(), t3.join() at lines 29-31 before println"
+      },
+      "R8": {
+        "satisfied": "no",
+        "line": "deadlock possible due to lock ordering at 11-12, 18-19, 25-26"
+      },
+      "R9": {
+        "satisfied": "no",
+        "line": "deadlock interleaving possible from 11-12, 18-19, 25-26"
+      },
+      "R10": {
+        "satisfied": "unsure",
+        "line": "println!(\"DONE done=1\") at line 33, but may never be reached if deadlock occurs"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 480,
+      "prompt_tokens": 718,
+      "total_tokens": 1198,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 718
+    }
+  },
+  {
+    "sha256": "d26c9bce8bbd6b25425523a0a24b3806a6ed160d30e01b508e8981e11d706d85",
+    "arm": "G3_concir",
+    "task": "lock-order/two_independent_cycles",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main + h1..h4 spawns"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "a,b,c,d Mutex"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "h1/h2 use a,b; h3/h4 use c,d"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "each closure holds both guards"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "disjoint lock sets a,b vs c,d"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "h1 and h2 both lock a then b"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "h3 and h4 both lock c then d"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "consistent ordering within each pair prevents deadlock"
+      },
+      "R9": {
+        "satisfied": "yes",
+        "line": "guards dropped at closure end"
+      },
+      "R10": {
+        "satisfied": "yes",
+        "line": "h1..h4 join before println"
+      },
+      "R11": {
+        "satisfied": "yes",
+        "line": "no cyclic wait; all joins complete"
+      },
+      "R12": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\")"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 327,
+      "prompt_tokens": 843,
+      "total_tokens": 1170,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 843
+    }
+  },
+  {
+    "sha256": "8a51257e72bc0aad3259e03400df803718c85c93c6e57bf0793be44b73a0a30d",
+    "arm": "G3_concir",
+    "task": "semaphore/acquire_twice_no_release",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main spawns h1 and h2 and joins both"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "Semaphore::new(1); Arc::clone shared to both workers"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "w1/w2 each acquire before work and release after"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "each worker acquires once and releases once"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "permit.release() in each worker"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "single acquire/release per worker, no deadlock"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\")"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 210,
+      "prompt_tokens": 561,
+      "total_tokens": 771,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 561
+    }
+  },
+  {
+    "sha256": "a630b253afa4a659a45ae242006dd418c6d7477d0a72118824980c2bbee3aa1d",
+    "arm": "G3_concir",
+    "task": "semaphore/permit_leak",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main spawns w1 and w2 and joins both"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "let s = Semaphore::new(1); s1 = s.clone(); s2 = s.clone();"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "let permit = s1.acquire(); ... permit.release();"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "let permit = s1.acquire(); permit.release();"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "permit.release() releases the permit"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "acquire/release with one permit terminates"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE permits=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 223,
+      "prompt_tokens": 509,
+      "total_tokens": 732,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 509
+    }
+  },
+  {
+    "sha256": "8e6dd898f1ac21bb33c20e8d5499f5fa2b5b4f11d004460dbcb97915ddab1979",
+    "arm": "G3_concir",
+    "task": "semaphore/throttle_n_permits",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main: thread::spawn for h1, h2, h3 and h1.join(), h2.join(), h3.join()"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "let s = Semaphore::new(2); and s.clone() passed to each worker"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "w1/w2/w3: let permit = s.acquire(); permit.release();"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "Semaphore::new(2) with acquire() in each worker"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "permit.release() in w1/w2/w3"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "acquire/release in each worker; joins in main"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 249,
+      "prompt_tokens": 605,
+      "total_tokens": 854,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 605
+    }
+  },
+  {
+    "sha256": "aa58cb8bf3a1565f983ecf62d6cc0734afb82f5fded32059b9b024d26112b5a4",
+    "arm": "G3_concir",
+    "task": "structure/finite_call_loop",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main: helper(); helper();"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "helper() has no shared state; main calls it sequentially"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "helper(); helper(); sequential calls"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "no concurrency; single-threaded sequential execution terminates"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 149,
+      "prompt_tokens": 346,
+      "total_tokens": 495,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 346
+    }
+  },
+  {
+    "sha256": "f3e71aa4575aee183eb6ba6b580e543b4684dd3a6f6f26c95448a8959f23bd0a",
+    "arm": "G3_concir",
+    "task": "structure/nested_scope_lock_order",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "h_outer = thread::spawn(move || { outer(a_outer, b_outer); });"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "h_x1 = thread::spawn(...); h_x2 = thread::spawn(...);"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "x1/x2: let _ga = a.lock().unwrap(); let _gb = b.lock().unwrap();"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "x1 and x2 both lock a then b"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "h_x1.join().unwrap(); h_x2.join().unwrap();"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "consistent lock order a then b in x1/x2"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 252,
+      "prompt_tokens": 740,
+      "total_tokens": 992,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 740
+    }
+  },
+  {
+    "sha256": "8907db4ba8c53635cdc43f70382534bb280ca1947af2eb46e4d8bb790322be93",
+    "arm": "G3_concir",
+    "task": "structure/scope_bound_k_workers",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "no",
+        "line": "main: thread::spawn for w1, w2, w3; Semaphore::new(1)"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "w1/w2/w3: let permit = s.acquire(); permit.release();"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "Semaphore::new(1)"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "w1/w2/w3: s.acquire()"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "w1/w2/w3 acquire then release; main joins all"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "h1.join().unwrap(); h2.join().unwrap(); h3.join().unwrap();"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 239,
+      "prompt_tokens": 580,
+      "total_tokens": 819,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 580
+    }
+  },
+  {
+    "sha256": "666fa98f890feb25c65b0e4dd6678efa99a07f53e5ca9b2c26e299f1dbb01052",
+    "arm": "G3_concir",
+    "task": "structure/scope_worker_abba",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "let w1 = thread::spawn(...); let w2 = thread::spawn(...);"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "let _ga = a1.lock().unwrap(); let _gb = b1.lock().unwrap();"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "scope block ends, dropping _ga and _gb"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "Mutex::lock guarantees mutual exclusion"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "both workers lock a then b"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "Mutex::lock blocks until available"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "consistent lock order a then b prevents deadlock"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "w1.join().unwrap(); w2.join().unwrap();"
+      },
+      "R9": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 276,
+      "prompt_tokens": 618,
+      "total_tokens": 894,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 618
+    }
+  },
+  {
+    "sha256": "afbb3a6ba24333bd6b22f9b874bca622e6fd481f21a712a5e27172582c3d6bf7",
+    "arm": "G3_concir",
+    "task": "structure/spawn_join_loop_finite",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main: thread::spawn(worker); h1.join().unwrap(); thread::spawn(worker); h2.join().unwrap();"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "fn worker() {}"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "h1.join().unwrap(); h2.join().unwrap();"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "fn worker() {}"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "h1.join().unwrap(); h2.join().unwrap();"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 192,
+      "prompt_tokens": 403,
+      "total_tokens": 595,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 403
+    }
+  },
+  {
+    "sha256": "bbbb9ddcc2c0e4e280211d5c06d69408c3f6f0ceb6ccbf168453d7eea51e1e34",
+    "arm": "G3_concir",
+    "task": "structure/worker_with_payload",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main: thread::spawn(move || w1(s1)); thread::spawn(move || w2(s2));"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "w1/w2: let mut guard = shared.lock().unwrap(); compute(); ... guard.acc = tmp2;"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "w1/w2: guard dropped at end of inner block before function returns"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "Mutex<Shared> ensures mutual exclusion"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "shared.lock().unwrap() blocks until available"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "no loops or blocking cycles; both threads terminate"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "h1.join().unwrap(); h2.join().unwrap();"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done={}\", done); with acc incremented twice from 0"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 279,
+      "prompt_tokens": 681,
+      "total_tokens": 960,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 681
+    }
+  },
+  {
+    "sha256": "e348ba804a45e877f2ae0d3ed621936c8168da0b775dbe8c56c31ad6121a8488",
+    "arm": "G3_concir",
+    "task": "atomic-data/counter_overflow_safety",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main: thread::spawn for h1 and h2, then h1.join() and h2.join()"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "Shared { c: 0 } and c: i32"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "w1/w2: if tmp < 1 { guard.c = tmp + 1; }"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "w1/w2: let mut guard = m.lock().unwrap();"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "w1/w2: if tmp < 1 { guard.c = tmp + 1; }"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "w1/w2: m.lock().unwrap(); main: h1.join().unwrap(); h2.join().unwrap();"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done={}\", done);"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 265,
+      "prompt_tokens": 643,
+      "total_tokens": 908,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 256
+      },
+      "prompt_cache_hit_tokens": 256,
+      "prompt_cache_miss_tokens": 387
+    }
+  },
+  {
+    "sha256": "5cf5bf97db61eded3f0e5a4ad30a27bf8268151467e508639c92d1bd97d4b853",
+    "arm": "G3_concir",
+    "task": "channel/rendezvous_both_send",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "let s1 = thread::spawn(...); let r = thread::spawn(...);"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "sync_channel(0)"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "tx.send(1).unwrap(); let v = rx.recv().unwrap();"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "tx.send(1).unwrap(); rx.recv().unwrap();"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "s1.join().unwrap(); r.join().unwrap();"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "sync_channel(0); tx.send(1).unwrap(); rx.recv().unwrap();"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 236,
+      "prompt_tokens": 493,
+      "total_tokens": 729,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 256
+      },
+      "prompt_cache_hit_tokens": 256,
+      "prompt_cache_miss_tokens": 237
+    }
+  },
+  {
+    "sha256": "96e76ca395fb920cad67a42abfd0c6529253df7711ba5dbe82065628cda9dcd0",
+    "arm": "G3_concir",
+    "task": "channel/send_while_holding_mutex",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "thread::spawn(move || { s(tx1, rx2); }); thread::spawn(move || { r(rx1, tx2); });"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "sync_channel(0); ch1.send(1).unwrap(); ch2.recv().unwrap();"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "fn s(ch1: SyncSender<i32>, ch2: Receiver<i32>) { ch1.send(1).unwrap(); let _ack = ch2.recv().unwrap(); }"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "s_handle.join().unwrap(); r_handle.join().unwrap();"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 226,
+      "prompt_tokens": 577,
+      "total_tokens": 803,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 577
+    }
+  },
+  {
+    "sha256": "7bc67f3a71af9c2983351ad94a37eb0f9244e789d9762b00f9e0d0f130e9fae6",
+    "arm": "G3_concir",
+    "task": "lock-order/abba_2lock",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main + thread::spawn h1, h2"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "a1/a2 share a, b1/b2 share b; Mutex ensures exclusive access"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "let _ga = a1.lock(); let _gb = b1.lock(); (both held simultaneously)"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "Mutex::lock blocks until available"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "both workers acquire a then b in same order, no deadlock"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "h1.join().unwrap(); h2.join().unwrap();"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "drop(_gb); drop(_ga);"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "consistent lock ordering a then b prevents deadlock"
+      },
+      "R9": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE t1=1 t2=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 290,
+      "prompt_tokens": 630,
+      "total_tokens": 920,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 256
+      },
+      "prompt_cache_hit_tokens": 256,
+      "prompt_cache_miss_tokens": 374
+    }
+  },
+  {
+    "sha256": "9c22c0845df2943c350913b2106394f0dddf6590700211bdc9c802dd9362f3ce",
+    "arm": "G3_concir",
+    "task": "lock-order/cross_module_cycle",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "no",
+        "line": "struct Resources { a: Mutex<()>, b: Mutex<()> } \u2014 both resources are owned by a single struct/module, not two separate modules"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "fn t1(res: Arc<Resources>) and fn t2(res: Arc<Resources>); both lock res.a and res.b"
+      },
+      "R3": {
+        "satisfied": "no",
+        "line": "t1 and t2 both lock res.a then res.b directly; no declaration of dependency on the other module's resource"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "let _ga = res.a.lock().unwrap(); { let _gb = res.b.lock().unwrap(); } \u2014 both guards held simultaneously"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "t1 and t2 acquire locks in the same order (a then b), preventing circular wait"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "guards _ga and _gb are dropped at end of scope before function returns"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "h1.join().unwrap(); h2.join().unwrap();"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "h1.join().unwrap(); h2.join().unwrap(); \u2014 both threads complete"
+      },
+      "R9": {
+        "satisfied": "yes",
+        "line": "consistent lock ordering a then b in both t1 and t2 ensures no deadlock"
+      },
+      "R10": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 394,
+      "prompt_tokens": 665,
+      "total_tokens": 1059,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 384
+      },
+      "prompt_cache_hit_tokens": 384,
+      "prompt_cache_miss_tokens": 281
+    }
+  },
+  {
+    "sha256": "90e786f8af13478acb13cbe0267cd590baeb2d2cd3b0c7b723c06fc9f5bccdda",
+    "arm": "G3_concir",
+    "task": "lock-order/two_independent_cycles",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main + t1..t4 spawns"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "a, b, c, d Mutexes"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "t1/t2 use a,b; t3/t4 use c,d"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "t1: _ga and _gb held together; similarly others"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "disjoint lock sets a,b vs c,d"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "t1 and t2 both lock a then b"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "t3 and t4 both lock c then d"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "consistent ordering a->b and c->d prevents deadlock"
+      },
+      "R9": {
+        "satisfied": "yes",
+        "line": "explicit drop(_gb); drop(_ga); etc."
+      },
+      "R10": {
+        "satisfied": "yes",
+        "line": "t1.join()..t4.join() before println"
+      },
+      "R11": {
+        "satisfied": "yes",
+        "line": "no deadlock; all joins complete"
+      },
+      "R12": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\")"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 352,
+      "prompt_tokens": 883,
+      "total_tokens": 1235,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 384
+      },
+      "prompt_cache_hit_tokens": 384,
+      "prompt_cache_miss_tokens": 499
+    }
+  },
+  {
+    "sha256": "a58dc7d5a4806d88133d1f8c8e7308e158f7a294be82580a361ea51d9a19979b",
+    "arm": "G3_concir",
+    "task": "semaphore/acquire_twice_no_release",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main: thread::spawn for h1 and h2, then h1.join() and h2.join()"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "let s = Semaphore::new(1); s1 = s.clone(); s2 = s.clone();"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "w1/w2: let permit = s.acquire(); permit.release();"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "w1/w2: acquire once and release once on the only path"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "w1/w2: permit.release() after acquire; no holding across blocking"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "w1/w2: single acquire/release, no loops or deadlock"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "main: println!(\"DONE done=1\") after both joins"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 260,
+      "prompt_tokens": 556,
+      "total_tokens": 816,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 256
+      },
+      "prompt_cache_hit_tokens": 256,
+      "prompt_cache_miss_tokens": 300
+    }
+  },
+  {
+    "sha256": "74caa0bbfd890c5f3142622ad14626e29dbf4b86bb15f993a73f13d876dc2408",
+    "arm": "G3_concir",
+    "task": "semaphore/permit_leak",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main: thread::spawn(move || w1(s1)); thread::spawn(move || w2(s2)); h1.join().unwrap(); h2.join().unwrap();"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "let s = Semaphore::new(1); let s1 = s.clone(); let s2 = s.clone();"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "w1/w2: let permit = s.acquire(); ... permit.release();"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "w1/w2: let permit = s.acquire(); permit.release();"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "w1/w2: permit.release(); (permit held only during work, released before finish)"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "w1/w2: acquire then release; main joins both"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE permits=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 277,
+      "prompt_tokens": 543,
+      "total_tokens": 820,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 384
+      },
+      "prompt_cache_hit_tokens": 384,
+      "prompt_cache_miss_tokens": 159
+    }
+  },
+  {
+    "sha256": "a3e87e7f6d02bc5bd2f6d1357f15f9668f55ada4753714299c38316a37047220",
+    "arm": "G3_concir",
+    "task": "structure/nested_scope_lock_order",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "h_outer = thread::spawn(move || { outer(a_outer, b_outer); });"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "h_x1 = thread::spawn(...); h_x2 = thread::spawn(...);"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "x1/x2: let _ga = a.lock().unwrap(); let _gb = b.lock().unwrap();"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "x1 and x2 both lock a then b"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "h_x1.join().unwrap(); h_x2.join().unwrap();"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "consistent lock order a then b in x1/x2"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 252,
+      "prompt_tokens": 732,
+      "total_tokens": 984,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 256
+      },
+      "prompt_cache_hit_tokens": 256,
+      "prompt_cache_miss_tokens": 476
+    }
+  },
+  {
+    "sha256": "a0714e76c4f264dd8fb95977a9835f51e6b1ba91c7146918ca1475b58734f54b",
+    "arm": "G3_concir",
+    "task": "structure/worker_with_payload",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "thread::spawn for w1 and w2 in main"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "m1.lock().unwrap(); compute(); *guard = tmp"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "drop(guard)"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "Mutex::lock ensures mutual exclusion"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "m1.lock().unwrap() blocks until free"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "no loops or blocking cycles; joins terminate"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "w1.join().unwrap(); w2.join().unwrap()"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done={}\", acc) with acc=1"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 237,
+      "prompt_tokens": 621,
+      "total_tokens": 858,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 256
+      },
+      "prompt_cache_hit_tokens": 256,
+      "prompt_cache_miss_tokens": 365
+    }
+  },
+  {
+    "sha256": "9b2785d2dabd828f6de2d441362bc5bac24264b24309eab05a6fbcc39e6c996c",
+    "arm": "G3_concir",
+    "task": "channel/bounded_backpressure_lock_held",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "thread::spawn(move || { sender(tx); }); thread::spawn(move || { receiver(rx); });"
+      },
+      "R2": {
+        "satisfied": "no",
+        "line": "sync_channel(1) provides the bounded channel, but no shared lock m exists in the program"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "sender: tx.send(1); tx.send(2); receiver: rx.recv(); rx.recv()"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "sync_channel(1) blocks on send when full and recv when empty"
+      },
+      "R5": {
+        "satisfied": "unsure",
+        "line": "no lock m is present, so the condition is vacuously unverifiable"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "sender_handle.join().unwrap(); receiver_handle.join().unwrap();"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "sync_channel(1) capacity 1 forces sender's second send to wait until receiver's first recv"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 306,
+      "prompt_tokens": 601,
+      "total_tokens": 907,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 384
+      },
+      "prompt_cache_hit_tokens": 384,
+      "prompt_cache_miss_tokens": 217
+    }
+  },
+  {
+    "sha256": "53261b1cb1398d541326255cf0655832b87ee776bf0f9f255df567f7a62f8fa6",
+    "arm": "G3_concir",
+    "task": "channel/rendezvous_both_send",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "let s1 = thread::spawn(...); let r = thread::spawn(...);"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "sync_channel(0)"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "tx.send(1).unwrap(); let _v = rx.recv().unwrap();"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "s1.join().unwrap(); r.join().unwrap();"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "sync_channel(0) with one send and one recv"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "sync_channel(0) rendezvous"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 224,
+      "prompt_tokens": 488,
+      "total_tokens": 712,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 256
+      },
+      "prompt_cache_hit_tokens": 256,
+      "prompt_cache_miss_tokens": 232
+    }
+  },
+  {
+    "sha256": "2482d1db660954d7f1430fa88c2c58316dc311812fecb8b9f081c78484bc3ee1",
+    "arm": "G3_concir",
+    "task": "lock-order/cross_module_cycle",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "no",
+        "line": "struct Shared { a: Mutex<()>, b: Mutex<()> } (lines 4-7); both resources owned by a single Shared struct, not two modules"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "t1 (line 9) and t2 (line 15) run in separate threads (lines 28, 31) and both lock a and b"
+      },
+      "R3": {
+        "satisfied": "no",
+        "line": "no declaration of dependency on the other module's resource; t1 and t2 both directly access shared.a and shared.b"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "t1: _ga = shared.a.lock() (line 10), _gb = shared.b.lock() (line 11); t2: lines 16-17; both held simultaneously"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "both t1 and t2 acquire a then b in the same order (lines 10-11, 16-17), preventing circular wait"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "drop(_gb); drop(_ga); (lines 12-13, 18-19)"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "h1.join().unwrap(); h2.join().unwrap(); (lines 34-35) before println"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "t1 and t2 run in separate threads (lines 28, 31) and both complete before joins return"
+      },
+      "R9": {
+        "satisfied": "yes",
+        "line": "consistent lock ordering (lines 10-11, 16-17) ensures no deadlock; all schedules terminate"
+      },
+      "R10": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\"); (line 37)"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 455,
+      "prompt_tokens": 671,
+      "total_tokens": 1126,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 256
+      },
+      "prompt_cache_hit_tokens": 256,
+      "prompt_cache_miss_tokens": 415
+    }
+  },
+  {
+    "sha256": "68216e3ecd00063827580a4522ae1e002686cba1bf483e200ab16e4259b99850",
+    "arm": "G3_concir",
+    "task": "lock-order/cycle_3lock",
+    "bug_present": "yes",
+    "bug_evidence": "t3 lines: `let _ga = a3.lock().unwrap(); let _gc = c3.lock().unwrap();` acquire a then c, while t1 acquires a then b and t2 acquires b then c; this creates a circular wait (t1 holds a waits b, t2 holds b waits c, t3 holds c waits a) violating R5/R8/R9",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main spawns t1, t2, t3"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "a, b, c are Mutexes; each lock() ensures exclusive ownership"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "t1 locks a1,b1; t2 locks b2,c2; t3 locks a3,c3"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "each worker holds both guards simultaneously before dropping"
+      },
+      "R5": {
+        "satisfied": "no",
+        "line": "t1: a then b; t2: b then c; t3: a then c (acquires a then c, but circular wait with t1/t2 is possible)"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "explicit drop(_gb); drop(_ga); etc. before thread end"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "t1.join().unwrap(); t2.join().unwrap(); t3.join().unwrap(); before println!"
+      },
+      "R8": {
+        "satisfied": "no",
+        "line": "deadlock possible due to lock ordering in t1/t2/t3"
+      },
+      "R9": {
+        "satisfied": "no",
+        "line": "circular wait can cause non-terminating schedule"
+      },
+      "R10": {
+        "satisfied": "unsure",
+        "line": "println!(\"DONE done=1\") exists, but may never be reached if deadlock occurs"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 449,
+      "prompt_tokens": 748,
+      "total_tokens": 1197,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 384
+      },
+      "prompt_cache_hit_tokens": 384,
+      "prompt_cache_miss_tokens": 364
+    }
+  },
+  {
+    "sha256": "3d51be736fa28770cc940014a8d68035a2690017e47902ef117777861051f32a",
+    "arm": "G3_concir",
+    "task": "structure/spawn_join_loop_finite",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main spawns h1, joins it, then spawns h2 and joins it (lines 6-10)"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "worker() is empty and shares no state (lines 3-4)"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "h1.join() before h2 spawn; h2.join() after (lines 7, 9-10)"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "worker returns immediately, so joins cannot block indefinitely (lines 3-4, 7, 10)"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "finite spawn/join sequence with no loops or blocking waits (lines 6-10)"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\") (line 12)"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 239,
+      "prompt_tokens": 403,
+      "total_tokens": 642,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 128
+      },
+      "prompt_cache_hit_tokens": 128,
+      "prompt_cache_miss_tokens": 275
+    }
+  },
+  {
+    "sha256": "d1158e5d0dd04c531d2cd2941c894c7e87317a41d2178f7c1d86f9207e435e94",
+    "arm": "G3_concir",
+    "task": "structure/worker_with_payload",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main: thread::spawn(move || w1(m1)); thread::spawn(move || w2(m2));"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "w1/w2: let mut acc = m.lock().unwrap(); compute(); ... *acc = tmp;"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "w1/w2: closing brace of inner block drops acc (MutexGuard) before function returns"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "w1/w2: m.lock().unwrap() (Mutex guarantees mutual exclusion)"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "w1/w2: m.lock().unwrap() blocks until lock is available"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "w1/w2: lock acquired and released in same block; no deadlock"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "main: h1.join().unwrap(); h2.join().unwrap();"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "main: println!(\"DONE done={}\", done); with done == 1"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 307,
+      "prompt_tokens": 638,
+      "total_tokens": 945,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 256
+      },
+      "prompt_cache_hit_tokens": 256,
+      "prompt_cache_miss_tokens": 382
+    }
+  },
+  {
+    "sha256": "8cd45a8535999f08db18cf7d22e0952e215a396b3b3bc93339edc7cd380d3df5",
+    "arm": "G0_direct",
+    "task": "atomic-data/atomic_lost_update",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main: thread::spawn for w1 and w2, then w1.join() and w2.join()"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "let c = Arc::new(AtomicUsize::new(0));"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "worker: current+1 with compare_exchange; each worker breaks after one successful increment"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "worker: c.compare_exchange(current, next, ...)"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "worker: loop { ... if compare_exchange(...).is_ok() { break; } }"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "worker: retry loop preserves ability to reach 2"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "worker: compare_exchange is atomic RMW"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "worker: loop terminates on successful CAS; main joins both"
+      },
+      "R9": {
+        "satisfied": "no",
+        "line": "println!(\"DONE done={}\", done) prints DONE done=2, not DONE done=1"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 315,
+      "prompt_tokens": 638,
+      "total_tokens": 953,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 638
+    }
+  },
+  {
+    "sha256": "e2fcca63661727832612e94707e5c279bf173cbef4786d239795c48cd9dccdde",
+    "arm": "G0_direct",
+    "task": "atomic-data/bounded_counter_invariant",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "no",
+        "line": "main spawns w1 and w2 directly and joins them; there is no separate supervising task"
+      },
+      "R2": {
+        "satisfied": "no",
+        "line": "let c = Arc::new(Mutex::new(0i32)); no declared range 0..=2"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "*val += 1; in both w1 and w2"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "let mut val = c1.lock().unwrap(); *val += 1; and same in w2"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "counter starts at 0 and each of the two workers increments once under lock, so final value is 2"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "w1.join().unwrap(); w2.join().unwrap(); no loops or blocking cycles"
+      },
+      "R7": {
+        "satisfied": "no",
+        "line": "println!(\"DONE done={}\", done); prints DONE done=2, not DONE done=1"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 278,
+      "prompt_tokens": 616,
+      "total_tokens": 894,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 256
+      },
+      "prompt_cache_hit_tokens": 256,
+      "prompt_cache_miss_tokens": 360
+    }
+  },
+  {
+    "sha256": "d6d976987104ee2e54ac87de9ef149c08166dc9a97bdb4d82d648d868ad16d47",
+    "arm": "G0_direct",
+    "task": "atomic-data/counter_overflow_safety",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "main spawns w1 and w2 and joins both"
+      },
+      "R2": {
+        "satisfied": "no",
+        "line": "c is Mutex::new(0i32) with no declared range 0..2"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "if *val < 1 { *val += 1; }"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "let _guard = m1.lock().unwrap(); let mut val = c1.lock().unwrap();"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "if *val < 1 { *val += 1; }"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "w1.join().unwrap(); w2.join().unwrap();"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done={}\", done);"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 242,
+      "prompt_tokens": 642,
+      "total_tokens": 884,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 256
+      },
+      "prompt_cache_hit_tokens": 256,
+      "prompt_cache_miss_tokens": 386
+    }
+  },
+  {
+    "sha256": "9b533aa7773e81d3c761a12d8ac832c3141a851a55c847e73c98a6d7a01b5df1",
+    "arm": "G0_direct",
+    "task": "channel/bounded_backpressure_lock_held",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "thread::spawn(move || sender(s)); thread::spawn(move || receiver(r));"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "struct Channel { slot: Option<i32>, ... }; m: Mutex<()>, ch: Mutex<Channel>"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "shared.send(1); shared.send(2); ... let _first = shared.recv(); let _second = shared.recv();"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "while ch.slot.is_some() { ch = self.not_full.wait(ch).unwrap(); } ... while ch.slot.is_none() { ch = self.not_empty.wait(ch).unwrap(); }"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "let _guard = shared.m.lock().unwrap(); } ... shared.send(1); (guard dropped before send/recv)"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "sender_handle.join().unwrap(); receiver_handle.join().unwrap();"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "while ch.slot.is_some() { ch = self.not_full.wait(ch).unwrap(); }"
+      },
+      "R8": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 361,
+      "prompt_tokens": 919,
+      "total_tokens": 1280,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 256
+      },
+      "prompt_cache_hit_tokens": 256,
+      "prompt_cache_miss_tokens": 663
+    }
+  },
+  {
+    "sha256": "ccc7a087ae33eccde5e5ca23321a753d4aa86b2c0924bf42b92bc1dd7931fbf1",
+    "arm": "G0_direct",
+    "task": "channel/rendezvous_both_send",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "thread::spawn for s1 and r before joins"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "Channel uses Mutex<Option<T>> with has_value/has_space condvars; send waits while slot.is_some(), recv waits while slot.is_none()"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "s1 sends 1; r recv()s one value; both threads return"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "send and recv are paired; no task waits for a partner that never arrives"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "send/recv use while loops with condvar waits; both joins complete"
+      },
+      "R6": {
+        "satisfied": "yes",
+        "line": "recv takes value from slot, leaving None"
+      },
+      "R7": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\") after both joins"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 254,
+      "prompt_tokens": 711,
+      "total_tokens": 965,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 128
+      },
+      "prompt_cache_hit_tokens": 128,
+      "prompt_cache_miss_tokens": 583
+    }
+  },
+  {
+    "sha256": "d2f459a220a06afbfb974507aa2673e1f37fb8ebb7d3fa76dfeed4945b765aa5",
+    "arm": "G0_direct",
+    "task": "channel/send_while_holding_mutex",
+    "bug_present": "no",
+    "bug_evidence": "-",
+    "requirements": {
+      "R1": {
+        "satisfied": "yes",
+        "line": "thread::spawn(move || { ... }) for s and r; shared_lock used in both"
+      },
+      "R2": {
+        "satisfied": "yes",
+        "line": "ch1_s.send(1) / ch1_r.recv(); ch2_r.send(1) / ch2_s.recv()"
+      },
+      "R3": {
+        "satisfied": "yes",
+        "line": "shared lock guards are dropped before ch1_s.send/ch2_s.recv and ch1_r.recv/ch2_r.send"
+      },
+      "R4": {
+        "satisfied": "yes",
+        "line": "s.join().unwrap(); r.join().unwrap();"
+      },
+      "R5": {
+        "satisfied": "yes",
+        "line": "println!(\"DONE done=1\");"
+      }
+    },
+    "status": "ok",
+    "tokens": {
+      "completion_tokens": 202,
+      "prompt_tokens": 1070,
+      "total_tokens": 1272,
+      "completion_tokens_details": null,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 128
+      },
+      "prompt_cache_hit_tokens": 128,
+      "prompt_cache_miss_tokens": 942
+    }
+  },
+  {
+    "sha256": "4ca9621139ac8ee947f58e3b4e32f3240d8696d8757dd6598bbfda47aae8fb03",
+    "arm": "G0_direct",
+    "task": "condvar/bare_wait_no_predicate",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "67563c114c685004aeb2a807c967bc3468fecad8aac8740d03b35af2f4c00806",
+    "arm": "G0_direct",
+    "task": "condvar/lost_wakeup_notify_before_wait",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "c73fdd47f4e47fdf0d242f6295092cf54dccea8a2bb10cd978e5cb53b4cdb336",
+    "arm": "G0_direct",
+    "task": "condvar/notify_one_multi_waiter_wrong_pick",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "4f5512e2914b311fe25e45bbb4ac21b4c4638567a74a415e76863ace6034bd8d",
+    "arm": "G0_direct",
+    "task": "condvar/same_cv_different_locks",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "c153146a43df8ef0c8d32614f88d92516eba6885d71aa237e43b5f3ea8fbf1b7",
+    "arm": "G0_direct",
+    "task": "lock-order/abba_2lock",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "945e16c548f83973e5c998d8af0b32b17d3ca364ff96ab757cd0ae8a280205b8",
+    "arm": "G0_direct",
+    "task": "lock-order/cross_module_cycle",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "d65ced52d02e3c7e4a720c8ef636c8c8b8141f8c2372d0f7e7125f6f9a0e85ef",
+    "arm": "G0_direct",
+    "task": "lock-order/cycle_3lock",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "2e45cbcfb07b57b9eee6374d0a15b1b736d65a135a8539f1626898893072ed21",
+    "arm": "G0_direct",
+    "task": "lock-order/partial_deadlock_bystander",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "ef994304126c9129d136fbb7e5f7e7ec96793ca639fb6318b594d52f2b44cd2c",
+    "arm": "G0_direct",
+    "task": "lock-order/two_independent_cycles",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "872b42e89c99a0b8e043c98ccf2813a3b76392b613c913b62f4f38712406122c",
+    "arm": "G0_direct",
+    "task": "semaphore/acquire_twice_no_release",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "c06605cc5ea68ad28622e671e02c6bc3d0664a3b1f6afea5679029f56b3af924",
+    "arm": "G0_direct",
+    "task": "semaphore/permit_leak",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "24aee8aeb83665601cd3d262d81ff4cc80a737e2ab45ed4e423d621db5bd4589",
+    "arm": "G0_direct",
+    "task": "semaphore/throttle_n_permits",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "9a31ddff937c30d759ba38ad8f8b814ec0ec934a3f734dbffc02b8cbba7f73e1",
+    "arm": "G0_direct",
+    "task": "structure/finite_call_loop",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "71291234a29dca32946e27b4074e6e6241c2268f0248c6d10e3a86f3c7e58814",
+    "arm": "G0_direct",
+    "task": "structure/nested_scope_lock_order",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "2d6aab538d67117712a543a28de6bbf73a9a25def9d275c2933500e5877676ea",
+    "arm": "G0_direct",
+    "task": "structure/scope_bound_k_workers",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "a618ffb0b84db07bbe62c18fdcaad1382160fb3a84d85e6bfd33d78f178ec4eb",
+    "arm": "G0_direct",
+    "task": "structure/scope_worker_abba",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "409c521ea6360719b4ccd9b865853ab6e447431b2a1a36b93c88bcbf41906607",
+    "arm": "G0_direct",
+    "task": "structure/spawn_join_loop_finite",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "857618f1566b899982a24a77353e343751b2e7b9d87d1acb672a1a6a2978e94e",
+    "arm": "G0_direct",
+    "task": "channel/bounded_backpressure_lock_held",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "c42195bd0a7e09e3645d5315e507fa9d208d64f33172f5efca646d54405efba1",
+    "arm": "G0_direct",
+    "task": "channel/rendezvous_both_send",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "6e1923677d2ffbc33eabf987de26ad8d1dca96565b6506610265c3e92b5ca6d4",
+    "arm": "G0_direct",
+    "task": "condvar/bare_wait_no_predicate",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "924b46e5e881ff3697092c932cc7d7e235197021ab93adb8ba61472584fecc5c",
+    "arm": "G0_direct",
+    "task": "condvar/notify_one_multi_waiter_wrong_pick",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "73e1c75d511dec34822432755ecd6f7b8f842d3845f0b1d6ac6640437b25ccf5",
+    "arm": "G0_direct",
+    "task": "condvar/same_cv_different_locks",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "645a980ea4f58439a4d80d9681ada641325b5b49ee67b0afb0a274c1f73c32bc",
+    "arm": "G0_direct",
+    "task": "lock-order/abba_2lock",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "fee5116ecb7b2971bf7d53160d4a66cff47f2c97168fbb54bda3c8d79a0f222e",
+    "arm": "G0_direct",
+    "task": "lock-order/cross_module_cycle",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "db9d4a3796e75aa019b0a75f58becaee5f076d91d92787f3c7610502b92d3cd2",
+    "arm": "G0_direct",
+    "task": "lock-order/cycle_3lock",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "038160e5561e0a06565b31a09b2fbf7a7a6abb48c3fd16f4ac54cabfe182fc1f",
+    "arm": "G0_direct",
+    "task": "semaphore/acquire_twice_no_release",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "e8fd9ac3f7ffbf243b04233ac372d693a9f1dcd2d7e3a45b7713fbcc4cfab7e6",
+    "arm": "G0_direct",
+    "task": "semaphore/permit_leak",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "65c366afee08a36492df3fce4d9a6b0c74d1aacf847ed1595d69300d082f45bc",
+    "arm": "G0_direct",
+    "task": "semaphore/throttle_n_permits",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "ecad2b172b63c4f48455e1e8382f7d1d88cac2cd8b1e6f2654ae4f9ae7a63ac1",
+    "arm": "G0_direct",
+    "task": "structure/nested_scope_lock_order",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "659de1ac75c16f2248175d4227639b53eeb6a6b2052e359b50de75d8c11d88cb",
+    "arm": "G0_direct",
+    "task": "structure/scope_bound_k_workers",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "1ca337bf5dc2615e9b72e780b4a438bc844636978a9fda7358f08a633cd0b361",
+    "arm": "G0_direct",
+    "task": "structure/scope_worker_abba",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "4c48b1f3a0059a88967e7751a6096293efafc46ac099b2d2dda78d27f473ece7",
+    "arm": "G0_direct",
+    "task": "structure/spawn_join_loop_finite",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "82ff244eb6b72be3b0299a2c28067a8be4bb7183e69f7490a381889c3babe1d1",
+    "arm": "G0_direct",
+    "task": "structure/worker_with_payload",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "55ed4f8ec4b70a2c42aef9efc720ed50917383fe988c485e7143e64e0b48c82b",
+    "arm": "G0_direct",
+    "task": "atomic-data/bounded_counter_invariant",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "04066121b17c112f20537f287cdbc6fa275bd1b68adf0b487a5a20f6de10d12b",
+    "arm": "G0_direct",
+    "task": "channel/bounded_backpressure_lock_held",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "838972a61dbc19306e67894312aa6f1a9dd0ea990929c865293ac636cfdba783",
+    "arm": "G0_direct",
+    "task": "channel/rendezvous_both_send",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "f88a1f077dbd99d07f9fdfca91b9423319884c77d656ecce6d42966b0372e82d",
+    "arm": "G0_direct",
+    "task": "condvar/bare_wait_no_predicate",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "dbd391a95c9b3eddf4e113f39eb038385e334b892a864cfdda5e4360947746c7",
+    "arm": "G0_direct",
+    "task": "condvar/lost_wakeup_notify_before_wait",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "6a5d6eb18f7368decc33cfd16270bdc3232d41b75ee63b3b1c276db91c3ed99f",
+    "arm": "G0_direct",
+    "task": "condvar/same_cv_different_locks",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "80166d1652cf84977d793f4109b3b964d7c6bd0fc05d1896011d065eda65b608",
+    "arm": "G0_direct",
+    "task": "lock-order/abba_2lock",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "72ce4c7ea185111eefd5a22c83f4086311269ae56cd51c4f04f2d9322da926ef",
+    "arm": "G0_direct",
+    "task": "lock-order/cross_module_cycle",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "7f8138c2cbe4d6d3cad122e3a9e44453232db606c98c3d4a258cabe59f41cc3b",
+    "arm": "G0_direct",
+    "task": "lock-order/cycle_3lock",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "454d3b06a1d6d8d9d6752381cd4efc974be087c6c8bfb6d841352d33f7b957b8",
+    "arm": "G0_direct",
+    "task": "lock-order/partial_deadlock_bystander",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "74d1232a4ccfa5600b0642979e767c56d20d1d673f574d05762468e887af5f62",
+    "arm": "G0_direct",
+    "task": "semaphore/acquire_twice_no_release",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "c2b7645c14c921ecaf797536957c2dbf0811225073b149754636b467da7cf9d5",
+    "arm": "G0_direct",
+    "task": "semaphore/permit_leak",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "d6914758d4236bcd676acc512acd14f43b3ddeef01b9f512ef30f9bd376186aa",
+    "arm": "G0_direct",
+    "task": "structure/finite_call_loop",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "b689799c5323620342837b24340d0c8b25af176c6db41d7946847fd1c536484a",
+    "arm": "G0_direct",
+    "task": "structure/scope_bound_k_workers",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  },
+  {
+    "sha256": "f82e0f5b7dfa0f01ea3c6bcf79bcf1d964b5394829af2e58eef12e968e777629",
+    "arm": "G0_direct",
+    "task": "structure/worker_with_payload",
+    "status": "not_run",
+    "reason": "request budget reached (40/40)"
+  }
+]
