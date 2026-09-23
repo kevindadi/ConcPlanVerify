@@ -11,3 +11,6 @@ test:
 
 verify-evidence:
 	bash scripts/verify_evidence.sh
+
+evidence-map:
+	python3 scripts/render_evidence_map.py
