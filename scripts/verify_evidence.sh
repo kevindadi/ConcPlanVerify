@@ -20,4 +20,8 @@ diff -q "$TMP/ref_results.md" "$TMP/experiments/RESULTS.md"
 for f in "$TMP"/ref_tables/*.tex; do
   diff -q "$f" "$TMP/experiments/tables/$(basename "$f")"
 done
+
+# Dry-compile every regenerated table (catches LaTeX-escaping bugs).
+bash "$REPO/scripts/check_tables_compile.sh" "$TMP/experiments/tables"
+
 echo "verify-evidence: OK"

@@ -217,3 +217,13 @@ Directory hash recipe as above (excluding `*/target/*`).
 
 - ConcPV `experiments-v2-freeze-1..9`, `contracts-v3`, `contracts-v3.1`
 - ConcIR `concir-freeze-1..7`
+
+## Freeze 9 addendum (2026-09-24)
+
+- `gen_ci.tex` escaping fix (raw strings / double backslash); table *content*
+  unchanged, only LaTeX escaping. No new tag.
+- `verify-evidence` now dry-compiles every `experiments/tables/*.tex`
+  (`scripts/check_tables_compile.sh`).
+- `gen-expert-labels-v1`: two `lock-order/cycle_3lock` agent `bug_present=yes`
+  reclassified as `agent_false_positive` (acyclic lock order a<b<c);
+  tool-missed count 0; agent–tool disagreements 2.
