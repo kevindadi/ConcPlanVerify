@@ -25,11 +25,7 @@ resource, use that name.
 
 ## Library
 
-Besides the standard library, a counting semaphore is provided as
-`concir_sync::Semaphore` (declare `mod concir_sync;`): `Semaphore::new(n)`
-(returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases),
-`try_acquire()`, and `release()`. Use this for CIR `Semaphore` resources; do
-**not** implement your own semaphore out of a mutex and a condition variable.
+An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `release()`.
 
 ## Entity conventions
 
@@ -42,9 +38,10 @@ Besides the standard library, a counting semaphore is provided as
 - Implement a CIR `condvar_wait` as `while !predicate { guard = cv.wait(guard) }`
   with the predicate guarded by the paired mutex. The release and reacquisition
   of the mutex are implicit in the wait.
-- `main` does only what the CIR `main` does: start and join the named threads
-  and print the terminal line. It must not access shared state the CIR `main`
-  does not access.
+- `main` does only what the CIR `main` does: start and join the named threads,
+  then print the terminal line. After joining all workers, `main` may read
+  shared state to print the terminal line; otherwise it must not access shared
+  state the CIR `main` does not access.
 
 ## Rules
 

@@ -27,7 +27,11 @@ from . import bounded_monitor
 from .instrument import find_instrument_binary
 
 KINDS = ("Mutex", "Condvar", "Semaphore", "Channel")
-CONTAINER = """[package]
+CONCIR_SYNC_CRATE = Path(__file__).resolve().parents[2] / "runtime/concir_sync"
+
+
+def _container() -> str:
+    return f"""[package]
 name = "probe"
 version = "0.1.0"
 edition = "2021"
@@ -35,6 +39,9 @@ edition = "2021"
 [[bin]]
 name = "probe"
 path = "src/main.rs"
+
+[dependencies]
+concir_sync = {{ path = "{CONCIR_SYNC_CRATE}" }}
 """
 
 
@@ -106,26 +113,22 @@ def instrument_wrappers(
     if proc.returncode != 0:
         raise RuntimeError(f"concir-instrument --wrappers failed: {proc.stderr.strip()}")
     resources = json.loads((out / "resources.json").read_text(encoding="utf-8"))
-    sync_path = out / "concir_sync.rs"
     return {
         "annotated": (out / "annotated.rs").read_text(encoding="utf-8"),
         "runtime": (out / "cir_trace.rs").read_text(encoding="utf-8"),
-        "sync_runtime": sync_path.read_text(encoding="utf-8") if sync_path.is_file() else None,
         "resources": resources.get("resources", []),
         "limitations": resources.get("limitations", []),
+        "harness_notes": resources.get("harness_notes", []),
     }
 
 
-def prepare_project(work_dir: Path, annotated: str, runtime: str,
-                    sync_runtime: str | None = None) -> Path:
+def prepare_project(work_dir: Path, annotated: str, runtime: str) -> Path:
     work = Path(work_dir)
     src = work / "src"
     src.mkdir(parents=True, exist_ok=True)
-    (work / "Cargo.toml").write_text(CONTAINER, encoding="utf-8")
+    (work / "Cargo.toml").write_text(_container(), encoding="utf-8")
     (src / "main.rs").write_text(annotated, encoding="utf-8")
     (src / "cir_trace.rs").write_text(runtime, encoding="utf-8")
-    if sync_runtime is not None:
-        (src / "concir_sync.rs").write_text(sync_runtime, encoding="utf-8")
     return work
 
 

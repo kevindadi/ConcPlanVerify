@@ -35,8 +35,7 @@ OUT = REPO / "experiments/gen-code-replay-v1"
 def _score(rust: str, cir_path: Path, contract_path: Path, binary: Path,
            td: Path) -> dict:
     wrapped = rust_oracle.instrument_wrappers(rust, td / "inst")
-    rust_oracle.prepare_project(td / "proj", wrapped["annotated"], wrapped["runtime"],
-                                wrapped.get("sync_runtime"))
+    rust_oracle.prepare_project(td / "proj", wrapped["annotated"], wrapped["runtime"])
     built, log = rust_oracle.cargo_build(td / "proj")
     if not built:
         return {"built": False, "detail": log[-300:]}

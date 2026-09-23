@@ -604,8 +604,7 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
             continue
         info["instrument_limit"] = wrapped["limitations"]
         project = out_dir / f"round-{round_no}" / "proj"
-        rust_oracle.prepare_project(project, wrapped["annotated"], wrapped["runtime"],
-                                    wrapped.get("sync_runtime"))
+        rust_oracle.prepare_project(project, wrapped["annotated"], wrapped["runtime"])
         built, build_log = rust_oracle.cargo_build(project)
         if not built:
             info["decision"] = "build_failed"
