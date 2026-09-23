@@ -273,7 +273,8 @@ def _align_functions(module: dict[str, Any], ref_module: dict[str, Any]) -> list
 
 
 def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
-           k: int = 4, prompt_asset: str | None = None) -> dict[str, Any]:
+           k: int = 4, prompt_asset: str | None = None,
+           with_codegen: bool = True) -> dict[str, Any]:
     from .concir_client import ConcirClient
     from .json_utils import extract_json
     from .normalize import normalize as normalize_program
@@ -367,8 +368,8 @@ def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
     record["coverage"] = model_coverage(
         task.contract, explore.get("properties", []), task.requirements,
         task.unverifiable)
-    # codegen + build + conform + behavior on the accepted CIR
-    if record["accepted"] and explore.get("outcome") == "PASS":
+    # codegen + build + conform + behavior on the accepted CIR (ablation arm)
+    if with_codegen and record["accepted"] and explore.get("outcome") == "PASS":
         try:
             skeleton = out_dir / "rust"
             codegen(cir_path, skeleton, binary=binary)
@@ -641,6 +642,43 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
                           + ", ".join(info["monitor_fail"]) + ".")
         feedback = " ".join(pieces)
     return record
+
+
+def run_g3_v2(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
+              k_cir: int = 4, k_code: int = 3, instrument_binary=None) -> dict[str, Any]:
+    """§1: verified CIR, then LLM-generated Rust post-verified by tools."""
+    cir_rec = run_g3(llm_client, binary, task, out_dir / "cir", k=k_cir,
+                     with_codegen=False)
+    rounds = list(cir_rec.get("rounds", []))
+    for rnd in rounds:
+        rnd["stage"] = "cir"
+    combined: dict[str, Any] = {
+        "arm": "G3_concir", "task": task.id,
+        "cir_stage": {k: cir_rec.get(k) for k in
+                      ("accepted", "status", "model", "coverage")},
+        "cir_rounds": len(cir_rec.get("rounds", [])), "code_stage": None,
+        "rounds": rounds, "accepted": False, "accepted_with_proof": False,
+        "status": cir_rec.get("status"),
+    }
+    if not cir_rec.get("accepted") or not cir_rec.get("cir_path"):
+        return combined
+    code = run_llmcode_from_cir(llm_client, binary, task,
+                                Path(cir_rec["cir_path"]), out_dir / "code",
+                                k_code=k_code, instrument_binary=instrument_binary)
+    for rnd in code.get("rounds", []):
+        rnd["stage"] = "code"
+    combined["rounds"].extend(code.get("rounds", []))
+    combined["code_stage"] = code
+    combined["accepted"] = bool(cir_rec.get("accepted") and code.get("accepted"))
+    combined["accepted_with_proof"] = bool(code.get("accepted_with_proof"))
+    combined["coverage"] = code.get("coverage")
+    last = (code.get("rounds") or [{}])[-1]
+    combined["monitor_fail"] = last.get("monitor_fail")
+    combined["oracle"] = {"hang": not last.get("behavior_ok", False)} if code.get("rounds") else {"hang": None}
+    combined["status"] = "accepted" if combined["accepted"] else code.get(
+        "status", cir_rec.get("status"))
+    combined["model"] = cir_rec.get("model")
+    return combined
 
 
 def _usage_get(outcome, key: str):
