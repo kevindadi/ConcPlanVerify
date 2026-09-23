@@ -8,3 +8,6 @@ supplement:
 test:
 	PYTHONPATH=python:. python3 -m unittest discover -s python/tests -t .
 	cd ../ConcIR && cargo test --offline
+
+verify-evidence:
+	bash scripts/verify_evidence.sh
