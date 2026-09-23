@@ -1209,3 +1209,49 @@ DeepSeek Flash: 680 (main v2) + 107x2 (smoke) ≈ 894. OpenCode Go: 100.
 - Generation-cell expert labels; loom.
 - Part B (§B1–§B3) not yet updated for the LLM-code architecture (freeze-4
   tables still in the paper).
+
+---
+
+# Round 2026-09-23p — harness fixes + live code stage (freeze-6)
+
+## O-1..O-6
+
+| item | status |
+| --- | --- |
+| O-1 code-stage failures | tools fixed: single-step condvar wait (suppress the implicit unlock/lock, one `condvar_wait`), `concir_sync::Semaphore` provided + instrumented, name-first thread alignment, var-in-lock convention + violation-kind feedback. |
+| O-2 RF_all drift | fixed: `RF_all` counts non-accepted cells as 0; `RF_acc` and `RF_run` added; `_defect` unified. |
+| O-3 wording | RF is bounded (monitor) for all arms; `cir_pass` is the exhaustive part. |
+| O-4 `_defect` | unified to accepted ∧ (hang ∨ monitor FAIL ∨ Miri detected). |
+| O-5 `same_cv` UNSUPPORTED | recorded as a target limitation (ConcIR W1xx). |
+| O-6 post-freeze commit | `a0960a93` only toggled `run_g3`/`run_g3_v2` wiring; the main batch ran the version now at HEAD. |
+
+## O-2-corrected metrics
+
+| arm | accept | RF_all | RF_acc | defect | awp |
+| --- | --- | --- | --- | --- | --- |
+| G0_direct | 0.972 | 0.472 | 0.531 | 6 | — |
+| G1_self_iter | 0.931 | 0.390 | 0.541 | 3 | — |
+| G2_tools_iter | 0.653 | 0.376 | 0.661 | 0 | — |
+| G3_concir (v3 code) | 0.556 | 0.344 | 0.619 | 0 | 40/72 |
+| G3_codegen (ablation) | 0.833 | 0.638 | 0.765 | 0 | 17/24 |
+
+- The live code stage (59 verified CIRs, 112 requests) raised G3 accept
+  0.431→**0.556** and `accepted_with_proof` 31→**40/72**; the remaining code
+  failures are all `extra_op` (real deviations: a lock on a `var`, `main`
+  reading shared state), not harness.
+- Offline replay of the 28 freeze-5 failures: only **2** are fixed on the old
+  programs (they predate `concir_sync`); smoke replay 11/40. The harness-gap
+  share is **<50%**, so per the stop-loss the RQ2 claim is "conform rejects real
+  deviations and feedback fixes some within K_code", with the ablation alongside.
+- G3 accept 0.556 < 0.6 → no further tool iteration; claims to rest on
+  `RF_acc`, `awp`, Complex-tier, `accepted_with_proof`.
+
+## Budgets
+
+DeepSeek Flash: 112 (code stage). OpenCode Go: 0 this round.
+
+## Not done
+
+- Semaphore-family G0/G1/G2 not re-run (baseline `unmapped` remains, 表注).
+- kimi G3 code stage not re-run (probe v2 carried; predates fixes).
+- Generation expert labels; loom (dropped).

@@ -1,0 +1,60 @@
+{
+  "arm": "G3_concir_llmcode",
+  "task": "channel/bounded_backpressure_lock_held",
+  "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/channel__bounded_backpressure_lock_held/G3_concir/cir/revision-1.cir.json",
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "build_failed",
+      "prompt_tokens": 1771,
+      "completion_tokens": 646,
+      "llm_ms": 2338,
+      "instrument_limit": []
+    },
+    {
+      "round": 2,
+      "decision": "post_verify_fail",
+      "prompt_tokens": 2171,
+      "completion_tokens": 365,
+      "llm_ms": 1793,
+      "instrument_limit": [],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 0,
+        "traces": 32,
+        "statuses": {
+          "violation": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "first_violation": {
+        "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+        "coverage": {
+          "sids_seen": 0,
+          "sids_total": 5
+        },
+        "detail": "no model statement matches mutex_lock on \"main::m\" (thread t1)",
+        "event_index": 0,
+        "events": 10,
+        "expected": [],
+        "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+        "got": "mutex_lock:main::m",
+        "status": "violation"
+      },
+      "conform_kind": "extra_op"
+    },
+    {
+      "round": 3,
+      "decision": "build_failed",
+      "prompt_tokens": 1878,
+      "completion_tokens": 555,
+      "llm_ms": 1902,
+      "instrument_limit": []
+    }
+  ],
+  "accepted": false,
+  "accepted_with_proof": false,
+  "status": "generation_failed",
+  "instrument_limit": null
+}

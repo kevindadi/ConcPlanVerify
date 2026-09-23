@@ -72,3 +72,20 @@ Ordered as the evaluation reads. Binaries: `concir-backend` (freeze-5),
 - Rust-arm oracle bounded (`PASS_bounded`); model arm exhaustive; words not mixed.
 - `same_cv_different_locks` is `UNSUPPORTED` (ConcIR W1xx); `var_eq` and user semaphores are instrument limits.
 - Expert labels for generation cells not run; loom not run.
+
+## v5 update (freeze-6): harness fixes, corrected RF, live code stage
+
+- O-2 corrected metrics (RF_all counts non-accepted as 0):
+  G0 0.472/0.531, G1 0.390/0.541, G2 0.376/0.661,
+  **G3_concir 0.344/0.619** (accept 0.556, awp 40/72, defect 0),
+  G3_codegen ablation 0.638/0.765.
+- Post-verification value now separates harness gaps from real deviations:
+  offline replay of the 28 freeze-5 code failures fixes only 2 on the **old**
+  programs (they predate `concir_sync`); the live code stage with the fixed
+  tools/prompt raises accept 0.431→0.556 and awp 31→40. Remaining failures are
+  `extra_op` real deviations.
+- Tables: `tables/gen_replay.tex` (harness-gap diagnostic); `gen_main.tex` with
+  RF_all/RF_acc.
+- Claims to rest on: G3 `RF_acc`/awp/Complex tier/`accepted_with_proof`, the
+  ablation comparison, and conform's independent catches — **not** on RF_all
+  where G3 < G0.

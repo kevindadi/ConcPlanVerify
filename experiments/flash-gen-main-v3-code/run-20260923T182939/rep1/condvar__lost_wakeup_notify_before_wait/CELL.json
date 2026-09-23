@@ -1,0 +1,88 @@
+{
+  "arm": "G3_concir_llmcode",
+  "task": "condvar/lost_wakeup_notify_before_wait",
+  "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep1/condvar__lost_wakeup_notify_before_wait/G3_concir/cir/revision-1.cir.json",
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "post_verify_fail",
+      "prompt_tokens": 2013,
+      "completion_tokens": 255,
+      "llm_ms": 1124,
+      "instrument_limit": [],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 0,
+        "traces": 32,
+        "statuses": {
+          "violation": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "first_violation": {
+        "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+        "coverage": {
+          "sids_seen": 0,
+          "sids_total": 7
+        },
+        "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 6",
+        "event_index": 6,
+        "events": 7,
+        "expected": [],
+        "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+        "got": "mutex_lock:main::m",
+        "status": "violation"
+      },
+      "conform_kind": "extra_op"
+    },
+    {
+      "round": 2,
+      "decision": "accepted",
+      "prompt_tokens": 2121,
+      "completion_tokens": 241,
+      "llm_ms": 1127,
+      "instrument_limit": [],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 32,
+        "traces": 32,
+        "statuses": {
+          "conformant": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": []
+    }
+  ],
+  "accepted": true,
+  "accepted_with_proof": true,
+  "status": "accepted",
+  "instrument_limit": null,
+  "coverage": {
+    "total": 10,
+    "decidable": 4,
+    "satisfied": 4,
+    "failed": 0,
+    "not_observed": 0,
+    "unmapped": 0,
+    "unsupported": 4,
+    "deferred": 0,
+    "unverifiable": 2,
+    "rc": 0.4,
+    "rf": 0.4,
+    "statuses": {
+      "R1": "PASS_bounded",
+      "R2": "unverifiable",
+      "R3": "unsupported",
+      "R4": "unsupported",
+      "R5": "PASS_bounded",
+      "R6": "unsupported",
+      "R7": "PASS_bounded",
+      "R8": "PASS_bounded",
+      "R9": "unsupported",
+      "R10": "unverifiable"
+    }
+  },
+  "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/condvar__lost_wakeup_notify_before_wait/code/round-2.rs"
+}

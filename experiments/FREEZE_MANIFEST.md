@@ -132,3 +132,25 @@ Directory hash recipe as above (excluding `*/target/*`).
 
 - ConcPV `experiments-v2-freeze-1..5`, `contracts-v3`, `contracts-v3.1`
 - ConcIR `concir-freeze-1..4`
+
+---
+
+# Freeze 6 — harness fixes, O-2 metric, live code stage (2026-09-23)
+
+- `experiments/flash-gen-main-v3-code`: files=7324 sha256=`706283f11ab86b88a31a704466e60e78c015e8c3a12164be99ba621bbd39a45c`
+- `experiments/gen-code-replay-v1`: files=2 sha256=`07282dc984d80b943d03c3c0e2bf4ecffff8def7823f3b9dea78b7f0464e3bd2`
+- `experiments/tables`: files=17 sha256=`7628b58ab3d81c3da8ef2fb35846e571146a0620ca6c86642eceb946a3a83b88`
+
+## Provenance
+
+- ConcPlanVerify commit: this commit (tag `experiments-v2-freeze-6`).
+- ConcIR commit: `24fc982` (tag `concir-freeze-5`).
+- `concir-backend` sha256: `881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765`
+- `concir-instrument` sha256: `297fbcf481e19a1cad437f0d4c02d9233deaddbafb6a62daacdba6bee4689da0`
+- Code stage: 59 verified CIRs re-run (112 Flash requests); G0/G1/G2 + `G3_codegen` carried from freeze-5.
+- Metrics: `RF_all` now counts non-accepted cells as 0 (O-2); `_defect` unified; violation kind recorded.
+
+## Tags
+
+- ConcPV `experiments-v2-freeze-1..6`, `contracts-v3`, `contracts-v3.1`
+- ConcIR `concir-freeze-1..5`

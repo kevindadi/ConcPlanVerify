@@ -2,7 +2,7 @@
 
 > **Generated file — do not edit by hand.** Regenerate with:
 > ```
-> python -m cir_workflow results results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --expert experiments/flash-repair-main-v1/expert-labels/EXPERT_LABELS.json --extraction experiments/extraction-v5 --trackd experiments/detection-v3/TRACKD.json --scale experiments/scale-v2/SCALE.json --mutation experiments/conform-mutation-v2/SUMMARY.json --postedit experiments/post-edit-conform-v2/SUMMARY.json --mutation-v1 experiments/conform-mutation-v1/SUMMARY.json --postedit-v1 experiments/post-edit-conform-v1/SUMMARY.json --modelprobe experiments/model-probe-v2 --gen experiments/flash-gen-main-v2/run-20260923T005232 --genprobe experiments/gen-model-probe-v2 --latex experiments/tables --output experiments/RESULTS.md
+> python -m cir_workflow results results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --expert experiments/flash-repair-main-v1/expert-labels/EXPERT_LABELS.json --extraction experiments/extraction-v5 --trackd experiments/detection-v3/TRACKD.json --scale experiments/scale-v2/SCALE.json --mutation experiments/conform-mutation-v2/SUMMARY.json --postedit experiments/post-edit-conform-v2/SUMMARY.json --mutation-v1 experiments/conform-mutation-v1/SUMMARY.json --postedit-v1 experiments/post-edit-conform-v1/SUMMARY.json --modelprobe experiments/model-probe-v2 --gen experiments/flash-gen-main-v3-code/run-20260923T182939 --genprobe experiments/gen-model-probe-v2 --latex experiments/tables --output experiments/RESULTS.md
 > ```
 
 ## Provenance
@@ -12,7 +12,7 @@
 - extraction: `experiments/extraction-v5`
 - track D: `experiments/detection-v3/TRACKD.json`
 - scale: `experiments/scale-v2/SCALE.json`
-- generation batch: `experiments/flash-gen-main-v2/run-20260923T005232`
+- generation batch: `experiments/flash-gen-main-v3-code/run-20260923T182939`
 - generation probe: `experiments/gen-model-probe-v2`
 - binary sha256: `4bec943dd486473caab24b17233b536e31641fbbb1e3d8d505d499b3113fb3f2`
 - binary v2 (conform) sha256: `073129de3a6d378a4e198bf712028c0c950cdf080981fb0073dfb7af5fa7ce5c`
@@ -479,34 +479,35 @@ Lockbud: available=True commit=`None` (miri seeds=16).
 
 Requirements -> verified CIR -> LLM code -> tool post-verification, 24 tasks, 3 reps. G0/G1/G2 are bounded-monitored; G3_concir verifies the CIR exhaustively, the LLM writes the Rust, and conform/monitor post-verify; G3_codegen is the tool-codegen ablation (rep 0).
 
-Batches (later overrides earlier): `run-20260923T005232`.
+Batches (later overrides earlier): `run-20260923T182939`.
 
-| arm | cells | accepted | accept rate | RC | RF_all | RF_acc | defect | awp | tokens |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| G0_direct | 72 | 70 | 0.972 | 0.661 | 0.523 | 0.531 | 6 | 0 | 61385 |
-| G1_self_iter | 72 | 67 | 0.931 | 0.664 | 0.549 | 0.541 | 3 | 0 | 224344 |
-| G2_tools_iter | 72 | 47 | 0.653 | 0.672 | 0.592 | 0.661 | 0 | 0 | 296491 |
-| G3_concir | 72 | 31 | 0.431 | 0.67 | 0.67 | 0.67 | 0 | 31 | 566854 |
-| G3_codegen | 24 | 20 | 0.833 | 0.776 | 0.672 | 0.765 | 0 | 17 | 106808 |
-| **all** | 312 | 235 | 0.753 | 0.677 | 0.581 | 0.602 | 9 | 48 | 1255882 |
+| arm | cells | accepted | accept rate | RC | RF_all | RF_acc | RF_run | defect | awp | tokens |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+`RF_all` counts non-accepted cells as 0; `RF_acc` covers accepted cells; `RF_run` averages cells that carry a monitor value (freeze-5 wording).
+| G0_direct | 72 | 70 | 0.972 | 0.661 | 0.472 | 0.531 | 0.523 | 6 | 0 | 61385 |
+| G1_self_iter | 72 | 67 | 0.931 | 0.664 | 0.39 | 0.541 | 0.549 | 3 | 0 | 224344 |
+| G2_tools_iter | 72 | 47 | 0.653 | 0.672 | 0.376 | 0.661 | 0.592 | 0 | 0 | 296491 |
+| G3_concir | 72 | 40 | 0.556 | 0.622 | 0.344 | 0.619 | 0.619 | 0 | 40 | 439513 |
+| G3_codegen | 24 | 20 | 0.833 | 0.776 | 0.638 | 0.765 | 0.672 | 0 | 17 | 106808 |
+| **all** | 312 | 244 | 0.782 | 0.669 | 0.414 | 0.596 | 0.576 | 9 | 57 | 1128541 |
 
 Per tier (RF):
 
 | tier | G0_direct | G1_self_iter | G2_tools_iter | G3_concir | G3_codegen |
 | --- | --- | --- | --- | --- | --- |
-| Simple | 0.558 | 0.517 | 0.517 | 0.511 | 0.773 |
-| Medium | 0.661 | 0.623 | 0.674 | 0.72 | 0.656 |
-| Complex | 0.361 | 0.524 | 0.577 | 0.91 | 0.586 |
+| Simple | 0.535 | 0.409 | 0.257 | 0.327 | 0.773 |
+| Medium | 0.551 | 0.415 | 0.528 | 0.415 | 0.642 |
+| Complex | 0.331 | 0.347 | 0.345 | 0.29 | 0.499 |
 
-`defect` = accepted and (hang/behavior or monitor/conform violation). `awp` is G3-only (model PASS and conform PASS).
+`defect` = accepted and (behavior hang or monitor FAIL or conform violation). `awp` is G3-only (model PASS, conform PASS, no monitor FAIL).
 
 ## Generation with a frontier model — `gen-model-probe-v1`
 
 Model `kimi-k3` (OpenCode Go, chat/completions), 1 rep, K=4, temperature None.
 
-| arm | cells | not_run | accepted | accept rate | RC | RF | defect | awp | tokens |
+| arm | cells | not_run | accepted | accept rate | RC | RF_all | defect | awp | tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| G0_direct | 24 | 0 | 23 | 0.958 | 0.63 | 0.509 | 0 | 0 | 56895 |
+| G0_direct | 24 | 0 | 23 | 0.958 | 0.63 | 0.446 | 0 | 0 | 56895 |
 | G2_tools_iter | 0 | 0 | 0 | None | None | None | 0 | 0 | 0 |
-| G3_concir | 24 | 0 | 11 | 0.458 | 0.621 | 0.598 | 0 | 11 | 233964 |
-| **all** | 48 | 0 | 34 | 0.708 | 0.627 | 0.54 | 0 | 11 | 290859 |
+| G3_concir | 24 | 0 | 11 | 0.458 | 0.621 | 0.274 | 0 | 11 | 233964 |
+| **all** | 48 | 0 | 34 | 0.708 | 0.627 | 0.36 | 0 | 11 | 290859 |

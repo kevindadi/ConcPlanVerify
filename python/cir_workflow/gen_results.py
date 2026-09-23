@@ -101,7 +101,7 @@ def render_md(cells: dict, batches: list[Path] | None = None) -> str:
         row = [tier]
         for arm in ARMS:
             agg = aggregate([c for c in all_cells if c["arm"] == arm and c.get("tier") == tier])
-            row.append(str(agg["rf"]))
+            row.append(str(agg["rf_all"]))
         lines.append("| " + " | ".join(row) + " |")
     lines += ["", "`defect` = accepted and (behavior hang or monitor FAIL or conform violation). `awp` is G3-only (model PASS, conform PASS, no monitor FAIL)."]
     return "\n".join(lines) + "\n"
