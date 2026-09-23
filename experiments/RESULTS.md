@@ -475,11 +475,13 @@ Lockbud: available=True commit=`None` (miri seeds=16).
 - Expert labels are LLM-assisted (agent-proxy) with the owner's human review merged (17 rows / 11 candidates); 2 human/auto disagreements await the owner (`HUMAN_DISAGREEMENT_EVIDENCE.md`).
 - All offline recomputation uses BIN_MAIN (main table) or BIN_V2 (conform/a3-to-rust/mutation/post-edit); both shas are listed above.
 
-## Generation (main) — `flash-gen-main-v2`
+## Generation (main) — composite (see Batches)
 
 Requirements -> verified CIR -> LLM code -> tool post-verification, 24 tasks, 3 reps. G0/G1/G2 are bounded-monitored; G3_concir verifies the CIR exhaustively, the LLM writes the Rust, and conform/monitor post-verify; G3_codegen is the tool-codegen ablation (rep 0).
 
-Batches (later overrides earlier): `run-20260923T211345`.
+Batches (per-cell `source_run`; earlier runs overridden by later):
+- `flash-gen-main-v2/run-20260923T005232` — G0_direct: 54, G1_self_iter: 54, G2_tools_iter: 54, G3_codegen: 24
+- `flash-gen-main-v5-code/run-20260923T211345` — G0_direct: 18, G1_self_iter: 18, G2_tools_iter: 18, G3_concir: 72
 
 | arm | cells | accepted | accept rate | RC | RF_all | RF_acc | RF_run | defect | awp | tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

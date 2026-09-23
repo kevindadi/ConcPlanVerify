@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import statistics
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -72,7 +73,7 @@ def aggregate(cells: list[dict]) -> dict:
 def render_md(cells: dict, batches: list[Path] | None = None) -> str:
     all_cells = list(cells.values())
     lines = [
-        "", "## Generation (main) — `flash-gen-main-v2`", "",
+        "", "## Generation (main) — composite (see Batches)", "",
         "Requirements -> verified CIR -> LLM code -> tool post-verification, "
         "24 tasks, 3 reps. G0/G1/G2 are bounded-monitored; G3_concir verifies the "
         "CIR exhaustively, the LLM writes the Rust, and conform/monitor "
