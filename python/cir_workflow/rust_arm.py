@@ -32,13 +32,9 @@ from .experiments_v2 import MIRI_COMBOS, sha256_text
 DEFAULT_TIMEOUT_S = 120.0
 MIRI_COMBO_TIMEOUT_S = 60.0
 MIRI_MANY_SEEDS = 64
-FIXED_CARGO_TOML = """[package]
-name = "cir_arm_probe"
-version = "0.1.0"
-edition = "2021"
+from .project_template import cargo_toml as _cargo_toml
 
-[dependencies]
-"""
+FIXED_CARGO_TOML = _cargo_toml("cir_arm_probe")
 
 # Only genuine bug signals count as "detected"; a tool that fails for another
 # reason (unsupported API, missing crate, bad flag) is a separate tool_error so

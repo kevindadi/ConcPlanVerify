@@ -65,7 +65,7 @@ impl Semaphore {
         }
     }
 
-    pub fn release(&self) {
+    fn release_one(&self) {
         let mut p = self.permits.lock().unwrap();
         *p += 1;
         emit("sem_release", self.name);
@@ -73,8 +73,15 @@ impl Semaphore {
     }
 }
 
+impl<'a> Permit<'a> {
+    /// Release explicitly and consume the permit (the drop then does nothing
+    /// extra); releasing by dropping the permit is equally valid. There is no
+    /// `Semaphore::release`, so a permit cannot be released twice.
+    pub fn release(self) {}
+}
+
 impl<'a> Drop for Permit<'a> {
     fn drop(&mut self) {
-        self.sem.release();
+        self.sem.release_one();
     }
 }

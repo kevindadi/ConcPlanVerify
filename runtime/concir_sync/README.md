@@ -5,7 +5,7 @@ harness. Generated cargo projects depend on it by path so the model can write
 `use concir_sync::Semaphore;` without declaring a module.
 
 - `Semaphore::new(n)` / `new_named(name, n)` (returns `Arc<Self>`)
-- `acquire()` -> `Permit` (drop releases), `try_acquire()`, `release()`
+- `acquire()` -> `Permit` (drop releases), `try_acquire()`, `permit.release()` (consume to release early); there is no `Semaphore::release`
 
 `acquire`/`release` call a recorder installed via `set_recorder`; the generated
 `cir_trace` runtime installs its `record` function, so semaphore operations

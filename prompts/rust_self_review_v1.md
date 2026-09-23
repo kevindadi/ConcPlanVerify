@@ -12,4 +12,4 @@ data race, or a thread that can block forever.
 - Otherwise output only the full corrected Rust source inside a single ```rust
   code fence.
 
-An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `release()`.
+An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.

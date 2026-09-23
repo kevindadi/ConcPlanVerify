@@ -27,22 +27,12 @@ from . import bounded_monitor
 from .instrument import find_instrument_binary
 
 KINDS = ("Mutex", "Condvar", "Semaphore", "Channel")
-CONCIR_SYNC_CRATE = Path(__file__).resolve().parents[2] / "runtime/concir_sync"
+
+from .project_template import cargo_toml as _cargo_toml
 
 
 def _container() -> str:
-    return f"""[package]
-name = "probe"
-version = "0.1.0"
-edition = "2021"
-
-[[bin]]
-name = "probe"
-path = "src/main.rs"
-
-[dependencies]
-concir_sync = {{ path = "{CONCIR_SYNC_CRATE}" }}
-"""
+    return _cargo_toml("probe")
 
 
 def _collect_contract_refs(value: Any, resources: list[str], functions: list[str]) -> None:
