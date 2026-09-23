@@ -86,8 +86,8 @@ Two workers share a semaphore with one permit. A worker may acquire the permit m
 - rule: `bug_present = behavior in {hang} OR model FAIL OR expert yes OR by_construction`; `false_accept = accepted AND bug_present` (RESULTS §1).
 
 ```
-owner_verdict:
-owner_reason:
+owner_verdict: bug_present=yes (proposed 2026-09-24, owner to confirm)
+owner_reason: Sem has 1 permit and is not reentrant; w1 calls acq() twice with no rel() in between, so its second acq() blocks forever in every schedule (if w2 takes the permit first it releases it, then w1 still self-blocks). Behavior: hang 10 s; Miri detected 16/16. The requirement demands matched repeated acquires and termination of every interleaving; the candidate satisfies neither.
 ```
 
 ## lock-order/partial_deadlock_bystander / A1_self_iter (`a08bd1a020fa`)
@@ -202,7 +202,7 @@ Two workers A and B use two mutexes with an intermediate semaphore handshake, an
 - rule: `bug_present = behavior in {hang} OR model FAIL OR expert yes OR by_construction`; `false_accept = accepted AND bug_present` (RESULTS §1).
 
 ```
-owner_verdict:
-owner_reason:
+owner_verdict: bug_present=no (proposed 2026-09-24, owner to confirm)
+owner_reason: A holds ma, releases sa, then waits on sb; B holds mb, releases sb, then waits on sa. Each releases before it acquires, so the handshake completes in every schedule. Afterwards each worker holds at most one lock at a time (ga dropped before mb is taken; gb dropped before ma is taken), so no lock cycle. Behavior terminated_ok, prints `DONE a=1 b=1`. Miri thread_leak is the detached bystander `loop { sleep }` that is never joined; the process still terminates when main returns. Not a concurrency defect under the stated requirement; recorded as a code smell (detached infinite thread).
 ```
 
