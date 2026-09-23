@@ -389,7 +389,7 @@
     "sha256": "7f565d54edd39b16c49917947cd8628a5ca6be32ad559c55307d1ca5edb14842",
     "arm": "G3_concir",
     "task": "lock-order/cycle_3lock",
-    "bug_present": "yes",
+    "bug_present": "no",
     "bug_evidence": "t1 lines 11-12 (a then b), t2 lines 18-19 (b then c), t3 lines 25-26 (a then c): inconsistent lock ordering allows deadlock, e.g. t1 holds a waits b, t2 holds b waits c, t3 holds c waits a",
     "requirements": {
       "R1": {
@@ -445,7 +445,10 @@
       },
       "prompt_cache_hit_tokens": 0,
       "prompt_cache_miss_tokens": 718
-    }
+    },
+    "agent_bug_present": "yes",
+    "reclassification": "agent_false_positive",
+    "reclassification_reason": "lock order is acyclic: t1 acquires a then b, t2 b then c, t3 a then c; edges a->b, b->c, a->c give the total order a<b<c (no cycle), so conform/monitor acceptance is correct"
   },
   {
     "sha256": "d26c9bce8bbd6b25425523a0a24b3806a6ed160d30e01b508e8981e11d706d85",
@@ -1673,7 +1676,7 @@
     "sha256": "68216e3ecd00063827580a4522ae1e002686cba1bf483e200ab16e4259b99850",
     "arm": "G3_concir",
     "task": "lock-order/cycle_3lock",
-    "bug_present": "yes",
+    "bug_present": "no",
     "bug_evidence": "t3 lines: `let _ga = a3.lock().unwrap(); let _gc = c3.lock().unwrap();` acquire a then c, while t1 acquires a then b and t2 acquires b then c; this creates a circular wait (t1 holds a waits b, t2 holds b waits c, t3 holds c waits a) violating R5/R8/R9",
     "requirements": {
       "R1": {
@@ -1729,7 +1732,10 @@
       },
       "prompt_cache_hit_tokens": 384,
       "prompt_cache_miss_tokens": 364
-    }
+    },
+    "agent_bug_present": "yes",
+    "reclassification": "agent_false_positive",
+    "reclassification_reason": "same lock-order reasoning: t3 acquires a then c (not c then a), edges a->b, b->c, a->c form the total order a<b<c (no cycle)"
   },
   {
     "sha256": "3d51be736fa28770cc940014a8d68035a2690017e47902ef117777861051f32a",

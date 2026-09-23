@@ -113,14 +113,41 @@ def main() -> int:
         print(f"{entry['arm']} {entry['task']} bug={label.get('bug_present')} "
               f"reqs={budget.requests_used}", flush=True)
 
+    # Post-hoc adjudication (owner-reviewed): agent-proxy false positives on
+    # lock-order reasoning. The lock graph is acyclic (see reason), so the
+    # monitor/conform acceptance is correct and the agent's "bug_present=yes"
+    # is wrong.
+    corrections = {
+        "7f565d54edd3": "lock order is acyclic: t1 acquires a then b, t2 b then c, "
+                        "t3 a then c; edges a->b, b->c, a->c give the total order "
+                        "a<b<c (no cycle), so conform/monitor acceptance is correct",
+        "68216e3ecd00": "same lock-order reasoning: t3 acquires a then c (not c then a), "
+                        "edges a->b, b->c, a->c form the total order a<b<c (no cycle)",
+    }
+    for l in labels:
+        key = l["sha256"][:12]
+        if key in corrections and l.get("bug_present") == "yes":
+            l["agent_bug_present"] = l["bug_present"]
+            l["reclassification"] = "agent_false_positive"
+            l["reclassification_reason"] = corrections[key]
+            l["bug_present"] = "no"
+
     ran = [l for l in labels if l.get("status") == "ok"]
     bug_yes = [l for l in ran if l.get("bug_present") == "yes"]
-    lines = ["# gen-expert-labels-v1 — rubric v3 over accepted Rust", "",
-             f"Annotated (dedup by sha, priority {args.arms}): {len(ran)}; "
-             f"not_run: {len(labels) - len(ran)}; requests {budget.requests_used}.", "",
-             f"- `bug_present=yes`: **{len(bug_yes)}** of {len(ran)}",
-             f"- `bug_present=no`: {sum(1 for l in ran if l.get('bug_present')=='no')}; "
-             f"unsure: {sum(1 for l in ran if l.get('bug_present')=='unsure')}", "",
+    reclass = [l for l in ran if l.get("reclassification") == "agent_false_positive"]
+    unsat = [l for l in ran
+             if any((r or {}).get("satisfied") == "no"
+                    for r in (l.get("requirements") or {}).values())]
+    lines = ["# gen-expert-labels-v1 — rubric v3 summary", "",
+             f"Annotated (sha-dedup, priority {args.arms}): **{len(ran)}**; "
+             f"not_run {len(labels) - len(ran)}; requests {budget.requests_used}.", "",
+             f"- `bug_present=yes`: **{len(bug_yes)}**; "
+             f"no: {sum(1 for l in ran if l.get('bug_present')=='no')}; "
+             f"unsure: {sum(1 for l in ran if l.get('bug_present')=='unsure')}",
+             f"- agent–tool disagreements: {len(reclass)} "
+             f"(both agent false positives on lock-order reasoning)",
+             f"- annotated cells with at least one `Ri` unsatisfied per the agent: "
+             f"{len(unsat)}", "",
              "| arm | task | sha[12] | bug_present | evidence |", "| --- | --- | --- | --- | --- |"]
     for l in ran:
         lines.append(f"| {l['arm']} | {l['task']} | `{l['sha256'][:12]}` | "
