@@ -23,6 +23,29 @@ computation, data formatting, and the exact terminal output line. If the two
 disagree, **follow the CIR**. If the requirement document names a thread or a
 resource, use that name.
 
+## Library
+
+Besides the standard library, a counting semaphore is provided as
+`concir_sync::Semaphore` (declare `mod concir_sync;`): `Semaphore::new(n)`
+(returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases),
+`try_acquire()`, and `release()`. Use this for CIR `Semaphore` resources; do
+**not** implement your own semaphore out of a mutex and a condition variable.
+
+## Entity conventions
+
+- Each CIR `Mutex`/`Condvar`/`Channel`/`Semaphore` resource corresponds to
+  exactly one synchronization primitive in your program, under the same name.
+  Do not introduce a synchronization primitive that the CIR does not have.
+- A CIR `var`/`Atomic` is ordinary shared data: put it inside the `Mutex` that
+  protects it (or keep it local) and access it under that lock. **Do not add a
+  separate lock for a `var`.**
+- Implement a CIR `condvar_wait` as `while !predicate { guard = cv.wait(guard) }`
+  with the predicate guarded by the paired mutex. The release and reacquisition
+  of the mutex are implicit in the wait.
+- `main` does only what the CIR `main` does: start and join the named threads
+  and print the terminal line. It must not access shared state the CIR `main`
+  does not access.
+
 ## Rules
 
 - One file, compiled as a binary crate; define `fn main`.

@@ -19,3 +19,5 @@ Rules:
 - Ensure every spawned thread is joined and `main` terminates.
 - Output only the Rust source inside a single ```rust code fence. No prose
   outside the fence.
+
+Besides the standard library, a counting semaphore is provided as `concir_sync::Semaphore` (declare `mod concir_sync;`): `new(n)`, `acquire()` (permit drop releases), `try_acquire()`, `release()`. Use it for counting-semaphore requirements; do not implement your own semaphore from a mutex and a condition variable.

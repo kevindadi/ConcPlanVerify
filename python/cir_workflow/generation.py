@@ -499,9 +499,26 @@ def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
         for fn in mod.get("functions", []):
             if fn.get("name") != "main":
                 workers.append(f"{mod['name']}::{fn['name']}")
-    for src, dst in zip(spawns, workers):
-        mapping[src] = dst
-    return mapping, {"by_kind": {k: v for k, v in by_kind.items()}}
+    short = {w.rsplit("::", 1)[-1]: w for w in workers}
+    used: set[str] = set()
+    # Name-first alignment: the spawn's callee name must match a CIR worker.
+    for src in spawns:
+        s = src.rsplit("::", 1)[-1]
+        if s in short and short[s] not in used:
+            mapping[src] = short[s]
+            used.add(short[s])
+    # Fall back to declaration order for anything still unaligned.
+    remaining = [w for w in workers if w not in used]
+    for src in spawns:
+        if src in mapping:
+            continue
+        s = src.rsplit("::", 1)[-1]
+        if s in short:  # one worker may back several threads
+            mapping[src] = short[s]
+        elif remaining:
+            mapping[src] = remaining.pop(0)
+    return mapping, {"by_kind": {k: v for k, v in by_kind.items()},
+                     "threads": {src: mapping.get(src) for src in spawns}}
 
 
 def _rewrite_traces(src_dir: Path, dst_dir: Path, mapping: dict[str, str],
@@ -587,7 +604,8 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
             continue
         info["instrument_limit"] = wrapped["limitations"]
         project = out_dir / f"round-{round_no}" / "proj"
-        rust_oracle.prepare_project(project, wrapped["annotated"], wrapped["runtime"])
+        rust_oracle.prepare_project(project, wrapped["annotated"], wrapped["runtime"],
+                                    wrapped.get("sync_runtime"))
         built, build_log = rust_oracle.cargo_build(project)
         if not built:
             info["decision"] = "build_failed"
@@ -635,8 +653,10 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
                           "thread is joined and main prints the terminal line.")
         if not conform_ok and conform["first_violation"]:
             fv = conform["first_violation"]
-            pieces.append(f"Conformance violation: {fv.get('detail')} "
-                          f"(event {fv.get('event_index')}).")
+            kind = _conform_kind(fv)
+            info["first_violation"] = fv
+            info["conform_kind"] = kind
+            pieces.append(_explain_violation(fv, kind))
         if not monitor_ok:
             pieces.append("Requirement checks that failed: "
                           + ", ".join(info["monitor_fail"]) + ".")
@@ -684,6 +704,42 @@ def run_g3_v2(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
 def _usage_get(outcome, key: str):
     usage = getattr(outcome, "usage", None) or {}
     return usage.get(key)
+
+
+_VIOLATION_EXPLAIN = {
+    "extra_op": "You introduced a synchronization operation the design does not "
+                "have. A CIR `var` must live inside the mutex that protects it, "
+                "not behind a new lock, and `main` must not add shared-state access.",
+    "order": "The synchronization operations are out of the design's order; replay "
+             "the CIR statements in order.",
+    "resource": "An operation used a resource that does not match the design at "
+                "this point.",
+    "unmapped_resource": "A design resource could not be recognised in the code; "
+                         "use the exact entity names and the provided primitives.",
+}
+
+
+def _conform_kind(violation: dict[str, Any] | None) -> str | None:
+    if not violation:
+        return None
+    if violation.get("status") == "unknown_sid":
+        return "unmapped_resource"
+    got = violation.get("got") or ""
+    op = got.split(":")[0]
+    expected = violation.get("expected") or []
+    if not expected:
+        return "extra_op" if op in ("mutex_lock", "mutex_unlock") else "order"
+    if any(str(e).split(":")[0] == op for e in expected):
+        return "resource"
+    return "order"
+
+
+def _explain_violation(violation: dict[str, Any], kind: str | None) -> str:
+    return (f"Conformance violation at event {violation.get('event_index')}: "
+            f"observed {violation.get('got')}, expected one of "
+            f"{violation.get('expected')}. "
+            f"{_VIOLATION_EXPLAIN.get(kind or '', '')} "
+            f"[detail: {violation.get('detail')}]")
 
 
 def _extract_rust_body(text: str) -> str | None:

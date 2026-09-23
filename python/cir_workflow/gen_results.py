@@ -38,24 +38,31 @@ def _tokens(cell: dict) -> int:
 
 
 def _defect(cell: dict) -> bool:
+    """Unified across arms: accepted and (behavior hang or monitor FAIL).
+
+    Miri-detected cells are added by the batch that runs Miri; the cell record
+    carries `miri_detected` when available.
+    """
     if not cell.get("accepted"):
         return False
     rec = cell.get("record") or {}
-    if cell["arm"] == "G3_concir":
-        conform = rec.get("conform") or {}
-        return bool(rec.get("behavior_hang") or (conform.get("violation") or 0) > 0
-                    or (rec.get("model") or {}).get("outcome") not in ("PASS", None))
-    return bool(cell.get("hang") or cell.get("monitor_fail"))
+    return bool(cell.get("hang") or cell.get("monitor_fail")
+                or rec.get("miri_detected"))
 
 
 def aggregate(cells: list[dict]) -> dict:
     accepted = [c for c in cells if c.get("accepted")]
+    # RF_all: a non-accepted cell counts as 0 (delivery quality including
+    # failures). RF_acc: only accepted cells. RF_run: mean over the cells that
+    # carry a monitor value (kept for comparison with freeze-5).
+    rf_all = [(c.get("rf") or 0.0) if c.get("accepted") else 0.0 for c in cells]
     return {
         "n": len(cells), "accepted": len(accepted),
         "accept_rate": round(len(accepted) / len(cells), 3) if cells else None,
         "rc": _mean([c.get("rc") for c in cells]),
-        "rf": _mean([c.get("rf") for c in cells]),
+        "rf_all": round(sum(rf_all) / len(rf_all), 3) if rf_all else None,
         "rf_acc": _mean([c.get("rf") for c in accepted]),
+        "rf_run": _mean([c.get("rf") for c in cells]),
         "defect": sum(1 for c in cells if _defect(c)),
         "awp": sum(1 for c in cells if c.get("accepted_with_proof")),
         "tokens": sum(_tokens(c) for c in cells),
@@ -74,17 +81,19 @@ def render_md(cells: dict, batches: list[Path] | None = None) -> str:
     if batches:
         lines += ["", "Batches (later overrides earlier): "
                   + ", ".join(f"`{Path(b).name}`" for b in batches) + "."]
-    lines += ["", "| arm | cells | accepted | accept rate | RC | RF_all | RF_acc | defect | awp | tokens |",
-              "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    lines += ["", "| arm | cells | accepted | accept rate | RC | RF_all | RF_acc | RF_run | defect | awp | tokens |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+              "`RF_all` counts non-accepted cells as 0; `RF_acc` covers accepted cells; "
+              "`RF_run` averages cells that carry a monitor value (freeze-5 wording)."]
     for arm in ARMS:
         a = aggregate([c for c in all_cells if c["arm"] == arm])
         lines.append(f"| {arm} | {a['n']} | {a['accepted']} | {a['accept_rate']} | "
-                     f"{a['rc']} | {a['rf']} | {a['rf_acc']} | {a['defect']} | "
-                     f"{a['awp']} | {a['tokens']} |")
+                     f"{a['rc']} | {a['rf_all']} | {a['rf_acc']} | {a['rf_run']} | "
+                     f"{a['defect']} | {a['awp']} | {a['tokens']} |")
     a = aggregate(all_cells)
     lines.append(f"| **all** | {a['n']} | {a['accepted']} | {a['accept_rate']} | "
-                 f"{a['rc']} | {a['rf']} | {a['rf_acc']} | {a['defect']} | "
-                 f"{a['awp']} | {a['tokens']} |")
+                 f"{a['rc']} | {a['rf_all']} | {a['rf_acc']} | {a['rf_run']} | "
+                 f"{a['defect']} | {a['awp']} | {a['tokens']} |")
     lines += ["", "Per tier (RF):", "",
               "| tier | " + " | ".join(ARMS) + " |",
               "| --- | " + " | ".join("---" for _ in ARMS) + " |"]
@@ -94,8 +103,7 @@ def render_md(cells: dict, batches: list[Path] | None = None) -> str:
             agg = aggregate([c for c in all_cells if c["arm"] == arm and c.get("tier") == tier])
             row.append(str(agg["rf"]))
         lines.append("| " + " | ".join(row) + " |")
-    lines += ["", "`defect` = accepted and (hang/behavior or monitor/conform "
-              "violation). `awp` is G3-only (model PASS and conform PASS)."]
+    lines += ["", "`defect` = accepted and (behavior hang or monitor FAIL or conform violation). `awp` is G3-only (model PASS, conform PASS, no monitor FAIL)."]
     return "\n".join(lines) + "\n"
 
 
@@ -107,10 +115,10 @@ def render_tex(cells: dict) -> dict[str, str]:
     for arm in ARMS:
         a = aggregate([c for c in all_cells if c["arm"] == arm])
         main.append(f"{arm.replace('_', chr(92)+'_')} & {a['n']} & {a['accept_rate']} & "
-                    f"{a['rf']} & {a['rf_acc']} & {a['defect']} & {a['awp']} & "
+                    f"{a['rf_all']} & {a['rf_acc']} & {a['defect']} & {a['awp']} & "
                     f"{a['tokens']} \\\\")
     a = aggregate(all_cells)
-    main += ["\\midrule", f"all & {a['n']} & {a['accept_rate']} & {a['rf']} & "
+    main += ["\\midrule", f"all & {a['n']} & {a['accept_rate']} & {a['rf_all']} & "
              f"{a['rf_acc']} & {a['defect']} & {a['awp']} & {a['tokens']} \\\\",
              "\\bottomrule", "\\end{tabular}"]
     arms = ["\\begin{tabular}{lrrr}", "\\toprule", "arm & acc. rate & RC & RF \\\\",
@@ -118,7 +126,7 @@ def render_tex(cells: dict) -> dict[str, str]:
     for arm in ARMS:
         a = aggregate([c for c in all_cells if c["arm"] == arm])
         arms.append(f"{arm.replace('_', chr(92)+'_')} & {a['accept_rate']} & {a['rc']} & "
-                    f"{a['rf']} \\\\")
+                    f"{a['rf_all']} \\\\")
     arms += ["\\bottomrule", "\\end{tabular}"]
     tiers = ["\\begin{tabular}{l" + "r" * len(ARMS) + "}", "\\toprule",
              "tier & " + " & ".join(a.replace("_", "\\_") for a in ARMS) + " \\\\",
@@ -127,7 +135,7 @@ def render_tex(cells: dict) -> dict[str, str]:
         row = [tier]
         for arm in ARMS:
             a = aggregate([c for c in all_cells if c["arm"] == arm and c.get("tier") == tier])
-            row.append(str(a["rf"]))
+            row.append(str(a["rf_all"]))
         tiers.append(" & ".join(row) + " \\\\")
     tiers += ["\\bottomrule", "\\end{tabular}"]
 
@@ -153,7 +161,7 @@ def render_tex(cells: dict) -> dict[str, str]:
     for arm in ("G3_concir", "G3_codegen"):
         a = aggregate([c for c in all_cells if c["arm"] == arm])
         ablation.append(f"{arm.replace('_', chr(92)+'_')} & {a['n']} & {a['accept_rate']} & "
-                        f"{a['rf']} & {a['rf_acc']} & {a['awp']} \\\\")
+                        f"{a['rf_all']} & {a['rf_acc']} & {a['awp']} \\\\")
     ablation += ["\\bottomrule", "\\end{tabular}"]
 
     conform_caught = 0
@@ -186,6 +194,7 @@ def probe_aggregate(cells: list[dict]) -> dict:
         "accept_rate": round(len(accepted) / len(ran), 3) if ran else None,
         "rc": _mean([c.get("rc") for c in ran]),
         "rf": _mean([c.get("rf") for c in ran]),
+        "rf_all": round(sum((c.get("rf") or 0.0) if c.get("accepted") else 0.0 for c in ran) / len(ran), 3) if ran else None,
         "defect": sum(1 for c in ran if _defect(c)),
         "awp": sum(1 for c in ran if c.get("accepted_with_proof")),
         "tokens": sum(_tokens(c) for c in ran),
@@ -196,27 +205,27 @@ def render_probe_md(model: str, cells: list[dict], temperature: Any) -> str:
     lines = ["", "## Generation with a frontier model — `gen-model-probe-v1`", "",
              f"Model `{model}` (OpenCode Go, chat/completions), 1 rep, K=4, "
              f"temperature {temperature}.", "",
-             "| arm | cells | not_run | accepted | accept rate | RC | RF | defect | awp | tokens |",
+             "| arm | cells | not_run | accepted | accept rate | RC | RF_all | defect | awp | tokens |",
              "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for arm in PROBE_ARMS:
         a = probe_aggregate([c for c in cells if c["arm"] == arm])
         lines.append(f"| {arm} | {a['n']} | {a['not_run']} | {a['accepted']} | "
-                     f"{a['accept_rate']} | {a['rc']} | {a['rf']} | {a['defect']} | "
+                     f"{a['accept_rate']} | {a['rc']} | {a['rf_all']} | {a['defect']} | "
                      f"{a['awp']} | {a['tokens']} |")
     a = probe_aggregate(cells)
     lines.append(f"| **all** | {a['n']} | {a['not_run']} | {a['accepted']} | "
-                 f"{a['accept_rate']} | {a['rc']} | {a['rf']} | {a['defect']} | "
+                 f"{a['accept_rate']} | {a['rc']} | {a['rf_all']} | {a['defect']} | "
                  f"{a['awp']} | {a['tokens']} |")
     return "\n".join(lines) + "\n"
 
 
 def render_probe_tex(cells: list[dict]) -> str:
     body = ["\\begin{tabular}{lrrrrrr}", "\\toprule",
-            "arm & acc. & RC & RF & defect & awp & tokens \\\\", "\\midrule"]
+            r"arm & acc. & RC & RF\_all & defect & awp & tokens \\", r"\midrule"]
     for arm in PROBE_ARMS:
         a = probe_aggregate([c for c in cells if c["arm"] == arm])
         body.append(f"{arm.replace('_', chr(92)+'_')} & {a['accept_rate']} & {a['rc']} & "
-                    f"{a['rf']} & {a['defect']} & {a['awp']} & {a['tokens']} \\\\")
+                    f"{a['rf_all']} & {a['defect']} & {a['awp']} & {a['tokens']} \\\\")
     body += ["\\bottomrule", "\\end{tabular}"]
     return "\n".join(body) + "\n"
 
