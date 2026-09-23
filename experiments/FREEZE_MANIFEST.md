@@ -196,3 +196,24 @@ Directory hash recipe as above (excluding `*/target/*`).
 
 - ConcPV `experiments-v2-freeze-1..8`, `contracts-v3`, `contracts-v3.1`
 - ConcIR `concir-freeze-1..7`
+
+---
+
+# Freeze 9 — provenance, kimi code stage, expert labels, paired CIs (2026-09-23)
+
+- `experiments/flash-gen-main-v5-code`: files=13705 sha256=`54e53875f14be3326a3a6af5eb958293ea010ae30218726038c789230986c871`
+- `experiments/gen-model-probe-v3-code`: files=1940 sha256=`f9ea1e7d42c4b4354d30202df9180f05dae61a09592de478ea8eba2f013e4969`
+- `experiments/gen-expert-labels-v1`: files=47 sha256=`6bc44ba3a7b6b0699e7cf2cfc771ec1abe7e7e30e3813bfecf591c6212a2396a`
+- `experiments/tables`: files=18 sha256=`c34e63ede8a5faeba419817ef957bc4c96c2eec210be8de46b270e4c040dcee7`
+
+## Provenance
+
+- ConcPlanVerify commit: this commit (tag `experiments-v2-freeze-9`).
+- ConcIR unchanged: `3aacc52` (tag `concir-freeze-7`).
+- Per-cell provenance in `experiments/PROVENANCE.md` and `experiments/CELLS.json`.
+- kimi-k3 G3 code stage: 24 requests; expert labels: 40; harness unchanged.
+
+## Tags
+
+- ConcPV `experiments-v2-freeze-1..9`, `contracts-v3`, `contracts-v3.1`
+- ConcIR `concir-freeze-1..7`

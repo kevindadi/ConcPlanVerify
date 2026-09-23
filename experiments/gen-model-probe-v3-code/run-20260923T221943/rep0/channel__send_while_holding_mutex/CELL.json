@@ -1,0 +1,65 @@
+{
+  "arm": "G3_concir_llmcode",
+  "task": "channel/send_while_holding_mutex",
+  "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/gen-model-probe-v2/run-20260923T005349/channel__send_while_holding_mutex/G3_concir/cir/revision-2.cir.json",
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "build_failed",
+      "prompt_tokens": 2122,
+      "completion_tokens": 2055,
+      "llm_ms": 30607,
+      "instrument_limit": [
+        "thread::scope tags are runtime-derived, scope event absent"
+      ]
+    },
+    {
+      "round": 2,
+      "decision": "post_verify_fail",
+      "prompt_tokens": 2481,
+      "completion_tokens": 2361,
+      "llm_ms": 99136,
+      "instrument_limit": [
+        "thread::scope tags are runtime-derived, scope event absent"
+      ],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 0,
+        "traces": 32,
+        "statuses": {
+          "violation": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "first_violation": {
+        "binary_sha256": "627b3fb605662c6b1f40bd77998b6e6bd7c6a6d3b0acaed1e9628b2e3f548a30",
+        "coverage": {
+          "sids_seen": 0,
+          "sids_total": 11
+        },
+        "detail": "no model statement matches channel_recv on \"ch1_rx\" (thread t2)",
+        "event_index": 5,
+        "events": 12,
+        "expected": [],
+        "git_rev": "fe34a43ea090a3a18f609fae6b9bfc0217a4611f",
+        "got": "channel_recv:ch1_rx",
+        "post_join_main_ops": [],
+        "status": "violation",
+        "wrapper_ops": []
+      },
+      "conform_kind": "order"
+    },
+    {
+      "round": 3,
+      "decision": "format_error",
+      "prompt_tokens": 2196,
+      "completion_tokens": 4096,
+      "llm_ms": 231709
+    }
+  ],
+  "accepted": false,
+  "accepted_with_proof": false,
+  "status": "generation_failed",
+  "instrument_limit": null
+}

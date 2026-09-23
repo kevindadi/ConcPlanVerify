@@ -2,7 +2,7 @@
 
 > **Generated file — do not edit by hand.** Regenerate with:
 > ```
-> python -m cir_workflow results results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --expert experiments/flash-repair-main-v1/expert-labels/EXPERT_LABELS.json --extraction experiments/extraction-v5 --trackd experiments/detection-v3/TRACKD.json --scale experiments/scale-v2/SCALE.json --mutation experiments/conform-mutation-v2/SUMMARY.json --postedit experiments/post-edit-conform-v2/SUMMARY.json --mutation-v1 experiments/conform-mutation-v1/SUMMARY.json --postedit-v1 experiments/post-edit-conform-v1/SUMMARY.json --modelprobe experiments/model-probe-v2 --gen experiments/flash-gen-main-v5-code/run-20260923T211345 --genprobe experiments/gen-model-probe-v2 --latex experiments/tables --output experiments/RESULTS.md
+> python -m cir_workflow results results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --expert experiments/flash-repair-main-v1/expert-labels/EXPERT_LABELS.json --extraction experiments/extraction-v5 --trackd experiments/detection-v3/TRACKD.json --scale experiments/scale-v2/SCALE.json --mutation experiments/conform-mutation-v2/SUMMARY.json --postedit experiments/post-edit-conform-v2/SUMMARY.json --mutation-v1 experiments/conform-mutation-v1/SUMMARY.json --postedit-v1 experiments/post-edit-conform-v1/SUMMARY.json --modelprobe experiments/model-probe-v2 --gen experiments/flash-gen-main-v5-code/run-20260923T211345 --genprobe experiments/gen-model-probe-v3-code --latex experiments/tables --output experiments/RESULTS.md
 > ```
 
 ## Provenance
@@ -13,7 +13,7 @@
 - track D: `experiments/detection-v3/TRACKD.json`
 - scale: `experiments/scale-v2/SCALE.json`
 - generation batch: `experiments/flash-gen-main-v5-code/run-20260923T211345`
-- generation probe: `experiments/gen-model-probe-v2`
+- generation probe: `experiments/gen-model-probe-v3-code`
 - binary sha256: `4bec943dd486473caab24b17233b536e31641fbbb1e3d8d505d499b3113fb3f2`
 - binary v2 (conform) sha256: `073129de3a6d378a4e198bf712028c0c950cdf080981fb0073dfb7af5fa7ce5c`
 - protocol[0] sha256: `b869a532588c83b2520f4c8df40e4be36c848789e9b7714301b1a22f9159e7f0`
@@ -503,13 +503,12 @@ Per tier (RF):
 
 `defect` = accepted and (behavior hang or monitor FAIL or conform violation). `awp` is G3-only (model PASS, conform PASS, no monitor FAIL).
 
-## Generation with a frontier model — `gen-model-probe-v1`
+## Generation with a frontier model
 
 Model `kimi-k3` (OpenCode Go, chat/completions), 1 rep, K=4, temperature None.
 
 | arm | cells | not_run | accepted | accept rate | RC | RF_all | defect | awp | tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | G0_direct | 24 | 0 | 23 | 0.958 | 0.63 | 0.446 | 0 | 0 | 56895 |
-| G2_tools_iter | 0 | 0 | 0 | None | None | None | 0 | 0 | 0 |
-| G3_concir | 24 | 0 | 11 | 0.458 | 0.621 | 0.274 | 0 | 11 | 233964 |
-| **all** | 48 | 0 | 34 | 0.708 | 0.627 | 0.36 | 0 | 11 | 290859 |
+| G3_concir | 24 | 0 | 17 | 0.708 | 0.676 | 0.479 | 0 | 17 | 110583 |
+| **all** | 48 | 0 | 40 | 0.833 | 0.65 | 0.462 | 0 | 17 | 167478 |

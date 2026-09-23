@@ -209,13 +209,15 @@ def probe_aggregate(cells: list[dict]) -> dict:
 
 
 def render_probe_md(model: str, cells: list[dict], temperature: Any) -> str:
-    lines = ["", "## Generation with a frontier model — `gen-model-probe-v1`", "",
+    lines = ["", "## Generation with a frontier model", "",
              f"Model `{model}` (OpenCode Go, chat/completions), 1 rep, K=4, "
              f"temperature {temperature}.", "",
              "| arm | cells | not_run | accepted | accept rate | RC | RF_all | defect | awp | tokens |",
              "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for arm in PROBE_ARMS:
         a = probe_aggregate([c for c in cells if c["arm"] == arm])
+        if a["n"] == 0:
+            continue
         lines.append(f"| {arm} | {a['n']} | {a['not_run']} | {a['accepted']} | "
                      f"{a['accept_rate']} | {a['rc']} | {a['rf_all']} | {a['defect']} | "
                      f"{a['awp']} | {a['tokens']} |")
@@ -231,6 +233,8 @@ def render_probe_tex(cells: list[dict]) -> str:
             r"arm & acc. & RC & RF\_all & defect & awp & tokens \\", r"\midrule"]
     for arm in PROBE_ARMS:
         a = probe_aggregate([c for c in cells if c["arm"] == arm])
+        if a["n"] == 0:
+            continue
         body.append(f"{arm.replace('_', chr(92)+'_')} & {a['accept_rate']} & {a['rc']} & "
                     f"{a['rf_all']} & {a['defect']} & {a['awp']} & {a['tokens']} \\\\")
     body += [r"\bottomrule", r"\end{tabular}"]
