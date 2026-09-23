@@ -349,3 +349,18 @@ Registered deviations (must be repeated in the handoff):
 - Contract strength is recomputed from the **frozen** `benchmarks/families/<task>/
   contract.json` by `python -m cir_workflow contract-strength` (no derived
   contracts).
+
+## Harness evolution (v2 → v5)
+
+The harness changed six times between the v2 main batch and the v5 code-stage
+run. Each change is a checker/plumbing fix (never a change to the contract or
+the benchmark), and the affected baselines were re-run under the same harness.
+
+| # | change | triggered by | affected cells | baselines re-run in same harness? |
+| --- | --- | --- | --- | --- |
+| 1 | `Condvar::wait` emits one `condvar_wait` (no implicit unlock/lock) | REVIEW O-1 / `FAILURES.md` condvar rows | condvar family (G3 code) | yes (v4 code stage) |
+| 2 | `concir_sync` provided as a crate dependency | REVIEW Q-1 / FAILURES R-1-era build fails | all arms on semaphore/scope | yes (v4/v5) |
+| 3 | conform allows post-join main ops (`post_join_main_ops`) | REVIEW P-2 | atomic-data, structure, channel (G3) | n/a (G3 only) |
+| 4 | channel wrapper-mutex events ignored (`ChannelWrapper`) | REVIEW Q-4 | channel family | channel baselines re-run v5 |
+| 5 | `Semaphore::release` removed; `Permit` releases once | REVIEW Q-3 / FAILURES double-release | semaphore family (G3) | yes (v5) |
+| 6 | one shared cargo-project template for all arms | REVIEW Q-1 | baseline semaphore/channel | yes (v5) |

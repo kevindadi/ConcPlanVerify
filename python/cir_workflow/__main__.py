@@ -422,6 +422,15 @@ def main(argv: list[str] | None = None) -> int:
                          gen_batches=[Path(p) for p in args.gen],
                          genprobe_dir=(Path(args.genprobe) if args.genprobe else None))
             Path(args.output).write_text(text, encoding="utf-8")
+            if args.gen:
+                from . import gen_results
+                gen_all = gen_results.load_cells([Path(p) for p in args.gen])
+                repo_root = Path(__file__).resolve().parents[2]
+                (repo_root / "experiments/PROVENANCE.md").write_text(
+                    gen_results.render_provenance(gen_all), encoding="utf-8")
+                (repo_root / "experiments/CELLS.json").write_text(
+                    json.dumps(gen_results.cell_index(gen_all), indent=2) + "\n",
+                    encoding="utf-8")
             written = []
             if args.latex:
                 summaries = load_summaries(batch)
