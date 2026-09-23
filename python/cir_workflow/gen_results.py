@@ -135,7 +135,7 @@ def render_tex(cells: dict) -> dict[str, str]:
         row = [tier]
         for arm in ARMS:
             a = aggregate([c for c in all_cells if c["arm"] == arm and c.get("tier") == tier])
-            row.append(str(a["rf_all"]))
+            row.append(str(a["rf_acc"]))
         tiers.append(" & ".join(row) + " \\\\")
     tiers += ["\\bottomrule", "\\end{tabular}"]
 
