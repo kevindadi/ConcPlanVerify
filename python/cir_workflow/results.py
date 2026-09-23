@@ -245,7 +245,8 @@ def aggregate(summaries: list[dict[str, Any]], expert_agg: dict[str, dict],
             "extract": _counts_display(extract_c, n),
             "conform": _counts_display(conform_c, n),
             "false_accept": fa_count, "fa_display": f"{fa_count}/{n}",
-            "fa_sources": dict(fa_sources), "decisions": dict(decisions),
+            "fa_sources": {k: fa_sources[k] for k in sorted(fa_sources)},
+            "decisions": {k: decisions[k] for k in sorted(decisions, key=str)},
             "escalated": escalated,
         })
     return rows

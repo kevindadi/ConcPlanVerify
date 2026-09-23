@@ -91,7 +91,7 @@
 
 | arm | cells | accepted | accept_rate | false_accept | conform_pass_rate | escalation_rate | tokens/correct_accept | by source |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| A0_direct | 30 | 30 | 1.00 | 11 | — | — | 456 | {'expert': 9, 'behavior': 8, 'by_construction': 3} |
+| A0_direct | 30 | 30 | 1.00 | 11 | — | — | 456 | {'behavior': 8, 'expert': 9, 'by_construction': 3} |
 | A1_self_iter | 30 | 23 | 0.77 | 1 | — | — | 1315 | {'expert': 1} |
 | A2_tools_iter_ml | 30 | 28 | 0.93 | 3 | — | — | 715 | {'expert': 3} |
 | A3_local | 30 | 24 | 0.80 | 0 | 24/24 = 1.00 | — | 675 | — |
@@ -104,26 +104,26 @@
 
 | task | arm | decisions |
 | --- | --- | --- |
-| lock-order/partial_deadlock_bystander | A3_local | {'explore_fail': 8, 'stalled_local_patch': 3, 'stalled': 1} |
-| lock-order/partial_deadlock_bystander | A3_whole | {'explore_fail': 3, 'check_invalid': 6, 'check_schema_error': 1, 'accepted': 2} |
-| lock-order/cross_module_cycle | A3_local | {'explore_fail': 3, 'accepted': 3} |
-| lock-order/cross_module_cycle | A3_whole | {'explore_fail': 3, 'accepted': 3} |
-| lock-order/cycle_3lock | A3_local | {'explore_fail': 3, 'accepted': 3} |
-| lock-order/cycle_3lock | A3_whole | {'explore_fail': 6, 'accepted': 2, 'stalled_local_patch': 1, 'stalled': 1} |
-| structure/nested_scope_lock_order | A3_local | {'explore_fail': 3, 'accepted': 3} |
-| structure/nested_scope_lock_order | A3_whole | {'explore_fail': 3, 'check_invalid': 6, 'accepted': 2, 'check_schema_error': 1} |
-| condvar/notify_one_multi_waiter_wrong_pick | A3_local | {'explore_fail': 3, 'accepted': 3} |
-| condvar/notify_one_multi_waiter_wrong_pick | A3_whole | {'explore_fail': 3, 'check_invalid': 5, 'check_schema_error': 1, 'stalled_local_patch': 1, 'accepted': 2} |
-| channel/bounded_backpressure_lock_held | A3_local | {'explore_fail': 3, 'accepted': 3} |
-| channel/bounded_backpressure_lock_held | A3_whole | {'explore_fail': 3, 'check_invalid': 6, 'accepted': 3} |
-| channel/send_while_holding_mutex | A3_local | {'explore_fail': 3, 'accepted': 3} |
-| channel/send_while_holding_mutex | A3_whole | {'explore_fail': 3, 'check_invalid': 3, 'accepted': 3} |
-| semaphore/acquire_twice_no_release | A3_local | {'explore_fail': 3, 'accepted': 3} |
-| semaphore/acquire_twice_no_release | A3_whole | {'explore_fail': 3, 'accepted': 3} |
-| lock-order/abba_2lock | A3_local | {'explore_fail': 3, 'accepted': 3} |
-| lock-order/abba_2lock | A3_whole | {'explore_fail': 3, 'accepted': 3} |
-| condvar/bare_wait_no_predicate | A3_local | {'explore_fail': 6, 'check_schema_error': 6} |
-| condvar/bare_wait_no_predicate | A3_whole | {'explore_fail': 3, 'check_invalid': 4, 'accepted': 3} |
+| lock-order/partial_deadlock_bystander | A3_local | {'explore_fail': 8, 'stalled': 1, 'stalled_local_patch': 3} |
+| lock-order/partial_deadlock_bystander | A3_whole | {'accepted': 2, 'check_invalid': 6, 'check_schema_error': 1, 'explore_fail': 3} |
+| lock-order/cross_module_cycle | A3_local | {'accepted': 3, 'explore_fail': 3} |
+| lock-order/cross_module_cycle | A3_whole | {'accepted': 3, 'explore_fail': 3} |
+| lock-order/cycle_3lock | A3_local | {'accepted': 3, 'explore_fail': 3} |
+| lock-order/cycle_3lock | A3_whole | {'accepted': 2, 'explore_fail': 6, 'stalled': 1, 'stalled_local_patch': 1} |
+| structure/nested_scope_lock_order | A3_local | {'accepted': 3, 'explore_fail': 3} |
+| structure/nested_scope_lock_order | A3_whole | {'accepted': 2, 'check_invalid': 6, 'check_schema_error': 1, 'explore_fail': 3} |
+| condvar/notify_one_multi_waiter_wrong_pick | A3_local | {'accepted': 3, 'explore_fail': 3} |
+| condvar/notify_one_multi_waiter_wrong_pick | A3_whole | {'accepted': 2, 'check_invalid': 5, 'check_schema_error': 1, 'explore_fail': 3, 'stalled_local_patch': 1} |
+| channel/bounded_backpressure_lock_held | A3_local | {'accepted': 3, 'explore_fail': 3} |
+| channel/bounded_backpressure_lock_held | A3_whole | {'accepted': 3, 'check_invalid': 6, 'explore_fail': 3} |
+| channel/send_while_holding_mutex | A3_local | {'accepted': 3, 'explore_fail': 3} |
+| channel/send_while_holding_mutex | A3_whole | {'accepted': 3, 'check_invalid': 3, 'explore_fail': 3} |
+| semaphore/acquire_twice_no_release | A3_local | {'accepted': 3, 'explore_fail': 3} |
+| semaphore/acquire_twice_no_release | A3_whole | {'accepted': 3, 'explore_fail': 3} |
+| lock-order/abba_2lock | A3_local | {'accepted': 3, 'explore_fail': 3} |
+| lock-order/abba_2lock | A3_whole | {'accepted': 3, 'explore_fail': 3} |
+| condvar/bare_wait_no_predicate | A3_local | {'check_schema_error': 6, 'explore_fail': 6} |
+| condvar/bare_wait_no_predicate | A3_whole | {'accepted': 3, 'check_invalid': 4, 'explore_fail': 3} |
 
 ### Expert labels
 
