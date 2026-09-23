@@ -117,7 +117,7 @@ def render_tex(cells: dict) -> dict[str, str]:
     all_cells = list(cells.values())
     main = ["\\begin{tabular}{lrrrrrrr}", "\\toprule",
             "arm & cells & acc. & RF\\_all & RF\\_acc & defect & awp & tokens \\\\",
-            "\\midrule"]
+            r"\midrule"]
     for arm in ARMS:
         a = aggregate([c for c in all_cells if c["arm"] == arm])
         main.append(f"{arm.replace('_', chr(92)+'_')} & {a['n']} & {a['accept_rate']} & "
@@ -126,24 +126,24 @@ def render_tex(cells: dict) -> dict[str, str]:
     a = aggregate(all_cells)
     main += ["\\midrule", f"all & {a['n']} & {a['accept_rate']} & {a['rf_all']} & "
              f"{a['rf_acc']} & {a['defect']} & {a['awp']} & {a['tokens']} \\\\",
-             "\\bottomrule", "\\end{tabular}"]
+             r"\bottomrule", r"\end{tabular}"]
     arms = ["\\begin{tabular}{lrrr}", "\\toprule", "arm & acc. rate & RC & RF \\\\",
-            "\\midrule"]
+            r"\midrule"]
     for arm in ARMS:
         a = aggregate([c for c in all_cells if c["arm"] == arm])
         arms.append(f"{arm.replace('_', chr(92)+'_')} & {a['accept_rate']} & {a['rc']} & "
                     f"{a['rf_all']} \\\\")
-    arms += ["\\bottomrule", "\\end{tabular}"]
+    arms += [r"\bottomrule", r"\end{tabular}"]
     tiers = ["\\begin{tabular}{l" + "r" * len(ARMS) + "}", "\\toprule",
              "tier & " + " & ".join(a.replace("_", "\\_") for a in ARMS) + " \\\\",
-             "\\midrule"]
+             r"\midrule"]
     for tier in TIERS:
         row = [tier]
         for arm in ARMS:
             a = aggregate([c for c in all_cells if c["arm"] == arm and c.get("tier") == tier])
             row.append(str(a["rf_acc"]))
         tiers.append(" & ".join(row) + " \\\\")
-    tiers += ["\\bottomrule", "\\end{tabular}"]
+    tiers += [r"\bottomrule", r"\end{tabular}"]
 
     g3 = [c for c in all_cells if c["arm"] == "G3_concir"]
     v2recs = [c.get("record") or {} for c in g3]
@@ -160,15 +160,15 @@ def render_tex(cells: dict) -> dict[str, str]:
               "stage & cells & mean rounds & tokens \\\\", "\\midrule",
               f"CIR & {len(cir_rounds)} & {_mean(cir_rounds)} & {cir_tokens} \\\\",
               f"code & {len(code_rounds)} & {_mean(code_rounds)} & {code_tokens} \\\\",
-              "\\bottomrule", "\\end{tabular}"]
+              r"\bottomrule", r"\end{tabular}"]
 
     ablation = ["\\begin{tabular}{lrrrrr}", "\\toprule",
-                "arm & cells & acc. & RF\\_all & RF\\_acc & awp \\\\", "\\midrule"]
+                "arm & cells & acc. & RF\\_all & RF\\_acc & awp \\\\", r"\midrule"]
     for arm in ("G3_concir", "G3_codegen"):
         a = aggregate([c for c in all_cells if c["arm"] == arm])
         ablation.append(f"{arm.replace('_', chr(92)+'_')} & {a['n']} & {a['accept_rate']} & "
                         f"{a['rf_all']} & {a['rf_acc']} & {a['awp']} \\\\")
-    ablation += ["\\bottomrule", "\\end{tabular}"]
+    ablation += [r"\bottomrule", r"\end{tabular}"]
 
     conform_caught = 0
     code_cells = 0
@@ -182,14 +182,15 @@ def render_tex(cells: dict) -> dict[str, str]:
     conform_value = ["\\begin{tabular}{lr}", "\\toprule",
                      "G3 code cells & " + str(len(code_rounds)) + " \\\\",
                      "conform rejected a round & " + str(conform_caught) + " \\\\",
-                     "\\bottomrule", "\\end{tabular}"]
+                     r"\bottomrule", r"\end{tabular}"]
 
     return {"gen_main.tex": "\n".join(main) + "\n",
             "gen_arms.tex": "\n".join(arms) + "\n",
             "gen_tiers.tex": "\n".join(tiers) + "\n",
             "gen_g3_stages.tex": "\n".join(stages) + "\n",
             "gen_codegen_ablation.tex": "\n".join(ablation) + "\n",
-            "gen_conform_value.tex": "\n".join(conform_value) + "\n"}
+            "gen_conform_value.tex": "\n".join(conform_value) + "\n",
+            "gen_ci.tex": ci_table(cells)}
 
 
 def probe_aggregate(cells: list[dict]) -> dict:
@@ -232,7 +233,7 @@ def render_probe_tex(cells: list[dict]) -> str:
         a = probe_aggregate([c for c in cells if c["arm"] == arm])
         body.append(f"{arm.replace('_', chr(92)+'_')} & {a['accept_rate']} & {a['rc']} & "
                     f"{a['rf_all']} & {a['defect']} & {a['awp']} & {a['tokens']} \\\\")
-    body += ["\\bottomrule", "\\end{tabular}"]
+    body += [r"\bottomrule", r"\end{tabular}"]
     return "\n".join(body) + "\n"
 
 
@@ -269,3 +270,111 @@ def render_provenance(cells: dict) -> str:
                      f"{c['source_stage']} | {c['source_cir'] or ''} | {c['source_code'] or ''} | "
                      f"{c['accepted']} | {c['rf']} |")
     return "\n".join(lines) + "\n"
+
+
+# ───────────────────── paired bootstrap CIs (no scipy) ─────────────────────
+
+def _task_means(cells: list[dict]) -> dict[tuple[str, str], dict]:
+    """Per (arm, task) mean of RF_all, accept and RF_acc over repeats."""
+    from collections import defaultdict
+    acc: dict[tuple[str, str], list[float]] = defaultdict(list)
+    accf: dict[tuple[str, str], list[float]] = defaultdict(list)
+    rfs: dict[tuple[str, str], list[float]] = defaultdict(list)
+    for c in cells:
+        key = (c["arm"], c["task"])
+        acc[key].append(1.0 if c.get("accepted") else 0.0)
+        rfs[key].append((c.get("rf") or 0.0) if c.get("accepted") else 0.0)
+        if c.get("accepted") and c.get("rf") is not None:
+            accf[key].append(c["rf"])
+    out = {}
+    for key in rfs:
+        out[key] = {"rf_all": sum(rfs[key]) / len(rfs[key]),
+                    "accept": sum(acc[key]) / len(acc[key]),
+                    "rf_acc": (sum(accf[key]) / len(accf[key])) if accf[key] else None}
+    return out
+
+
+def _bootstrap_ci(diffs: list[float], *, seed: int = 20260923, iters: int = 10000) -> tuple[float, float, float]:
+    import random
+    if not diffs:
+        return (0.0, 0.0, 0.0)
+    mean = sum(diffs) / len(diffs)
+    rng = random.Random(seed)
+    n = len(diffs)
+    means = []
+    for _ in range(iters):
+        means.append(sum(diffs[rng.randrange(n)] for _ in range(n)) / n)
+    means.sort()
+    lo = means[int(0.025 * iters)]
+    hi = means[min(iters - 1, int(0.975 * iters))]
+    return (mean, lo, hi)
+
+
+def _wilcoxon_p(diffs: list[float]) -> float | None:
+    import math
+    nonzero = [d for d in diffs if d != 0]
+    n = len(nonzero)
+    if n < 1:
+        return None
+    order = sorted(range(n), key=lambda i: abs(nonzero[i]))
+    ranks = [0.0] * n
+    i = 0
+    while i < n:
+        j = i
+        while j + 1 < n and abs(nonzero[order[j + 1]]) == abs(nonzero[order[i]]):
+            j += 1
+        avg = (i + j) / 2 + 1
+        for k in range(i, j + 1):
+            ranks[order[k]] = avg
+        i = j + 1
+    w_plus = sum(ranks[i] for i in range(n) if nonzero[i] > 0)
+    w_minus = sum(ranks[i] for i in range(n) if nonzero[i] < 0)
+    w = min(w_plus, w_minus)
+    mean_w = n * (n + 1) / 4
+    sd = (n * (n + 1) * (2 * n + 1) / 24) ** 0.5
+    if sd == 0:
+        return None
+    z = (w - mean_w) / sd
+    return 2 * (1 - 0.5 * (1 + math.erf(abs(z) / (2 ** 0.5))))
+
+
+def render_probe_ci(tex_name: str = "gen_ci.tex") -> str:
+    return tex_name
+
+
+def ci_table(cells: dict, tiers: dict[str, set[str]] | None = None) -> str:
+    all_cells = list(cells.values())
+    means = _task_means(all_cells)
+    tasks = sorted({c["task"] for c in all_cells})
+    comps = [("G3_concir", "G0_direct"), ("G3_concir", "G1_self_iter"),
+             ("G3_concir", "G2_tools_iter"), ("G3_concir", "G3_codegen")]
+    if tiers is None:
+        tiers = {}
+        for c in all_cells:
+            if c.get("tier"):
+                tiers.setdefault(c["tier"], set()).add(c["task"])
+    groups = {"all": set(tasks)}
+    groups.update({k: v for k, v in tiers.items() if v})
+    rows = ["% gen_ci.tex — generated by cir_workflow results (paired bootstrap, 10k, seed 20260923)",
+            "\begin{tabular}{llrrr}", "\toprule",
+            r"group & comparison & metric & delta [95\% CI] & $p$ \\", r"\midrule"]
+    for gname, gtasks in groups.items():
+        gtasks = sorted(t for t in gtasks if t in tasks)
+        for a, b in comps:
+            for metric in ("rf_all", "rf_acc", "accept"):
+                diffs = []
+                for t in gtasks:
+                    x = means.get((a, t), {}).get(metric)
+                    y = means.get((b, t), {}).get(metric)
+                    if x is not None and y is not None:
+                        diffs.append(x - y)
+                if not diffs:
+                    continue
+                mean, lo, hi = _bootstrap_ci(diffs)
+                p = _wilcoxon_p(diffs)
+                ps = f"{p:.3f}" if p is not None else "--"
+                rows.append(f"{gname} & {a.replace('_', chr(92)+'_')} vs {b.replace('_', chr(92)+'_')} & "
+                            f"{metric.replace('_', chr(92)+'_')} & "
+                            f"{mean:.3f} [{lo:.3f}, {hi:.3f}] & {ps} \\")
+    rows += [r"\bottomrule", r"\end{tabular}"]
+    return "\n".join(rows) + "\n"
