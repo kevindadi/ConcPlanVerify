@@ -143,7 +143,7 @@ def render_tex(cells: dict) -> dict[str, str]:
     v2recs = [c.get("record") or {} for c in g3]
     cir_rounds = [r.get("cir_rounds") for r in v2recs if r.get("cir_rounds") is not None]
     code_rounds = [len((r.get("code_stage") or {}).get("rounds", []))
-                   for r in v2recs if r.get("code_stage")]
+                   for r in v2recs if (r.get("code_stage") or {}).get("rounds")]
     cir_tokens = sum((rnd.get("prompt_tokens") or 0) + (rnd.get("completion_tokens") or 0)
                      for r in v2recs for rnd in (r.get("rounds") or [])
                      if rnd.get("stage") == "cir")

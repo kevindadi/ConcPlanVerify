@@ -2465,7 +2465,9 @@
           }
         },
         "cir_rounds": 4,
-        "code_stage": null,
+        "code_stage": {
+          "rounds": []
+        },
         "rounds": [
           {
             "round": 1,
@@ -7227,7 +7229,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -7256,7 +7259,30 @@
             "R7": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/atomic-data__bounded_counter_invariant/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/atomic-data__bounded_counter_invariant/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 2011,
+              "completion_tokens": 243,
+              "llm_ms": 1659,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -11867,7 +11893,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 2,
@@ -11900,7 +11927,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 3,
@@ -11933,13 +11961,118 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 1997,
+              "completion_tokens": 264,
+              "llm_ms": 1203,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 4",
+                "event_index": 4,
+                "events": 6,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 2,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2105,
+              "completion_tokens": 254,
+              "llm_ms": 1261,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 4",
+                "event_index": 4,
+                "events": 6,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 3,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2105,
+              "completion_tokens": 254,
+              "llm_ms": 1119,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 4",
+                "event_index": 4,
+                "events": 6,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            }
+          ]
+        }
       }
     },
     {
@@ -14053,7 +14186,8 @@
             "prompt_tokens": 1771,
             "completion_tokens": 869,
             "llm_ms": 3033,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -14061,7 +14195,8 @@
             "prompt_tokens": 2161,
             "completion_tokens": 700,
             "llm_ms": 2327,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -14094,13 +14229,68 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1771,
+              "completion_tokens": 869,
+              "llm_ms": 3033,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 2161,
+              "completion_tokens": 700,
+              "llm_ms": 2327,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2171,
+              "completion_tokens": 360,
+              "llm_ms": 1335,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no model statement matches mutex_lock on \"main::m\" (thread t1)",
+                "event_index": 0,
+                "events": 12,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            }
+          ]
+        }
       }
     },
     {
@@ -15361,7 +15551,8 @@
             "prompt_tokens": 1575,
             "completion_tokens": 179,
             "llm_ms": 1123,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -15379,7 +15570,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -15408,7 +15600,38 @@
             "R7": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/channel__rendezvous_both_send/code/round-2.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/channel__rendezvous_both_send/code/round-2.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1575,
+              "completion_tokens": 179,
+              "llm_ms": 1123,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "accepted",
+              "prompt_tokens": 1963,
+              "completion_tokens": 153,
+              "llm_ms": 1241,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -16742,7 +16965,8 @@
             "prompt_tokens": 1720,
             "completion_tokens": 554,
             "llm_ms": 2110,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -16760,7 +16984,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -16787,7 +17012,38 @@
             "R5": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/channel__send_while_holding_mutex/code/round-2.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/channel__send_while_holding_mutex/code/round-2.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1720,
+              "completion_tokens": 554,
+              "llm_ms": 2110,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "accepted",
+              "prompt_tokens": 2127,
+              "completion_tokens": 347,
+              "llm_ms": 1426,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -19405,7 +19661,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 2,
@@ -19423,7 +19680,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -19455,7 +19713,63 @@
             "R10": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/condvar__bare_wait_no_predicate/code/round-2.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/condvar__bare_wait_no_predicate/code/round-2.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2005,
+              "completion_tokens": 245,
+              "llm_ms": 1164,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 7
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 6",
+                "event_index": 6,
+                "events": 8,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 2,
+              "decision": "accepted",
+              "prompt_tokens": 2113,
+              "completion_tokens": 241,
+              "llm_ms": 1083,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -23788,7 +24102,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 2,
@@ -23806,7 +24121,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -23838,7 +24154,63 @@
             "R10": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/condvar__lost_wakeup_notify_before_wait/code/round-2.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/condvar__lost_wakeup_notify_before_wait/code/round-2.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2013,
+              "completion_tokens": 255,
+              "llm_ms": 1842,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 7
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 6",
+                "event_index": 6,
+                "events": 8,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 2,
+              "decision": "accepted",
+              "prompt_tokens": 2121,
+              "completion_tokens": 241,
+              "llm_ms": 1227,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -28434,7 +28806,9 @@
           }
         },
         "cir_rounds": 4,
-        "code_stage": null,
+        "code_stage": {
+          "rounds": []
+        },
         "rounds": [
           {
             "round": 1,
@@ -33306,7 +33680,9 @@
           }
         },
         "cir_rounds": 1,
-        "code_stage": null,
+        "code_stage": {
+          "rounds": []
+        },
         "rounds": [
           {
             "round": 1,
@@ -35932,7 +36308,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -35963,7 +36340,30 @@
             "R9": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/lock-order__abba_2lock/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/lock-order__abba_2lock/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1847,
+              "completion_tokens": 208,
+              "llm_ms": 1378,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -38124,7 +38524,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -38156,7 +38557,30 @@
             "R10": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/lock-order__cross_module_cycle/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/lock-order__cross_module_cycle/code/round-1.rs",
+        "cir_rounds": 2,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1967,
+              "completion_tokens": 239,
+              "llm_ms": 1363,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -41040,7 +41464,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -41072,7 +41497,30 @@
             "R10": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/lock-order__cycle_3lock/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/lock-order__cycle_3lock/code/round-1.rs",
+        "cir_rounds": 4,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 2138,
+              "completion_tokens": 332,
+              "llm_ms": 1704,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -44874,7 +45322,9 @@
           }
         },
         "cir_rounds": 4,
-        "code_stage": null,
+        "code_stage": {
+          "rounds": []
+        },
         "rounds": [
           {
             "round": 1,
@@ -47917,7 +48367,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -47951,7 +48402,30 @@
             "R12": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/lock-order__two_independent_cycles/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/lock-order__two_independent_cycles/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 2662,
+              "completion_tokens": 397,
+              "llm_ms": 1680,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -52645,7 +53119,8 @@
             "prompt_tokens": 1682,
             "completion_tokens": 508,
             "llm_ms": 2022,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -52653,7 +53128,8 @@
             "prompt_tokens": 2089,
             "completion_tokens": 492,
             "llm_ms": 1689,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -52661,13 +53137,43 @@
             "prompt_tokens": 2089,
             "completion_tokens": 488,
             "llm_ms": 2051,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1682,
+              "completion_tokens": 508,
+              "llm_ms": 2022,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 2089,
+              "completion_tokens": 492,
+              "llm_ms": 1689,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "build_failed",
+              "prompt_tokens": 2089,
+              "completion_tokens": 488,
+              "llm_ms": 2051,
+              "instrument_limit": []
+            }
+          ]
+        }
       }
     },
     {
@@ -55142,7 +55648,8 @@
             "prompt_tokens": 1707,
             "completion_tokens": 516,
             "llm_ms": 1823,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -55150,7 +55657,8 @@
             "prompt_tokens": 2114,
             "completion_tokens": 516,
             "llm_ms": 1951,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -55158,13 +55666,43 @@
             "prompt_tokens": 2114,
             "completion_tokens": 495,
             "llm_ms": 2262,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1707,
+              "completion_tokens": 516,
+              "llm_ms": 1823,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 2114,
+              "completion_tokens": 516,
+              "llm_ms": 1951,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "build_failed",
+              "prompt_tokens": 2114,
+              "completion_tokens": 495,
+              "llm_ms": 2262,
+              "instrument_limit": []
+            }
+          ]
+        }
       }
     },
     {
@@ -57591,7 +58129,8 @@
             "prompt_tokens": 1834,
             "completion_tokens": 571,
             "llm_ms": 2051,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -57599,7 +58138,8 @@
             "prompt_tokens": 2241,
             "completion_tokens": 571,
             "llm_ms": 1910,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -57607,13 +58147,43 @@
             "prompt_tokens": 2241,
             "completion_tokens": 571,
             "llm_ms": 2043,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1834,
+              "completion_tokens": 571,
+              "llm_ms": 2051,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 2241,
+              "completion_tokens": 571,
+              "llm_ms": 1910,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "build_failed",
+              "prompt_tokens": 2241,
+              "completion_tokens": 571,
+              "llm_ms": 2043,
+              "instrument_limit": []
+            }
+          ]
+        }
       }
     },
     {
@@ -59966,7 +60536,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -59993,7 +60564,30 @@
             "R5": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/structure__finite_call_loop/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/structure__finite_call_loop/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1314,
+              "completion_tokens": 29,
+              "llm_ms": 684,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -61261,7 +61855,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -61290,7 +61885,30 @@
             "R7": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/structure__nested_scope_lock_order/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/structure__nested_scope_lock_order/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1932,
+              "completion_tokens": 285,
+              "llm_ms": 1546,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -64402,7 +65020,8 @@
             "prompt_tokens": 1812,
             "completion_tokens": 571,
             "llm_ms": 2702,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -64410,7 +65029,8 @@
             "prompt_tokens": 2219,
             "completion_tokens": 551,
             "llm_ms": 2567,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -64418,13 +65038,43 @@
             "prompt_tokens": 2219,
             "completion_tokens": 245,
             "llm_ms": 1702,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1812,
+              "completion_tokens": 571,
+              "llm_ms": 2702,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 2219,
+              "completion_tokens": 551,
+              "llm_ms": 2567,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "build_failed",
+              "prompt_tokens": 2219,
+              "completion_tokens": 245,
+              "llm_ms": 1702,
+              "instrument_limit": []
+            }
+          ]
+        }
       }
     },
     {
@@ -67008,7 +67658,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -67039,7 +67690,30 @@
             "R9": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/structure__scope_worker_abba/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/structure__scope_worker_abba/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1849,
+              "completion_tokens": 250,
+              "llm_ms": 1518,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -69382,7 +70056,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -69410,7 +70085,30 @@
             "R6": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/structure__spawn_join_loop_finite/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep0/structure__spawn_join_loop_finite/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1417,
+              "completion_tokens": 66,
+              "llm_ms": 876,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -73595,7 +74293,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 2,
@@ -73628,7 +74327,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 3,
@@ -73661,13 +74361,118 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2231,
+              "completion_tokens": 308,
+              "llm_ms": 1473,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 4",
+                "event_index": 4,
+                "events": 6,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 2,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2339,
+              "completion_tokens": 296,
+              "llm_ms": 1299,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 4",
+                "event_index": 4,
+                "events": 6,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 3,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2339,
+              "completion_tokens": 296,
+              "llm_ms": 1296,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 4",
+                "event_index": 4,
+                "events": 6,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            }
+          ]
+        }
       }
     },
     {
@@ -76228,7 +77033,9 @@
           }
         },
         "cir_rounds": 4,
-        "code_stage": null,
+        "code_stage": {
+          "rounds": []
+        },
         "rounds": [
           {
             "round": 1,
@@ -80829,7 +81636,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -80858,7 +81666,30 @@
             "R7": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/atomic-data__bounded_counter_invariant/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/atomic-data__bounded_counter_invariant/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 2011,
+              "completion_tokens": 247,
+              "llm_ms": 1217,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -85393,7 +86224,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 2,
@@ -85401,7 +86233,8 @@
             "prompt_tokens": 2105,
             "completion_tokens": 599,
             "llm_ms": 1953,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -85434,13 +86267,93 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 1997,
+              "completion_tokens": 254,
+              "llm_ms": 1486,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 4",
+                "event_index": 4,
+                "events": 6,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 2105,
+              "completion_tokens": 599,
+              "llm_ms": 1953,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2397,
+              "completion_tokens": 248,
+              "llm_ms": 1222,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 4",
+                "event_index": 4,
+                "events": 6,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            }
+          ]
+        }
       }
     },
     {
@@ -87450,7 +88363,8 @@
             "prompt_tokens": 1771,
             "completion_tokens": 660,
             "llm_ms": 2267,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -87483,7 +88397,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 3,
@@ -87491,13 +88406,68 @@
             "prompt_tokens": 1878,
             "completion_tokens": 660,
             "llm_ms": 2319,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1771,
+              "completion_tokens": 660,
+              "llm_ms": 2267,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2171,
+              "completion_tokens": 365,
+              "llm_ms": 1477,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no model statement matches mutex_lock on \"main::m\" (thread t1)",
+                "event_index": 0,
+                "events": 10,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 3,
+              "decision": "build_failed",
+              "prompt_tokens": 1878,
+              "completion_tokens": 660,
+              "llm_ms": 2319,
+              "instrument_limit": []
+            }
+          ]
+        }
       }
     },
     {
@@ -89062,7 +90032,8 @@
             "prompt_tokens": 1577,
             "completion_tokens": 175,
             "llm_ms": 1185,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -89080,7 +90051,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -89109,7 +90081,38 @@
             "R7": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/channel__rendezvous_both_send/code/round-2.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/channel__rendezvous_both_send/code/round-2.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1577,
+              "completion_tokens": 175,
+              "llm_ms": 1185,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "accepted",
+              "prompt_tokens": 1933,
+              "completion_tokens": 159,
+              "llm_ms": 1155,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -90331,7 +91334,8 @@
             "prompt_tokens": 1720,
             "completion_tokens": 560,
             "llm_ms": 2096,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -90349,7 +91353,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -90376,7 +91381,38 @@
             "R5": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/channel__send_while_holding_mutex/code/round-2.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/channel__send_while_holding_mutex/code/round-2.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1720,
+              "completion_tokens": 560,
+              "llm_ms": 2096,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "accepted",
+              "prompt_tokens": 2127,
+              "completion_tokens": 221,
+              "llm_ms": 1247,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -93010,7 +94046,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 2,
@@ -93028,7 +94065,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -93060,7 +94098,63 @@
             "R10": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/condvar__bare_wait_no_predicate/code/round-2.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/condvar__bare_wait_no_predicate/code/round-2.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2006,
+              "completion_tokens": 255,
+              "llm_ms": 1377,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 7
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 6",
+                "event_index": 6,
+                "events": 8,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 2,
+              "decision": "accepted",
+              "prompt_tokens": 2114,
+              "completion_tokens": 241,
+              "llm_ms": 1170,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -93888,7 +94982,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 2,
@@ -93906,7 +95001,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -93938,7 +95034,63 @@
             "R10": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/condvar__lost_wakeup_notify_before_wait/code/round-2.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/condvar__lost_wakeup_notify_before_wait/code/round-2.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2013,
+              "completion_tokens": 255,
+              "llm_ms": 1124,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 7
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 6",
+                "event_index": 6,
+                "events": 7,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 2,
+              "decision": "accepted",
+              "prompt_tokens": 2121,
+              "completion_tokens": 241,
+              "llm_ms": 1127,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -98427,7 +99579,9 @@
           }
         },
         "cir_rounds": 4,
-        "code_stage": null,
+        "code_stage": {
+          "rounds": []
+        },
         "rounds": [
           {
             "round": 1,
@@ -103063,7 +104217,9 @@
           }
         },
         "cir_rounds": 1,
-        "code_stage": null,
+        "code_stage": {
+          "rounds": []
+        },
         "rounds": [
           {
             "round": 1,
@@ -105603,7 +106759,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -105634,7 +106791,30 @@
             "R9": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/lock-order__abba_2lock/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/lock-order__abba_2lock/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1940,
+              "completion_tokens": 243,
+              "llm_ms": 1578,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -107708,7 +108888,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -107740,7 +108921,30 @@
             "R10": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/lock-order__cross_module_cycle/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/lock-order__cross_module_cycle/code/round-1.rs",
+        "cir_rounds": 2,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1967,
+              "completion_tokens": 239,
+              "llm_ms": 1348,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -110168,7 +111372,9 @@
           }
         },
         "cir_rounds": 4,
-        "code_stage": null,
+        "code_stage": {
+          "rounds": []
+        },
         "rounds": [
           {
             "round": 1,
@@ -114466,7 +115672,9 @@
           }
         },
         "cir_rounds": 4,
-        "code_stage": null,
+        "code_stage": {
+          "rounds": []
+        },
         "rounds": [
           {
             "round": 1,
@@ -117327,7 +118535,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -117361,7 +118570,30 @@
             "R12": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/lock-order__two_independent_cycles/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/lock-order__two_independent_cycles/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 2444,
+              "completion_tokens": 397,
+              "llm_ms": 1662,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -120547,7 +121779,8 @@
             "prompt_tokens": 1682,
             "completion_tokens": 492,
             "llm_ms": 1932,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -120555,7 +121788,8 @@
             "prompt_tokens": 2089,
             "completion_tokens": 503,
             "llm_ms": 1880,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -120563,13 +121797,43 @@
             "prompt_tokens": 2089,
             "completion_tokens": 508,
             "llm_ms": 2132,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1682,
+              "completion_tokens": 492,
+              "llm_ms": 1932,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 2089,
+              "completion_tokens": 503,
+              "llm_ms": 1880,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "build_failed",
+              "prompt_tokens": 2089,
+              "completion_tokens": 508,
+              "llm_ms": 2132,
+              "instrument_limit": []
+            }
+          ]
+        }
       }
     },
     {
@@ -122952,7 +124216,8 @@
             "prompt_tokens": 1667,
             "completion_tokens": 508,
             "llm_ms": 2005,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -122960,7 +124225,8 @@
             "prompt_tokens": 2074,
             "completion_tokens": 508,
             "llm_ms": 2107,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -122968,13 +124234,43 @@
             "prompt_tokens": 2074,
             "completion_tokens": 512,
             "llm_ms": 1769,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1667,
+              "completion_tokens": 508,
+              "llm_ms": 2005,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 2074,
+              "completion_tokens": 508,
+              "llm_ms": 2107,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "build_failed",
+              "prompt_tokens": 2074,
+              "completion_tokens": 512,
+              "llm_ms": 1769,
+              "instrument_limit": []
+            }
+          ]
+        }
       }
     },
     {
@@ -125312,7 +126608,8 @@
             "prompt_tokens": 1834,
             "completion_tokens": 559,
             "llm_ms": 2061,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -125320,7 +126617,8 @@
             "prompt_tokens": 2241,
             "completion_tokens": 559,
             "llm_ms": 2012,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -125328,13 +126626,43 @@
             "prompt_tokens": 2241,
             "completion_tokens": 571,
             "llm_ms": 1920,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1834,
+              "completion_tokens": 559,
+              "llm_ms": 2061,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 2241,
+              "completion_tokens": 559,
+              "llm_ms": 2012,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "build_failed",
+              "prompt_tokens": 2241,
+              "completion_tokens": 571,
+              "llm_ms": 1920,
+              "instrument_limit": []
+            }
+          ]
+        }
       }
     },
     {
@@ -127595,7 +128923,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -127622,7 +128951,30 @@
             "R5": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/structure__finite_call_loop/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/structure__finite_call_loop/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1313,
+              "completion_tokens": 29,
+              "llm_ms": 662,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -128800,7 +130152,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -128829,7 +130182,30 @@
             "R7": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/structure__nested_scope_lock_order/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/structure__nested_scope_lock_order/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1933,
+              "completion_tokens": 365,
+              "llm_ms": 1496,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -133271,7 +134647,8 @@
             "prompt_tokens": 1812,
             "completion_tokens": 245,
             "llm_ms": 1286,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -133279,7 +134656,8 @@
             "prompt_tokens": 2133,
             "completion_tokens": 245,
             "llm_ms": 1276,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -133287,13 +134665,43 @@
             "prompt_tokens": 2133,
             "completion_tokens": 245,
             "llm_ms": 981,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1812,
+              "completion_tokens": 245,
+              "llm_ms": 1286,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 2133,
+              "completion_tokens": 245,
+              "llm_ms": 1276,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "build_failed",
+              "prompt_tokens": 2133,
+              "completion_tokens": 245,
+              "llm_ms": 981,
+              "instrument_limit": []
+            }
+          ]
+        }
       }
     },
     {
@@ -135785,7 +137193,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -135816,7 +137225,30 @@
             "R9": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/structure__scope_worker_abba/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/structure__scope_worker_abba/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1849,
+              "completion_tokens": 203,
+              "llm_ms": 1266,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -138055,7 +139487,8 @@
             "prompt_tokens": 1417,
             "completion_tokens": 400,
             "llm_ms": 1560,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -138063,7 +139496,8 @@
             "prompt_tokens": 1818,
             "completion_tokens": 391,
             "llm_ms": 1518,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -138081,7 +139515,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -138109,7 +139544,46 @@
             "R6": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/structure__spawn_join_loop_finite/code/round-3.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/structure__spawn_join_loop_finite/code/round-3.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1417,
+              "completion_tokens": 400,
+              "llm_ms": 1560,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 1818,
+              "completion_tokens": 391,
+              "llm_ms": 1518,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "accepted",
+              "prompt_tokens": 1818,
+              "completion_tokens": 65,
+              "llm_ms": 696,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -142647,7 +144121,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 2,
@@ -142665,7 +144140,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -142695,7 +144171,63 @@
             "R8": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/structure__worker_with_payload/code/round-2.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep1/structure__worker_with_payload/code/round-2.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2189,
+              "completion_tokens": 298,
+              "llm_ms": 1659,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 4",
+                "event_index": 4,
+                "events": 6,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 2,
+              "decision": "accepted",
+              "prompt_tokens": 2297,
+              "completion_tokens": 211,
+              "llm_ms": 1014,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -145163,7 +146695,9 @@
           }
         },
         "cir_rounds": 4,
-        "code_stage": null,
+        "code_stage": {
+          "rounds": []
+        },
         "rounds": [
           {
             "round": 1,
@@ -149846,7 +151380,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -149875,7 +151410,30 @@
             "R7": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/atomic-data__bounded_counter_invariant/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/atomic-data__bounded_counter_invariant/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 2011,
+              "completion_tokens": 249,
+              "llm_ms": 1187,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -154507,7 +156065,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 2,
@@ -154540,7 +156099,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 3,
@@ -154573,13 +156133,118 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 1998,
+              "completion_tokens": 258,
+              "llm_ms": 1380,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 4",
+                "event_index": 4,
+                "events": 6,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 2,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2106,
+              "completion_tokens": 254,
+              "llm_ms": 1594,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 4",
+                "event_index": 4,
+                "events": 6,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 3,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2106,
+              "completion_tokens": 254,
+              "llm_ms": 1507,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 4",
+                "event_index": 4,
+                "events": 6,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            }
+          ]
+        }
       }
     },
     {
@@ -157076,7 +158741,8 @@
             "prompt_tokens": 1771,
             "completion_tokens": 646,
             "llm_ms": 2338,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -157109,7 +158775,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 3,
@@ -157117,13 +158784,68 @@
             "prompt_tokens": 1878,
             "completion_tokens": 555,
             "llm_ms": 1902,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1771,
+              "completion_tokens": 646,
+              "llm_ms": 2338,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2171,
+              "completion_tokens": 365,
+              "llm_ms": 1793,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no model statement matches mutex_lock on \"main::m\" (thread t1)",
+                "event_index": 0,
+                "events": 10,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 3,
+              "decision": "build_failed",
+              "prompt_tokens": 1878,
+              "completion_tokens": 555,
+              "llm_ms": 1902,
+              "instrument_limit": []
+            }
+          ]
+        }
       }
     },
     {
@@ -158688,7 +160410,8 @@
             "prompt_tokens": 1577,
             "completion_tokens": 233,
             "llm_ms": 1246,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -158706,7 +160429,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -158735,7 +160459,38 @@
             "R7": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/channel__rendezvous_both_send/code/round-2.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/channel__rendezvous_both_send/code/round-2.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1577,
+              "completion_tokens": 233,
+              "llm_ms": 1246,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "accepted",
+              "prompt_tokens": 1963,
+              "completion_tokens": 156,
+              "llm_ms": 932,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -160381,7 +162136,8 @@
             "prompt_tokens": 1720,
             "completion_tokens": 560,
             "llm_ms": 2231,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -160399,7 +162155,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -160426,7 +162183,38 @@
             "R5": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/channel__send_while_holding_mutex/code/round-2.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/channel__send_while_holding_mutex/code/round-2.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1720,
+              "completion_tokens": 560,
+              "llm_ms": 2231,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "accepted",
+              "prompt_tokens": 2127,
+              "completion_tokens": 368,
+              "llm_ms": 1517,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -163057,7 +164845,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -163089,7 +164878,30 @@
             "R10": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/condvar__bare_wait_no_predicate/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/condvar__bare_wait_no_predicate/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 2006,
+              "completion_tokens": 241,
+              "llm_ms": 1341,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -165172,7 +166984,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 2,
@@ -165190,7 +167003,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -165222,7 +167036,63 @@
             "R10": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/condvar__lost_wakeup_notify_before_wait/code/round-2.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/condvar__lost_wakeup_notify_before_wait/code/round-2.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2013,
+              "completion_tokens": 257,
+              "llm_ms": 1968,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 7
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 6",
+                "event_index": 6,
+                "events": 7,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 2,
+              "decision": "accepted",
+              "prompt_tokens": 2121,
+              "completion_tokens": 241,
+              "llm_ms": 1382,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -167453,7 +169323,9 @@
           }
         },
         "cir_rounds": 4,
-        "code_stage": null,
+        "code_stage": {
+          "rounds": []
+        },
         "rounds": [
           {
             "round": 1,
@@ -172257,7 +174129,9 @@
           }
         },
         "cir_rounds": 1,
-        "code_stage": null,
+        "code_stage": {
+          "rounds": []
+        },
         "rounds": [
           {
             "round": 1,
@@ -174795,7 +176669,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -174826,7 +176701,30 @@
             "R9": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/lock-order__abba_2lock/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/lock-order__abba_2lock/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1980,
+              "completion_tokens": 265,
+              "llm_ms": 1617,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -176900,7 +178798,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -176932,7 +178831,30 @@
             "R10": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/lock-order__cross_module_cycle/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/lock-order__cross_module_cycle/code/round-1.rs",
+        "cir_rounds": 2,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 2100,
+              "completion_tokens": 239,
+              "llm_ms": 1029,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -179580,7 +181502,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -179612,7 +181535,30 @@
             "R10": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/lock-order__cycle_3lock/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/lock-order__cycle_3lock/code/round-1.rs",
+        "cir_rounds": 4,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 2138,
+              "completion_tokens": 350,
+              "llm_ms": 1773,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -182998,7 +184944,9 @@
           }
         },
         "cir_rounds": 4,
-        "code_stage": null,
+        "code_stage": {
+          "rounds": []
+        },
         "rounds": [
           {
             "round": 1,
@@ -185859,7 +187807,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -185893,7 +187842,30 @@
             "R12": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/lock-order__two_independent_cycles/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/lock-order__two_independent_cycles/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 2662,
+              "completion_tokens": 450,
+              "llm_ms": 1734,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -189008,7 +190980,8 @@
             "prompt_tokens": 1682,
             "completion_tokens": 492,
             "llm_ms": 1745,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -189016,7 +190989,8 @@
             "prompt_tokens": 2089,
             "completion_tokens": 508,
             "llm_ms": 1895,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -189024,13 +190998,43 @@
             "prompt_tokens": 2089,
             "completion_tokens": 496,
             "llm_ms": 1895,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1682,
+              "completion_tokens": 492,
+              "llm_ms": 1745,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 2089,
+              "completion_tokens": 508,
+              "llm_ms": 1895,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "build_failed",
+              "prompt_tokens": 2089,
+              "completion_tokens": 496,
+              "llm_ms": 1895,
+              "instrument_limit": []
+            }
+          ]
+        }
       }
     },
     {
@@ -191413,7 +193417,8 @@
             "prompt_tokens": 1667,
             "completion_tokens": 508,
             "llm_ms": 1791,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -191421,7 +193426,8 @@
             "prompt_tokens": 2074,
             "completion_tokens": 514,
             "llm_ms": 1950,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -191429,13 +193435,43 @@
             "prompt_tokens": 2074,
             "completion_tokens": 514,
             "llm_ms": 1879,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1667,
+              "completion_tokens": 508,
+              "llm_ms": 1791,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 2074,
+              "completion_tokens": 514,
+              "llm_ms": 1950,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "build_failed",
+              "prompt_tokens": 2074,
+              "completion_tokens": 514,
+              "llm_ms": 1879,
+              "instrument_limit": []
+            }
+          ]
+        }
       }
     },
     {
@@ -193773,7 +195809,8 @@
             "prompt_tokens": 1834,
             "completion_tokens": 559,
             "llm_ms": 1948,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -193781,7 +195818,8 @@
             "prompt_tokens": 2241,
             "completion_tokens": 559,
             "llm_ms": 1998,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -193789,13 +195827,43 @@
             "prompt_tokens": 2241,
             "completion_tokens": 571,
             "llm_ms": 2116,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1834,
+              "completion_tokens": 559,
+              "llm_ms": 1948,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 2241,
+              "completion_tokens": 559,
+              "llm_ms": 1998,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "build_failed",
+              "prompt_tokens": 2241,
+              "completion_tokens": 571,
+              "llm_ms": 2116,
+              "instrument_limit": []
+            }
+          ]
+        }
       }
     },
     {
@@ -196041,7 +198109,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -196068,7 +198137,30 @@
             "R5": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/structure__finite_call_loop/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/structure__finite_call_loop/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1313,
+              "completion_tokens": 29,
+              "llm_ms": 831,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -197246,7 +199338,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -197275,7 +199368,30 @@
             "R7": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/structure__nested_scope_lock_order/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/structure__nested_scope_lock_order/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1932,
+              "completion_tokens": 285,
+              "llm_ms": 1462,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -201714,7 +203830,8 @@
             "prompt_tokens": 1812,
             "completion_tokens": 245,
             "llm_ms": 1165,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 2,
@@ -201722,7 +203839,8 @@
             "prompt_tokens": 2133,
             "completion_tokens": 245,
             "llm_ms": 1092,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           },
           {
             "round": 3,
@@ -201730,13 +203848,43 @@
             "prompt_tokens": 2133,
             "completion_tokens": 245,
             "llm_ms": 1240,
-            "instrument_limit": []
+            "instrument_limit": [],
+            "stage": "code"
           }
         ],
         "accepted": false,
         "accepted_with_proof": false,
         "status": "generation_failed",
-        "instrument_limit": null
+        "instrument_limit": null,
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "build_failed",
+              "prompt_tokens": 1812,
+              "completion_tokens": 245,
+              "llm_ms": 1165,
+              "instrument_limit": []
+            },
+            {
+              "round": 2,
+              "decision": "build_failed",
+              "prompt_tokens": 2133,
+              "completion_tokens": 245,
+              "llm_ms": 1092,
+              "instrument_limit": []
+            },
+            {
+              "round": 3,
+              "decision": "build_failed",
+              "prompt_tokens": 2133,
+              "completion_tokens": 245,
+              "llm_ms": 1240,
+              "instrument_limit": []
+            }
+          ]
+        }
       }
     },
     {
@@ -204228,7 +206376,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -204259,7 +206408,30 @@
             "R9": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/structure__scope_worker_abba/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/structure__scope_worker_abba/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1849,
+              "completion_tokens": 203,
+              "llm_ms": 1141,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -206508,7 +208680,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -206536,7 +208709,30 @@
             "R6": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/structure__spawn_join_loop_finite/code/round-1.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/structure__spawn_join_loop_finite/code/round-1.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "accepted",
+              "prompt_tokens": 1417,
+              "completion_tokens": 72,
+              "llm_ms": 886,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     },
     {
@@ -211094,7 +213290,8 @@
               "got": "mutex_lock:main::m",
               "status": "violation"
             },
-            "conform_kind": "extra_op"
+            "conform_kind": "extra_op",
+            "stage": "code"
           },
           {
             "round": 2,
@@ -211112,7 +213309,8 @@
               }
             },
             "monitor_status": "ok",
-            "monitor_fail": []
+            "monitor_fail": [],
+            "stage": "code"
           }
         ],
         "accepted": true,
@@ -211142,7 +213340,63 @@
             "R8": "unverifiable"
           }
         },
-        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/structure__worker_with_payload/code/round-2.rs"
+        "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v3-code/run-20260923T182939/rep2/structure__worker_with_payload/code/round-2.rs",
+        "cir_rounds": 1,
+        "code_stage": {
+          "rounds": [
+            {
+              "round": 1,
+              "decision": "post_verify_fail",
+              "prompt_tokens": 2189,
+              "completion_tokens": 300,
+              "llm_ms": 1863,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 0,
+                "traces": 32,
+                "statuses": {
+                  "violation": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": [],
+              "first_violation": {
+                "binary_sha256": "881c026078f05f1f5c93f302571c535ef6eac94ceb883c3b369dc9e27af3c765",
+                "coverage": {
+                  "sids_seen": 0,
+                  "sids_total": 5
+                },
+                "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 4",
+                "event_index": 4,
+                "events": 6,
+                "expected": [],
+                "git_rev": "43168bb42db9617f8eae3c7929e9941db7b68e61",
+                "got": "mutex_lock:main::m",
+                "status": "violation"
+              },
+              "conform_kind": "extra_op"
+            },
+            {
+              "round": 2,
+              "decision": "accepted",
+              "prompt_tokens": 2297,
+              "completion_tokens": 269,
+              "llm_ms": 1276,
+              "instrument_limit": [],
+              "behavior_ok": true,
+              "conform": {
+                "conformant": 32,
+                "traces": 32,
+                "statuses": {
+                  "conformant": 32
+                }
+              },
+              "monitor_status": "ok",
+              "monitor_fail": []
+            }
+          ]
+        }
       }
     }
   ],

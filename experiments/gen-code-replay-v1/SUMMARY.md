@@ -7,7 +7,7 @@ Batch `run-20260923T005232`; 59 G3 code cells; replays the last round Rust of ea
 - still failing: **26**
 - freeze-5 accepted cells replayed: 31; regressions: **0**
 - remaining violation kinds: {'extra_op': 26}
-- smoke: conform 0/0
+- smoke: conform 11/40
 
 | task | family | before | after conformant | kind |
 | --- | --- | --- | --- | --- |
