@@ -154,3 +154,24 @@ Directory hash recipe as above (excluding `*/target/*`).
 
 - ConcPV `experiments-v2-freeze-1..6`, `contracts-v3`, `contracts-v3.1`
 - ConcIR `concir-freeze-1..5`
+
+---
+
+# Freeze 7 — concir_sync crate, post-join main, replay v2, live v4 code (2026-09-23)
+
+- `experiments/flash-gen-main-v4-code`: files=9652 sha256=`ec41a37787f4dd68c685816f9a8d4f18bdcd8eea565320c608329e37839bb6ba`
+- `experiments/gen-code-replay-v2`: files=2 sha256=`f16dc5275557789b9eca6331b4e2da4758e837e312aa120bb1a07c891299038c`
+- `experiments/tables`: files=17 sha256=`e0787ed35dacc8b047dcda87dcdd1efad8affc35200deffe07586dc811c77123`
+
+## Provenance
+
+- ConcPlanVerify commit: this commit (tag `experiments-v2-freeze-7`).
+- ConcIR commit: `fe34a43` (tag `concir-freeze-6`).
+- `concir-backend` sha256: `afcbe9675ce8c14bd5f93358275f9fb658f544c4fbb3d588ced96433e6ee959d`
+- `concir-instrument` sha256: `24c18faa0c181f47afe7965866d745ee39a02f7f6cc08c052a8878907b1ed55e`
+- `runtime/concir_sync` crate added; G3 code stage re-run (140 Flash requests); semaphore-family G0/G1/G2 re-run.
+
+## Tags
+
+- ConcPV `experiments-v2-freeze-1..7`, `contracts-v3`, `contracts-v3.1`
+- ConcIR `concir-freeze-1..6`

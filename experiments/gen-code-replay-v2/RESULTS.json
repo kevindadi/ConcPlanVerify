@@ -1,0 +1,1171 @@
+{
+  "records": [
+    {
+      "task": "atomic-data/bounded_counter_invariant",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "m_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "atomic-data/counter_overflow_safety",
+      "before_accepted": false,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "m_mutex0"
+        ],
+        "harness_notes": [
+          "stripped `mod concir_sync;`"
+        ]
+      }
+    },
+    {
+      "task": "channel/bounded_backpressure_lock_held",
+      "before_accepted": false,
+      "before_build": true,
+      "after_ok": false,
+      "after": {
+        "built": true,
+        "conformant": 0,
+        "traces": 4,
+        "kind": "extra_op",
+        "first_violation": {
+          "binary_sha256": "afcbe9675ce8c14bd5f93358275f9fb658f544c4fbb3d588ced96433e6ee959d",
+          "coverage": {
+            "sids_seen": 0,
+            "sids_total": 5
+          },
+          "detail": "no model statement matches mutex_lock on \"main::m\" (thread t1)",
+          "event_index": 0,
+          "events": 12,
+          "expected": [],
+          "git_rev": "24fc9821b274b287e06de93cdecfb2c37737d1ca",
+          "got": "mutex_lock:main::m",
+          "post_join_main_ops": [],
+          "status": "violation",
+          "wrapper_ops": []
+        },
+        "monitor": "ok",
+        "unmapped": [
+          "ch_mutex0",
+          "m_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "channel/rendezvous_both_send",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "r"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "channel/send_while_holding_mutex",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "r",
+          "s"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "condvar/bare_wait_no_predicate",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "cv_condvar0",
+          "m_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "condvar/lost_wakeup_notify_before_wait",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "cv_condvar0",
+          "m_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "lock-order/abba_2lock",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "a_mutex0",
+          "b_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "lock-order/cross_module_cycle",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "res_mutex0",
+          "res_mutex1"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "lock-order/cycle_3lock",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "locks_mutex0",
+          "locks_mutex1",
+          "locks_mutex2"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "lock-order/two_independent_cycles",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "a_mutex0",
+          "b_mutex0",
+          "c_mutex0",
+          "d_mutex0",
+          "h1",
+          "h2",
+          "h3",
+          "h4"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "semaphore/acquire_twice_no_release",
+      "before_accepted": false,
+      "before_build": false,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "s_semaphore0"
+        ],
+        "harness_notes": [
+          "stripped inline `mod concir_sync {..}`"
+        ]
+      }
+    },
+    {
+      "task": "semaphore/permit_leak",
+      "before_accepted": false,
+      "before_build": false,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "s_semaphore0"
+        ],
+        "harness_notes": [
+          "stripped inline `mod concir_sync {..}`"
+        ]
+      }
+    },
+    {
+      "task": "semaphore/throttle_n_permits",
+      "before_accepted": false,
+      "before_build": false,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "s_semaphore0"
+        ],
+        "harness_notes": [
+          "stripped inline `mod concir_sync {..}`"
+        ]
+      }
+    },
+    {
+      "task": "structure/finite_call_loop",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "structure/nested_scope_lock_order",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "locks_mutex0",
+          "locks_mutex1"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "structure/scope_bound_k_workers",
+      "before_accepted": false,
+      "before_build": false,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "s_semaphore0"
+        ],
+        "harness_notes": [
+          "stripped `mod concir_sync;`"
+        ]
+      }
+    },
+    {
+      "task": "structure/scope_worker_abba",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "locks_mutex0",
+          "locks_mutex1"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "structure/spawn_join_loop_finite",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "h1",
+          "h2"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "structure/worker_with_payload",
+      "before_accepted": false,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "m_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "atomic-data/bounded_counter_invariant",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "m_mutex0"
+        ],
+        "harness_notes": [
+          "stripped `mod concir_sync;`"
+        ]
+      }
+    },
+    {
+      "task": "atomic-data/counter_overflow_safety",
+      "before_accepted": false,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "m_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "channel/bounded_backpressure_lock_held",
+      "before_accepted": false,
+      "before_build": true,
+      "after_ok": false,
+      "after": {
+        "built": true,
+        "conformant": 0,
+        "traces": 4,
+        "kind": "extra_op",
+        "first_violation": {
+          "binary_sha256": "afcbe9675ce8c14bd5f93358275f9fb658f544c4fbb3d588ced96433e6ee959d",
+          "coverage": {
+            "sids_seen": 0,
+            "sids_total": 5
+          },
+          "detail": "no model statement matches mutex_lock on \"main::m\" (thread t1)",
+          "event_index": 0,
+          "events": 8,
+          "expected": [],
+          "git_rev": "24fc9821b274b287e06de93cdecfb2c37737d1ca",
+          "got": "mutex_lock:main::m",
+          "post_join_main_ops": [],
+          "status": "violation",
+          "wrapper_ops": []
+        },
+        "monitor": "ok",
+        "unmapped": [
+          "shared_mutex0"
+        ],
+        "harness_notes": [
+          "stripped inline `mod concir_sync {..}`"
+        ]
+      }
+    },
+    {
+      "task": "channel/rendezvous_both_send",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "r"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "channel/send_while_holding_mutex",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "r",
+          "s"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "condvar/bare_wait_no_predicate",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "cv_condvar0",
+          "m_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "condvar/lost_wakeup_notify_before_wait",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "cv_condvar0",
+          "m_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "lock-order/abba_2lock",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "locks_mutex0",
+          "locks_mutex1"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "lock-order/cross_module_cycle",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "res_mutex0",
+          "res_mutex1"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "lock-order/two_independent_cycles",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "a_mutex0",
+          "b_mutex0",
+          "c_mutex0",
+          "d_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "semaphore/acquire_twice_no_release",
+      "before_accepted": false,
+      "before_build": false,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "s_semaphore0"
+        ],
+        "harness_notes": [
+          "stripped inline `mod concir_sync {..}`"
+        ]
+      }
+    },
+    {
+      "task": "semaphore/permit_leak",
+      "before_accepted": false,
+      "before_build": false,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "s_semaphore0"
+        ],
+        "harness_notes": [
+          "stripped inline `mod concir_sync {..}`"
+        ]
+      }
+    },
+    {
+      "task": "semaphore/throttle_n_permits",
+      "before_accepted": false,
+      "before_build": false,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "s_semaphore0"
+        ],
+        "harness_notes": [
+          "stripped inline `mod concir_sync {..}`"
+        ]
+      }
+    },
+    {
+      "task": "structure/finite_call_loop",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "structure/nested_scope_lock_order",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "a_mutex0",
+          "b_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "structure/scope_bound_k_workers",
+      "before_accepted": false,
+      "before_build": false,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "s_semaphore0"
+        ],
+        "harness_notes": [
+          "stripped `mod concir_sync;`"
+        ]
+      }
+    },
+    {
+      "task": "structure/scope_worker_abba",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "a_mutex0",
+          "b_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "structure/spawn_join_loop_finite",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "h1",
+          "h2"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "structure/worker_with_payload",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "shared_mutex0",
+          "worker"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "atomic-data/bounded_counter_invariant",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "m_mutex0"
+        ],
+        "harness_notes": [
+          "stripped `mod concir_sync;`"
+        ]
+      }
+    },
+    {
+      "task": "atomic-data/counter_overflow_safety",
+      "before_accepted": false,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "m_mutex0"
+        ],
+        "harness_notes": [
+          "stripped `mod concir_sync;`"
+        ]
+      }
+    },
+    {
+      "task": "channel/bounded_backpressure_lock_held",
+      "before_accepted": false,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "shared_mutex0"
+        ],
+        "harness_notes": [
+          "stripped inline `mod concir_sync {..}`"
+        ]
+      }
+    },
+    {
+      "task": "channel/rendezvous_both_send",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "r"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "channel/send_while_holding_mutex",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "r",
+          "s"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "condvar/bare_wait_no_predicate",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "cv_condvar0",
+          "m_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "condvar/lost_wakeup_notify_before_wait",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "cv_condvar0",
+          "m_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "lock-order/abba_2lock",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "locks_mutex0",
+          "locks_mutex1"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "lock-order/cross_module_cycle",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "res_mutex0",
+          "res_mutex1"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "lock-order/cycle_3lock",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "locks_mutex0",
+          "locks_mutex1",
+          "locks_mutex2"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "lock-order/two_independent_cycles",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "locks_mutex0",
+          "locks_mutex1",
+          "locks_mutex2",
+          "locks_mutex3"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "semaphore/acquire_twice_no_release",
+      "before_accepted": false,
+      "before_build": false,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "s_semaphore0"
+        ],
+        "harness_notes": [
+          "stripped inline `mod concir_sync {..}`"
+        ]
+      }
+    },
+    {
+      "task": "semaphore/permit_leak",
+      "before_accepted": false,
+      "before_build": false,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "s_semaphore0"
+        ],
+        "harness_notes": [
+          "stripped inline `mod concir_sync {..}`"
+        ]
+      }
+    },
+    {
+      "task": "semaphore/throttle_n_permits",
+      "before_accepted": false,
+      "before_build": false,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "s_semaphore0"
+        ],
+        "harness_notes": [
+          "stripped inline `mod concir_sync {..}`"
+        ]
+      }
+    },
+    {
+      "task": "structure/finite_call_loop",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "structure/nested_scope_lock_order",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "locks_mutex0",
+          "locks_mutex1"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "structure/scope_bound_k_workers",
+      "before_accepted": false,
+      "before_build": false,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "s_semaphore0"
+        ],
+        "harness_notes": [
+          "stripped `mod concir_sync;`"
+        ]
+      }
+    },
+    {
+      "task": "structure/scope_worker_abba",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "a_mutex0",
+          "b_mutex0"
+        ],
+        "harness_notes": []
+      }
+    },
+    {
+      "task": "structure/spawn_join_loop_finite",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "h1",
+          "h2"
+        ],
+        "harness_notes": [
+          "stripped `mod concir_sync;`"
+        ]
+      }
+    },
+    {
+      "task": "structure/worker_with_payload",
+      "before_accepted": true,
+      "before_build": true,
+      "after_ok": true,
+      "after": {
+        "built": true,
+        "conformant": 4,
+        "traces": 4,
+        "kind": null,
+        "first_violation": null,
+        "monitor": "ok",
+        "unmapped": [
+          "m_mutex0"
+        ],
+        "harness_notes": []
+      }
+    }
+  ]
+}

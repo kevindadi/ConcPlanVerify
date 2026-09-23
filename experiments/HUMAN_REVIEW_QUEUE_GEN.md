@@ -1,15 +1,15 @@
 # HUMAN_REVIEW_QUEUE_GEN — generation cells (owner to fill)
 
 Review each accepted G3 Rust for `bug_present` and per-`Ri` satisfaction.
-Leave verdict blank; the owner fills this file.
+Rows are deduplicated by rust sha256; coincident tasks share a row.
 
-| rep | task | rust sha256[16] | bug_present | R_i unsatisfied |
+| task(s) | reps | rust sha256[16] | bug_present | R_i unsatisfied |
 | --- | --- | --- | --- | --- |
-| 0 | atomic-data/bounded_counter_invariant | `a0b029c7cfb226ca` | | |
-| 0 | channel/rendezvous_both_send | `148a67a609892ba2` | | |
-| 0 | channel/send_while_holding_mutex | `a40e13e15284f170` | | |
-| 0 | condvar/bare_wait_no_predicate | `3d431c4362126415` | | |
-| 0 | condvar/lost_wakeup_notify_before_wait | `3d431c4362126415` | | |
-| 0 | lock-order/abba_2lock | `f34602b468bf68be` | | |
-| 0 | lock-order/cross_module_cycle | `f53ea172041bed90` | | |
-| 0 | lock-order/cycle_3lock | `fc9c062f414b7a54` | | |
+| atomic-data/bounded_counter_invariant | 0 | `07afe0fec004d8e2` | | |
+| structure/worker_with_payload | 2 | `15fa9f04df5d6fdf` | | |
+| semaphore/throttle_n_permits | 1,2 | `18bdc0eb877d58d7` | | |
+| channel/rendezvous_both_send | 1 | `1af51bf899c63112` | | |
+| atomic-data/counter_overflow_safety | 0 | `42530fc02b4a0df4` | | |
+| structure/worker_with_payload | 0 | `4a7adaefa7847430` | | |
+| lock-order/cross_module_cycle | 2 | `4ecd2ee317789097` | | |
+| channel/rendezvous_both_send | 2 | `53261b1cb1398d54` | | |

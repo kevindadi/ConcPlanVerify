@@ -1255,3 +1255,36 @@ DeepSeek Flash: 112 (code stage). OpenCode Go: 0 this round.
 - Semaphore-family G0/G1/G2 not re-run (baseline `unmapped` remains, 表注).
 - kimi G3 code stage not re-run (probe v2 carried; predates fixes).
 - Generation expert labels; loom (dropped).
+
+---
+
+# Round 2026-09-23q — concir_sync crate, post-join main, v4 code (freeze-7)
+
+## P-1..P-6
+
+| item | status |
+| --- | --- |
+| P-1 concir_sync double declaration | fixed: `runtime/concir_sync` is a path-dep crate; prompts say "already linked, do not declare `mod concir_sync`"; the harness strips any `mod concir_sync;`/inline `mod concir_sync {..}` and records `harness_notes`. |
+| P-2 post-join main read | fixed: `conform --op-resource` allows and counts `post_join_main_ops` once all spawned threads finished; `rust_from_cir_v1` says main may read state after joining. |
+| P-3 channel `Mutex<Receiver>` | **partial**: prompt advises moving the `Receiver` into the receiving thread; full wrapper-mutex instrumentation not implemented, so channel `unmapped` persists (37/40 accepted cells). |
+| P-4 CIR declared-unused resource | fixed: `check` emits warning `W201`; 3/59 freeze-5 PASS CIRs trigger it (`bounded_backpressure` ×3). PASS/INVALID unchanged; CIR not re-run. |
+| P-5 replay design | done: `gen-code-replay-v2` replays the v3-code cells. |
+| P-6 queue dedup | `HUMAN_REVIEW_QUEUE_GEN.md` regenerated below (dedup by sha). |
+
+## v3 → v4 (freeze-6 → freeze-7)
+
+- Replay v2 on the v3-code cells: **19 failures → 12 build-fixed + 5 conform-fixed, 2 still failing** (`extra_op`, real deviations); accepted cells: 0 regressions.
+- Live `flash-gen-main-v4-code` (140 requests, 86 rerun cells): G3 accept **0.431→0.556→0.750**, `accepted_with_proof` **31→40→54/72**, G3 defect 0. G3 now leads `RF_all` (0.493 vs G0 0.401) and is above G1 on `RF_acc` (0.657 vs 0.534), below G2 (0.683) and the ablation (0.765).
+- Semaphore-family G0/G1/G2 re-run with the fixed prompt: their acceptance drops (G0 0.972→0.847) because they can no longer self-implement a semaphore.
+- Stop-loss: G3 accept 0.750 ≥ 0.7 → **not triggered**; no failure-reason table needed.
+- **Correction recorded**: the round-p claim "remaining failures are all real deviations / harness gap <50% / stop-loss triggered" was based on replaying freeze-5 programs and is void; the correct numbers are above.
+
+## Budgets
+
+DeepSeek Flash: 140 (v4). OpenCode Go: 0.
+
+## Not done
+
+- P-3 full channel-wrapper instrumentation (prompt-only); channel `unmapped` remains.
+- kimi G3 code stage (probe v2 carried).
+- Generation-cell expert labels; §5 evidence tiering; §6 supplement packaging.

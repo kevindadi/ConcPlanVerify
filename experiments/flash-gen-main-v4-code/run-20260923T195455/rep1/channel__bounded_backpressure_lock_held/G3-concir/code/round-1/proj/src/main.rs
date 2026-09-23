@@ -1,0 +1,41 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+use concir_sync::Semaphore;
+use std::sync::mpsc::{sync_channel, SyncSender, Receiver};
+use std::sync::{Arc};
+use std::thread;
+
+fn main() { cir_trace::init();
+    let m = Arc::new(Mutex::new_named("m_mutex0", ()));
+    let (tx, rx): (SyncSender<i32>, Receiver<i32>) = sync_channel(1);
+
+    let m_sender = Arc::clone(&m);
+    let sender = cir_trace::spawn("sender", move || {
+        {
+            let _guard = m_sender.lock().unwrap();
+        }
+        tx.send(1).unwrap();
+        {
+            let _guard = m_sender.lock().unwrap();
+        }
+        tx.send(2).unwrap();
+    });
+
+    let m_receiver = Arc::clone(&m);
+    let receiver = cir_trace::spawn("receiver", move || {
+        {
+            let _guard = m_receiver.lock().unwrap();
+        }
+        let x = rx.recv().unwrap();
+        {
+            let _guard = m_receiver.lock().unwrap();
+        }
+        let y = rx.recv().unwrap();
+        let _ = (x, y);
+    });
+
+    sender.join().unwrap();
+    receiver.join().unwrap();
+
+    println!("DONE done=1");
+ cir_trace::finish();}

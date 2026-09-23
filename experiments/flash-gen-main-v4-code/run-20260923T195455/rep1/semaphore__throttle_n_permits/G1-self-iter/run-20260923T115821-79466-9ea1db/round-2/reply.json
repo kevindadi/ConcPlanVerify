@@ -1,0 +1,9 @@
+{
+  "round": 2,
+  "kind": "claims_no_issue",
+  "matched": [
+    "no deadlock"
+  ],
+  "decision": "claims_no_issue_unbuilt",
+  "raw_text": "Looking at this program:\n\n- `Semaphore::new(2)` creates a pool of 2 permits.\n- Three threads each `acquire()` a permit, do work, and the permit's `Drop` releases it.\n- The main thread joins all three.\n\nThe concern in R5 is whether a waiting worker can block forever. With a counting semaphore of 2 permits and 3 workers, at most 2 hold permits; the third waits. When a holder finishes, its permit is dropped/released, waking the waiter. This is the standard correct usage.\n\nThere's no deadlock: workers don't acquire multiple permits, don't hold locks while waiting, and don't depend on each other. Every worker eventually acquires, releases, and terminates. The `join` calls complete. Output is exactly `DONE done=1`.\n\nNo lost wakeup, no data race (each thread has its own permit), no blocking-forever scenario.\n\nNO_ISSUES"
+}

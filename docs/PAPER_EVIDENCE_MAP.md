@@ -89,3 +89,15 @@ Ordered as the evaluation reads. Binaries: `concir-backend` (freeze-5),
 - Claims to rest on: G3 `RF_acc`/awp/Complex tier/`accepted_with_proof`, the
   ablation comparison, and conform's independent catches — **not** on RF_all
   where G3 < G0.
+
+## v6 update (freeze-7): concir_sync crate, post-join main, v4 code
+
+- Harness: `concir_sync` is a path-dependency crate (no duplicate `mod`), conform
+  allows post-join main ops, `check` warns `W201` on declared-unused resources.
+- Replay v2 (`gen-code-replay-v2`): 19 freeze-6 failures → 12 build-fixed + 5
+  conform-fixed, 2 real (`extra_op`); 0 regressions.
+- Live `flash-gen-main-v4-code`: G3 accept **0.750**, `accepted_with_proof`
+  **54/72**, defect 0; G3 leads RF_all (0.493 vs G0 0.401), RF_acc 0.657 (above
+  G1, below G2 0.683 and the codegen ablation 0.765).
+- Limitation: channel `Mutex<Receiver>` wrappers still yield `unmapped`
+  (37/40 accepted cells); prompt-only mitigation.

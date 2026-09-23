@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_fail",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Arc;\nuse std::thread;\n\nfn main() {\n    let s = Semaphore::new(2);\n    let done = Arc::new(AtomicUsize::new(0));\n\n    let mut handles = Vec::new();\n\n    for _ in 0..3 {\n        let s = Arc::clone(&s);\n        let done = Arc::clone(&done);\n        handles.push(thread::spawn(move || {\n            let permit = s.acquire();\n            // perform work while holding the permit\n            drop(permit);\n            done.fetch_add(1, Ordering::SeqCst);\n        }));\n    }\n\n    for h in handles {\n        h.join().unwrap();\n    }\n\n    if done.load(Ordering::SeqCst) == 3 {\n        println!(\"DONE done=1\");\n    }\n}\n```"
+}

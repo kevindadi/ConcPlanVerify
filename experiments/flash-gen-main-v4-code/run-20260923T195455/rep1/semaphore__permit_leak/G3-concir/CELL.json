@@ -1,0 +1,89 @@
+{
+  "arm": "G3_concir_llmcode",
+  "task": "semaphore/permit_leak",
+  "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep1/semaphore__permit_leak/G3_concir/cir/revision-1.cir.json",
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "post_verify_fail",
+      "prompt_tokens": 1671,
+      "completion_tokens": 182,
+      "llm_ms": 1230,
+      "instrument_limit": [],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 0,
+        "traces": 32,
+        "statuses": {
+          "violation": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "first_violation": {
+        "binary_sha256": "afcbe9675ce8c14bd5f93358275f9fb658f544c4fbb3d588ced96433e6ee959d",
+        "coverage": {
+          "sids_seen": 0,
+          "sids_total": 5
+        },
+        "detail": "no enabled model step matches sem_release on \"main::s\" at event 2",
+        "event_index": 2,
+        "events": 6,
+        "expected": [
+          "sem_acquire:main::s"
+        ],
+        "git_rev": "24fc9821b274b287e06de93cdecfb2c37737d1ca",
+        "got": "sem_release:main::s",
+        "post_join_main_ops": [],
+        "status": "violation",
+        "wrapper_ops": []
+      },
+      "conform_kind": "order"
+    },
+    {
+      "round": 2,
+      "decision": "accepted",
+      "prompt_tokens": 1762,
+      "completion_tokens": 150,
+      "llm_ms": 893,
+      "instrument_limit": [],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 32,
+        "traces": 32,
+        "statuses": {
+          "conformant": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": []
+    }
+  ],
+  "accepted": true,
+  "accepted_with_proof": true,
+  "status": "accepted",
+  "instrument_limit": null,
+  "coverage": {
+    "total": 7,
+    "decidable": 6,
+    "satisfied": 6,
+    "failed": 0,
+    "not_observed": 0,
+    "unmapped": 0,
+    "unsupported": 0,
+    "deferred": 0,
+    "unverifiable": 1,
+    "rc": 0.8571428571428571,
+    "rf": 0.8571428571428571,
+    "statuses": {
+      "R1": "PASS_bounded",
+      "R2": "PASS_bounded",
+      "R3": "PASS_bounded",
+      "R4": "PASS_bounded",
+      "R5": "PASS_bounded",
+      "R6": "PASS_bounded",
+      "R7": "unverifiable"
+    }
+  },
+  "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v4-code/run-20260923T195455/rep1/semaphore__permit_leak/G3-concir/code/round-2.rs"
+}

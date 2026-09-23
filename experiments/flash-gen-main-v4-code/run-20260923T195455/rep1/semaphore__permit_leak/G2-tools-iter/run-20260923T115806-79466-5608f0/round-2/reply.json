@@ -1,0 +1,7 @@
+{
+  "round": 2,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::thread;\n\nfn main() {\n    let s: Arc<Semaphore> = Semaphore::new(1);\n\n    let s1 = Arc::clone(&s);\n    let w1 = thread::spawn(move || {\n        let _permit = s1.acquire();\n        // work\n    });\n\n    let s2 = Arc::clone(&s);\n    let w2 = thread::spawn(move || {\n        let _permit = s2.acquire();\n        // work\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    println!(\"DONE permits=1\");\n}\n```"
+}

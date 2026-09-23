@@ -1,0 +1,9 @@
+{
+  "round": 2,
+  "kind": "claims_no_issue",
+  "matched": [
+    "no deadlock"
+  ],
+  "decision": "claims_no_issue_unbuilt",
+  "raw_text": "Looking at this program:\n\n- `s` is a counting semaphore with 1 permit.\n- `w1` acquires a permit, does work, and the permit is released when `_permit` drops at the end of the closure.\n- `w2` does the same.\n- The main thread joins both.\n\nThe permit is held via RAII (`_permit`), so it is released when the worker's closure ends. There's no deadlock: whichever worker acquires first will finish and drop its permit, allowing the other to proceed. Both threads terminate, and the main thread joins them.\n\nR5 is satisfied because the permit is released automatically on drop, and the waiting worker doesn't hold anything the holder needs.\n\nNo lost wakeup, no data race (semaphore handles synchronization), no thread blocks forever.\n\nNO_ISSUES"
+}

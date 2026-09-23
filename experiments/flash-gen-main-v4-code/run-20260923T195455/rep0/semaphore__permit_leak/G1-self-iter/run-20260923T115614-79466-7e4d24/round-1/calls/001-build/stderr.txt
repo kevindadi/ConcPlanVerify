@@ -1,0 +1,30 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260923T115614-79466-7e4d24/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `package.name`
+ --> Cargo.toml:2:8
+  |
+2 - name = "cir_arm_probe"
+2 + name = "cir-arm-probe"
+  |
+help: to change the binary name to `cir-arm-probe`, specify `bin.name`
+ --> Cargo.toml:6:16
+  |
+6 ~ [dependencies]
+7 + [[bin]]
+8 + name = "cir-arm-probe"
+9 + path = "src/main.rs"
+  |
+error[E0432]: unresolved import `concir_sync`
+ --> src/main.rs:1:5
+  |
+1 | use concir_sync::Semaphore;
+  |     ^^^^^^^^^^^ use of unresolved module or unlinked crate `concir_sync`
+  |
+  = help: if you wanted to use a crate named `concir_sync`, use `cargo add concir_sync` to add it to your `Cargo.toml`
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 1 previous error

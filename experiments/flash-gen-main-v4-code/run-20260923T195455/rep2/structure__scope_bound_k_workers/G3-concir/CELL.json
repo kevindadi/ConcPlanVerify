@@ -1,0 +1,89 @@
+{
+  "arm": "G3_concir_llmcode",
+  "task": "structure/scope_bound_k_workers",
+  "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v2/run-20260923T005232/rep2/structure__scope_bound_k_workers/G3_concir/cir/revision-1.cir.json",
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "post_verify_fail",
+      "prompt_tokens": 1816,
+      "completion_tokens": 248,
+      "llm_ms": 1564,
+      "instrument_limit": [],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 0,
+        "traces": 32,
+        "statuses": {
+          "violation": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "first_violation": {
+        "binary_sha256": "afcbe9675ce8c14bd5f93358275f9fb658f544c4fbb3d588ced96433e6ee959d",
+        "coverage": {
+          "sids_seen": 0,
+          "sids_total": 7
+        },
+        "detail": "no enabled model step matches sem_release on \"main::s\" at event 2",
+        "event_index": 2,
+        "events": 9,
+        "expected": [
+          "sem_acquire:main::s"
+        ],
+        "git_rev": "24fc9821b274b287e06de93cdecfb2c37737d1ca",
+        "got": "sem_release:main::s",
+        "post_join_main_ops": [],
+        "status": "violation",
+        "wrapper_ops": []
+      },
+      "conform_kind": "order"
+    },
+    {
+      "round": 2,
+      "decision": "accepted",
+      "prompt_tokens": 1907,
+      "completion_tokens": 239,
+      "llm_ms": 1325,
+      "instrument_limit": [],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 32,
+        "traces": 32,
+        "statuses": {
+          "conformant": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": []
+    }
+  ],
+  "accepted": true,
+  "accepted_with_proof": true,
+  "status": "accepted",
+  "instrument_limit": null,
+  "coverage": {
+    "total": 7,
+    "decidable": 4,
+    "satisfied": 4,
+    "failed": 0,
+    "not_observed": 0,
+    "unmapped": 0,
+    "unsupported": 0,
+    "deferred": 0,
+    "unverifiable": 3,
+    "rc": 0.5714285714285714,
+    "rf": 0.5714285714285714,
+    "statuses": {
+      "R1": "unverifiable",
+      "R2": "unverifiable",
+      "R3": "PASS_bounded",
+      "R4": "PASS_bounded",
+      "R5": "PASS_bounded",
+      "R6": "PASS_bounded",
+      "R7": "unverifiable"
+    }
+  },
+  "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v4-code/run-20260923T195455/rep2/structure__scope_bound_k_workers/G3-concir/code/round-2.rs"
+}

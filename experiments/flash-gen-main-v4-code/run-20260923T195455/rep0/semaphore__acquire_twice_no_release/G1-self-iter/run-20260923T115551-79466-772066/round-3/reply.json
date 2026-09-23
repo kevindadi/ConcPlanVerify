@@ -1,0 +1,9 @@
+{
+  "round": 3,
+  "kind": "claims_no_issue",
+  "matched": [
+    "no deadlock"
+  ],
+  "decision": "claims_no_issue_unbuilt",
+  "raw_text": "Looking at this program:\n\n- `s` is a counting semaphore with 1 permit.\n- Each worker acquires, drops, acquires, drops.\n- Since each worker releases before re-acquiring, there's no deadlock: a worker never holds a permit while waiting for another.\n- The semaphore is `Arc`-shared correctly.\n- Both threads join, then `DONE done=1` prints.\n\nThere is no lost wakeup, no data race, no deadlock, and no thread can block forever. The design satisfies all requirements.\n\nNO_ISSUES"
+}

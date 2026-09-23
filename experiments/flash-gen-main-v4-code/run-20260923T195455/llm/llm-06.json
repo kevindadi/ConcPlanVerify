@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "e661eebb-94fc-4e87-994a-98aece9382da",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust from a verified ConcIR design (v1)\n\nYou are a Rust concurrency engineer. You are given (a) a **verified ConcIR\ndesign** and (b) the original requirement document. Output one self-contained\nRust program that implements the design.\n\n## Authority\n\nThe ConcIR design is **authoritative** for everything it models:\n\n- every CIR function corresponds to one thread body or function; the entry\n  scope starts the threads it names;\n- every CIR resource corresponds to one synchronization primitive or shared\n  variable: a mutex, a condition variable, a semaphore, a channel, an atomic,\n  or a plain shared variable;\n- the order of synchronization operations and shared-state updates in your Rust\n  must follow the order of the CIR statements in each function;\n- every function or variable name in the CIR must appear in your Rust under the\n  same name.\n\nThe requirement document only supplements what the CIR does not model: payload\ncomputation, data formatting, and the exact terminal output line. If the two\ndisagree, **follow the CIR**. If the requirement document names a thread or a\nresource, use that name.\n\n## Library\n\nAn external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `release()`.\n\n## Entity conventions\n\n- Each CIR `Mutex`/`Condvar`/`Channel`/`Semaphore` resource corresponds to\n  exactly one synchronization primitive in your program, under the same name.\n  Do not introduce a synchronization primitive that the CIR does not have.\n- A CIR `var`/`Atomic` is ordinary shared data: put it inside the `Mutex` that\n  protects it (or keep it local) and access it under that lock. **Do not add a\n  separate lock for a `var`.**\n- Implement a CIR `condvar_wait` as `while !predicate { guard = cv.wait(guard) }`\n  with the predicate guarded by the paired mutex. The release and reacquisition\n  of the mutex are implicit in the wait.\n- `main` does only what the CIR `main` does: start and join the named threads,\n  then print the terminal line. After joining all workers, `main` may read\n  shared state to print the terminal line; otherwise it must not access shared\n  state the CIR `main` does not access.\n\n## Rules\n\n- One file, compiled as a binary crate; define `fn main`.\n- Standard library only: `std::thread`, `std::sync::{Mutex, Condvar, Arc,\n  atomic::*}`, `std::sync::mpsc`, `std::time`. No external crates, no `unsafe`,\n  no `#![feature]`.\n- Implement the CIR's mutexes with `Mutex`, condition variables with `Condvar`\n  (wait in a predicate loop guarded by the mutex), semaphores with a\n  counter+`Condvar`, and channels with `mpsc` (use `sync_channel` for a bounded\n  channel; a zero-capacity `sync_channel` is a rendezvous).\n- Preserve the intended contention and synchronization structure. Do not make\n  the program sequential and do not remove a critical section.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  avoid a concurrency problem; coordinate only with synchronization primitives.\n- Ensure every spawned thread is joined and `main` terminates, printing the\n  terminal status line required by the requirements.\n- Do not mention design-internal identifiers in comments. Output only the Rust\n  source inside one ```rust code fence. No prose outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Requirement document:\n# Requirements\n\nR1. A main task starts one sending task and one receiving task that run at the same time.\nR2. The two tasks communicate over a channel with no buffering, so a send and a take must meet to exchange the value.\nR3. The sender passes one value and the receiver takes one value, so both tasks finish.\nR4. No task may wait forever for a partner that never arrives.\nR5. Every schedule and interleaving must terminate with both tasks finished and no value left in the channel.\nR6. The channel is empty once both tasks have finished.\nR7. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): s1, r.\n- Shared resources: ch (channel).\n\nThread plan (authoritative; mirror it exactly):\nmodule main:\n- main: start [main::s1, main::r]\n- s1: channel_send main::ch\n- r: channel_recv main::ch\n\nVerified ConcIR design (authoritative):\n```json\n{\n  \"program\": \"sync_channel\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [\n          \"ch\"\n        ],\n        \"functions\": [\n          \"main\",\n          \"s1\",\n          \"r\"\n        ]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [\n        {\n          \"name\": \"ch\",\n          \"kind\": \"sync\",\n          \"type\": \"Channel\",\n          \"mode\": \"Sync\",\n          \"base\": \"Int\",\n          \"capacity\": 0\n        }\n      ],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"scope\",\n              \"funcs\": [\n                \"main::s1\",\n                \"main::r\"\n              ]\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"s1\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"channel_send\",\n              \"channel\": \"main::ch\",\n              \"value\": \"1\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"r\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"channel_recv\",\n              \"channel\": \"main::ch\",\n              \"dst\": \"v\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"return\"\n            }\n          ],\n          \"locals\": [\n            {\n              \"name\": \"v\",\n              \"type\": \"Int\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}\n```\n\nOutput only the complete Rust program in one ```rust fence."
+    }
+  ],
+  "prompt_sha256": "8a11e06b72eaebb56646fc7b6850aaa1238cbb7df55bd0a7d58c2cbdbb1ddacd",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 169,
+    "prompt_tokens": 1579,
+    "total_tokens": 1748,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 640
+    },
+    "prompt_cache_hit_tokens": 640,
+    "prompt_cache_miss_tokens": 939
+  },
+  "content_sha256": "32b8779e1e2788923e3d811ab335b79a1a8666cd643af3d7bd4b561434c649cf",
+  "content": "```rust\nuse std::sync::mpsc::{sync_channel, SyncSender, Receiver};\nuse std::thread;\n\nfn s1(tx: SyncSender<i32>) {\n    tx.send(1).unwrap();\n}\n\nfn r(rx: Receiver<i32>) -> i32 {\n    let v = rx.recv().unwrap();\n    v\n}\n\nfn main() {\n    let (tx, rx) = sync_channel::<i32>(0);\n\n    let s1_handle = thread::spawn(move || {\n        s1(tx);\n    });\n\n    let r_handle = thread::spawn(move || r(rx));\n\n    s1_handle.join().unwrap();\n    let v = r_handle.join().unwrap();\n\n    println!(\"DONE done={}\", v);\n}\n```",
+  "wall_ms": 1184
+}
