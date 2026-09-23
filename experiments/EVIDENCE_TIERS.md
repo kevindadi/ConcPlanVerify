@@ -28,6 +28,8 @@ commits.
 
 ## Tier B
 
+- `experiments/deepseek-flash-repair-v1` (frozen inputs used by `build_families.py` and tests)
+
 - `experiments/conform-mutation-v1`
 - `experiments/post-edit-conform-v1`
 - `experiments/flash-gen-main-v1`
@@ -46,7 +48,6 @@ commits.
 - `experiments/_archive/conformance-v3`
 - `experiments/_archive/conformance-v4-rebase`
 - `experiments/_archive/deepseek-flash-pilot-v1`
-- `experiments/_archive/deepseek-flash-repair-v1`
 - `experiments/_archive/detection-v1`
 - `experiments/_archive/detection-v2`
 - `experiments/_archive/extraction-v4`
