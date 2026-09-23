@@ -55,7 +55,7 @@ def main() -> int:
     parser.add_argument("--k-code", type=int, default=3)
     parser.add_argument("--out", default="experiments/flash-gen-main-v4-code")
     parser.add_argument("--binary", default=os.environ.get(
-        "CONCIR_BACKEND", "/Users/kevin/local-repos/ConcIR/target/release/concir-backend"))
+        "CONCIR_BACKEND", "concir/target/release/concir-backend"))
     args = parser.parse_args()
     load_dotenv(REPO / ".env")
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")

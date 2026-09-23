@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::thread;\n\nfn main() {\n    let s = Semaphore::new(1);\n\n    let s1 = s.clone();\n    let w1 = thread::spawn(move || {\n        let p1 = s1.acquire();\n        // work\n        let p2 = s1.acquire();\n        // work\n        p2.release();\n        p1.release();\n    });\n\n    let s2 = s.clone();\n    let w2 = thread::spawn(move || {\n        let p1 = s2.acquire();\n        // work\n        p1.release();\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

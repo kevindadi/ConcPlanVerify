@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "67e8b952-a3f3-43e8-8bf7-3a66b7dde9e4",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust from a verified ConcIR design (v1)\n\nYou are a Rust concurrency engineer. You are given (a) a **verified ConcIR\ndesign** and (b) the original requirement document. Output one self-contained\nRust program that implements the design.\n\n## Authority\n\nThe ConcIR design is **authoritative** for everything it models:\n\n- every CIR function corresponds to one thread body or function; the entry\n  scope starts the threads it names;\n- every CIR resource corresponds to one synchronization primitive or shared\n  variable: a mutex, a condition variable, a semaphore, a channel, an atomic,\n  or a plain shared variable;\n- the order of synchronization operations and shared-state updates in your Rust\n  must follow the order of the CIR statements in each function;\n- every function or variable name in the CIR must appear in your Rust under the\n  same name.\n\nThe requirement document only supplements what the CIR does not model: payload\ncomputation, data formatting, and the exact terminal output line. If the two\ndisagree, **follow the CIR**. If the requirement document names a thread or a\nresource, use that name.\n\n## Library\n\nAn external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.\n\n## Entity conventions\n\n- Each CIR `Mutex`/`Condvar`/`Channel`/`Semaphore` resource corresponds to\n  exactly one synchronization primitive in your program, under the same name.\n  Do not introduce a synchronization primitive that the CIR does not have.\n- A CIR `var`/`Atomic` is ordinary shared data: put it inside the `Mutex` that\n  protects it (or keep it local) and access it under that lock. **Do not add a\n  separate lock for a `var`.**\n- Implement a CIR `condvar_wait` as `while !predicate { guard = cv.wait(guard) }`\n  with the predicate guarded by the paired mutex. The release and reacquisition\n  of the mutex are implicit in the wait.\n- `main` does only what the CIR `main` does: start and join the named threads,\n  then print the terminal line. After joining all workers, `main` may read\n  shared state to print the terminal line; otherwise it must not access shared\n  state the CIR `main` does not access.\n\n## Rules\n\n- One file, compiled as a binary crate; define `fn main`.\n- Standard library only: `std::thread`, `std::sync::{Mutex, Condvar, Arc,\n  atomic::*}`, `std::sync::mpsc`, `std::time`. No external crates, no `unsafe`,\n  no `#![feature]`.\n- Implement the CIR's mutexes with `Mutex`, condition variables with `Condvar`\n  (wait in a predicate loop guarded by the mutex), semaphores with a\n  counter+`Condvar`, and channels with `mpsc` (use `sync_channel` for a bounded\n  channel; a zero-capacity `sync_channel` is a rendezvous).\n- Preserve the intended contention and synchronization structure. Do not make\n  the program sequential and do not remove a critical section.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  avoid a concurrency problem; coordinate only with synchronization primitives.\n- Ensure every spawned thread is joined and `main` terminates, printing the\n  terminal status line required by the requirements.\n- Do not mention design-internal identifiers in comments. Output only the Rust\n  source inside one ```rust code fence. No prose outside the fence.\n"
+    },
+    {
+      "role": "user",
+      "content": "Requirement document:\n# Requirements\n\nR1. A main task calls an auxiliary routine and then begins the same call sequence again. [U]\nR2. The main task and the auxiliary routine share no mutexes, counters, or other shared state, so no two tasks contend for a resource.\nR3. Each auxiliary call runs to completion before the calling task starts the next call.\nR4. Every schedule and interleaving of the tasks must terminate.\nR5. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): helper.\n\nThread plan (authoritative; mirror it exactly):\nmodule main:\n- helper: no operations\n- main: no operations\n\nVerified ConcIR design (authoritative):\n```json\n{\n  \"program\": \"seq_helper\",\n  \"version\": \"3.5.0\",\n  \"entry\": \"main::main\",\n  \"modules\": [\n    {\n      \"name\": \"main\",\n      \"provides\": {\n        \"resources\": [],\n        \"functions\": [\n          \"main\",\n          \"helper\"\n        ]\n      },\n      \"requires\": {\n        \"resources\": [],\n        \"functions\": []\n      },\n      \"resources\": [],\n      \"protection\": [],\n      \"functions\": [\n        {\n          \"name\": \"helper\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"return\"\n            }\n          ]\n        },\n        {\n          \"name\": \"main\",\n          \"kind\": \"normal\",\n          \"form\": \"closure\",\n          \"body\": [\n            {\n              \"sid\": \"s1\",\n              \"kind\": \"call\",\n              \"func\": \"main::helper\"\n            },\n            {\n              \"sid\": \"s2\",\n              \"kind\": \"call\",\n              \"func\": \"main::helper\"\n            },\n            {\n              \"sid\": \"s3\",\n              \"kind\": \"return\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}\n```\n\nOutput only the complete Rust program in one ```rust fence."
+    }
+  ],
+  "prompt_sha256": "0241e139d03d54f1a8db650343c0230a0f27452a06e4344ec0e80524eacca228",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 29,
+    "prompt_tokens": 1345,
+    "total_tokens": 1374,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 896
+    },
+    "prompt_cache_hit_tokens": 896,
+    "prompt_cache_miss_tokens": 449
+  },
+  "content_sha256": "68e2f9c643227652fffd10df99bd91b7f06e02ed1e91fd1521fe59cbdc7235f3",
+  "content": "```rust\nfn helper() {\n}\n\nfn main() {\n    helper();\n    helper();\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 828
+}

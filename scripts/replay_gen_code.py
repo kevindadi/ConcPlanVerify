@@ -106,7 +106,7 @@ def _replay_smoke(binary: Path, tasks: dict) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", default=os.environ.get(
-        "CONCIR_BACKEND", "/Users/kevin/local-repos/ConcIR/target/release/concir-backend"))
+        "CONCIR_BACKEND", "concir/target/release/concir-backend"))
     parser.add_argument("--skip-smoke", action="store_true")
     args = parser.parse_args()
     binary = Path(args.binary)

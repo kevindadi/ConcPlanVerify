@@ -80,7 +80,7 @@ def main() -> int:
     parser.add_argument("--max-requests", type=int, default=150)
     parser.add_argument("--out", default="experiments/gen-model-probe-v2")
     parser.add_argument("--binary", default=os.environ.get(
-        "CONCIR_BACKEND", "/Users/kevin/local-repos/ConcIR/target/release/concir-backend"))
+        "CONCIR_BACKEND", "concir/target/release/concir-backend"))
     args = parser.parse_args()
     load_dotenv(REPO / ".env")
     api_key = os.environ.get("OPENCODE_API_KEY", "")

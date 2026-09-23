@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "f601f6ca-8d35-4802-b063-fdcca5b326ec",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n\nAn external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. A main task starts a sender role and a receiver role that run at the same time.\nR2. The two roles communicate through a channel that can hold at most one value, and both roles occasionally need one shared lock. [U]\nR3. The sender passes two values in order and the receiver takes two values, so both roles can finish.\nR4. When the channel is full the sender waits before it sends again, and when the channel is empty the receiver waits before it takes.\nR5. No role may wait on the channel while holding the shared lock that the other role needs.\nR6. Every schedule and interleaving must terminate with the sender and the receiver both finished.\nR7. The sender must not pass its second value before the receiver has taken the first, because the channel holds only one value.\nR8. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): sender, receiver.\n- Shared resources: m (lock), ch (channel).\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "c76d4ba4a6268e2b75710e129d8bf3b36132fa6ed330dad5dfa836c26fd5bf30",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 504,
+    "prompt_tokens": 598,
+    "total_tokens": 1102,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 128
+    },
+    "prompt_cache_hit_tokens": 128,
+    "prompt_cache_miss_tokens": 470
+  },
+  "content_sha256": "ea5ea784fcf8a037940ba0605307ce5b1f1eeb3bbf0e85eaba90d6fd970e4982",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Channel {\n    slot: Option<i32>,\n    closed: bool,\n}\n\nstruct Shared {\n    m: Mutex<()>,\n    ch: Mutex<Channel>,\n    not_empty: Condvar,\n    not_full: Condvar,\n}\n\nimpl Shared {\n    fn new() -> Self {\n        Shared {\n            m: Mutex::new(()),\n            ch: Mutex::new(Channel {\n                slot: None,\n                closed: false,\n            }),\n            not_empty: Condvar::new(),\n            not_full: Condvar::new(),\n        }\n    }\n\n    fn send(&self, value: i32) {\n        let mut ch = self.ch.lock().unwrap();\n        while ch.slot.is_some() {\n            ch = self.not_full.wait(ch).unwrap();\n        }\n        ch.slot = Some(value);\n        self.not_empty.notify_one();\n    }\n\n    fn recv(&self) -> i32 {\n        let mut ch = self.ch.lock().unwrap();\n        while ch.slot.is_none() {\n            ch = self.not_empty.wait(ch).unwrap();\n        }\n        let value = ch.slot.take().unwrap();\n        self.not_full.notify_one();\n        value\n    }\n}\n\nfn sender(shared: Arc<Shared>) {\n    // Occasionally need the shared lock m, but never while waiting on the channel.\n    {\n        let _guard = shared.m.lock().unwrap();\n    }\n\n    shared.send(1);\n\n    {\n        let _guard = shared.m.lock().unwrap();\n    }\n\n    shared.send(2);\n}\n\nfn receiver(shared: Arc<Shared>) {\n    {\n        let _guard = shared.m.lock().unwrap();\n    }\n\n    let _first = shared.recv();\n\n    {\n        let _guard = shared.m.lock().unwrap();\n    }\n\n    let _second = shared.recv();\n}\n\nfn main() {\n    let shared = Arc::new(Shared::new());\n\n    let s = Arc::clone(&shared);\n    let r = Arc::clone(&shared);\n\n    let sender_handle = thread::spawn(move || sender(s));\n    let receiver_handle = thread::spawn(move || receiver(r));\n\n    sender_handle.join().unwrap();\n    receiver_handle.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 1811
+}

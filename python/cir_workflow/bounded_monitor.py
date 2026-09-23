@@ -39,10 +39,11 @@ def resolve_binary(binary: str | Path | None = None) -> Path | None:
     env = os.environ.get("CONCIR_BACKEND")
     if env and Path(env).is_file():
         return Path(env)
-    candidates = [
-        Path("/Users/kevin/local-repos/ConcIR/target/release/concir-backend"),
-        Path("/Users/kevin/local-repos/ConcIR/target/debug/concir-backend"),
-    ]
+    concir = Path(os.environ.get("CONCIR_REPO",
+                                 str(Path(__file__).resolve().parents[3] / "ConcIR")))
+    candidates = [concir / "target/release/concir-backend",
+                  concir / "target/debug/concir-backend",
+                  Path("concir/target/release/concir-backend")]
     for candidate in candidates:
         if candidate.is_file():
             return candidate

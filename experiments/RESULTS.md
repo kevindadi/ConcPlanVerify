@@ -2,7 +2,7 @@
 
 > **Generated file — do not edit by hand.** Regenerate with:
 > ```
-> python -m cir_workflow results results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --expert experiments/flash-repair-main-v1/expert-labels/EXPERT_LABELS.json --extraction experiments/extraction-v5 --trackd experiments/detection-v3/TRACKD.json --scale experiments/scale-v2/SCALE.json --mutation experiments/conform-mutation-v2/SUMMARY.json --postedit experiments/post-edit-conform-v2/SUMMARY.json --mutation-v1 experiments/conform-mutation-v1/SUMMARY.json --postedit-v1 experiments/post-edit-conform-v1/SUMMARY.json --modelprobe experiments/model-probe-v2 --gen experiments/flash-gen-main-v4-code/run-20260923T195455 --genprobe experiments/gen-model-probe-v2 --latex experiments/tables --output experiments/RESULTS.md
+> python -m cir_workflow results results --batch experiments/flash-repair-main-v1/run-20260920T083344-41096-8172c5 --expert experiments/flash-repair-main-v1/expert-labels/EXPERT_LABELS.json --extraction experiments/extraction-v5 --trackd experiments/detection-v3/TRACKD.json --scale experiments/scale-v2/SCALE.json --mutation experiments/conform-mutation-v2/SUMMARY.json --postedit experiments/post-edit-conform-v2/SUMMARY.json --mutation-v1 experiments/conform-mutation-v1/SUMMARY.json --postedit-v1 experiments/post-edit-conform-v1/SUMMARY.json --modelprobe experiments/model-probe-v2 --gen experiments/flash-gen-main-v5-code/run-20260923T211345 --genprobe experiments/gen-model-probe-v2 --latex experiments/tables --output experiments/RESULTS.md
 > ```
 
 ## Provenance
@@ -12,7 +12,7 @@
 - extraction: `experiments/extraction-v5`
 - track D: `experiments/detection-v3/TRACKD.json`
 - scale: `experiments/scale-v2/SCALE.json`
-- generation batch: `experiments/flash-gen-main-v4-code/run-20260923T195455`
+- generation batch: `experiments/flash-gen-main-v5-code/run-20260923T211345`
 - generation probe: `experiments/gen-model-probe-v2`
 - binary sha256: `4bec943dd486473caab24b17233b536e31641fbbb1e3d8d505d499b3113fb3f2`
 - binary v2 (conform) sha256: `073129de3a6d378a4e198bf712028c0c950cdf080981fb0073dfb7af5fa7ce5c`
@@ -479,25 +479,25 @@ Lockbud: available=True commit=`None` (miri seeds=16).
 
 Requirements -> verified CIR -> LLM code -> tool post-verification, 24 tasks, 3 reps. G0/G1/G2 are bounded-monitored; G3_concir verifies the CIR exhaustively, the LLM writes the Rust, and conform/monitor post-verify; G3_codegen is the tool-codegen ablation (rep 0).
 
-Batches (later overrides earlier): `run-20260923T195455`.
+Batches (later overrides earlier): `run-20260923T211345`.
 
 | arm | cells | accepted | accept rate | RC | RF_all | RF_acc | RF_run | defect | awp | tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 `RF_all` counts non-accepted cells as 0; `RF_acc` covers accepted cells; `RF_run` averages cells that carry a monitor value (freeze-5 wording).
-| G0_direct | 72 | 61 | 0.847 | 0.688 | 0.401 | 0.525 | 0.519 | 6 | 0 | 60877 |
-| G1_self_iter | 72 | 58 | 0.806 | 0.694 | 0.319 | 0.534 | 0.569 | 3 | 0 | 219979 |
-| G2_tools_iter | 72 | 39 | 0.542 | 0.699 | 0.313 | 0.683 | 0.611 | 0 | 0 | 328863 |
-| G3_concir | 72 | 54 | 0.75 | 0.657 | 0.493 | 0.657 | 0.657 | 0 | 54 | 335599 |
+| G0_direct | 72 | 68 | 0.944 | 0.676 | 0.448 | 0.512 | 0.504 | 6 | 0 | 62708 |
+| G1_self_iter | 72 | 62 | 0.861 | 0.699 | 0.396 | 0.559 | 0.545 | 3 | 0 | 284591 |
+| G2_tools_iter | 72 | 47 | 0.653 | 0.701 | 0.379 | 0.681 | 0.581 | 0 | 0 | 323908 |
+| G3_concir | 72 | 58 | 0.806 | 0.692 | 0.555 | 0.689 | 0.689 | 0 | 58 | 314729 |
 | G3_codegen | 24 | 20 | 0.833 | 0.776 | 0.638 | 0.765 | 0.672 | 0 | 17 | 106808 |
-| **all** | 312 | 232 | 0.744 | 0.694 | 0.401 | 0.61 | 0.594 | 9 | 71 | 1052126 |
+| **all** | 312 | 255 | 0.817 | 0.699 | 0.459 | 0.618 | 0.586 | 9 | 75 | 1092744 |
 
 Per tier (RF):
 
 | tier | G0_direct | G1_self_iter | G2_tools_iter | G3_concir | G3_codegen |
 | --- | --- | --- | --- | --- | --- |
-| Simple | 0.392 | 0.266 | 0.137 | 0.499 | 0.773 |
-| Medium | 0.479 | 0.344 | 0.456 | 0.642 | 0.642 |
-| Complex | 0.331 | 0.347 | 0.345 | 0.337 | 0.499 |
+| Simple | 0.462 | 0.457 | 0.326 | 0.668 | 0.773 |
+| Medium | 0.551 | 0.384 | 0.465 | 0.637 | 0.642 |
+| Complex | 0.331 | 0.347 | 0.345 | 0.361 | 0.499 |
 
 `defect` = accepted and (behavior hang or monitor FAIL or conform violation). `awp` is G3-only (model PASS, conform PASS, no monitor FAIL).
 

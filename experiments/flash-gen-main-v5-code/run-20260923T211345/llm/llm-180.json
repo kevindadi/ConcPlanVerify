@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "2c70bd21-8534-49ef-9166-cfcb344c5fb0",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n\nAn external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches three worker threads and waits for all of them to finish.\nR2. All three worker threads share one counting permit pool that begins with exactly two permits.\nR3. Each worker acquires one permit, performs its work, releases the permit, and then finishes.\nR4. At most two workers may hold permits at the same time, so a third worker waits until a permit is released.\nR5. While a worker waits for a permit, a holder must remain able to release it so the waiting worker can eventually proceed.\nR6. Every possible schedule and interleaving of the three workers must terminate.\nR7. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2, w3.\n- Shared resources: s (semaphore).\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "672d49122bff1db7b7c34a17be009aa2667b157b80c806931770d26be7d4bcc0",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 125,
+    "prompt_tokens": 562,
+    "total_tokens": 687,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 384
+    },
+    "prompt_cache_hit_tokens": 384,
+    "prompt_cache_miss_tokens": 178
+  },
+  "content_sha256": "4fc2506255d97d6501693d0183d9f48d24d8d23809dd3608204b96487e7f6a96",
+  "content": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::thread;\n\nfn main() {\n    let s = Semaphore::new(2);\n\n    let mut handles = Vec::new();\n\n    for _ in 0..3 {\n        let s = Arc::clone(&s);\n        handles.push(thread::spawn(move || {\n            let permit = s.acquire();\n            // work\n            permit.release();\n        }));\n    }\n\n    for h in handles {\n        h.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 1242
+}

@@ -1,0 +1,10 @@
+{
+  "round": 2,
+  "kind": "claims_no_issue",
+  "matched": [
+    "there is no (bug|deadlock|defect)",
+    "no deadlock"
+  ],
+  "decision": "claims_no_issue",
+  "raw_text": "Looking at this program:\n\n- `s` is a `Semaphore` with 2 permits, shared via `Arc` across 3 threads.\n- Each thread acquires a permit, does work, and drops it (releasing).\n- The main thread joins all handles.\n\nChecking the requirements:\n\n- R1: supervising task (main) launches three workers and joins them. ✓\n- R2: one counting pool with 2 permits. ✓\n- R3: each worker acquires, works, releases, finishes. ✓\n- R4: at most two hold permits; third waits. ✓\n- R5: while a worker waits, holders can release — permits are held only during work and released via `drop`, no lock ordering issue. ✓\n- R6: every schedule terminates — each worker eventually acquires (since permits are always released), no deadlock. ✓\n- R7: prints `DONE done=1`. ✓\n\nThere is no deadlock, lost wakeup, data race, or indefinite blocking. The semaphore is used correctly: acquire returns a permit whose Drop releases it, and each permit is released exactly once.\n\nNO_ISSUES"
+}

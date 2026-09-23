@@ -56,7 +56,7 @@ def main() -> int:
     parser.add_argument("--batch", default=str(DEFAULT_BATCH))
     parser.add_argument("--out", default="experiments/gen-code-replay-v2")
     parser.add_argument("--binary", default=os.environ.get(
-        "CONCIR_BACKEND", "/Users/kevin/local-repos/ConcIR/target/release/concir-backend"))
+        "CONCIR_BACKEND", "concir/target/release/concir-backend"))
     args = parser.parse_args()
     binary = Path(args.binary)
     tasks = {t.id: t for t in load_gen_tasks(REPO)}

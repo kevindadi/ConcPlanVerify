@@ -1304,3 +1304,46 @@ DeepSeek Flash: 140 (v4). OpenCode Go: 0.
   `KEY=value`), not the environment-variable names the scripts read
   (`os.environ.get("DEEPSEEK_API_KEY")`), which are safe and would otherwise
   exclude every script.
+
+---
+
+# Round 2026-09-23r — baseline parity, channel wrapper, v5 code (freeze-8)
+
+## Q-1..Q-6
+
+| item | status |
+| --- | --- |
+| Q-1 baseline no `concir_sync` | fixed: one `project_template.cargo_toml` for all arms; unit test compiles `use concir_sync::Semaphore;` for both template names; semaphore baselines re-run (freeze-7's baseline semaphore numbers were harness-limited). |
+| Q-2 supplement not anonymized | fixed: private word+secret list moved to gitignored `.supplement-private.json`; anonymization of every text file (incl. `.py/.sh/.toml/.lock`); post-unzip full-tree scan (binary included); `make_supplement.py` excluded; `legacy-cir2cvn`/`real-cases/results`/`raw/` excluded. Package passes all gates (7.2 MB). |
+| Q-3 5 failures | `FAILURES.md`: 4× `sem_release` double release (real deviation caused by an API footgun) — `Semaphore::release` removed, `Permit` releases once; `rendezvous_both_send` rep0 real compile failure. |
+| Q-4 channel `Mutex<Receiver>` | partial: instrument emits `channel_*` events for direct and mutex-wrapped endpoints and marks wrappers; direct-receiver programs map cleanly. Guard-variable wrappers still leave some `unmapped`. |
+| Q-5 probe title / kimi | `gen_results` probe title now reads the data dir; kimi G3 code stage **not re-run** (time); recorded as not done. |
+| Q-6 cleanup | reviews untracked (1023 paths); raw tier untracked (103107 paths, 165878→62773 tracked); `RAW_POLICY.md`; `make verify-evidence` green. |
+
+## v4 → v5 (freeze-7 → freeze-8)
+
+| arm | accept | RF_all | RF_acc | defect | awp |
+| --- | --- | --- | --- | --- | --- |
+| G0_direct | 0.944 | 0.448 | 0.512 | 6 | — |
+| G1_self_iter | 0.861 | 0.396 | 0.559 | 3 | — |
+| G2_tools_iter | 0.653 | 0.379 | 0.681 | 0 | — |
+| G3_concir | **0.806** | **0.555** | 0.689 | 0 | **58/72** |
+| G3_codegen | 0.833 | 0.638 | 0.765 | 0 | 17/24 |
+
+- G3 accept 0.750→**0.806**, awp 54→**58/72**, `RF_all` 0.493→**0.555** (highest arm),
+  `RF_acc` 0.657→0.689; baselines recovered (G0 accept 0.847→0.944) after fixing
+  the shared template. Stop-loss (G3 RF_acc > G0) holds.
+- Attribution: Q-1 raised the baseline numbers (G0/G1/G2 semaphore + channel);
+  the `Permit` API + channel events raised G3 code acceptance.
+- Residual limitation: channel guard-variable wrappers still `unmapped` for some
+  old cells; the supplement secret scan flags values, not env-var names.
+
+## Budgets
+
+DeepSeek Flash: 190 (v5). OpenCode Go: 0.
+
+## Not done
+
+- kimi G3 code stage (probe v2 carried); generation-cell expert labels.
+- Guard-variable channel-wrapper detection.
+- `deepseek-flash-repair-v1` fixture extraction then archive (kept tracked).

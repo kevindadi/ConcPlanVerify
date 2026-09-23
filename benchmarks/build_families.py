@@ -26,7 +26,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "benchmarks/families"
-CONCIR = Path("/Users/kevin/local-repos/ConcIR")
+CONCIR = Path(os.environ.get("CONCIR_REPO", str(ROOT.parent / "ConcIR")))
 LEGACY = ROOT / "benchmarks/legacy-paper-patterns"
 PATTERNS = ROOT / "benchmarks/patterns"
 FROZEN = ROOT / "experiments/deepseek-flash-repair-v1/frozen-inputs"

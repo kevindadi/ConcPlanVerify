@@ -488,9 +488,14 @@ def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
         kind = res.get("kind", "")
         if kind == "Spawn":
             continue
+        targets = by_kind.get(kind, [])
+        # A channel has two endpoint bindings (sender/receiver); map them all to
+        # the single CIR channel when there is only one.
+        if kind == "Channel" and len(targets) == 1:
+            mapping[res["name"]] = targets[0]
+            continue
         k = seen.get(kind, 0)
         seen[kind] = k + 1
-        targets = by_kind.get(kind, [])
         if k < len(targets):
             mapping[res["name"]] = targets[k]
     spawns = [r["name"] for r in rust_resources if r.get("kind") == "Spawn"]
@@ -522,7 +527,7 @@ def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
 
 
 def _rewrite_traces(src_dir: Path, dst_dir: Path, mapping: dict[str, str],
-                    drop_ops: set[str]) -> None:
+                    drop_ops: set[str], wrapper_names: set[str] | None = None) -> None:
     dst_dir.mkdir(parents=True, exist_ok=True)
     for trace in sorted(src_dir.glob("*.jsonl")):
         out = []
@@ -532,6 +537,9 @@ def _rewrite_traces(src_dir: Path, dst_dir: Path, mapping: dict[str, str],
                 continue
             event = json.loads(line)
             if event.get("op") in drop_ops:
+                continue
+            if (wrapper_names and event.get("op") in ("mutex_lock", "mutex_unlock")
+                    and event.get("r") in wrapper_names):
                 continue
             event["r"] = mapping.get(event.get("r", ""), event.get("r", ""))
             out.append(json.dumps(event))
@@ -620,9 +628,11 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
                                 encoding="utf-8")
         conform_dir = out_dir / f"round-{round_no}" / "conform-traces"
         monitor_dir = out_dir / f"round-{round_no}" / "monitor-traces"
-        _rewrite_traces(traces_dir, conform_dir, mapping, _DROP_OPS)
+        wrapper_names = {r["name"] for r in wrapped["resources"]
+                         if r.get("kind") == "ChannelWrapper"}
+        _rewrite_traces(traces_dir, conform_dir, mapping, _DROP_OPS, wrapper_names)
         # monitor keeps the runtime resource names and lets --mapping align them
-        _rewrite_traces(traces_dir, monitor_dir, {}, set())
+        _rewrite_traces(traces_dir, monitor_dir, {}, set(), wrapper_names)
         conform = _conform_all_op_resource(binary, cir_path, conform_dir)
         info["conform"] = {"conformant": conform["conformant"],
                            "traces": conform["traces"], "statuses": conform["statuses"]}

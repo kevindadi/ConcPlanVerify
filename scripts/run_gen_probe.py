@@ -122,7 +122,7 @@ def main() -> int:
     parser.add_argument("--k", type=int, default=4)
     parser.add_argument("--out", default="experiments/gen-model-probe-v1")
     parser.add_argument("--binary", default=os.environ.get(
-        "CONCIR_BACKEND", "/Users/kevin/local-repos/ConcIR/target/release/concir-backend"))
+        "CONCIR_BACKEND", "concir/target/release/concir-backend"))
     args = parser.parse_args()
 
     load_dotenv(REPO / ".env")

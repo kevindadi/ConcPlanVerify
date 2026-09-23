@@ -13,6 +13,7 @@ mkdir -p "$TMP/ref_tables" && cp "$REPO"/experiments/tables/*.tex "$TMP/ref_tabl
 CMD=$(grep -m1 '^> python -m cir_workflow results' "$TMP/experiments/RESULTS.md" | sed 's/^> //')
 # Normalise the duplicated subcommand token ("results results" -> "results").
 CMD=$(printf '%s' "$CMD" | sed 's/cir_workflow results results/cir_workflow results/')
+CMD=${CMD/#python /python3 }
 ( cd "$TMP" && PYTHONPATH="$TMP/python" ${CMD} >/dev/null )
 
 diff -q "$TMP/ref_results.md" "$TMP/experiments/RESULTS.md"

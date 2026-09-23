@@ -175,3 +175,24 @@ Directory hash recipe as above (excluding `*/target/*`).
 
 - ConcPV `experiments-v2-freeze-1..7`, `contracts-v3`, `contracts-v3.1`
 - ConcIR `concir-freeze-1..6`
+
+---
+
+# Freeze 8 — baseline template parity, channel wrapper, v5 code (2026-09-23)
+
+- `experiments/flash-gen-main-v5-code`: files=13704 sha256=`dadc58c502a516282ee964071759ed968128b7ff5ed1222527cfbca604e74810`
+- `experiments/tables`: files=17 sha256=`762881ccc691b54dfc27d374cf01640fa1e59128121225146b33f13fcc49c30e`
+
+## Provenance
+
+- ConcPlanVerify commit: this commit (tag `experiments-v2-freeze-8`).
+- ConcIR commit: `3aacc52` (tag `concir-freeze-7`).
+- `concir-backend` sha256: `627b3fb605662c6b1f40bd77998b6e6bd7c6a6d3b0acaed1e9628b2e3f548a30`
+- `concir-instrument` sha256: `a9eac7d10c9b5a8f02aaa70f2fa918a8d1e0a26a18930ffd8f712f7a3a79b409`
+- All arms share one cargo-project template (`concir_sync` linked); semaphore- and
+  channel-family baselines re-run; G3 code stage re-run (190 Flash requests).
+
+## Tags
+
+- ConcPV `experiments-v2-freeze-1..8`, `contracts-v3`, `contracts-v3.1`
+- ConcIR `concir-freeze-1..7`

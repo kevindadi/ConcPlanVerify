@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::thread;\n\nfn main() {\n    let s = Semaphore::new(2);\n\n    let mut handles = Vec::new();\n\n    for _ in 0..3 {\n        let s = s.clone();\n        handles.push(thread::spawn(move || {\n            let permit = s.acquire();\n            // perform work\n            drop(permit);\n        }));\n    }\n\n    for h in handles {\n        h.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,41 @@
+{
+  "status": "ok",
+  "requested_model": "deepseek-flash",
+  "response_model": "deepseek-flash",
+  "request_id": "0d65f150-db89-4528-bbbb-e06e42497f52",
+  "messages": [
+    {
+      "role": "system",
+      "content": "# Rust generation prompt (v1)\n\nYou are a Rust concurrency engineer. Given a natural-language specification of a\nconcurrent program, output a single self-contained Rust source file that models\nthe specification faithfully.\n\nRules:\n\n- Exactly one file, to be compiled as a binary crate. It must define `fn main`.\n- Standard library only. No external crates, no `unsafe`, no `#![feature]`.\n- Use `std::thread`, `std::sync::{Mutex, Condvar, Arc, atomic::*}` as the\n  specification requires.\n- Preserve the intended contention and synchronization structure of the\n  specification. Do not make the program trivially sequential, and do not remove\n  a required critical section to avoid a race.\n- Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to\n  dodge a concurrency problem. Coordination must be by synchronization\n  primitives.\n- Ensure every spawned thread is joined and `main` terminates.\n- Output only the Rust source inside a single ```rust code fence. No prose\n  outside the fence.\n\nAn external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.\n"
+    },
+    {
+      "role": "user",
+      "content": "Specification:\n# Requirements\n\nR1. A main task starts one sending task and one receiving task that run at the same time.\nR2. The two tasks communicate over a channel with no buffering, so a send and a take must meet to exchange the value.\nR3. The sender passes one value and the receiver takes one value, so both tasks finish.\nR4. No task may wait forever for a partner that never arrives.\nR5. Every schedule and interleaving must terminate with both tasks finished and no value left in the channel.\nR6. The channel is empty once both tasks have finished.\nR7. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): s1, r.\n- Shared resources: ch (channel).\n\n\nOutput the complete Rust program."
+    }
+  ],
+  "prompt_sha256": "f4172b068534087d77a6eaadc3f6b78030596b5a308f29424de2f0c733f710b3",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "thinking": {
+    "thinking": {
+      "type": "disabled"
+    }
+  },
+  "transport_attempt": 1,
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 350,
+    "prompt_tokens": 544,
+    "total_tokens": 894,
+    "completion_tokens_details": null,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 128
+    },
+    "prompt_cache_hit_tokens": 128,
+    "prompt_cache_miss_tokens": 416
+  },
+  "content_sha256": "26d48865fe9c86fa422e216519942f2de6ddc9d382d71ebbfc4698d45a6a3569",
+  "content": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Channel<T> {\n    slot: Mutex<Option<T>>,\n    has_value: Condvar,\n    has_space: Condvar,\n}\n\nimpl<T> Channel<T> {\n    fn new() -> Self {\n        Channel {\n            slot: Mutex::new(None),\n            has_value: Condvar::new(),\n            has_space: Condvar::new(),\n        }\n    }\n\n    fn send(&self, value: T) {\n        let mut slot = self.slot.lock().unwrap();\n        while slot.is_some() {\n            slot = self.has_space.wait(slot).unwrap();\n        }\n        *slot = Some(value);\n        self.has_value.notify_one();\n    }\n\n    fn recv(&self) -> T {\n        let mut slot = self.slot.lock().unwrap();\n        while slot.is_none() {\n            slot = self.has_value.wait(slot).unwrap();\n        }\n        let value = slot.take().unwrap();\n        self.has_space.notify_one();\n        value\n    }\n}\n\nfn main() {\n    let ch: Arc<Channel<i32>> = Arc::new(Channel::new());\n\n    let ch_s1 = Arc::clone(&ch);\n    let s1 = thread::spawn(move || {\n        ch_s1.send(1);\n    });\n\n    let ch_r = Arc::clone(&ch);\n    let r = thread::spawn(move || {\n        let _value = ch_r.recv();\n    });\n\n    s1.join().unwrap();\n    r.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```",
+  "wall_ms": 1452
+}

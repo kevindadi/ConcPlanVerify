@@ -1,0 +1,59 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260923T133342-32173-1d6f3f/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0308]: mismatched types
+  --> src/main.rs:18:27
+   |
+18 |             sender_ready: Semaphore::new(0),
+   |                           ^^^^^^^^^^^^^^^^^ expected `Semaphore`, found `Arc<Semaphore>`
+   |
+   = note: expected struct `Semaphore`
+              found struct `Arc<Semaphore>`
+
+error[E0308]: mismatched types
+  --> src/main.rs:19:29
+   |
+19 |             receiver_ready: Semaphore::new(0),
+   |                             ^^^^^^^^^^^^^^^^^ expected `Semaphore`, found `Arc<Semaphore>`
+   |
+   = note: expected struct `Semaphore`
+              found struct `Arc<Semaphore>`
+
+error[E0599]: no method named `permit_release_placeholder` found for struct `Permit<'a>` in the current scope
+  --> src/main.rs:29:39
+   |
+29 |         self.receiver_ready.acquire().permit_release_placeholder();
+   |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `Permit<'_>`
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+note: `PermitRelease` defines an item `permit_release_placeholder`, perhaps you need to implement it
+  --> src/main.rs:47:1
+   |
+47 | trait PermitRelease {
+   | ^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `permit_release_placeholder` found for struct `Permit<'a>` in the current scope
+  --> src/main.rs:41:37
+   |
+41 |         self.sender_ready.acquire().permit_release_placeholder();
+   |                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `Permit<'_>`
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+note: `PermitRelease` defines an item `permit_release_placeholder`, perhaps you need to implement it
+  --> src/main.rs:47:1
+   |
+47 | trait PermitRelease {
+   | ^^^^^^^^^^^^^^^^^^^
+
+Some errors have detailed explanations: E0308, E0599.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 4 previous errors
