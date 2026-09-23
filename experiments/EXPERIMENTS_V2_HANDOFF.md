@@ -1347,3 +1347,17 @@ DeepSeek Flash: 190 (v5). OpenCode Go: 0.
 - kimi G3 code stage (probe v2 carried); generation-cell expert labels.
 - Guard-variable channel-wrapper detection.
 - `deepseek-flash-repair-v1` fixture extraction then archive (kept tracked).
+
+## Round r — §6 supplement
+
+- `scripts/make_supplement.py` rewritten: private word/secret list in gitignored
+  `.supplement-private.json` (example with placeholders committed); anonymization
+  of every text file including `.py/.sh/.toml/.lock`; script absolute defaults
+  replaced with `CONCIR_BACKEND`/`CONCIR_REPO` env + relative paths; excludes
+  `legacy-cir2cvn/`, `real-cases/results/`, `raw/`, `reviews/`, raw tier and
+  `make_supplement.py` itself; post-unzip full-tree scan (binary bytes included).
+- Produced `dist/concplanverify-supplement-experiments-v2-freeze-8.zip`
+  (**8.9 MB, 8722 files**); gates ok (anonymisation, secrets, size, post-unzip);
+  self-check ok (`RESULTS.md` + `tables/*.tex` regenerate byte-identically).
+- Deviation kept: the secret patterns match values (`sk-…`, `Bearer …`,
+  `KEY=value`), not environment-variable names.

@@ -31,7 +31,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 DIST = REPO / "dist"
 
-TIER_A = ["tables", "flash-gen-main-v4-code", "gen-code-replay-v2",
+TIER_A = ["tables", "flash-gen-main-v5-code", "flash-gen-main-v4-code",
+          "gen-code-replay-v2",
           "flash-repair-main-v1", "detection-v3", "scale-v2",
           "conform-mutation-v2", "post-edit-conform-v2", "extraction-v5",
           "model-probe-v2", "gen-model-probe-v2", "rust-oracle-v1",
