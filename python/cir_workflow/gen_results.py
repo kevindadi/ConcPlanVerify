@@ -145,6 +145,20 @@ def render_tex(cells: dict) -> dict[str, str]:
         tiers.append(" & ".join(row) + " \\\\")
     tiers += [r"\bottomrule", r"\end{tabular}"]
 
+    fam_order = ["lock-order", "condvar", "channel", "semaphore", "atomic-data", "structure"]
+    families = ["\\begin{tabular}{lrrrrr}", "\\toprule",
+                "family & tasks & G0\\_direct & G1\\_self\\_iter & G2\\_tools\\_iter & G3\\_concir \\\\",
+                r"\midrule"]
+    for fam in fam_order:
+        fcells = [c for c in all_cells if c["task"].split("/")[0] == fam]
+        ntask = len({c["task"] for c in fcells})
+        vals = []
+        for arm in ("G0_direct", "G1_self_iter", "G2_tools_iter", "G3_concir"):
+            a = aggregate([c for c in fcells if c["arm"] == arm])
+            vals.append(str(a["rf_all"]))
+        families.append(" & ".join([fam, str(ntask)] + vals) + " \\\\")
+    families += [r"\bottomrule", r"\end{tabular}"]
+
     g3 = [c for c in all_cells if c["arm"] == "G3_concir"]
     v2recs = [c.get("record") or {} for c in g3]
     cir_rounds = [r.get("cir_rounds") for r in v2recs if r.get("cir_rounds") is not None]
@@ -187,6 +201,7 @@ def render_tex(cells: dict) -> dict[str, str]:
     return {"gen_main.tex": "\n".join(main) + "\n",
             "gen_arms.tex": "\n".join(arms) + "\n",
             "gen_tiers.tex": "\n".join(tiers) + "\n",
+            "gen_families.tex": "\n".join(families) + "\n",
             "gen_g3_stages.tex": "\n".join(stages) + "\n",
             "gen_codegen_ablation.tex": "\n".join(ablation) + "\n",
             "gen_conform_value.tex": "\n".join(conform_value) + "\n",
