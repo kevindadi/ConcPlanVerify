@@ -1,0 +1,81 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/reeval/work/rep0/atomic-data__counter_overflow_safety/G3_codegen/original)
+error[E0583]: file not found for module `cir_trace`
+ --> src/main.rs:2:1
+  |
+2 | mod cir_trace;
+  | ^^^^^^^^^^^^^^
+  |
+  = help: to create the module `cir_trace`, create file "src/cir_trace.rs" or "src/cir_trace/mod.rs"
+  = note: if there is a `mod cir_trace` elsewhere in the crate already, import it with `use crate::...` instead
+
+warning: unused import: `Condvar`
+ --> src/main.rs:3:22
+  |
+3 | use std::sync::{Arc, Condvar, Mutex};
+  |                      ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary parentheses around `if` condition
+  --> src/main.rs:58:25
+   |
+58 |                 pc = if (_l0 < 1) { 3 } else { 4 };
+   |                         ^       ^
+   |
+   = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+   |
+58 -                 pc = if (_l0 < 1) { 3 } else { 4 };
+58 +                 pc = if _l0 < 1 { 3 } else { 4 };
+   |
+
+warning: unnecessary parentheses around assigned value
+  --> src/main.rs:62:29
+   |
+62 |                 { let __v = (_l0 + 1); *shared.r_main__c.lock().unwrap() = __v; }
+   |                             ^       ^
+   |
+help: remove these parentheses
+   |
+62 -                 { let __v = (_l0 + 1); *shared.r_main__c.lock().unwrap() = __v; }
+62 +                 { let __v = _l0 + 1; *shared.r_main__c.lock().unwrap() = __v; }
+   |
+
+warning: unnecessary parentheses around `if` condition
+  --> src/main.rs:96:25
+   |
+96 |                 pc = if (_l0 < 1) { 3 } else { 4 };
+   |                         ^       ^
+   |
+help: remove these parentheses
+   |
+96 -                 pc = if (_l0 < 1) { 3 } else { 4 };
+96 +                 pc = if _l0 < 1 { 3 } else { 4 };
+   |
+
+warning: unnecessary parentheses around assigned value
+   --> src/main.rs:100:29
+    |
+100 |                 { let __v = (_l0 + 1); *shared.r_main__c.lock().unwrap() = __v; }
+    |                             ^       ^
+    |
+help: remove these parentheses
+    |
+100 -                 { let __v = (_l0 + 1); *shared.r_main__c.lock().unwrap() = __v; }
+100 +                 { let __v = _l0 + 1; *shared.r_main__c.lock().unwrap() = __v; }
+    |
+
+For more information about this error, try `rustc --explain E0583`.
+warning: `probe` (bin "probe") generated 5 warnings
+error: could not compile `probe` (bin "probe") due to 1 previous error; 5 warnings emitted
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning

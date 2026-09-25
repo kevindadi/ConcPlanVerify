@@ -1,0 +1,27 @@
+ the original `Arc`, which is inexpensive
+...
+  10 |     let waiter = cir_trace::spawn("waiter", move || {
+     |                                             ------- value moved into closure here
+  11 |         let (lock, cv) = &*m;
+     |                            - variable moved due to use in closure
+...
+  28 |     let (lock, _cv) = &*m;
+     |                         ^ value borrowed here after move
+     |
+     = note: consider using `Arc::clone`
+     = note: borrow occurs due to deref coercion to `(cir_trace::sync::Mutex<bool>, cir_trace::sync::Condvar)`
+note: deref defined here
+    --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/sync.rs:2569:5
+     |
+2569 |     type Target = T;
+     |     ^^^^^^^^^^^
+help: consider cloning the value before moving it into the closure
+     |
+  10 ~     let value = m.clone();
+  11 ~     let waiter = cir_trace::spawn("waiter", move || {
+  12 ~         let (lock, cv) = &*value;
+     |
+
+For more information about this error, try `rustc --explain E0382`.
+warning: `probe` (bin "probe") generated 1 warning
+error: could not compile `probe` (bin "probe") due to 1 previous error; 1 warning emitted

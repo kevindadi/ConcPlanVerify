@@ -1,0 +1,33 @@
+ed import: `std::thread`
+ --> src/main.rs:4:5
+  |
+4 | use std::thread;
+  |     ^^^^^^^^^^^
+
+error[E0599]: no method named `release` found for struct `Arc<Semaphore>` in the current scope
+  --> src/main.rs:43:17
+   |
+43 |         s1_done.release();
+   |                 ^^^^^^^ method not found in `Arc<Semaphore>`
+
+error[E0599]: no method named `release` found for struct `Arc<Semaphore>` in the current scope
+  --> src/main.rs:46:18
+   |
+46 |         s2_ready.release();
+   |                  ^^^^^^^ method not found in `Arc<Semaphore>`
+
+error[E0599]: no method named `release` found for struct `Arc<Semaphore>` in the current scope
+  --> src/main.rs:58:18
+   |
+58 |         r1_ready.release();
+   |                  ^^^^^^^ method not found in `Arc<Semaphore>`
+
+error[E0599]: no method named `release` found for struct `Arc<Semaphore>` in the current scope
+  --> src/main.rs:63:17
+   |
+63 |         r2_done.release();
+   |                 ^^^^^^^ method not found in `Arc<Semaphore>`
+
+For more information about this error, try `rustc --explain E0599`.
+warning: `probe` (bin "probe") generated 2 warnings
+error: could not compile `probe` (bin "probe") due to 4 previous errors; 2 warnings emitted

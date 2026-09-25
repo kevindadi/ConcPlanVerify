@@ -1,0 +1,32 @@
+= (_l0 + 1); *shared.r_main__c.lock().unwrap() = __v; }
+64 +                 { let __v = _l0 + 1; *shared.r_main__c.lock().unwrap() = __v; }
+   |
+
+warning: unnecessary parentheses around `if` condition
+  --> src/main.rs:98:25
+   |
+98 |                 pc = if (_l0 < 1) { 3 } else { 4 };
+   |                         ^       ^
+   |
+help: remove these parentheses
+   |
+98 -                 pc = if (_l0 < 1) { 3 } else { 4 };
+98 +                 pc = if _l0 < 1 { 3 } else { 4 };
+   |
+
+warning: unnecessary parentheses around assigned value
+   --> src/main.rs:102:29
+    |
+102 |                 { let __v = (_l0 + 1); *shared.r_main__c.lock().unwrap() = __v; }
+    |                             ^       ^
+    |
+help: remove these parentheses
+    |
+102 -                 { let __v = (_l0 + 1); *shared.r_main__c.lock().unwrap() = __v; }
+102 +                 { let __v = _l0 + 1; *shared.r_main__c.lock().unwrap() = __v; }
+    |
+
+Some errors have detailed explanations: E0425, E0428, E0433.
+For more information about an error, try `rustc --explain E0425`.
+warning: `probe` (bin "probe") generated 5 warnings
+error: could not compile `probe` (bin "probe") due to 9 previous errors; 5 warnings emitted

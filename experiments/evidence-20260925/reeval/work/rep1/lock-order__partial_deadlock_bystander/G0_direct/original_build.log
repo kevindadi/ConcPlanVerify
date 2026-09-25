@@ -1,0 +1,30 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/reeval/work/rep1/lock-order__partial_deadlock_bystander/G0_direct/original)
+error: non-binding let on a synchronization lock
+  --> src/main.rs:98:17
+   |
+98 |             let _ = s_by.flag.lock().unwrap();
+   |                 ^ this lock is not assigned to a binding and is immediately dropped
+   |
+   = note: `#[deny(let_underscore_lock)]` (part of `#[deny(let_underscore)]`) on by default
+help: consider binding to an unused variable to avoid immediately dropping the value
+   |
+98 |             let _unused = s_by.flag.lock().unwrap();
+   |                  ++++++
+help: consider immediately dropping the value
+   |
+98 -             let _ = s_by.flag.lock().unwrap();
+98 +             drop(s_by.flag.lock().unwrap());
+   |
+
+error: could not compile `probe` (bin "probe") due to 1 previous error
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning

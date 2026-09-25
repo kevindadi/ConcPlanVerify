@@ -60,6 +60,11 @@ def _defect(cell: dict) -> bool:
 
 def aggregate(cells: list[dict]) -> dict:
     accepted = [c for c in cells if c.get("accepted")]
+    # Historical freeze-9 formula, kept so old tables still reproduce.
+    # `c.get("rf") or 0` treats a missing accepted score as 0. The 2026-09-25
+    # re-evaluation defines RF_acc as the mean over accepted cells that were
+    # actually scored, and reports a 0/1 sensitivity bound when any remain
+    # missing. See experiments/evidence-20260925/reeval/RF_SUMMARY.json.
     # RF_all: a non-accepted cell counts as 0 (delivery quality including
     # failures). RF_acc: only accepted cells. RF_run: mean over the cells that
     # carry a monitor value (kept for comparison with freeze-5).

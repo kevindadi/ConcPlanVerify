@@ -1,0 +1,36 @@
+e`
+
+error[E0425]: cannot find type `Channel` in module `cir_trace`
+ --> src/main.rs:8:32
+  |
+8 |     r_main__ch: Arc<cir_trace::Channel<i64>>,
+  |                                ^^^^^^^ not found in `cir_trace`
+
+error[E0425]: cannot find function `scope` in module `crate::cir_trace`
+  --> src/main.rs:17:35
+   |
+17 |                 crate::cir_trace::scope(tag, "s1");
+   |                                   ^^^^^ not found in `crate::cir_trace`
+   |
+help: consider importing this function
+   |
+11 +     use std::thread::scope;
+   |
+help: if you import `scope`, refer to it directly
+   |
+17 -                 crate::cir_trace::scope(tag, "s1");
+17 +                 scope(tag, "s1");
+   |
+
+warning: unused imports: `Condvar` and `Mutex`
+ --> src/main.rs:2:23
+  |
+2 | use cir_trace::sync::{Mutex, Condvar};
+  |                       ^^^^^  ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0425, E0428, E0433.
+For more information about an error, try `rustc --explain E0425`.
+warning: `probe` (bin "probe") generated 1 warning
+error: could not compile `probe` (bin "probe") due to 4 previous errors; 1 warning emitted

@@ -1,0 +1,26 @@
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `Permit<'_>`
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+note: `PermitRelease` defines an item `permit_release_placeholder`, perhaps you need to implement it
+  --> src/main.rs:49:1
+   |
+49 | trait PermitRelease {
+   | ^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `permit_release_placeholder` found for struct `Permit<'a>` in the current scope
+  --> src/main.rs:43:37
+   |
+43 |         self.sender_ready.acquire().permit_release_placeholder();
+   |                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `Permit<'_>`
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+note: `PermitRelease` defines an item `permit_release_placeholder`, perhaps you need to implement it
+  --> src/main.rs:49:1
+   |
+49 | trait PermitRelease {
+   | ^^^^^^^^^^^^^^^^^^^
+
+Some errors have detailed explanations: E0308, E0599.
+For more information about an error, try `rustc --explain E0308`.
+warning: `probe` (bin "probe") generated 2 warnings
+error: could not compile `probe` (bin "probe") due to 4 previous errors; 2 warnings emitted

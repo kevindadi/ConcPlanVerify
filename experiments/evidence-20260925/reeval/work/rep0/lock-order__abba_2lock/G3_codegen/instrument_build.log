@@ -1,0 +1,20 @@
+      let _h_h2 = crate::cir_trace::spawn(tag, "main::t2", "s2", move || crate::main::cf_t2(__sh, "ts2"));
+   |                                 ^^^^^^^^^^^^^^^^^^^^^^^                  ----  --------------------------------------- unexpected argument #4 of type `{closure@src/main.rs:30:80: 30:87}`
+   |                                                                          |
+   |                                                                          unexpected argument #3 of type `&'static str`
+   |
+note: function defined here
+  --> src/cir_trace.rs:60:8
+   |
+60 | pub fn spawn<F, T>(name: &'static str, f: F) -> std::thread::JoinHandle<T>
+   |        ^^^^^
+help: remove the extra arguments
+   |
+30 -                     let _h_h2 = crate::cir_trace::spawn(tag, "main::t2", "s2", move || crate::main::cf_t2(__sh, "ts2"));
+30 +                     let _h_h2 = crate::cir_trace::spawn(tag, "main::t2");
+   |
+
+Some errors have detailed explanations: E0061, E0277, E0425, E0428, E0433.
+For more information about an error, try `rustc --explain E0061`.
+warning: `probe` (bin "probe") generated 1 warning
+error: could not compile `probe` (bin "probe") due to 23 previous errors; 1 warning emitted

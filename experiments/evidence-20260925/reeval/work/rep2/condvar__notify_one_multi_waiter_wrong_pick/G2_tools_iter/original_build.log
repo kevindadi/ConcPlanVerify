@@ -1,0 +1,40 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/reeval/work/rep2/condvar__notify_one_multi_waiter_wrong_pick/G2_tools_iter/original)
+warning: variable `gN` should have a snake case name
+ --> src/main.rs:7:9
+  |
+7 |     let gN = Arc::new((Mutex::new(0u32), Condvar::new()));
+  |         ^^ help: convert the identifier to snake case: `g_n`
+  |
+  = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `gN_1` should have a snake case name
+  --> src/main.rs:12:9
+   |
+12 |     let gN_1 = Arc::clone(&gN);
+   |         ^^^^ help: convert the identifier to snake case: `g_n_1`
+
+warning: variable `gN_2` should have a snake case name
+  --> src/main.rs:41:9
+   |
+41 |     let gN_2 = Arc::clone(&gN);
+   |         ^^^^ help: convert the identifier to snake case: `g_n_2`
+
+warning: variable `gN_3` should have a snake case name
+  --> src/main.rs:67:9
+   |
+67 |     let gN_3 = Arc::clone(&gN);
+   |         ^^^^ help: convert the identifier to snake case: `g_n_3`
+
+warning: `probe` (bin "probe") generated 4 warnings
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.24s

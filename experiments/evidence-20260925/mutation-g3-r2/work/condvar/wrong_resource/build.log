@@ -1,0 +1,46 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/mutation-g3-r2/work/condvar/wrong_resource/proj)
+warning: unused import: `std::thread`
+ --> src/main.rs:4:5
+  |
+4 | use std::thread;
+  |     ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:26:49
+   |
+14 |     let m_waiter = Arc::clone(&m);
+   |         -------- this move could be avoided by cloning the original `Arc`, which is inexpensive
+15 |     let cv_waiter = Arc::clone(&cv);
+16 |     let waiter = cir_trace::spawn("waiter", move || {
+   |                                             ------- value moved into closure here
+17 |         let mut guard = m_waiter.lock().unwrap();
+   |                         -------- variable moved due to use in closure
+...
+26 |     let notifier = cir_trace::spawn("notifier", move || {
+   |                                                 ^^^^^^^ value used here after move
+27 |         let mut guard = m_waiter.lock().unwrap();
+   |                         -------- use occurs due to use in closure
+   |
+   = note: consider using `Arc::clone`
+help: consider cloning the value before moving it into the closure
+   |
+16 ~     let value = m_waiter.clone();
+17 ~     let waiter = cir_trace::spawn("waiter", move || {
+18 ~         let mut guard = value.lock().unwrap();
+   |
+
+warning: unused variable: `m_notifier`
+  --> src/main.rs:24:9
+   |
+24 |     let m_notifier = Arc::clone(&m);
+   |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_m_notifier`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+For more information about this error, try `rustc --explain E0382`.
+warning: `probe` (bin "probe") generated 2 warnings
+error: could not compile `probe` (bin "probe") due to 1 previous error; 2 warnings emitted

@@ -1,0 +1,385 @@
+{
+  "rule": "A [U] clause is automatically judgeable only when it requires one exact terminal line. Naming differences do not fail a program that prints that line. Other [U] clauses stay not_automatically_judgeable.",
+  "n_clauses": 42,
+  "n_judgeable": 24,
+  "clauses": [
+    {
+      "task": "atomic-data/atomic_lost_update",
+      "clause": "R9",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "69d83a6038f96e350798a39f554d2f78a402e130c86b05d74c1b7bd8ef151fb1"
+    },
+    {
+      "task": "atomic-data/bounded_counter_invariant",
+      "clause": "R7",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "8389b37602825ac66adfed9003719e82c70b094bd3454eb5a708a8a6a016d32d"
+    },
+    {
+      "task": "atomic-data/counter_overflow_safety",
+      "clause": "R7",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "b15ccf6b22ade757649619fb0c890c6ab1fa20f3730e3c76dc3cf6a5d30e799c"
+    },
+    {
+      "task": "channel/bounded_backpressure_lock_held",
+      "clause": "R2",
+      "text": "The two roles communicate through a channel that can hold at most one value, and both roles occasionally need one shared lock. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "4056cb7083ed004e87326d540990af518b08fab58688518cfb015b70a0b1f576"
+    },
+    {
+      "task": "channel/bounded_backpressure_lock_held",
+      "clause": "R8",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "4056cb7083ed004e87326d540990af518b08fab58688518cfb015b70a0b1f576"
+    },
+    {
+      "task": "channel/rendezvous_both_send",
+      "clause": "R7",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "eb70cb3b2f64727722e1728c08974889467e22dd25850acd633a31504aab93d8"
+    },
+    {
+      "task": "channel/send_while_holding_mutex",
+      "clause": "R5",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "557ddc89aa54321c54004f8c8ff03523386b939525db9f601dd34e30c14762a0"
+    },
+    {
+      "task": "condvar/bare_wait_no_predicate",
+      "clause": "R2",
+      "text": "The waiter and the notifier share one lock and one condition variable, and the lock guards a boolean flag. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "ee8df9d4f483963c8324742937f5113b87c4411a89c720b1769ac18c17ad4529"
+    },
+    {
+      "task": "condvar/bare_wait_no_predicate",
+      "clause": "R10",
+      "text": "The program must print exactly the line `DONE ready=true` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE ready=true",
+      "source_sha256": "ee8df9d4f483963c8324742937f5113b87c4411a89c720b1769ac18c17ad4529"
+    },
+    {
+      "task": "condvar/lost_wakeup_notify_before_wait",
+      "clause": "R2",
+      "text": "The waiter and the notifier share one lock, one condition variable, and one boolean flag that the lock guards. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "d226522daef63cc1e543d4aa0ae2f0d798edda45820b80c3d3679f8237a76c3a"
+    },
+    {
+      "task": "condvar/lost_wakeup_notify_before_wait",
+      "clause": "R10",
+      "text": "The program must print exactly the line `DONE ready=true` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE ready=true",
+      "source_sha256": "d226522daef63cc1e543d4aa0ae2f0d798edda45820b80c3d3679f8237a76c3a"
+    },
+    {
+      "task": "condvar/notify_one_multi_waiter_wrong_pick",
+      "clause": "R1",
+      "text": "A main task starts two waiter roles and one notifier role that run at the same time. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "2e247b5594b2151c8cf00fd4ab589f4a716b025b0f63ba6da82493a96f5e3e2c"
+    },
+    {
+      "task": "condvar/notify_one_multi_waiter_wrong_pick",
+      "clause": "R10",
+      "text": "The program must print exactly the line `DONE waiters=0` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE waiters=0",
+      "source_sha256": "2e247b5594b2151c8cf00fd4ab589f4a716b025b0f63ba6da82493a96f5e3e2c"
+    },
+    {
+      "task": "condvar/same_cv_different_locks",
+      "clause": "R1",
+      "text": "A main task starts two waiter roles and one notifier role that run at the same time. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "1cac2dd59814f62ed282bfb5100b4cd5d60c124ddc78820d2e96f0d00e8f8348"
+    },
+    {
+      "task": "condvar/same_cv_different_locks",
+      "clause": "R10",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "1cac2dd59814f62ed282bfb5100b4cd5d60c124ddc78820d2e96f0d00e8f8348"
+    },
+    {
+      "task": "lock-order/abba_2lock",
+      "clause": "R9",
+      "text": "The program must print exactly the line `DONE t1=1 t2=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE t1=1 t2=1",
+      "source_sha256": "4f9d3dfd323b5103107f75b55e7e99fff983981cc85eddb1ed215661f3507322"
+    },
+    {
+      "task": "lock-order/cross_module_cycle",
+      "clause": "R10",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "eb8c0fef59c22f3210c14638a983e66e0f05ec91b0352724d24561597c7e7f43"
+    },
+    {
+      "task": "lock-order/cycle_3lock",
+      "clause": "R10",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "1d26f0e283d09fb9b54461ac64323e82707338b96672160c4e833b1fcc121a78"
+    },
+    {
+      "task": "lock-order/partial_deadlock_bystander",
+      "clause": "R2",
+      "text": "An independent bystander task also runs and keeps making progress without ever finishing on its own. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "8890d4f34df472f6ae28706129ae64d495f61ed099b2e09c8b0be92a3c92cf71"
+    },
+    {
+      "task": "lock-order/partial_deadlock_bystander",
+      "clause": "R12",
+      "text": "The program must print exactly the line `DONE a=1 b=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE a=1 b=1",
+      "source_sha256": "8890d4f34df472f6ae28706129ae64d495f61ed099b2e09c8b0be92a3c92cf71"
+    },
+    {
+      "task": "lock-order/two_independent_cycles",
+      "clause": "R12",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "f45c52fa84879d70dc69f46389f0e4d1a11b3877dd7434defddd693e9bb8cb0e"
+    },
+    {
+      "task": "semaphore/acquire_twice_no_release",
+      "clause": "R7",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "75a57babfa79856fba3aafd21a62f82b16de88f5e9a73c63cd74e7ebbe0cad34"
+    },
+    {
+      "task": "semaphore/permit_leak",
+      "clause": "R7",
+      "text": "The program must print exactly the line `DONE permits=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE permits=1",
+      "source_sha256": "a1cbadcf9e793d566fbbc2c2eb4d87e31e66c3a76b55d46ebe9de558b3c55c6f"
+    },
+    {
+      "task": "semaphore/throttle_n_permits",
+      "clause": "R7",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "14b30991accdaa1388c2bd56c187db5460983fbdda0b07350c3c3ab05ea27159"
+    },
+    {
+      "task": "structure/finite_call_loop",
+      "clause": "R1",
+      "text": "A main task calls an auxiliary routine and then begins the same call sequence again. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "0c16900228d85d14d3045c5654a373b339a24218dff5ed9f0c3826dfd3ba9e0e"
+    },
+    {
+      "task": "structure/finite_call_loop",
+      "clause": "R5",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "0c16900228d85d14d3045c5654a373b339a24218dff5ed9f0c3826dfd3ba9e0e"
+    },
+    {
+      "task": "structure/nested_scope_lock_order",
+      "clause": "R1",
+      "text": "A main task starts one outer worker. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "cb346ade0bb08e6a60760afdfe0faf235886d149e35e77e57f67ce09db6d1574"
+    },
+    {
+      "task": "structure/nested_scope_lock_order",
+      "clause": "R2",
+      "text": "The outer worker starts a nested group of two inner tasks. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "cb346ade0bb08e6a60760afdfe0faf235886d149e35e77e57f67ce09db6d1574"
+    },
+    {
+      "task": "structure/nested_scope_lock_order",
+      "clause": "R7",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "cb346ade0bb08e6a60760afdfe0faf235886d149e35e77e57f67ce09db6d1574"
+    },
+    {
+      "task": "structure/scope_bound_k_workers",
+      "clause": "R1",
+      "text": "A main task starts three worker roles that share a single permit, and each role may have up to two activations running at once. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "ff3468a932da54aa8ee67205149a0b8bc27c530fdbfb286f1076019e519f1a54"
+    },
+    {
+      "task": "structure/scope_bound_k_workers",
+      "clause": "R2",
+      "text": "Each activation holds the single permit while it does its work and releases it afterwards. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "ff3468a932da54aa8ee67205149a0b8bc27c530fdbfb286f1076019e519f1a54"
+    },
+    {
+      "task": "structure/scope_bound_k_workers",
+      "clause": "R7",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "ff3468a932da54aa8ee67205149a0b8bc27c530fdbfb286f1076019e519f1a54"
+    },
+    {
+      "task": "structure/scope_worker_abba",
+      "clause": "R1",
+      "text": "A main task starts a group of two workers that both contend for the same two mutexes, A and B. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "3b925d7a18e62989d4fb2b036ab8690775d1df5c6ec23a7fd5b7f472ca3f3d5b"
+    },
+    {
+      "task": "structure/scope_worker_abba",
+      "clause": "R3",
+      "text": "Each worker releases each mutex it took once its work is finished. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "3b925d7a18e62989d4fb2b036ab8690775d1df5c6ec23a7fd5b7f472ca3f3d5b"
+    },
+    {
+      "task": "structure/scope_worker_abba",
+      "clause": "R9",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "3b925d7a18e62989d4fb2b036ab8690775d1df5c6ec23a7fd5b7f472ca3f3d5b"
+    },
+    {
+      "task": "structure/spawn_join_loop_finite",
+      "clause": "R1",
+      "text": "A main task starts a worker task and waits for that worker to finish, then begins the same start-and-wait cycle again. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "f80eea61f1fa53800a8a01e7647601ec951f4b563920243ffdc82ddae90c6a3c"
+    },
+    {
+      "task": "structure/spawn_join_loop_finite",
+      "clause": "R2",
+      "text": "The worker task performs no shared work and shares no mutexes or counters with the main task. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "f80eea61f1fa53800a8a01e7647601ec951f4b563920243ffdc82ddae90c6a3c"
+    },
+    {
+      "task": "structure/spawn_join_loop_finite",
+      "clause": "R6",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "f80eea61f1fa53800a8a01e7647601ec951f4b563920243ffdc82ddae90c6a3c"
+    },
+    {
+      "task": "structure/worker_with_payload",
+      "clause": "R1",
+      "text": "A main task starts a group of two workers. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "34265ff770ceb641cdf521b932aa1bff49cf7be354683e161eb65e0f81359f9b"
+    },
+    {
+      "task": "structure/worker_with_payload",
+      "clause": "R2",
+      "text": "Each worker takes a shared mutex, calls a sequential helper routine that performs only local computation, then updates a shared counter while still holding the mutex. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "34265ff770ceb641cdf521b932aa1bff49cf7be354683e161eb65e0f81359f9b"
+    },
+    {
+      "task": "structure/worker_with_payload",
+      "clause": "R3",
+      "text": "Each worker releases the mutex it took before it finishes. [U]",
+      "judgeable": false,
+      "kind": "not_automatically_judgeable",
+      "expected_line": null,
+      "source_sha256": "34265ff770ceb641cdf521b932aa1bff49cf7be354683e161eb65e0f81359f9b"
+    },
+    {
+      "task": "structure/worker_with_payload",
+      "clause": "R8",
+      "text": "The program must print exactly the line `DONE done=1` and then exit. [U]",
+      "judgeable": true,
+      "kind": "terminal_line",
+      "expected_line": "DONE done=1",
+      "source_sha256": "34265ff770ceb641cdf521b932aa1bff49cf7be354683e161eb65e0f81359f9b"
+    }
+  ]
+}

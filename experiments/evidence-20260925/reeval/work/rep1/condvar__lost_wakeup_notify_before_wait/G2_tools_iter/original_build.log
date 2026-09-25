@@ -1,0 +1,42 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/reeval/work/rep1/condvar__lost_wakeup_notify_before_wait/G2_tools_iter/original)
+error[E0382]: the type `Arc` does not implement `Copy`
+    --> src/main.rs:26:25
+     |
+   5 |     let m = Arc::new((Mutex::new(false), Condvar::new()));
+     |         - this move could be avoided by cloning the original `Arc`, which is inexpensive
+...
+   8 |     let waiter = thread::spawn(move || {
+     |                                ------- value moved into closure here
+   9 |         let (lock, cv) = &*m;
+     |                            - variable moved due to use in closure
+...
+  26 |     let (lock, _cv) = &*m;
+     |                         ^ value borrowed here after move
+     |
+     = note: consider using `Arc::clone`
+     = note: borrow occurs due to deref coercion to `(std::sync::Mutex<bool>, std::sync::Condvar)`
+note: deref defined here
+    --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/sync.rs:2569:5
+     |
+2569 |     type Target = T;
+     |     ^^^^^^^^^^^
+help: consider cloning the value before moving it into the closure
+     |
+   8 ~     let value = m.clone();
+   9 ~     let waiter = thread::spawn(move || {
+  10 ~         let (lock, cv) = &*value;
+     |
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `probe` (bin "probe") due to 1 previous error
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning

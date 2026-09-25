@@ -1,0 +1,50 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/reeval/work/rep1/channel__send_while_holding_mutex/G0_direct/original)
+error[E0308]: mismatched types
+  --> src/main.rs:18:27
+   |
+18 |             sender_ready: Semaphore::new(0),
+   |                           ^^^^^^^^^^^^^^^^^ expected `Semaphore`, found `Arc<Semaphore>`
+   |
+   = note: expected struct `Semaphore`
+              found struct `Arc<Semaphore>`
+
+error[E0308]: mismatched types
+  --> src/main.rs:19:29
+   |
+19 |             receiver_ready: Semaphore::new(0),
+   |                             ^^^^^^^^^^^^^^^^^ expected `Semaphore`, found `Arc<Semaphore>`
+   |
+   = note: expected struct `Semaphore`
+              found struct `Arc<Semaphore>`
+
+error[E0599]: no method named `permit_release_placeholder` found for struct `Permit<'a>` in the current scope
+  --> src/main.rs:29:39
+   |
+29 |         self.receiver_ready.acquire().permit_release_placeholder();
+   |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `Permit<'_>`
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+note: `PermitRelease` defines an item `permit_release_placeholder`, perhaps you need to implement it
+  --> src/main.rs:47:1
+   |
+47 | trait PermitRelease {
+   | ^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `permit_release_placeholder` found for struct `Permit<'a>` in the current scope
+  --> src/main.rs:41:37
+   |
+41 |         self.sender_ready.acquire().permit_release_placeholder();
+   |                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `Permit<'_>`
+   |
+   = help: items from traits can only be used if the trait is implemented and in scope
+note: `PermitRelease` defines an item `permit_release_placeholder`, perhaps you need to implement it
+  --> src/main.rs:47:1
+   |
+47 | trait PermitRelease {
+   | ^^^^^^^^^^^^^^^^^^^
+
+Some errors have detailed explanations: E0308, E0599.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `probe` (bin "probe") due to 4 previous errors

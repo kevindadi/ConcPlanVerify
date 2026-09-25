@@ -1,0 +1,51 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/reeval/work/rep1/condvar__notify_one_multi_waiter_wrong_pick/G2_tools_iter/original)
+warning: field `ready` is never read
+ --> src/main.rs:6:5
+  |
+4 | struct State {
+  |        ----- field in this struct
+5 |     // number of waiters that have arrived and are ready to wait
+6 |     ready: usize,
+  |     ^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:24:9
+   |
+24 |     let gN = Arc::new((Mutex::new(0usize), Condvar::new()));
+   |         ^^ help: convert the identifier to snake case: `g_n`
+   |
+   = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `gN_1` should have a snake case name
+  --> src/main.rs:29:9
+   |
+29 |     let gN_1 = Arc::clone(&gN);
+   |         ^^^^ help: convert the identifier to snake case: `g_n_1`
+
+warning: variable `gN_2` should have a snake case name
+  --> src/main.rs:60:9
+   |
+60 |     let gN_2 = Arc::clone(&gN);
+   |         ^^^^ help: convert the identifier to snake case: `g_n_2`
+
+warning: variable `gN_3` should have a snake case name
+  --> src/main.rs:88:9
+   |
+88 |     let gN_3 = Arc::clone(&gN);
+   |         ^^^^ help: convert the identifier to snake case: `g_n_3`
+
+warning: `probe` (bin "probe") generated 5 warnings
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.23s

@@ -1,0 +1,27 @@
+ace::lock(&shared.r_main__d, tag, "main::d", "s2"));
+    |                                                       ^^^^ not found in `crate::cir_trace`
+
+error[E0425]: cannot find function `unlock` in module `crate::cir_trace`
+   --> src/main.rs:183:35
+    |
+183 |                 crate::cir_trace::unlock(_g_r_main__d.take(), tag, "main::d", "s3");
+    |                                   ^^^^^^ not found in `crate::cir_trace`
+
+error[E0425]: cannot find function `unlock` in module `crate::cir_trace`
+   --> src/main.rs:188:35
+    |
+188 |                 crate::cir_trace::unlock(_g_r_main__c.take(), tag, "main::c", "s4");
+    |                                   ^^^^^^ not found in `crate::cir_trace`
+
+warning: unused import: `Condvar`
+ --> src/main.rs:2:30
+  |
+2 | use cir_trace::sync::{Mutex, Condvar};
+  |                              ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+Some errors have detailed explanations: E0425, E0428, E0433.
+For more information about an error, try `rustc --explain E0425`.
+warning: `probe` (bin "probe") generated 1 warning
+error: could not compile `probe` (bin "probe") due to 38 previous errors; 1 warning emitted
