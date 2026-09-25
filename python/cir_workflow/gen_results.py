@@ -17,6 +17,13 @@ ARMS = ("G0_direct", "G1_self_iter", "G2_tools_iter", "G3_concir", "G3_codegen")
 PROBE_ARMS = ("G0_direct", "G2_tools_iter", "G3_concir")
 TIERS = ("Simple", "Medium", "Complex")
 
+# Display-only arm labels for anonymity; data and aggregation keys are unchanged.
+_ARM_LABELS = {"G3_concir": "G3"}
+
+
+def _tex_arm(arm: str) -> str:
+    return _ARM_LABELS.get(arm, arm).replace("_", "\\_")
+
 
 def load_cells(batches: list[Path]) -> dict[tuple, dict]:
     cells: dict[tuple, dict] = {}
@@ -120,7 +127,7 @@ def render_tex(cells: dict) -> dict[str, str]:
             r"\midrule"]
     for arm in ARMS:
         a = aggregate([c for c in all_cells if c["arm"] == arm])
-        main.append(f"{arm.replace('_', chr(92)+'_')} & {a['n']} & {a['accept_rate']} & "
+        main.append(f"{_tex_arm(arm)} & {a['n']} & {a['accept_rate']} & "
                     f"{a['rf_all']} & {a['rf_acc']} & {a['defect']} & {a['awp']} & "
                     f"{a['tokens']} \\\\")
     a = aggregate(all_cells)
@@ -131,11 +138,11 @@ def render_tex(cells: dict) -> dict[str, str]:
             r"\midrule"]
     for arm in ARMS:
         a = aggregate([c for c in all_cells if c["arm"] == arm])
-        arms.append(f"{arm.replace('_', chr(92)+'_')} & {a['accept_rate']} & {a['rc']} & "
+        arms.append(f"{_tex_arm(arm)} & {a['accept_rate']} & {a['rc']} & "
                     f"{a['rf_all']} \\\\")
     arms += [r"\bottomrule", r"\end{tabular}"]
     tiers = ["\\begin{tabular}{l" + "r" * len(ARMS) + "}", "\\toprule",
-             "tier & " + " & ".join(a.replace("_", "\\_") for a in ARMS) + " \\\\",
+             "tier & " + " & ".join(_tex_arm(a) for a in ARMS) + " \\\\",
              r"\midrule"]
     for tier in TIERS:
         row = [tier]
@@ -147,7 +154,7 @@ def render_tex(cells: dict) -> dict[str, str]:
 
     fam_order = ["lock-order", "condvar", "channel", "semaphore", "atomic-data", "structure"]
     families = ["\\begin{tabular}{lrrrrr}", "\\toprule",
-                "family & tasks & G0\\_direct & G1\\_self\\_iter & G2\\_tools\\_iter & G3\\_concir \\\\",
+                "family & tasks & G0\\_direct & G1\\_self\\_iter & G2\\_tools\\_iter & " + _tex_arm("G3_concir") + " \\\\",
                 r"\midrule"]
     for fam in fam_order:
         fcells = [c for c in all_cells if c["task"].split("/")[0] == fam]
@@ -180,7 +187,7 @@ def render_tex(cells: dict) -> dict[str, str]:
                 "arm & cells & acc. & RF\\_all & RF\\_acc & awp \\\\", r"\midrule"]
     for arm in ("G3_concir", "G3_codegen"):
         a = aggregate([c for c in all_cells if c["arm"] == arm])
-        ablation.append(f"{arm.replace('_', chr(92)+'_')} & {a['n']} & {a['accept_rate']} & "
+        ablation.append(f"{_tex_arm(arm)} & {a['n']} & {a['accept_rate']} & "
                         f"{a['rf_all']} & {a['rf_acc']} & {a['awp']} \\\\")
     ablation += [r"\bottomrule", r"\end{tabular}"]
 
@@ -250,7 +257,7 @@ def render_probe_tex(cells: list[dict]) -> str:
         a = probe_aggregate([c for c in cells if c["arm"] == arm])
         if a["n"] == 0:
             continue
-        body.append(f"{arm.replace('_', chr(92)+'_')} & {a['accept_rate']} & {a['rc']} & "
+        body.append(f"{_tex_arm(arm)} & {a['accept_rate']} & {a['rc']} & "
                     f"{a['rf_all']} & {a['defect']} & {a['awp']} & {a['tokens']} \\\\")
     body += [r"\bottomrule", r"\end{tabular}"]
     return "\n".join(body) + "\n"
@@ -392,7 +399,7 @@ def ci_table(cells: dict, tiers: dict[str, set[str]] | None = None) -> str:
                 mean, lo, hi = _bootstrap_ci(diffs)
                 p = _wilcoxon_p(diffs)
                 ps = f"{p:.3f}" if p is not None else "--"
-                rows.append(f"{gname} & {a.replace('_', chr(92)+'_')} vs {b.replace('_', chr(92)+'_')} & "
+                rows.append(f"{gname} & {_tex_arm(a)} vs {_tex_arm(b)} & "
                             f"{metric.replace('_', chr(92)+'_')} & "
                             f"{mean:.3f} [{lo:.3f}, {hi:.3f}] & {ps} " + r"\\")
     rows += [r"\bottomrule", r"\end{tabular}"]
