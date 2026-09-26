@@ -1,0 +1,83 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::g12_release' referenced",
+      "path": "modules[0].functions[4].body[0]",
+      "location": "main::g12_up.s1",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[4].body[0]",
+      "declared_symbols": {
+        "function": "main::g12_up",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::notifier",
+        "main::g12_up",
+        "main::g12_down"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::g12_acquire' referenced",
+      "path": "modules[0].functions[5].body[0]",
+      "location": "main::g12_down.s1",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[5].body[0]",
+      "declared_symbols": {
+        "function": "main::g12_down",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::notifier",
+        "main::g12_up",
+        "main::g12_down"
+      ]
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::g12' is declared but never used",
+      "location": "main::g12",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::gN' is declared but never used",
+      "location": "main::gN",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::g12_up: params [], locals [])",
+    "define the function or import it via requires",
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::g12_down: params [], locals [])",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::w1",
+    "main::w2",
+    "main::notifier",
+    "main::g12_up",
+    "main::g12_down"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

@@ -1,0 +1,39 @@
+{
+  "mapping": {
+    "m_mutex0": "main::m",
+    "tx": "main::ch",
+    "rx": "main::ch"
+  },
+  "provenance": {
+    "by_kind": {
+      "Mutex": [
+        "main::m"
+      ],
+      "Channel": [
+        "main::ch"
+      ]
+    },
+    "threads": {
+      "sender_handle": null,
+      "receiver_handle": null
+    },
+    "ambiguous": [
+      {
+        "rust": "sender_handle",
+        "kind": "Spawn",
+        "candidates": [
+          "main::sender",
+          "main::receiver"
+        ]
+      },
+      {
+        "rust": "receiver_handle",
+        "kind": "Spawn",
+        "candidates": [
+          "main::sender",
+          "main::receiver"
+        ]
+      }
+    ]
+  }
+}

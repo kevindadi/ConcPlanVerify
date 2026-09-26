@@ -48,7 +48,7 @@ def main() -> int:
     parser.add_argument("--arms", default="G3_concir,G0_direct")
     parser.add_argument("--out", default="experiments/gen-expert-labels-v1")
     args = parser.parse_args()
-    load_dotenv(REPO / ".env")
+    load_dotenv(REPO / ".env", override=True)
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")
     if not api_key:
         print("DEEPSEEK_API_KEY missing", file=sys.stderr)

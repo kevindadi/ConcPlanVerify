@@ -36,7 +36,7 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=90.0)
     args = parser.parse_args()
 
-    load_dotenv(REPO / ".env")
+    load_dotenv(REPO / ".env", override=True)
     env = dict(os.environ)
     out = REPO / args.out
     batch = out / f"smoke-{time.strftime('%Y%m%dT%H%M%S')}"

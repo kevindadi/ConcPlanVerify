@@ -1,0 +1,35 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    let a_outer = Arc::clone(&a);
+    let b_outer = Arc::clone(&b);
+
+    let h_outer = thread::spawn(move || {
+        let a_x1 = Arc::clone(&a_outer);
+        let b_x1 = Arc::clone(&b_outer);
+        let h_x1 = thread::spawn(move || {
+            let _guard_a = a_x1.lock().unwrap();
+            let _guard_b = b_x1.lock().unwrap();
+            // Both held simultaneously; drop in reverse order (b then a) via scope exit.
+        });
+
+        let a_x2 = Arc::clone(&a_outer);
+        let b_x2 = Arc::clone(&b_outer);
+        let h_x2 = thread::spawn(move || {
+            let _guard_a = a_x2.lock().unwrap();
+            let _guard_b = b_x2.lock().unwrap();
+            // Both held simultaneously; drop in reverse order (b then a) via scope exit.
+        });
+
+        h_x1.join().unwrap();
+        h_x2.join().unwrap();
+    });
+
+    h_outer.join().unwrap();
+
+    println!("DONE done=1");
+}

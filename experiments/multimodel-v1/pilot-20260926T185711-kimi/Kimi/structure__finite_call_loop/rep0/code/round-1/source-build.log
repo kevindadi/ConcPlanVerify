@@ -1,0 +1,24 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/pilot-20260926T185711-kimi/Kimi/structure__finite_call_loop/rep0/code/round-1/source-proj)
+warning: value assigned to `done` is never read
+ --> src/main.rs:2:20
+  |
+2 |     let mut done = 0;
+  |                    ^ this value is reassigned later and never used
+3 |     done = 1;
+  |     -------- `done` is overwritten here before the previous value is read
+  |
+  = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: `probe` (bin "probe") generated 1 warning
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.18s

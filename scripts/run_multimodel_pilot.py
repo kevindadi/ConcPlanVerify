@@ -61,6 +61,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--models", default="")
     parser.add_argument("--tasks", default=",".join(DEFAULT_TASKS))
+    parser.add_argument("--all-tasks", action="store_true")
     parser.add_argument("--reps", type=int, default=1)
     parser.add_argument("--k-cir", type=int, default=4)
     parser.add_argument("--k-code", type=int, default=3)
@@ -70,7 +71,7 @@ def main() -> int:
     parser.add_argument("--instrument", default=str(REPO.parent / "ConcIR/target/release/concir-instrument"))
     args = parser.parse_args()
 
-    load_dotenv(REPO / ".env")
+    load_dotenv(REPO / ".env", override=True)
     env = dict(os.environ)
     binary = Path(args.binary)
     instrument = Path(args.instrument)
@@ -79,13 +80,17 @@ def main() -> int:
         return 2
 
     tasks = {t.id: t for t in load_gen_tasks(REPO)}
-    wanted = [t for t in args.tasks.split(",") if t]
+    if args.all_tasks:
+        wanted = sorted(tasks)
+    else:
+        wanted = [t for t in args.tasks.split(",") if t]
     specs = available_models()
     if args.models:
         specs = [resolve_model(available_models(), m.strip()) for m in args.models.split(",")]
 
+    slug = "-".join(s.display_name.lower().replace(" ", "") for s in specs)[:40]
     out = REPO / args.out
-    batch = out / f"pilot-{time.strftime('%Y%m%dT%H%M%S')}"
+    batch = out / f"pilot-{time.strftime('%Y%m%dT%H%M%S')}-{slug}"
     batch.mkdir(parents=True, exist_ok=True)
     audit = AuditLog(batch / "REQUEST_EVENTS.jsonl")
     budget = LiveBudget(batch / "budget.json", max_requests=args.max_requests,

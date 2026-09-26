@@ -1,0 +1,11 @@
+use std::thread;
+
+fn worker() {
+    // Worker performs no shared work and returns immediately.
+}
+
+fn main() {
+    let handle = thread::spawn(worker);
+    handle.join().unwrap();
+    println!("DONE done=1");
+}

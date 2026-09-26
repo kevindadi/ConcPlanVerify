@@ -1,0 +1,37 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E401",
+      "severity": "warning",
+      "message": "spawn handle 'bystander_handle' has no matching join",
+      "location": "main::main.s3",
+      "path": "modules[0].functions[0].body[2]",
+      "fix_hint": "add join on this handle, or use a scope statement (implicit join_all)"
+    },
+    {
+      "code": "E114",
+      "severity": "warning",
+      "message": "function 'bystander' ends at 's2' without an explicit return/goto/branch/switch; control falls off the end, which is an implicit return",
+      "location": "main::bystander",
+      "path": "modules[0].functions[3]",
+      "fix_hint": "add an explicit return, or rely on the documented implicit return"
+    },
+    {
+      "code": "E602",
+      "severity": "error",
+      "message": "function 'bystander' has a path ending at 's2' without return",
+      "location": "main::bystander.s2",
+      "path": "modules[0].functions[3].body[1]",
+      "fix_hint": "add a return statement at the end of this path"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'bystander' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "location": "main::bystander",
+      "path": "modules[0].functions[3]",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var"
+    }
+  ]
+}

@@ -14,7 +14,11 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .audit import AuditLog
-from .transport import ModelSpec, TransportError, verify_identity
+from .transport import CHANNELS, ModelSpec, TransportError, verify_identity
+
+
+_CHANNEL_TIMEOUT = {"dashscope-direct": 300.0, "cursor": 300.0,
+                    "deepseek-direct": 180.0, "opencode-go": 180.0}
 
 
 class ChannelUnavailable(TransportError):
@@ -28,17 +32,32 @@ def build_client(spec: ModelSpec, *, budget: Any, evidence_dir: Path | str,
     if spec.status != "available" or not spec.model_id:
         raise ChannelUnavailable(
             f"{spec.display_name} is {spec.status}: {spec.blocked_reason}")
+    # Direct reasoning models can exceed a chat timeout; give them more room.
+    timeout = max(timeout, _CHANNEL_TIMEOUT.get(spec.channel, timeout))
     if spec.channel == "deepseek-direct":
         from .live import DeepSeekFlashClient
         return DeepSeekFlashClient(api_key=api_key, budget=budget,
                                    evidence_dir=evidence_dir, timeout=timeout,
                                    max_tokens=max_tokens)
+    if spec.channel == "dashscope-direct":
+        from .direct import DirectChatClient
+        return DirectChatClient(api_key=api_key,
+                                base_url=CHANNELS[spec.channel].base_url or "",
+                                model=spec.model_id, budget=budget,
+                                evidence_dir=evidence_dir, timeout=timeout,
+                                max_tokens=max_tokens,
+                                extra_body={"enable_thinking": False})
     if spec.channel == "opencode-go":
         from .opencode_go import OpenCodeGoClient, OpenCodeGoResponsesClient
         cls = OpenCodeGoResponsesClient if spec.surface == "responses" else OpenCodeGoClient
         return cls(api_key=api_key, budget=budget,
                    evidence_dir=evidence_dir, model=spec.model_id,
                    timeout=timeout, max_tokens=max_tokens)
+    if spec.channel == "cursor":
+        from .cursor_harness import StagedCursorClient
+        inbox = Path(evidence_dir) / "cursor-inbox"
+        inbox.mkdir(parents=True, exist_ok=True)
+        return StagedCursorClient(spec.model_id or "", api_key, budget, inbox)
     raise ChannelUnavailable(f"no client for channel {spec.channel!r}")
 
 

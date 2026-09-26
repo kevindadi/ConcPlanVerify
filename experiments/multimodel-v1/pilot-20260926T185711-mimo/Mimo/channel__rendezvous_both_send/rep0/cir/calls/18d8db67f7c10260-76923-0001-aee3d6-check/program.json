@@ -1,0 +1,285 @@
+{
+  "program": "channel_rendezvous",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "ch"
+        ],
+        "functions": [
+          "main",
+          "s1",
+          "r"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "ch",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::s1",
+              "handle": "sender"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "main::r",
+              "handle": "receiver"
+            },
+            {
+              "sid": "s3",
+              "kind": "join",
+              "handle": "sender"
+            },
+            {
+              "sid": "s4",
+              "kind": "join",
+              "handle": "receiver"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "s1",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::channel_send",
+              "args": [
+                "main::ch",
+                "1"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "r",
+          "kind": "normal",
+          "locals": [
+            {
+              "name": "val",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::channel_take",
+              "args": [
+                "main::ch"
+              ],
+              "dst": "val"
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "channel_send",
+          "kind": "normal",
+          "params": [
+            {
+              "name": "channel",
+              "type": "Int",
+              "modeled": true
+            },
+            {
+              "name": "value",
+              "type": "Int",
+              "modeled": true
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::channel_send_helper",
+              "args": [
+                "channel",
+                "value"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "channel_send_helper",
+          "kind": "normal",
+          "params": [
+            {
+              "name": "channel",
+              "type": "Int",
+              "modeled": true
+            },
+            {
+              "name": "value",
+              "type": "Int",
+              "modeled": true
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::channel_op",
+              "args": [
+                "channel",
+                "value"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "channel_take",
+          "kind": "normal",
+          "params": [
+            {
+              "name": "channel",
+              "type": "Int",
+              "modeled": true
+            }
+          ],
+          "locals": [
+            {
+              "name": "result",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::channel_take_helper",
+              "args": [
+                "channel"
+              ],
+              "dst": "result"
+            },
+            {
+              "sid": "s2",
+              "kind": "return",
+              "value": "result"
+            }
+          ]
+        },
+        {
+          "name": "channel_take_helper",
+          "kind": "normal",
+          "params": [
+            {
+              "name": "channel",
+              "type": "Int",
+              "modeled": true
+            }
+          ],
+          "locals": [
+            {
+              "name": "received",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::channel_op",
+              "args": [
+                "channel",
+                "0"
+              ],
+              "dst": "received"
+            },
+            {
+              "sid": "s2",
+              "kind": "return",
+              "value": "received"
+            }
+          ]
+        },
+        {
+          "name": "channel_op",
+          "kind": "normal",
+          "params": [
+            {
+              "name": "channel",
+              "type": "Int",
+              "modeled": true
+            },
+            {
+              "name": "value",
+              "type": "Int",
+              "modeled": true
+            }
+          ],
+          "locals": [
+            {
+              "name": "dummy",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "dummy",
+              "expr": "value"
+            },
+            {
+              "sid": "s2",
+              "kind": "return",
+              "value": "dummy"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

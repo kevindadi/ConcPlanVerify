@@ -1,0 +1,148 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::ch.send' referenced",
+      "path": "modules[0].functions[1].body[2]",
+      "location": "main::sender.s3",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[1].body[2]",
+      "declared_symbols": {
+        "function": "main::sender",
+        "params": [],
+        "locals": [
+          "v1",
+          "v2"
+        ]
+      },
+      "declared_functions": [
+        "main::main",
+        "main::sender",
+        "main::receiver"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::ch.send' referenced",
+      "path": "modules[0].functions[1].body[5]",
+      "location": "main::sender.s6",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[1].body[5]",
+      "declared_symbols": {
+        "function": "main::sender",
+        "params": [],
+        "locals": [
+          "v1",
+          "v2"
+        ]
+      },
+      "declared_functions": [
+        "main::main",
+        "main::sender",
+        "main::receiver"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::ch.recv' referenced",
+      "path": "modules[0].functions[2].body[0]",
+      "location": "main::receiver.s1",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[2].body[0]",
+      "declared_symbols": {
+        "function": "main::receiver",
+        "params": [],
+        "locals": [
+          "r1",
+          "r2"
+        ]
+      },
+      "declared_functions": [
+        "main::main",
+        "main::sender",
+        "main::receiver"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::ch.recv' referenced",
+      "path": "modules[0].functions[2].body[3]",
+      "location": "main::receiver.s4",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[2].body[3]",
+      "declared_symbols": {
+        "function": "main::receiver",
+        "params": [],
+        "locals": [
+          "r1",
+          "r2"
+        ]
+      },
+      "declared_functions": [
+        "main::main",
+        "main::sender",
+        "main::receiver"
+      ]
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'sender' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[1]",
+      "location": "main::sender",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[1]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'receiver' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[2]",
+      "location": "main::receiver",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[2]"
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ch' is declared but never used",
+      "location": "main::ch",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::sender: params [], locals ['v1', 'v2'])",
+    "define the function or import it via requires",
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::receiver: params [], locals ['r1', 'r2'])",
+    "keep activation slots unmodeled, or publish concurrent values through a Var",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::sender",
+    "main::receiver"
+  ],
+  "normalizations": [
+    {
+      "rule": "resource_mode",
+      "scope": "resource",
+      "resource": "ch",
+      "location": "/modules/0",
+      "to": "Sync"
+    },
+    {
+      "rule": "drop_sync_init",
+      "resource": "ch",
+      "location": "/modules/0"
+    }
+  ],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

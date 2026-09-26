@@ -1,0 +1,38 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E008",
+      "severity": "error",
+      "message": "var resource 'ch' has invalid type 'Channel'; expected Var or Atomic",
+      "path": "modules[0].resources[1].type",
+      "fix_hint": "use \"Var\" or \"Atomic\"",
+      "json_path": "modules[0].resources[1].type"
+    },
+    {
+      "code": "E208",
+      "severity": "error",
+      "message": "resource 'ch' init value does not match base type Int",
+      "path": "modules[0].resources[1].init",
+      "fix_hint": "change init value to match the declared base type",
+      "json_path": "modules[0].resources[1].init"
+    }
+  ],
+  "expected_shapes": [
+    "sync resource `type` must be one of Mutex, Condvar, Semaphore, Channel",
+    "use \"Var\" or \"Atomic\"",
+    "a resource's `init` must match its declared `base` type: `base: \"Int\"` needs an integer init, `base: \"Bool\"` a boolean; example {\"name\":\"done\",\"kind\":\"var\",\"type\":\"Var\",\"base\":\"Int\",\"init\":0}",
+    "change init value to match the declared base type"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::sender",
+    "main::receiver",
+    "main::wait_for_space",
+    "main::wait_for_data"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

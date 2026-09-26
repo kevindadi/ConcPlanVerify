@@ -1,0 +1,196 @@
+{
+  "program": "atomic_counter_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "c"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "c",
+          "kind": "var",
+          "type": "Atomic",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::w1",
+                "main::w2"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "old",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            },
+            {
+              "name": "new",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            },
+            {
+              "name": "success",
+              "type": "Bool",
+              "modeled": true,
+              "init": false
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::atomic_load",
+              "args": [
+                "main::c"
+              ],
+              "dst": "old"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "new",
+              "expr": "old + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "call",
+              "func": "main::atomic_cas",
+              "args": [
+                "main::c",
+                "old",
+                "new"
+              ],
+              "dst": "success"
+            },
+            {
+              "sid": "s4",
+              "kind": "if",
+              "cond": "!success",
+              "then": [
+                {
+                  "sid": "s5",
+                  "kind": "goto",
+                  "target": "s1"
+                }
+              ],
+              "else": [
+                {
+                  "sid": "s6",
+                  "kind": "return"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "old",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            },
+            {
+              "name": "new",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            },
+            {
+              "name": "success",
+              "type": "Bool",
+              "modeled": true,
+              "init": false
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::atomic_load",
+              "args": [
+                "main::c"
+              ],
+              "dst": "old"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "new",
+              "expr": "old + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "call",
+              "func": "main::atomic_cas",
+              "args": [
+                "main::c",
+                "old",
+                "new"
+              ],
+              "dst": "success"
+            },
+            {
+              "sid": "s4",
+              "kind": "if",
+              "cond": "!success",
+              "then": [
+                {
+                  "sid": "s5",
+                  "kind": "goto",
+                  "target": "s1"
+                }
+              ],
+              "else": [
+                {
+                  "sid": "s6",
+                  "kind": "return"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

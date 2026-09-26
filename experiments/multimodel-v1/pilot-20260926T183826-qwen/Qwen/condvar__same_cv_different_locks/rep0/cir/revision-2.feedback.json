@@ -1,0 +1,134 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E010",
+      "severity": "error",
+      "message": "function 'sem_release' has invalid kind 'builtin'",
+      "path": "modules[0].functions[4].kind",
+      "fix_hint": "kind must be \"normal\" or \"async\" (structured fork-join is a scope statement, not a function kind)",
+      "json_path": "modules[0].functions[4].kind"
+    },
+    {
+      "code": "E010",
+      "severity": "error",
+      "message": "function 'sem_acquire' has invalid kind 'builtin'",
+      "path": "modules[0].functions[5].kind",
+      "fix_hint": "kind must be \"normal\" or \"async\" (structured fork-join is a scope statement, not a function kind)",
+      "json_path": "modules[0].functions[5].kind"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ready' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[1].body[1]",
+      "location": "main::w1.s2",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[1].body[1]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ready' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[2].body[1]",
+      "location": "main::w2.s2",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[2].body[1]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ready' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[3].body[0]",
+      "location": "main::notifier.s1",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[3].body[0]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ready' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[3].body[1]",
+      "location": "main::notifier.s2",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[3].body[1]"
+    },
+    {
+      "code": "E114",
+      "severity": "warning",
+      "message": "function 'sem_release' has an empty body; control falls off the end, which is an implicit return",
+      "path": "modules[0].functions[4]",
+      "location": "main::sem_release",
+      "fix_hint": "add an explicit return, or rely on the documented implicit return",
+      "json_path": "modules[0].functions[4]"
+    },
+    {
+      "code": "E114",
+      "severity": "warning",
+      "message": "function 'sem_acquire' has an empty body; control falls off the end, which is an implicit return",
+      "path": "modules[0].functions[5]",
+      "location": "main::sem_acquire",
+      "fix_hint": "add an explicit return, or rely on the documented implicit return",
+      "json_path": "modules[0].functions[5]"
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ready' is declared but never used",
+      "location": "main::ready",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "kind must be \"normal\" or \"async\" (structured fork-join is a scope statement, not a function kind)",
+    "use a value name of the matching type",
+    "add an explicit return, or rely on the documented implicit return",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::w1",
+    "main::w2",
+    "main::notifier",
+    "main::sem_release",
+    "main::sem_acquire"
+  ],
+  "normalizations": [
+    {
+      "rule": "fqn_prefix",
+      "function": "w1",
+      "sid": "s2",
+      "field": "func",
+      "from": "sem_release",
+      "to": "main::sem_release"
+    },
+    {
+      "rule": "fqn_prefix",
+      "function": "w2",
+      "sid": "s2",
+      "field": "func",
+      "from": "sem_release",
+      "to": "main::sem_release"
+    },
+    {
+      "rule": "fqn_prefix",
+      "function": "notifier",
+      "sid": "s1",
+      "field": "func",
+      "from": "sem_acquire",
+      "to": "main::sem_acquire"
+    },
+    {
+      "rule": "fqn_prefix",
+      "function": "notifier",
+      "sid": "s2",
+      "field": "func",
+      "from": "sem_acquire",
+      "to": "main::sem_acquire"
+    }
+  ],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

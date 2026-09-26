@@ -1,0 +1,49 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+use std::sync::{Arc};
+use std::thread;
+
+// Resources (module main):
+//   m : Mutex (the mutual-exclusion lock)
+//   c : Var(Int, init 0), protected by m per the protection edge,
+//       so c lives inside the mutex m (no extra lock is added).
+fn main() { cir_trace::init();
+    // m holds the shared counter c, initialized to 0 (declared range 0..=2).
+    let m: Arc<Mutex<i32>> = Arc::new(Mutex::new_named("res_mutex0", 0));
+
+    let m_for_w1 = Arc::clone(&m);
+    let m_for_w2 = Arc::clone(&m);
+
+    // scope s1: start [main::w1, main::w2]
+    let h1 = cir_trace::spawn("w1", move || w1(&m_for_w1));
+    let h2 = cir_trace::spawn("w2", move || w2(&m_for_w2));
+
+    // The supervising scope waits for both workers to finish.
+    h1.join().expect("w1 thread panicked");
+    h2.join().expect("w2 thread panicked");
+
+    // s2: return; terminal line required by the requirements.
+    println!("DONE done=1");
+ cir_trace::finish();}
+
+// main::w1
+fn w1(m: &Mutex<i32>) {
+    // s1: mutex_lock main::m
+    let mut guard = m.lock().unwrap();
+    // s2: write_shared main::c := c + 1  (c lives in m, accessed under the lock)
+    *guard = *guard + 1;
+    // s3: mutex_unlock main::m
+    drop(guard);
+    // s4: return
+}
+
+// main::w2
+fn w2(m: &Mutex<i32>) {
+    // s1: mutex_lock main::m
+    let mut guard = m.lock().unwrap();
+    // s2: write_shared main::c := c + 1
+    *guard = *guard + 1;
+    // s3: mutex_unlock main::m
+    drop(guard);
+    // s4: return
+}

@@ -1,0 +1,36 @@
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+fn waiter(pair: Arc<(Mutex<bool>, Condvar)>) {
+    let (m, cv) = &*pair;
+    let mut ready = m.lock().unwrap();
+    while !*ready {
+        ready = cv.wait(ready).unwrap();
+    }
+    drop(ready);
+}
+
+fn notifier(pair: Arc<(Mutex<bool>, Condvar)>) {
+    let (m, cv) = &*pair;
+    let mut ready = m.lock().unwrap();
+    *ready = true;
+    cv.notify_one();
+    drop(ready);
+}
+
+fn main() {
+    let pair = Arc::new((Mutex::new(false), Condvar::new()));
+
+    let waiter_pair = Arc::clone(&pair);
+    let notifier_pair = Arc::clone(&pair);
+
+    let w = thread::spawn(move || waiter(waiter_pair));
+    let n = thread::spawn(move || notifier(notifier_pair));
+
+    w.join().unwrap();
+    n.join().unwrap();
+
+    let (m, _) = &*pair;
+    let ready = m.lock().unwrap();
+    println!("DONE ready={}", *ready);
+}

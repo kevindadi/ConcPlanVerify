@@ -1,0 +1,150 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::ch1.send' referenced",
+      "path": "modules[0].functions[1].body[2]",
+      "location": "main::s.s3",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[1].body[2]",
+      "declared_symbols": {
+        "function": "main::s",
+        "params": [],
+        "locals": [
+          "ack"
+        ]
+      },
+      "declared_functions": [
+        "main::main",
+        "main::s",
+        "main::r"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::ch2.recv' referenced",
+      "path": "modules[0].functions[1].body[3]",
+      "location": "main::s.s4",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[1].body[3]",
+      "declared_symbols": {
+        "function": "main::s",
+        "params": [],
+        "locals": [
+          "ack"
+        ]
+      },
+      "declared_functions": [
+        "main::main",
+        "main::s",
+        "main::r"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::ch1.recv' referenced",
+      "path": "modules[0].functions[2].body[0]",
+      "location": "main::r.s1",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[2].body[0]",
+      "declared_symbols": {
+        "function": "main::r",
+        "params": [],
+        "locals": [
+          "val"
+        ]
+      },
+      "declared_functions": [
+        "main::main",
+        "main::s",
+        "main::r"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::ch2.send' referenced",
+      "path": "modules[0].functions[2].body[3]",
+      "location": "main::r.s4",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[2].body[3]",
+      "declared_symbols": {
+        "function": "main::r",
+        "params": [],
+        "locals": [
+          "val"
+        ]
+      },
+      "declared_functions": [
+        "main::main",
+        "main::s",
+        "main::r"
+      ]
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 's' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[1]",
+      "location": "main::s",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[1]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'r' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[2]",
+      "location": "main::r",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[2]"
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ch1' is declared but never used",
+      "location": "main::ch1",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ch2' is declared but never used",
+      "location": "main::ch2",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::s: params [], locals ['ack'])",
+    "define the function or import it via requires",
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::r: params [], locals ['val'])",
+    "keep activation slots unmodeled, or publish concurrent values through a Var",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::s",
+    "main::r"
+  ],
+  "normalizations": [
+    {
+      "rule": "drop_sync_init",
+      "resource": "ch1",
+      "location": "/modules/0"
+    },
+    {
+      "rule": "drop_sync_init",
+      "resource": "ch2",
+      "location": "/modules/0"
+    }
+  ],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

@@ -1,0 +1,60 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ch' is a sync resource and cannot appear as a value",
+      "location": "main::s1.s1",
+      "path": "modules[0].functions[1].body[0]",
+      "fix_hint": "use a value name of the matching type"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ch' is a sync resource and cannot appear as a value",
+      "location": "main::r.s1",
+      "path": "modules[0].functions[2].body[0]",
+      "fix_hint": "use a value name of the matching type"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::channel_take') captures a return into 'val', but 'main::channel_take' has no modeled return",
+      "location": "main::r.s1",
+      "path": "modules[0].functions[2].body[0]",
+      "fix_hint": "declare a modeled return on the callee, or drop dst"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'r' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "location": "main::r",
+      "path": "modules[0].functions[2]",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::channel_take_helper') captures a return into 'result', but 'main::channel_take_helper' has no modeled return",
+      "location": "main::channel_take.s1",
+      "path": "modules[0].functions[5].body[0]",
+      "fix_hint": "declare a modeled return on the callee, or drop dst"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::channel_op') captures a return into 'received', but 'main::channel_op' has no modeled return",
+      "location": "main::channel_take_helper.s1",
+      "path": "modules[0].functions[6].body[0]",
+      "fix_hint": "declare a modeled return on the callee, or drop dst"
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ch' is declared but never used",
+      "location": "main::ch",
+      "fix_hint": "remove the resource, or use it in a statement/protection"
+    }
+  ]
+}

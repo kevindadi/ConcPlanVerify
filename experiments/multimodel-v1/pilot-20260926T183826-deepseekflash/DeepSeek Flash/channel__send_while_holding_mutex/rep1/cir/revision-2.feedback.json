@@ -1,0 +1,66 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::recv') captures a return into 'v', but 'main::recv' has no modeled return",
+      "path": "modules[0].functions[2].body[0]",
+      "location": "main::r.s1",
+      "fix_hint": "declare a modeled return on the callee, or drop dst",
+      "json_path": "modules[0].functions[2].body[0]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'r' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[2]",
+      "location": "main::r",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[2]"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::chan_recv') captures a return into 'v', but 'main::chan_recv' has no modeled return",
+      "path": "modules[0].functions[4].body[0]",
+      "location": "main::recv.s1",
+      "fix_hint": "declare a modeled return on the callee, or drop dst",
+      "json_path": "modules[0].functions[4].body[0]"
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ch1' is declared but never used",
+      "location": "main::ch1",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ch2' is declared but never used",
+      "location": "main::ch2",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "declare a modeled return on the callee, or drop dst",
+    "keep activation slots unmodeled, or publish concurrent values through a Var",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::s",
+    "main::r",
+    "main::send",
+    "main::recv",
+    "main::chan_send",
+    "main::chan_recv"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

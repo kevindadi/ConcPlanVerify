@@ -1,0 +1,53 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E205",
+      "severity": "error",
+      "message": "atomic_cas dst 'success' has type Bool, but must hold the pre-CAS old value (Atomic base Int), not a Bool success flag",
+      "location": "main::w1.s2",
+      "path": "modules[0].functions[1].body[1]",
+      "fix_hint": "bind dst to a local or Var/Atomic of the same base type; test success with branch(dst == expected)"
+    },
+    {
+      "code": "E201",
+      "severity": "error",
+      "message": "branch condition \"success\" is not a comparison expression",
+      "location": "main::w1.s3",
+      "path": "modules[0].functions[1].body[2]",
+      "fix_hint": "use a comparison operator: ==, !=, >, <, >=, <="
+    },
+    {
+      "code": "E205",
+      "severity": "error",
+      "message": "atomic_cas dst 'success' has type Bool, but must hold the pre-CAS old value (Atomic base Int), not a Bool success flag",
+      "location": "main::w2.s2",
+      "path": "modules[0].functions[2].body[1]",
+      "fix_hint": "bind dst to a local or Var/Atomic of the same base type; test success with branch(dst == expected)"
+    },
+    {
+      "code": "E201",
+      "severity": "error",
+      "message": "branch condition \"success\" is not a comparison expression",
+      "location": "main::w2.s3",
+      "path": "modules[0].functions[2].body[2]",
+      "fix_hint": "use a comparison operator: ==, !=, >, <, >=, <="
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'w1' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "location": "main::w1",
+      "path": "modules[0].functions[1]",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'w2' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "location": "main::w2",
+      "path": "modules[0].functions[2]",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var"
+    }
+  ]
+}

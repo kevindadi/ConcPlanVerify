@@ -1,0 +1,251 @@
+{
+  "program": "sender_receiver_channels",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m",
+          "ch1",
+          "ch2"
+        ],
+        "functions": [
+          "main",
+          "s",
+          "r"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "ch1",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        },
+        {
+          "name": "ch2",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::s",
+                "main::r"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "s",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s3",
+              "kind": "call",
+              "func": "main::ch1_send",
+              "args": [
+                "1"
+              ]
+            },
+            {
+              "sid": "s4",
+              "kind": "call",
+              "func": "main::ch2_recv"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "ack",
+              "type": "Int",
+              "modeled": false,
+              "init": 0
+            }
+          ]
+        },
+        {
+          "name": "r",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::ch1_recv"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s4",
+              "kind": "call",
+              "func": "main::ch2_send",
+              "args": [
+                "1"
+              ]
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "val",
+              "type": "Int",
+              "modeled": false,
+              "init": 0
+            }
+          ]
+        },
+        {
+          "name": "ch1_send",
+          "kind": "builtin",
+          "params": [
+            {
+              "name": "v",
+              "type": "Int",
+              "modeled": true
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "channel_send",
+              "resource": "main::ch1",
+              "expr": "v"
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "ch1_recv",
+          "kind": "builtin",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "channel_recv",
+              "resource": "main::ch1",
+              "dst": "res"
+            },
+            {
+              "sid": "s2",
+              "kind": "return",
+              "value": "res"
+            }
+          ],
+          "locals": [
+            {
+              "name": "res",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ]
+        },
+        {
+          "name": "ch2_send",
+          "kind": "builtin",
+          "params": [
+            {
+              "name": "v",
+              "type": "Int",
+              "modeled": true
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "channel_send",
+              "resource": "main::ch2",
+              "expr": "v"
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "ch2_recv",
+          "kind": "builtin",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "channel_recv",
+              "resource": "main::ch2",
+              "dst": "res"
+            },
+            {
+              "sid": "s2",
+              "kind": "return",
+              "value": "res"
+            }
+          ],
+          "locals": [
+            {
+              "name": "res",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "mapping": {
+    "m_mutex0": "main::m",
+    "cv_condvar0": "main::cv"
+  },
+  "provenance": {
+    "by_kind": {
+      "Mutex": [
+        "main::m"
+      ],
+      "Condvar": [
+        "main::cv"
+      ],
+      "Var": [
+        "main::ready"
+      ]
+    },
+    "threads": {
+      "waiter_handle": null,
+      "notifier_handle": null
+    },
+    "ambiguous": [
+      {
+        "rust": "waiter_handle",
+        "kind": "Spawn",
+        "candidates": [
+          "main::waiter",
+          "main::notifier"
+        ]
+      },
+      {
+        "rust": "notifier_handle",
+        "kind": "Spawn",
+        "candidates": [
+          "main::waiter",
+          "main::notifier"
+        ]
+      }
+    ]
+  }
+}

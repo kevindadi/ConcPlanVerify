@@ -1,0 +1,44 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E108",
+      "severity": "error",
+      "message": "requires resource 'b' must be an FQN (module::entity)",
+      "path": "modules[0].requires.resources[0]",
+      "fix_hint": "write the resource as module::name",
+      "json_path": "modules[0].requires.resources[0]",
+      "declared_functions": [
+        "main::main",
+        "main::t1",
+        "other::t2"
+      ]
+    },
+    {
+      "code": "E108",
+      "severity": "error",
+      "message": "requires resource 'a' must be an FQN (module::entity)",
+      "path": "modules[1].requires.resources[0]",
+      "fix_hint": "write the resource as module::name",
+      "json_path": "modules[1].requires.resources[0]",
+      "declared_functions": [
+        "main::main",
+        "main::t1",
+        "other::t2"
+      ]
+    }
+  ],
+  "expected_shapes": [
+    "a cross-module function reference must be declared and listed in requires.functions",
+    "write the resource as module::name"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::t1",
+    "other::t2"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

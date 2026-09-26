@@ -1,0 +1,37 @@
+```rust
+use std::sync::Mutex;
+use std::thread;
+
+static a: Mutex<()> = Mutex::new(());
+static b: Mutex<()> = Mutex::new(());
+
+fn t1() -> i32 {
+    let mut work = 0;
+    let guard_a = a.lock().unwrap();
+    let guard_b = b.lock().unwrap();
+    work = 1;
+    drop(guard_b);
+    drop(guard_a);
+    work
+}
+
+fn t2() -> i32 {
+    let mut work = 0;
+    let guard_a = a.lock().unwrap();
+    let guard_b = b.lock().unwrap();
+    work = 1;
+    drop(guard_b);
+    drop(guard_a);
+    work
+}
+
+fn main() {
+    let handle_t1 = thread::spawn(|| t1());
+    let handle_t2 = thread::spawn(|| t2());
+
+    let result_t1 = handle_t1.join().unwrap();
+    let result_t2 = handle_t2.join().unwrap();
+
+    println!("DONE t1={} t2={}", result_t1, result_t2);
+}
+```

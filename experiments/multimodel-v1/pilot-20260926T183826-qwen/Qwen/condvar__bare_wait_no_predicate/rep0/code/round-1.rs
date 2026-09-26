@@ -1,0 +1,29 @@
+use std::sync::{Arc, Mutex, Condvar};
+
+fn main() {
+    let m = Arc::new(Mutex::new(false));
+    let cv = Arc::new(Condvar::new());
+
+    let m_waiter = Arc::clone(&m);
+    let cv_waiter = Arc::clone(&cv);
+    let waiter_handle = std::thread::spawn(move || {
+        let mut guard = m_waiter.lock().unwrap();
+        while !*guard {
+            guard = cv_waiter.wait(guard).unwrap();
+        }
+    });
+
+    let m_notifier = Arc::clone(&m);
+    let cv_notifier = Arc::clone(&cv);
+    let notifier_handle = std::thread::spawn(move || {
+        let mut guard = m_notifier.lock().unwrap();
+        *guard = true;
+        cv_notifier.notify_all();
+    });
+
+    waiter_handle.join().unwrap();
+    notifier_handle.join().unwrap();
+
+    let ready = *m.lock().unwrap();
+    println!("DONE ready={}", ready);
+}

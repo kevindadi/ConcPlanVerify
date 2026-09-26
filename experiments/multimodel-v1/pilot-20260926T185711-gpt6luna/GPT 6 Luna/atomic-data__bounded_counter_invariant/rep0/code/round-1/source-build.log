@@ -1,0 +1,27 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/pilot-20260926T185711-gpt6luna/GPT 6 Luna/atomic-data__bounded_counter_invariant/rep0/code/round-1/source-proj)
+warning: static variable `m` should have an upper case name
+ --> src/main.rs:7:8
+  |
+7 | static m: Mutex<Counter> = Mutex::new(Counter { c: 0 });
+  |        ^
+  |
+  = note: `#[warn(non_upper_case_globals)]` (part of `#[warn(nonstandard_style)]`) on by default
+help: convert the identifier to upper case
+  |
+7 - static m: Mutex<Counter> = Mutex::new(Counter { c: 0 });
+7 + static M: Mutex<Counter> = Mutex::new(Counter { c: 0 });
+  |
+
+warning: `probe` (bin "probe") generated 1 warning (run `cargo fix --bin "probe" -p probe` to apply 1 suggestion)
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.23s

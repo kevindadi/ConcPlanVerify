@@ -1,0 +1,29 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::recv') captures a return into 'r1', but 'main::recv' has no modeled return",
+      "location": "main::receiver.s3",
+      "path": "modules[0].functions[2].body[2]",
+      "fix_hint": "declare a modeled return on the callee, or drop dst"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::recv') captures a return into 'r2', but 'main::recv' has no modeled return",
+      "location": "main::receiver.s6",
+      "path": "modules[0].functions[2].body[5]",
+      "fix_hint": "declare a modeled return on the callee, or drop dst"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'receiver' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "location": "main::receiver",
+      "path": "modules[0].functions[2]",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var"
+    }
+  ]
+}

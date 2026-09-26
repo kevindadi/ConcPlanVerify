@@ -1,0 +1,70 @@
+{
+  "program": "helper_call_sequence",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [],
+        "functions": [
+          "main",
+          "helper"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "helper",
+          "kind": "normal",
+          "locals": [
+            {
+              "name": "done",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "done",
+              "expr": "1"
+            },
+            {
+              "sid": "s2",
+              "kind": "return",
+              "value": "done"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::helper"
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::helper"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ch1' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[1].body[2]",
+      "location": "main::s.s3",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[1].body[2]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ch2' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[1].body[3]",
+      "location": "main::s.s4",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[1].body[3]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ch1' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[2].body[2]",
+      "location": "main::r.s3",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[2].body[2]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ch2' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[2].body[3]",
+      "location": "main::r.s4",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[2].body[3]"
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ch1' is declared but never used",
+      "location": "main::ch1",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ch2' is declared but never used",
+      "location": "main::ch2",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "use a value name of the matching type",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::s",
+    "main::r",
+    "main::send",
+    "main::recv"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

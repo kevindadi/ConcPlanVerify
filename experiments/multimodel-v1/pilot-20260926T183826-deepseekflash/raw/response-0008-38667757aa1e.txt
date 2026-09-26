@@ -1,0 +1,111 @@
+{
+  "program": "atomic_counter_two_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": ["c"],
+        "functions": ["main", "w1", "w2"]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "c",
+          "kind": "var",
+          "type": "Atomic",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": ["main::w1", "main::w2"]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {"name": "old", "type": "Int", "modeled": true, "init": 0},
+            {"name": "new", "type": "Int", "modeled": true, "init": 0}
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "old",
+              "expr": "c"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "new",
+              "expr": "old + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "write_shared",
+              "resource": "main::c",
+              "expr": "new"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {"name": "old", "type": "Int", "modeled": true, "init": 0},
+            {"name": "new", "type": "Int", "modeled": true, "init": 0}
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "old",
+              "expr": "c"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "new",
+              "expr": "old + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "write_shared",
+              "resource": "main::c",
+              "expr": "new"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

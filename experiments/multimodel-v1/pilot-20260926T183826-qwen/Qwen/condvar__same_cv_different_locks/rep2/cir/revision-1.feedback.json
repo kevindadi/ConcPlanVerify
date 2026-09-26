@@ -1,0 +1,171 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'ready' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[4].body[0]",
+      "location": "main::notify_ready.s1",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[4].body[0]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'ready' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[6].body[0]",
+      "location": "main::wait_for_two.s1",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[6].body[0]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'ready' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[6].body[1]",
+      "location": "main::wait_for_two.s2",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[6].body[1]"
+    },
+    {
+      "code": "E114",
+      "severity": "warning",
+      "message": "function 'notify_ready' ends at 's1' without an explicit return/goto/branch/switch; control falls off the end, which is an implicit return",
+      "path": "modules[0].functions[4]",
+      "location": "main::notify_ready",
+      "fix_hint": "add an explicit return, or rely on the documented implicit return",
+      "json_path": "modules[0].functions[4]"
+    },
+    {
+      "code": "E602",
+      "severity": "error",
+      "message": "function 'notify_ready' has a path ending at 's1' without return",
+      "path": "modules[0].functions[4].body[0]",
+      "location": "main::notify_ready.s1",
+      "fix_hint": "add a return statement at the end of this path",
+      "json_path": "modules[0].functions[4].body[0]"
+    },
+    {
+      "code": "E114",
+      "severity": "warning",
+      "message": "function 'wait_for_two' ends at 's2' without an explicit return/goto/branch/switch; control falls off the end, which is an implicit return",
+      "path": "modules[0].functions[6]",
+      "location": "main::wait_for_two",
+      "fix_hint": "add an explicit return, or rely on the documented implicit return",
+      "json_path": "modules[0].functions[6]"
+    },
+    {
+      "code": "E602",
+      "severity": "error",
+      "message": "function 'wait_for_two' has a path ending at 's2' without return",
+      "path": "modules[0].functions[6].body[1]",
+      "location": "main::wait_for_two.s2",
+      "fix_hint": "add a return statement at the end of this path",
+      "json_path": "modules[0].functions[6].body[1]"
+    },
+    {
+      "code": "E920",
+      "severity": "error",
+      "message": "call('main::sem_post') expects 0 argument(s) for its modeled parameters, got 1",
+      "path": "modules[0].functions[4].body[0]",
+      "location": "main::notify_ready.s1",
+      "fix_hint": "supply one argument per modeled parameter, or mark unused parameters \"modeled\": false",
+      "json_path": "modules[0].functions[4].body[0]",
+      "declared_symbols": {
+        "function": "main::notify_ready",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::notifier",
+        "main::notify_ready",
+        "main::sem_post",
+        "main::wait_for_two",
+        "main::sem_wait"
+      ]
+    },
+    {
+      "code": "E920",
+      "severity": "error",
+      "message": "call('main::sem_wait') expects 0 argument(s) for its modeled parameters, got 1",
+      "path": "modules[0].functions[6].body[0]",
+      "location": "main::wait_for_two.s1",
+      "fix_hint": "supply one argument per modeled parameter, or mark unused parameters \"modeled\": false",
+      "json_path": "modules[0].functions[6].body[0]",
+      "declared_symbols": {
+        "function": "main::wait_for_two",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::notifier",
+        "main::notify_ready",
+        "main::sem_post",
+        "main::wait_for_two",
+        "main::sem_wait"
+      ]
+    },
+    {
+      "code": "E920",
+      "severity": "error",
+      "message": "call('main::sem_wait') expects 0 argument(s) for its modeled parameters, got 1",
+      "path": "modules[0].functions[6].body[1]",
+      "location": "main::wait_for_two.s2",
+      "fix_hint": "supply one argument per modeled parameter, or mark unused parameters \"modeled\": false",
+      "json_path": "modules[0].functions[6].body[1]",
+      "declared_symbols": {
+        "function": "main::wait_for_two",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::notifier",
+        "main::notify_ready",
+        "main::sem_post",
+        "main::wait_for_two",
+        "main::sem_wait"
+      ]
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ready' is declared but never used",
+      "location": "main::ready",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "use a value name of the matching type",
+    "add an explicit return, or rely on the documented implicit return",
+    "add a return statement at the end of this path",
+    "`args` must be a JSON array of strings whose length matches the callee's params. A bare string is not an argument list. (declared in main::notify_ready: params [], locals [])",
+    "supply one argument per modeled parameter, or mark unused parameters \"modeled\": false",
+    "`args` must be a JSON array of strings whose length matches the callee's params. A bare string is not an argument list. (declared in main::wait_for_two: params [], locals [])",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::w1",
+    "main::w2",
+    "main::notifier",
+    "main::notify_ready",
+    "main::sem_post",
+    "main::wait_for_two",
+    "main::sem_wait"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

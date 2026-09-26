@@ -1,0 +1,292 @@
+# Rust from a verified ConcIR design (v2)
+
+You write one Rust program that implements a verified ConcIR design. The
+checker decides whether the program is accepted. Output only the Rust source
+inside one ```rust fence.
+
+## Authority
+
+The ConcIR design is authoritative for threads, resources, and the order of
+synchronization and shared-state updates. Use the same function and resource
+names. The requirement document supplies payload formatting and the exact
+terminal line. If they disagree about synchronization, follow the CIR.
+
+## Libraries
+
+`std` and the already-linked crate `concir_sync` are allowed. Write
+`use concir_sync::Semaphore;` when the design has a semaphore. Do not write
+`mod concir_sync` and do not implement a semaphore yourself. Do not use
+`std::sync::Semaphore` or `Semaphore::release`; neither exists.
+
+Semaphore API, matching the linked crate:
+
+- `Semaphore::new(n) -> Arc<Semaphore>`
+- `acquire(&self) -> Permit` (blocks until a permit is available)
+- `try_acquire(&self) -> Option<Permit>`
+- `Permit::release(self)` consumes the permit and releases it early
+- dropping a `Permit` also releases it once
+
+A CIR `semaphore_acquire` is `acquire`. A CIR `semaphore_release` is either
+`permit.release()` or the permit leaving scope. Do not acquire an extra permit
+or drop one twice to manufacture events.
+
+Other primitives:
+
+- `Mutex` and `Condvar` from `std::sync`
+- `std::sync::mpsc::{channel, sync_channel}` for channels; capacity 0 is rendezvous
+- `std::sync::atomic` for CIR atomics
+- `std::thread::spawn` plus `join`
+
+Do not mention `cir_trace` and do not declare `mod cir_trace`. Instrumentation
+is applied later by the checker.
+
+## Correspondence
+
+- One CIR function is one Rust function. The entry scope starts the threads it names.
+- One CIR mutex, condvar, channel, or semaphore is one primitive with that name.
+  Do not add a primitive the CIR does not have.
+- A CIR `var` lives in the mutex named by its protection edge, or in a local.
+  Do not add a new lock for it.
+- `condvar_wait` is `while !predicate { guard = cv.wait(guard) }` under the paired mutex.
+- After joins, `main` may read shared state only to print the required terminal line.
+
+## Rules
+
+- One file, `fn main`, no `unsafe`, no `#![feature]`.
+- Do not make the program sequential and do not delete a critical section.
+- Do not use `sleep` or `yield_now` to dodge synchronization.
+- Join every spawned thread. Print the terminal line from the requirements.
+
+Requirement document:
+# Requirements
+
+R1. A main task starts a waiter role and a notifier role that run at the same time.
+R2. The waiter and the notifier share one lock, one condition variable, and one boolean flag that the lock guards. [U]
+R3. The notifier sets the shared flag to true while holding the lock, signals the condition variable, and then releases the lock.
+R4. The waiter checks the flag while holding the lock, waits on the condition variable only while the flag is false, and re-checks the flag after every wake.
+R5. The waiter must complete even when the notifier's signal happens before the waiter starts waiting.
+R6. The flag must be set to true before the signal is issued, so a waiting role never misses the notification.
+R7. The flag is read and written only while the lock is held, and the waiter releases the lock while blocked.
+R8. Every schedule and interleaving must terminate with the waiter and the notifier both finished.
+R9. The shared flag becomes true in every schedule.
+R10. The program must print exactly the line `DONE ready=true` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): waiter, notifier.
+- Shared resources: m (lock), cv (condition variable), ready (shared variable).
+
+Thread plan (authoritative; mirror it exactly):
+module main:
+- main: start [main::waiter, main::notifier]
+- waiter: mutex_lock main::m; condvar_wait main::cv on main::m; mutex_unlock main::m
+- notifier: mutex_lock main::m; condvar_notify main::cv; mutex_unlock main::m
+
+Verified ConcIR design (authoritative):
+```json
+{
+  "program": "waiter_notifier",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m",
+          "cv",
+          "ready"
+        ],
+        "functions": [
+          "main",
+          "waiter",
+          "notifier"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "cv",
+          "kind": "sync",
+          "type": "Condvar",
+          "mode": "Sync"
+        },
+        {
+          "name": "ready",
+          "kind": "var",
+          "type": "Var",
+          "base": "Bool",
+          "init": false
+        }
+      ],
+      "protection": [
+        {
+          "var": "ready",
+          "lock": "m"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::waiter",
+                "main::notifier"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "waiter",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "r",
+              "type": "Bool",
+              "modeled": true,
+              "init": false
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "read_shared",
+              "resource": "main::ready",
+              "dst": "r"
+            },
+            {
+              "sid": "s3",
+              "kind": "branch",
+              "cond": "r == false",
+              "then": "s4",
+              "else": "s6"
+            },
+            {
+              "sid": "s4",
+              "kind": "condvar_wait",
+              "condvar": "main::cv",
+              "lock": "main::m"
+            },
+            {
+              "sid": "s5",
+              "kind": "goto",
+              "target": "s2"
+            },
+            {
+              "sid": "s6",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "notifier",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "write_shared",
+              "resource": "main::ready",
+              "expr": "true"
+            },
+            {
+              "sid": "s3",
+              "kind": "condvar_notify",
+              "condvar": "main::cv"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Previous Rust program:
+```rust
+use std::sync::{Arc, Mutex, Condvar};
+use std::thread;
+
+fn main() {
+    let m = Arc::new(Mutex::new(false)); // ready flag guarded by mutex m
+    let cv = Arc::new(Condvar::new());
+
+    let m_waiter = Arc::clone(&m);
+    let cv_waiter = Arc::clone(&cv);
+    let waiter_handle = thread::spawn(move || {
+        let mut guard = m_waiter.lock().unwrap();
+        loop {
+            if *guard {
+                break;
+            }
+            guard = cv_waiter.wait(guard).unwrap();
+        }
+        // mutex_unlock happens when guard goes out of scope
+    });
+
+    let m_notifier = Arc::clone(&m);
+    let cv_notifier = Arc::clone(&cv);
+    let notifier_handle = thread::spawn(move || {
+        let mut guard = m_notifier.lock().unwrap();
+        *guard = true;
+        cv_notifier.notify_one();
+        // mutex_unlock happens when guard goes out of scope
+    });
+
+    waiter_handle.join().unwrap();
+    notifier_handle.join().unwrap();
+
+    let final_ready = *m.lock().unwrap();
+    println!("DONE ready={}", final_ready);
+}
+```
+
+Feedback on that Rust program:
+Tool error: resource or thread identity is ambiguous and was not guessed. [{"rust": "waiter_handle", "kind": "Spawn", "candidates": ["main::waiter", "main::notifier"]}, {"rust": "notifier_handle", "kind": "Spawn", "candidates": ["main::waiter", "main::notifier"]}]
+Fix the Rust; do not change the design.
+
+Output only the complete Rust program in one ```rust fence.

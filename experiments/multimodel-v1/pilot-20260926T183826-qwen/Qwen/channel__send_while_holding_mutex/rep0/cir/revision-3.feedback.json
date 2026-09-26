@@ -1,0 +1,53 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E010",
+      "severity": "error",
+      "message": "function 'ch1_send' has invalid kind 'builtin'",
+      "path": "modules[0].functions[3].kind",
+      "fix_hint": "kind must be \"normal\" or \"async\" (structured fork-join is a scope statement, not a function kind)",
+      "json_path": "modules[0].functions[3].kind"
+    },
+    {
+      "code": "E010",
+      "severity": "error",
+      "message": "function 'ch1_recv' has invalid kind 'builtin'",
+      "path": "modules[0].functions[4].kind",
+      "fix_hint": "kind must be \"normal\" or \"async\" (structured fork-join is a scope statement, not a function kind)",
+      "json_path": "modules[0].functions[4].kind"
+    },
+    {
+      "code": "E010",
+      "severity": "error",
+      "message": "function 'ch2_send' has invalid kind 'builtin'",
+      "path": "modules[0].functions[5].kind",
+      "fix_hint": "kind must be \"normal\" or \"async\" (structured fork-join is a scope statement, not a function kind)",
+      "json_path": "modules[0].functions[5].kind"
+    },
+    {
+      "code": "E010",
+      "severity": "error",
+      "message": "function 'ch2_recv' has invalid kind 'builtin'",
+      "path": "modules[0].functions[6].kind",
+      "fix_hint": "kind must be \"normal\" or \"async\" (structured fork-join is a scope statement, not a function kind)",
+      "json_path": "modules[0].functions[6].kind"
+    }
+  ],
+  "expected_shapes": [
+    "kind must be \"normal\" or \"async\" (structured fork-join is a scope statement, not a function kind)"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::s",
+    "main::r",
+    "main::ch1_send",
+    "main::ch1_recv",
+    "main::ch2_send",
+    "main::ch2_recv"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

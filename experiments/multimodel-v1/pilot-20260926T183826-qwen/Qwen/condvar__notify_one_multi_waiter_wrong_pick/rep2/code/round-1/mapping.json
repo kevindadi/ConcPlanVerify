@@ -1,0 +1,56 @@
+{
+  "mapping": {
+    "m_mutex0": "main::m",
+    "cv_condvar0": "main::cv",
+    "g12_semaphore0": "main::g12",
+    "gN_semaphore0": "main::gN"
+  },
+  "provenance": {
+    "by_kind": {
+      "Mutex": [
+        "main::m"
+      ],
+      "Condvar": [
+        "main::cv"
+      ],
+      "Semaphore": [
+        "main::g12",
+        "main::gN"
+      ]
+    },
+    "threads": {
+      "w1_handle": null,
+      "w2_handle": null,
+      "notifier_handle": null
+    },
+    "ambiguous": [
+      {
+        "rust": "w1_handle",
+        "kind": "Spawn",
+        "candidates": [
+          "main::w1",
+          "main::w2",
+          "main::notifier"
+        ]
+      },
+      {
+        "rust": "w2_handle",
+        "kind": "Spawn",
+        "candidates": [
+          "main::w1",
+          "main::w2",
+          "main::notifier"
+        ]
+      },
+      {
+        "rust": "notifier_handle",
+        "kind": "Spawn",
+        "candidates": [
+          "main::w1",
+          "main::w2",
+          "main::notifier"
+        ]
+      }
+    ]
+  }
+}

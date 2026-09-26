@@ -1,0 +1,118 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ch' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[1].body[0]",
+      "location": "main::s1.s1",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[1].body[0]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ch' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[2].body[0]",
+      "location": "main::r.s1",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[2].body[0]"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::channel_take') captures a return into 'val', but 'main::channel_take' has no modeled return",
+      "path": "modules[0].functions[2].body[0]",
+      "location": "main::r.s1",
+      "fix_hint": "declare a modeled return on the callee, or drop dst",
+      "json_path": "modules[0].functions[2].body[0]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'r' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[2]",
+      "location": "main::r",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[2]"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::channel_take_helper') captures a return into 'result', but 'main::channel_take_helper' has no modeled return",
+      "path": "modules[0].functions[5].body[0]",
+      "location": "main::channel_take.s1",
+      "fix_hint": "declare a modeled return on the callee, or drop dst",
+      "json_path": "modules[0].functions[5].body[0]"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::channel_op') captures a return into 'received', but 'main::channel_op' has no modeled return",
+      "path": "modules[0].functions[6].body[0]",
+      "location": "main::channel_take_helper.s1",
+      "fix_hint": "declare a modeled return on the callee, or drop dst",
+      "json_path": "modules[0].functions[6].body[0]"
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ch' is declared but never used",
+      "location": "main::ch",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "use a value name of the matching type",
+    "declare a modeled return on the callee, or drop dst",
+    "keep activation slots unmodeled, or publish concurrent values through a Var",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::s1",
+    "main::r",
+    "main::channel_send",
+    "main::channel_send_helper",
+    "main::channel_take",
+    "main::channel_take_helper",
+    "main::channel_op"
+  ],
+  "normalizations": [
+    {
+      "rule": "param_type",
+      "location": "/modules/0/functions/3/params/0",
+      "from": "Channel",
+      "to": "Int"
+    },
+    {
+      "rule": "param_type",
+      "location": "/modules/0/functions/4/params/0",
+      "from": "Channel",
+      "to": "Int"
+    },
+    {
+      "rule": "param_type",
+      "location": "/modules/0/functions/5/params/0",
+      "from": "Channel",
+      "to": "Int"
+    },
+    {
+      "rule": "param_type",
+      "location": "/modules/0/functions/6/params/0",
+      "from": "Channel",
+      "to": "Int"
+    },
+    {
+      "rule": "param_type",
+      "location": "/modules/0/functions/7/params/0",
+      "from": "Channel",
+      "to": "Int"
+    }
+  ],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

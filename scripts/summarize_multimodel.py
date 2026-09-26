@@ -111,11 +111,13 @@ def main() -> int:
     # ---- report ----
     lines: list[str] = []
     add = lines.append
-    add("# 多模型实验结果（试点 + 连通性）")
+    add("# 多模型实验结果（主矩阵 G3 + 连通性）")
     add("")
     add("> 本文件由 `scripts/summarize_multimodel.py` 从原始批次生成。")
-    add("> 这是**试点**：1 次重复、2 个任务，用于验证统一调用/审计层并给出初步信号，")
-    add("> **不是**论文主比较；主比较（24 任务 × 3 重复）尚未运行，原因见文末。")
+    add("> 主矩阵 = G3，全部 24 任务。DeepSeek/Qwen 跑满 3 重复；OpenCode 组因网关间歇")
+    add("> `APIConnectionError` 只跑到 1 重复且部分模型未覆盖满 24 任务（见覆盖率列）。")
+    add("> Composer 2.5 因 Cursor 代理上下文不可控/不可观测（15–18 万 input tokens/调用），")
+    add("> 按协议标记**不可比**，其数据单列，不并入主比较。")
     add("")
 
     # 1. end-to-end success
@@ -123,21 +125,23 @@ def main() -> int:
     add("")
     add("实验组固定为 G3（需求→已验证 CIR→模型写 Rust）。分子/分母逐格列出。")
     add("")
-    add("| 模型 | 渠道 | 任务数 | 接受 | 成功率 | 运行次数 |")
-    add("| --- | --- | --- | --- | --- | --- |")
+    add("| 模型 | 渠道 | cells(尝试) | 覆盖任务/24 | 接受 | 成功率 | 重复 |")
+    add("| --- | --- | --- | --- | --- | --- | --- |")
     by_model: dict[str, list[dict]] = defaultdict(list)
     for c in pilot_cells:
         by_model[c["model"]].append(c)
+    all_task_ids = {c["task"] for c in pilot_cells}
     for model, cells in by_model.items():
         n = len(cells)
         k = sum(1 for c in cells if c.get("accepted") is True)
         ch = cells[0]["transport"]
-        runs = max(c.get("runs", 1) for c in cells)
-        add(f"| {model} | {ch} | {n} | {k}/{n} | {k/n:.2f} | {runs} |")
+        cov = len({c["task"] for c in cells})
+        reps = max(c.get("replicate", 0) for c in cells) + 1
+        add(f"| {model} | {ch} | {n} | {cov}/24 | {k}/{n} | {k/n:.2f} | {reps} |")
     add("")
-    add("分母 2 = `channel/rendezvous_both_send` + `lock-order/cross_module_cycle`，rep0。")
-    add("重复运行按 (模型, 任务) 取**最后一次**（恢复重跑覆盖先前结果），`运行次数` 列出观察到的批次数；")
-    add("被覆盖的失败与重跑成本保留在各自的 `REQUEST_EVENTS.jsonl` 中，不消失。")
+    add("主矩阵 = G3，全部 24 任务；重复数见末列（DeepSeek/Qwen=3，OpenCode 组=1）。")
+    add("`cells(尝试)` 是去重后的 (模型,任务,重复) 数；未跑到的任务不计入分母，覆盖率单列。")
+    add("重复运行按 (模型, 任务, 重复) 取**最后一次**（恢复重跑覆盖先前结果）；被覆盖的失败与重跑成本保留在各自 `REQUEST_EVENTS.jsonl`。")
     add("")
 
     # 2. G3 funnel
@@ -234,13 +238,15 @@ def main() -> int:
 
     add("## 9. 阻塞与未完成（诚实披露）")
     add("")
-    add("- **Qwen**：`DASHSCOPE_API_KEY` 在 cn 与 intl 端点均返回 HTTP 401，直连不可用；")
-    add("  未通过 OpenCode 绕过（协议禁止）。")
-    add("- **Composer 2.5**：`cursor_sdk` 未安装，Cursor 会话通道不可用。")
-    add("- **Grok 4.7 / Mimo / GLM**：OpenCode 网关间歇 `APIConnectionError`，恢复重跑仍失败。")
-    add("- **主比较未运行**：24 任务 × 3 重复 × 多模型超出本轮时间与预算；")
-    add("  请求上界 ≈ 24×3×(K_cir+K_code)×模型数（见 `MULTIMODEL_PROTOCOL`）。")
-    add("- 统计：1 次重复、2 个任务不足以做显著性检验，**不声称**任何模型显著优于其他模型。")
+    add("- **Qwen 直连已修复**：`DASHSCOPE_API_KEY` 在 cn 端点可用（intl 401）；关闭 thinking")
+    add("  (`enable_thinking=false`) 后与 DeepSeek Flash 对齐，CIR 提示不再超时。")
+    add("- **Composer 2.5 标记不可比**：Cursor 代理每次调用累积 15–18 万 input tokens 且内部行为")
+    add("  不可完全观测，无法归约为无状态 chat，按协议排除出主比较（数据单列）。")
+    add("- **Grok 4.7 / Mimo / GLM**：OpenCode 网关间歇 `APIConnectionError`，覆盖不全。")
+    add("- **主矩阵部分完成**：DeepSeek/Qwen 跑满 24 任务 × 3 重复；OpenCode 组 1 重复且部分模型")
+    add("  未覆盖满 24 任务（见覆盖率列）。剩余格可用同一命令恢复（`budget.json` 持久化）。")
+    add("- 统计：重复数不一致，且部分模型未覆盖满任务，**不声称**任何模型显著优于其他模型；")
+    add("  仅报告观测到的点估计与失败分解。")
     add("")
 
     (out / "MULTIMODEL_RESULTS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")

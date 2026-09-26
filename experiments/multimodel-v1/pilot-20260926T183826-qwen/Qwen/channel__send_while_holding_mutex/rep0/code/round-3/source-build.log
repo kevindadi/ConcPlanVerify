@@ -1,0 +1,77 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/pilot-20260926T183826-qwen/Qwen/channel__send_while_holding_mutex/rep0/code/round-3/source-proj)
+error[E0277]: `std::sync::mpsc::Receiver<i32>` cannot be shared between threads safely
+   --> src/main.rs:35:34
+    |
+ 35 |       let s_handle = thread::spawn(move || {
+    |  ____________________-------------_^
+    | |                    |
+    | |                    required by a bound introduced by this call
+ 36 | |         // s: mutex_lock main::m; mutex_unlock main::m
+ 37 | |         {
+ 38 | |             let _guard = m_s.lock().unwrap();
+...   |
+ 43 | |         let _ack = ch2_recv(&*ch2_s);
+ 44 | |     });
+    | |_____^ `std::sync::mpsc::Receiver<i32>` cannot be shared between threads safely
+    |
+    = help: within `(SyncSender<i32>, std::sync::mpsc::Receiver<i32>)`, the trait `Sync` is not implemented for `std::sync::mpsc::Receiver<i32>`
+    = note: required because it appears within the type `(SyncSender<i32>, std::sync::mpsc::Receiver<i32>)`
+    = note: required for `Arc<(SyncSender<i32>, std::sync::mpsc::Receiver<i32>)>` to implement `Send`
+note: required because it's used within this closure
+   --> src/main.rs:35:34
+    |
+ 35 |     let s_handle = thread::spawn(move || {
+    |                                  ^^^^^^^
+note: required by a bound in `spawn`
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:8
+    |
+125 | pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+    |        ----- required by a bound in this function
+...
+128 |     F: Send + 'static,
+    |        ^^^^ required by this bound in `spawn`
+
+error[E0277]: `std::sync::mpsc::Receiver<i32>` cannot be shared between threads safely
+   --> src/main.rs:49:34
+    |
+ 49 |       let r_handle = thread::spawn(move || {
+    |  ____________________-------------_^
+    | |                    |
+    | |                    required by a bound introduced by this call
+ 50 | |         // call main::ch1_recv
+ 51 | |         let _val = ch1_recv(&*ch1_r);
+...   |
+ 57 | |         ch2_send(&*ch2_r, 1);
+ 58 | |     });
+    | |_____^ `std::sync::mpsc::Receiver<i32>` cannot be shared between threads safely
+    |
+    = help: within `(SyncSender<i32>, std::sync::mpsc::Receiver<i32>)`, the trait `Sync` is not implemented for `std::sync::mpsc::Receiver<i32>`
+    = note: required because it appears within the type `(SyncSender<i32>, std::sync::mpsc::Receiver<i32>)`
+    = note: required for `Arc<(SyncSender<i32>, std::sync::mpsc::Receiver<i32>)>` to implement `Send`
+note: required because it's used within this closure
+   --> src/main.rs:49:34
+    |
+ 49 |     let r_handle = thread::spawn(move || {
+    |                                  ^^^^^^^
+note: required by a bound in `spawn`
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:8
+    |
+125 | pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+    |        ----- required by a bound in this function
+...
+128 |     F: Send + 'static,
+    |        ^^^^ required by this bound in `spawn`
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `probe` (bin "probe") due to 2 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning

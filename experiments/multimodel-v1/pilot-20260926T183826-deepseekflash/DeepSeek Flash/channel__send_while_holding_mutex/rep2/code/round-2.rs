@@ -1,0 +1,35 @@
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
+
+fn main() {
+    let m = Arc::new(Mutex::new(()));
+    let (ch1_tx, ch1_rx) = mpsc::sync_channel::<i32>(0);
+    let (ch2_tx, ch2_rx) = mpsc::sync_channel::<i32>(0);
+
+    let m_s = Arc::clone(&m);
+    let s = thread::spawn(move || {
+        let mut v: i32 = 0;
+        {
+            let _guard = m_s.lock().unwrap();
+        }
+        ch1_tx.send(1).unwrap();
+        v = ch2_rx.recv().unwrap();
+        let _ = v;
+    });
+
+    let m_r = Arc::clone(&m);
+    let r = thread::spawn(move || {
+        let mut v: i32 = 0;
+        {
+            let _guard = m_r.lock().unwrap();
+        }
+        v = ch1_rx.recv().unwrap();
+        ch2_tx.send(1).unwrap();
+        let _ = v;
+    });
+
+    s.join().unwrap();
+    r.join().unwrap();
+
+    println!("DONE done=1");
+}

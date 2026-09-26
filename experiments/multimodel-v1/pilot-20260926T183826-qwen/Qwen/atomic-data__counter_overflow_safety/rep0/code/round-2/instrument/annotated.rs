@@ -1,0 +1,57 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+use std::sync::{Arc};
+use std::thread;
+
+fn main() { cir_trace::init();
+    // Shared state: c is protected by m. We model this as a Mutex containing the integer value of c.
+    let shared_state = Arc::new(Mutex::new_named("shared_state_mutex0", 0i32));
+
+    // Thread w1
+    let m_w1 = Arc::clone(&shared_state);
+    let handle_w1 = cir_trace::spawn("handle_w1", move || {
+        // mutex_lock main::m
+        let mut guard = m_w1.lock().unwrap();
+        
+        // read_shared main::c -> val
+        let val = *guard;
+        
+        // branch cond: val < 1
+        if val < 1 {
+            // write_shared main::c = val + 1
+            *guard = val + 1;
+        }
+        
+        // mutex_unlock main::m (implicit via drop or explicit)
+        drop(guard);
+    });
+
+    // Thread w2
+    let m_w2 = Arc::clone(&shared_state);
+    let handle_w2 = cir_trace::spawn("handle_w2", move || {
+        // mutex_lock main::m
+        let mut guard = m_w2.lock().unwrap();
+        
+        // read_shared main::c -> val
+        let val = *guard;
+        
+        // branch cond: val < 1
+        if val < 1 {
+            // write_shared main::c = val + 1
+            *guard = val + 1;
+        }
+        
+        // mutex_unlock main::m (implicit via drop or explicit)
+        drop(guard);
+    });
+
+    // Join threads
+    handle_w1.join().unwrap();
+    handle_w2.join().unwrap();
+
+    // Read final value for printing
+    let final_val = *shared_state.lock().unwrap();
+    
+    // Print required terminal line
+    println!("DONE done={}", final_val);
+ cir_trace::finish();}

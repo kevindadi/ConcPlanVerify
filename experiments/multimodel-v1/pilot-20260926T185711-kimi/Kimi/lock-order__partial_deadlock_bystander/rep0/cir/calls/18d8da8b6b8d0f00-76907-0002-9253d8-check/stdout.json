@@ -1,0 +1,21 @@
+{
+  "valid": true,
+  "diagnostics": [
+    {
+      "code": "E401",
+      "severity": "warning",
+      "message": "spawn handle 'h_by' has no matching join",
+      "location": "main::main.s3",
+      "path": "modules[0].functions[0].body[2]",
+      "fix_hint": "add join on this handle, or use a scope statement (implicit join_all)"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'bystander' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "location": "main::bystander",
+      "path": "modules[0].functions[3]",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var"
+    }
+  ]
+}

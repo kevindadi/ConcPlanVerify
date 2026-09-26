@@ -1,0 +1,112 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::send_ch1' referenced",
+      "path": "modules[0].functions[1].body[1]",
+      "location": "main::s.s2",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[1].body[1]",
+      "declared_symbols": {
+        "function": "main::s",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::s",
+        "main::r"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::recv_ch2' referenced",
+      "path": "modules[0].functions[1].body[3]",
+      "location": "main::s.s4",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[1].body[3]",
+      "declared_symbols": {
+        "function": "main::s",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::s",
+        "main::r"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::recv_ch1' referenced",
+      "path": "modules[0].functions[2].body[0]",
+      "location": "main::r.s1",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[2].body[0]",
+      "declared_symbols": {
+        "function": "main::r",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::s",
+        "main::r"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::send_ch2' referenced",
+      "path": "modules[0].functions[2].body[2]",
+      "location": "main::r.s3",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[2].body[2]",
+      "declared_symbols": {
+        "function": "main::r",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::s",
+        "main::r"
+      ]
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ch1' is declared but never used",
+      "location": "main::ch1",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ch2' is declared but never used",
+      "location": "main::ch2",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::s: params [], locals [])",
+    "define the function or import it via requires",
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::r: params [], locals [])",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::s",
+    "main::r"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

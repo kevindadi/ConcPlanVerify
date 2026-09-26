@@ -1,0 +1,104 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::channel_send' referenced",
+      "path": "modules[0].functions[1].body[0]",
+      "location": "main::s1.s1",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[1].body[0]",
+      "declared_symbols": {
+        "function": "main::s1",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::s1",
+        "main::r"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::channel_recv' referenced",
+      "path": "modules[0].functions[2].body[0]",
+      "location": "main::r.s1",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[2].body[0]",
+      "declared_symbols": {
+        "function": "main::r",
+        "params": [],
+        "locals": [
+          "val"
+        ]
+      },
+      "declared_functions": [
+        "main::main",
+        "main::s1",
+        "main::r"
+      ]
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ch' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[1].body[0]",
+      "location": "main::s1.s1",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[1].body[0]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ch' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[2].body[0]",
+      "location": "main::r.s1",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[2].body[0]"
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ch' is declared but never used",
+      "location": "main::ch",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::s1: params [], locals [])",
+    "define the function or import it via requires",
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::r: params [], locals ['val'])",
+    "use a value name of the matching type",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::s1",
+    "main::r"
+  ],
+  "normalizations": [
+    {
+      "rule": "fqn_prefix",
+      "function": "s1",
+      "sid": "s1",
+      "field": "func",
+      "from": "channel_send",
+      "to": "main::channel_send"
+    },
+    {
+      "rule": "fqn_prefix",
+      "function": "r",
+      "sid": "s1",
+      "field": "func",
+      "from": "channel_recv",
+      "to": "main::channel_recv"
+    }
+  ],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

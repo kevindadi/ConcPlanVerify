@@ -1,0 +1,129 @@
+{
+  "program": "permit_pool_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": ["s"],
+        "functions": ["main", "supervisor", "w1", "w2", "w3"]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "s",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 2
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::supervisor",
+              "handle": "h_sup"
+            },
+            {
+              "sid": "s2",
+              "kind": "join",
+              "handle": "h_sup"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "supervisor",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": ["main::w1", "main::w2", "main::w3"]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "semaphore_acquire",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s2",
+              "kind": "semaphore_release",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "semaphore_acquire",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s2",
+              "kind": "semaphore_release",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w3",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "semaphore_acquire",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s2",
+              "kind": "semaphore_release",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

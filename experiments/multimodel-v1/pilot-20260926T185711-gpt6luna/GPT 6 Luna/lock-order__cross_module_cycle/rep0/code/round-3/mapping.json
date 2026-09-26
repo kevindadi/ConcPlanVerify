@@ -1,0 +1,36 @@
+{
+  "mapping": {
+    "a_mutex0": "main::a",
+    "b_mutex0": "other::b"
+  },
+  "provenance": {
+    "by_kind": {
+      "Mutex": [
+        "main::a",
+        "other::b"
+      ]
+    },
+    "threads": {
+      "t1_handle": null,
+      "t2_handle": null
+    },
+    "ambiguous": [
+      {
+        "rust": "t1_handle",
+        "kind": "Spawn",
+        "candidates": [
+          "main::t1",
+          "other::t2"
+        ]
+      },
+      {
+        "rust": "t2_handle",
+        "kind": "Spawn",
+        "candidates": [
+          "main::t1",
+          "other::t2"
+        ]
+      }
+    ]
+  }
+}

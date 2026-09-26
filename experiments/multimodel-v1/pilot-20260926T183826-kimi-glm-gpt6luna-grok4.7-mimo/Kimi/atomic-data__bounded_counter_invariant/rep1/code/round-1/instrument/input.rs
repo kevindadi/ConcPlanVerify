@@ -1,0 +1,30 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn w1(m: Arc<Mutex<i32>>) {
+    let mut guard = m.lock().unwrap();
+    *guard = *guard + 1;
+    drop(guard);
+}
+
+fn w2(m: Arc<Mutex<i32>>) {
+    let mut guard = m.lock().unwrap();
+    *guard = *guard + 1;
+    drop(guard);
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(0i32));
+    let mut done = 0;
+
+    let m1 = Arc::clone(&m);
+    let h1 = thread::spawn(move || w1(m1));
+    let m2 = Arc::clone(&m);
+    let h2 = thread::spawn(move || w2(m2));
+
+    h1.join().unwrap();
+    h2.join().unwrap();
+
+    done = 1;
+    println!("DONE done={}", done);
+}

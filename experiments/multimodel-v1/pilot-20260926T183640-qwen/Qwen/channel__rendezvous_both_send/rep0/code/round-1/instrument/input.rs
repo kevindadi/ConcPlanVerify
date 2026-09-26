@@ -1,0 +1,19 @@
+use std::sync::mpsc::{channel, Sender, Receiver};
+use std::thread;
+
+fn main() {
+    let (tx, rx): (Sender<i32>, Receiver<i32>) = channel();
+
+    let s1_handle = thread::spawn(move || {
+        tx.send(1).unwrap();
+    });
+
+    let r_handle = thread::spawn(move || {
+        let _val = rx.recv().unwrap();
+    });
+
+    s1_handle.join().unwrap();
+    r_handle.join().unwrap();
+
+    println!("DONE done=1");
+}

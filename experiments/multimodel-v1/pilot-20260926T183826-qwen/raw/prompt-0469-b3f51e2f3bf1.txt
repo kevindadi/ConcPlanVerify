@@ -1,0 +1,550 @@
+# ConcIR generation prompt (v3)
+
+You propose one ConcIR program as a single JSON object. A separate checker
+decides whether it is accepted. You may revise after feedback. You do not
+verify, translate, or accept the program yourself. Output only the JSON object.
+
+`sid` is per function and matches `^s[0-9]+$`. Expressions (`expr`, `cond`,
+`value`, `expected`, `desired`, and each `args` element) are JSON strings, never
+objects.
+
+## What belongs in CIR
+
+Model concurrency structure, shared state, the data conditions that guard
+synchronization, and the required behaviors named by the requirements: threads,
+locks, condition variables, channels, semaphores, and the shared variables they
+protect.
+
+Exact output text, log lines, and other formatting that the requirements mark
+as not formally checked are implemented later in Rust. Do not encode them as
+CIR calls. There is no builtin `println`, `print`, `io::println`, or
+`stdio::println`. Calling an undefined function is a static error.
+
+If a step is ordinary local computation, write it with `assign_local` on a
+declared local, or `call` a function you defined in this program. `args` is a
+JSON array of strings. Do not set `modeled` to false to skip a value that
+affects control flow, synchronization, or shared data.
+
+## Params and locals
+
+A parameter is `{"name","type","modeled"}`. A local is
+`{"name","type","modeled","init"}`. They do not have `base`. `base` and `init`
+on a resource are for `Var`, `Atomic`, and `Channel` only.
+
+`type` is `Int` or `Bool`. `modeled: true` means the checker tracks the value.
+
+## Resources
+
+| type | fields |
+| --- | --- |
+| Mutex | `name`, `kind`=`sync`, `type`=`Mutex`, `mode`=`Sync` |
+| Condvar | `name`, `kind`=`sync`, `type`=`Condvar`, `mode`=`Sync` |
+| Semaphore | those, plus optional `count` |
+| Channel | those, plus `base` and `capacity` |
+| Var or Atomic | `name`, `kind`=`var`, `type`, `base`, `init` |
+
+A `Var` that is written under a lock needs `protection`: `{"var","lock"}`.
+
+## Statements
+
+`call` requires `func` and may include `args` (array of strings) and `dst`.
+`spawn` requires `func` and `handle`, and may include `args`.
+`scope` requires `funcs` (array of strings). `join` requires `handle`.
+`mutex_lock` / `mutex_unlock` require `resource`.
+`condvar_wait` requires `condvar` and `lock`. `condvar_notify` requires `condvar`.
+`write_shared` requires `resource` and `expr`. `return` may include `value`.
+
+Do not emit `rwlock_*`, `select`, `async_call`, `await`, `abstract_step`, or `seq_hole`.
+
+## Example: two workers share one counter
+
+```json
+{
+  "program": "two_workers_one_lock",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {"resources": ["m", "n"], "functions": ["main", "w1", "w2"]},
+      "requires": {"resources": [], "functions": []},
+      "resources": [
+        {"name": "m", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+        {"name": "n", "kind": "var", "type": "Var", "base": "Int", "init": 0}
+      ],
+      "protection": [{"var": "n", "lock": "m"}],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "scope", "funcs": ["main::w1", "main::w2"]},
+            {"sid": "s2", "kind": "return"}
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s2", "kind": "write_shared", "resource": "main::n", "expr": "1"},
+            {"sid": "s3", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s4", "kind": "return"}
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s2", "kind": "write_shared", "resource": "main::n", "expr": "2"},
+            {"sid": "s3", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s4", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Example: a call passes an argument array
+
+```json
+{
+  "program": "call_with_args",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {"resources": [], "functions": ["main", "step"]},
+      "requires": {"resources": [], "functions": []},
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "step",
+          "kind": "normal",
+          "params": [{"name": "n", "type": "Int", "modeled": true}],
+          "locals": [{"name": "tmp", "type": "Int", "modeled": true, "init": 0}],
+          "body": [
+            {"sid": "s1", "kind": "assign_local", "target": "tmp", "expr": "n"},
+            {"sid": "s2", "kind": "return", "value": "tmp"}
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "call", "func": "main::step", "args": ["1"]},
+            {"sid": "s2", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Use the entity names from the requirements. Resend the whole program after feedback.
+
+Produce one ConcIR program for the requirements below. No verification contract is provided; the requirements are the whole input.
+
+<domain_requirements>
+# Requirements
+
+R1. The program starts a supervising task that launches three worker threads and waits for all of them to finish.
+R2. All three worker threads share one counting permit pool that begins with exactly two permits.
+R3. Each worker acquires one permit, performs its work, releases the permit, and then finishes.
+R4. At most two workers may hold permits at the same time, so a third worker waits until a permit is released.
+R5. While a worker waits for a permit, a holder must remain able to release it so the waiting worker can eventually proceed.
+R6. Every possible schedule and interleaving of the three workers must terminate.
+R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2, w3.
+- Shared resources: s (semaphore).
+</domain_requirements>
+
+<previous_candidate>
+{
+  "program": "semaphore_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": ["s"],
+        "functions": ["main", "w1", "w2", "w3"]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "s",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 2
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": ["main::w1", "main::w2", "main::w3"]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "acquire",
+              "args": ["main::s"]
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "release",
+              "args": ["main::s"]
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "acquire",
+              "args": ["main::s"]
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "release",
+              "args": ["main::s"]
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w3",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "acquire",
+              "args": ["main::s"]
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "release",
+              "args": ["main::s"]
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+</previous_candidate>
+
+<verification_feedback>
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::acquire' referenced",
+      "path": "modules[0].functions[1].body[0]",
+      "location": "main::w1.s1",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[1].body[0]",
+      "declared_symbols": {
+        "function": "main::w1",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::w3"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::release' referenced",
+      "path": "modules[0].functions[1].body[1]",
+      "location": "main::w1.s2",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[1].body[1]",
+      "declared_symbols": {
+        "function": "main::w1",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::w3"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::acquire' referenced",
+      "path": "modules[0].functions[2].body[0]",
+      "location": "main::w2.s1",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[2].body[0]",
+      "declared_symbols": {
+        "function": "main::w2",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::w3"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::release' referenced",
+      "path": "modules[0].functions[2].body[1]",
+      "location": "main::w2.s2",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[2].body[1]",
+      "declared_symbols": {
+        "function": "main::w2",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::w3"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::acquire' referenced",
+      "path": "modules[0].functions[3].body[0]",
+      "location": "main::w3.s1",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[3].body[0]",
+      "declared_symbols": {
+        "function": "main::w3",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::w3"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::release' referenced",
+      "path": "modules[0].functions[3].body[1]",
+      "location": "main::w3.s2",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[3].body[1]",
+      "declared_symbols": {
+        "function": "main::w3",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::w3"
+      ]
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::s' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[1].body[0]",
+      "location": "main::w1.s1",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[1].body[0]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::s' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[1].body[1]",
+      "location": "main::w1.s2",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[1].body[1]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::s' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[2].body[0]",
+      "location": "main::w2.s1",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[2].body[0]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::s' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[2].body[1]",
+      "location": "main::w2.s2",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[2].body[1]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::s' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[3].body[0]",
+      "location": "main::w3.s1",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[3].body[0]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::s' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[3].body[1]",
+      "location": "main::w3.s2",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[3].body[1]"
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::s' is declared but never used",
+      "location": "main::s",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::w1: params [], locals [])",
+    "define the function or import it via requires",
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::w2: params [], locals [])",
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::w3: params [], locals [])",
+    "use a value name of the matching type",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::w1",
+    "main::w2",
+    "main::w3"
+  ],
+  "normalizations": [
+    {
+      "rule": "fqn_prefix",
+      "function": "w1",
+      "sid": "s1",
+      "field": "func",
+      "from": "acquire",
+      "to": "main::acquire"
+    },
+    {
+      "rule": "fqn_prefix",
+      "function": "w1",
+      "sid": "s2",
+      "field": "func",
+      "from": "release",
+      "to": "main::release"
+    },
+    {
+      "rule": "fqn_prefix",
+      "function": "w2",
+      "sid": "s1",
+      "field": "func",
+      "from": "acquire",
+      "to": "main::acquire"
+    },
+    {
+      "rule": "fqn_prefix",
+      "function": "w2",
+      "sid": "s2",
+      "field": "func",
+      "from": "release",
+      "to": "main::release"
+    },
+    {
+      "rule": "fqn_prefix",
+      "function": "w3",
+      "sid": "s1",
+      "field": "func",
+      "from": "acquire",
+      "to": "main::acquire"
+    },
+    {
+      "rule": "fqn_prefix",
+      "function": "w3",
+      "sid": "s2",
+      "field": "func",
+      "from": "release",
+      "to": "main::release"
+    }
+  ],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}
+</verification_feedback>
+Output the complete corrected JSON object.
+
+Output only the JSON object.

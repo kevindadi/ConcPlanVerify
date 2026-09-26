@@ -1,0 +1,64 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/pilot-20260926T185711-gpt6luna/GPT 6 Luna/lock-order__abba_2lock/rep0/code/round-3/proj)
+warning: unused import: `Condvar`
+ --> src/main.rs:2:30
+  |
+2 | use cir_trace::sync::{Mutex, Condvar};
+  |                              ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::thread`
+ --> src/main.rs:4:5
+  |
+4 | use std::thread;
+  |     ^^^^^^^^^^^
+
+warning: value assigned to `work` is never read
+  --> src/main.rs:10:20
+   |
+10 |     let mut work = 0;
+   |                    ^ this value is reassigned later and never used
+...
+13 |     work = 1;
+   |     -------- `work` is overwritten here before the previous value is read
+   |
+   = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `work` is never read
+  --> src/main.rs:20:20
+   |
+20 |     let mut work = 0;
+   |                    ^ this value is reassigned later and never used
+...
+23 |     work = 1;
+   |     -------- `work` is overwritten here before the previous value is read
+
+warning: static variable `a` should have an upper case name
+ --> src/main.rs:6:8
+  |
+6 | static a: Mutex<()> = Mutex::new_named("a_mutex0", ());
+  |        ^
+  |
+  = note: `#[warn(non_upper_case_globals)]` (part of `#[warn(nonstandard_style)]`) on by default
+help: convert the identifier to upper case
+  |
+6 - static a: Mutex<()> = Mutex::new_named("a_mutex0", ());
+6 + static A: Mutex<()> = Mutex::new_named("a_mutex0", ());
+  |
+
+warning: static variable `b` should have an upper case name
+ --> src/main.rs:7:8
+  |
+7 | static b: Mutex<()> = Mutex::new_named("b_mutex0", ());
+  |        ^
+  |
+help: convert the identifier to upper case
+  |
+7 - static b: Mutex<()> = Mutex::new_named("b_mutex0", ());
+7 + static B: Mutex<()> = Mutex::new_named("b_mutex0", ());
+  |
+
+warning: `probe` (bin "probe") generated 6 warnings (run `cargo fix --bin "probe" -p probe` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.28s

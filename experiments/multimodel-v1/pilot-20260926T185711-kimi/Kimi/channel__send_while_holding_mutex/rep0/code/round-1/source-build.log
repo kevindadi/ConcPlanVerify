@@ -1,0 +1,46 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/pilot-20260926T185711-kimi/Kimi/channel__send_while_holding_mutex/rep0/code/round-1/source-proj)
+error[E0308]: mismatched types
+  --> src/main.rs:33:49
+   |
+33 |     let handle_s = thread::spawn(move || s(m_s, ch1_tx, ch2_rx));
+   |                                          -      ^^^^^^ expected `Sender<i32>`, found `SyncSender<i32>`
+   |                                          |
+   |                                          arguments to this function are incorrect
+   |
+   = note: expected struct `std::sync::mpsc::Sender<i32>`
+              found struct `SyncSender<i32>`
+note: function defined here
+  --> src/main.rs:5:4
+   |
+ 5 | fn s(m: Arc<Mutex<i32>>, ch1_tx: Sender<i32>, ch2_rx: Receiver<i32>) {
+   |    ^                     -------------------
+
+error[E0308]: mismatched types
+  --> src/main.rs:34:57
+   |
+34 |     let handle_r = thread::spawn(move || r(m_r, ch1_rx, ch2_tx));
+   |                                          -              ^^^^^^ expected `Sender<i32>`, found `SyncSender<i32>`
+   |                                          |
+   |                                          arguments to this function are incorrect
+   |
+   = note: expected struct `std::sync::mpsc::Sender<i32>`
+              found struct `SyncSender<i32>`
+note: function defined here
+  --> src/main.rs:15:4
+   |
+15 | fn r(m: Arc<Mutex<i32>>, ch1_rx: Receiver<i32>, ch2_tx: Sender<i32>) {
+   |    ^                                            -------------------
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `probe` (bin "probe") due to 2 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning

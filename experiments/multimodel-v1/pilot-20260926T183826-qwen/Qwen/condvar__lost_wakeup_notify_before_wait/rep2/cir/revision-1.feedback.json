@@ -1,0 +1,35 @@
+{
+  "stage": "check",
+  "error_class": "schema_parse",
+  "message": "'program.json': unknown field `cond`, expected `condvar` or `lock` at line 100 column 13",
+  "json_path": null,
+  "fix_hint": "remove unknown field `cond`; allowed fields: condvar, lock.",
+  "actual_value": "cond",
+  "allowed_fields": [
+    "condvar",
+    "lock"
+  ],
+  "normalizations": [
+    {
+      "rule": "drop_empty_field",
+      "function": "waiter",
+      "sid": "s5",
+      "field": "else",
+      "location": "/modules/0/functions/1/body/4/else"
+    }
+  ],
+  "diagnostics": [
+    {
+      "error_class": "schema_parse",
+      "message": "'program.json': unknown field `cond`, expected `condvar` or `lock` at line 100 column 13",
+      "json_path": null,
+      "expected_type": null,
+      "allowed_fields": [
+        "condvar",
+        "lock"
+      ],
+      "actual_value": "cond",
+      "fix_hint": "remove unknown field `cond`; allowed fields: condvar, lock."
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E931",
+      "severity": "error",
+      "message": "trailing input after expression: '? c + 1 : c'",
+      "path": "modules[0].functions[1].body[1]",
+      "location": "main::w1.s2",
+      "fix_hint": "fix the expression syntax, or use a declared slot or enum variant",
+      "json_path": "modules[0].functions[1].body[1]",
+      "declared_symbols": {
+        "function": "main::w1",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2"
+      ]
+    },
+    {
+      "code": "E931",
+      "severity": "error",
+      "message": "trailing input after expression: '? c + 1 : c'",
+      "path": "modules[0].functions[2].body[1]",
+      "location": "main::w2.s2",
+      "fix_hint": "fix the expression syntax, or use a declared slot or enum variant",
+      "json_path": "modules[0].functions[2].body[1]",
+      "declared_symbols": {
+        "function": "main::w2",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2"
+      ]
+    }
+  ],
+  "expected_shapes": [
+    "every name used in an expression must be a declared param/local of the function or a shared resource; declare new locals in the function's `locals` list (declared in main::w1: params [], locals [])",
+    "fix the expression syntax, or use a declared slot or enum variant",
+    "every name used in an expression must be a declared param/local of the function or a shared resource; declare new locals in the function's `locals` list (declared in main::w2: params [], locals [])"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::w1",
+    "main::w2"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

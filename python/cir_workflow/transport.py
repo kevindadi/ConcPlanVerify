@@ -50,6 +50,7 @@ class ModelSpec:
     role: str = "compare"   # main | compare | diagnostic
     surface: str = "chat"   # chat | responses
     aliases: tuple[str, ...] = ()
+    candidates: tuple[str, ...] = ()  # discovered alternatives (unresolved ID)
     status: str = "available"        # available | blocked | unknown
     blocked_reason: str | None = None
     discovered: bool = False         # model_id observed in a live model list
@@ -97,8 +98,10 @@ DISCOVERED_MODELS: dict[str, list[str]] = {
         "muse-spark-1.2-contributor", "muse-spark-1.3-contributor",
         "space-bunny-free", "deepseek-v4-flash-vision-exp",
     ],
-    "dashscope-direct": [],
-    "cursor": [],
+    "dashscope-direct": ["qwen3.8-flash", "qwen3.8-max", "qwen3.7-flash",
+                         "qwen3.8-27b", "qwen3.8-omni-flash"],
+    "cursor": ["composer-2.5", "gpt-5.6-sol-high", "claude-opus-5-thinking-high",
+               "cursor-grok-4.5-high", "gemini-3.1-pro"],
 }
 
 
@@ -113,14 +116,17 @@ def build_registry() -> list[ModelSpec]:
         ModelSpec("DeepSeek Flash", "deepseek", "deepseek-direct",
                   "deepseek-flash", role="main",
                   discovered="deepseek-flash" in DISCOVERED_MODELS["deepseek-direct"]),
-        ModelSpec("Qwen", "qwen", "dashscope-direct", None, role="compare",
-                  status="blocked",
-                  blocked_reason="DASHSCOPE_API_KEY rejected with HTTP 401 on "
-                                 "both dashscope.aliyuncs.com and dashscope-intl"),
+        ModelSpec("Qwen", "qwen", "dashscope-direct", "qwen3.8-flash",
+                  role="compare",
+                  candidates=("qwen3.8-flash", "qwen3.8-max", "qwen3.7-flash"),
+                  discovered="qwen3.8-flash" in DISCOVERED_MODELS["dashscope-direct"]),
         ModelSpec("Composer 2.5", "cursor", "cursor", "composer-2.5",
-                  role="compare", status="blocked",
-                  blocked_reason="cursor_sdk not installed; Cursor agent session "
-                                 "transport unavailable"),
+                  role="diagnostic", status="blocked",
+                  blocked_reason="Cursor agent accumulates large, partly "
+                                 "unobservable context (150-180k input "
+                                 "tokens/call) and cannot be reduced to a "
+                                 "stateless chat call; not comparable to direct APIs",
+                  discovered="composer-2.5" in DISCOVERED_MODELS["cursor"]),
         ModelSpec("Kimi", "moonshot", "opencode-go", "kimi-k3", role="compare",
                   aliases=("kimi-k2.7-code",),
                   discovered="kimi-k3" in DISCOVERED_MODELS["opencode-go"]),

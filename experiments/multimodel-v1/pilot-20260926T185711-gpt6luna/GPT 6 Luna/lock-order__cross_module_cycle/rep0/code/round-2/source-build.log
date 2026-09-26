@@ -1,0 +1,34 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/pilot-20260926T185711-gpt6luna/GPT 6 Luna/lock-order__cross_module_cycle/rep0/code/round-2/source-proj)
+warning: static variable `a` should have an upper case name
+ --> src/main.rs:4:12
+  |
+4 | pub static a: Mutex<()> = Mutex::new(());
+  |            ^ help: convert the identifier to upper case: `A`
+  |
+  = note: `#[warn(non_upper_case_globals)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: static variable `b` should have an upper case name
+ --> src/main.rs:9:16
+  |
+9 |     pub static b: Mutex<()> = Mutex::new(());
+  |                ^
+  |
+help: convert the identifier to upper case
+  |
+9 -     pub static b: Mutex<()> = Mutex::new(());
+9 +     pub static B: Mutex<()> = Mutex::new(());
+  |
+
+warning: `probe` (bin "probe") generated 2 warnings (run `cargo fix --bin "probe" -p probe` to apply 1 suggestion)
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.23s

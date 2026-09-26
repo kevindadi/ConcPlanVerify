@@ -1,0 +1,222 @@
+{
+  "program": "two_waiters_one_notifier",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m1",
+          "m2",
+          "cv",
+          "ready"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2",
+          "notifier"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "m1",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "m2",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "cv",
+          "kind": "sync",
+          "type": "Condvar",
+          "mode": "Sync"
+        },
+        {
+          "name": "ready",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::w1",
+                "main::w2",
+                "main::notifier"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m1"
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::announce"
+            },
+            {
+              "sid": "s3",
+              "kind": "condvar_wait",
+              "condvar": "main::cv",
+              "lock": "main::m1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::m1"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m2"
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::announce"
+            },
+            {
+              "sid": "s3",
+              "kind": "condvar_wait",
+              "condvar": "main::cv",
+              "lock": "main::m2"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::m2"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "notifier",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::wait_ready"
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::wait_ready"
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_lock",
+              "resource": "main::m1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_lock",
+              "resource": "main::m2"
+            },
+            {
+              "sid": "s5",
+              "kind": "condvar_notify",
+              "condvar": "main::cv"
+            },
+            {
+              "sid": "s6",
+              "kind": "mutex_unlock",
+              "resource": "main::m2"
+            },
+            {
+              "sid": "s7",
+              "kind": "mutex_unlock",
+              "resource": "main::m1"
+            },
+            {
+              "sid": "s8",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "announce",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::signal_ready"
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "signal_ready",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "wait_ready",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

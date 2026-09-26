@@ -1,0 +1,36 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::compute') captures a return into 'res', but 'main::compute' has no modeled return",
+      "path": "modules[0].functions[1].body[1]",
+      "location": "main::w1.s2",
+      "fix_hint": "declare a modeled return on the callee, or drop dst",
+      "json_path": "modules[0].functions[1].body[1]"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::compute') captures a return into 'res', but 'main::compute' has no modeled return",
+      "path": "modules[0].functions[2].body[1]",
+      "location": "main::w2.s2",
+      "fix_hint": "declare a modeled return on the callee, or drop dst",
+      "json_path": "modules[0].functions[2].body[1]"
+    }
+  ],
+  "expected_shapes": [
+    "declare a modeled return on the callee, or drop dst"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::w1",
+    "main::w2",
+    "main::compute"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

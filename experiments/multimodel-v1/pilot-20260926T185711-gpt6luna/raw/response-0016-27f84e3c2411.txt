@@ -1,0 +1,31 @@
+```rust
+use std::sync::Mutex;
+
+struct Counter {
+    c: u8,
+}
+
+static m: Mutex<Counter> = Mutex::new(Counter { c: 0 });
+
+fn w1() {
+    let mut guard = m.lock().unwrap();
+    guard.c += 1;
+    drop(guard);
+}
+
+fn w2() {
+    let mut guard = m.lock().unwrap();
+    guard.c += 1;
+    drop(guard);
+}
+
+fn main() {
+    let t1 = std::thread::spawn(w1);
+    let t2 = std::thread::spawn(w2);
+
+    t1.join().unwrap();
+    t2.join().unwrap();
+
+    println!("DONE done=1");
+}
+```

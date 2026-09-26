@@ -1,0 +1,28 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let t1 = thread::spawn(move || {
+        let _guard_a = a1.lock().unwrap();
+        let _guard_b = b1.lock().unwrap();
+        // Critical section: both locks held
+    });
+
+    let a2 = Arc::clone(&a);
+    let b2 = Arc::clone(&b);
+    let t2 = thread::spawn(move || {
+        let _guard_a = a2.lock().unwrap();
+        let _guard_b = b2.lock().unwrap();
+        // Critical section: both locks held
+    });
+
+    t1.join().unwrap();
+    t2.join().unwrap();
+
+    println!("DONE t1=1 t2=1");
+}

@@ -1,0 +1,108 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::g12' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[4].body[0]",
+      "location": "main::g12_release.s1",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[4].body[0]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::g12' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[5].body[0]",
+      "location": "main::g12_acquire.s1",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[5].body[0]"
+    },
+    {
+      "code": "E920",
+      "severity": "error",
+      "message": "call('main::sem_release') expects 0 argument(s) for its modeled parameters, got 1",
+      "path": "modules[0].functions[4].body[0]",
+      "location": "main::g12_release.s1",
+      "fix_hint": "supply one argument per modeled parameter, or mark unused parameters \"modeled\": false",
+      "json_path": "modules[0].functions[4].body[0]",
+      "declared_symbols": {
+        "function": "main::g12_release",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::notifier",
+        "main::g12_release",
+        "main::g12_acquire",
+        "main::sem_release",
+        "main::sem_acquire"
+      ]
+    },
+    {
+      "code": "E920",
+      "severity": "error",
+      "message": "call('main::sem_acquire') expects 0 argument(s) for its modeled parameters, got 1",
+      "path": "modules[0].functions[5].body[0]",
+      "location": "main::g12_acquire.s1",
+      "fix_hint": "supply one argument per modeled parameter, or mark unused parameters \"modeled\": false",
+      "json_path": "modules[0].functions[5].body[0]",
+      "declared_symbols": {
+        "function": "main::g12_acquire",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::notifier",
+        "main::g12_release",
+        "main::g12_acquire",
+        "main::sem_release",
+        "main::sem_acquire"
+      ]
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::g12' is declared but never used",
+      "location": "main::g12",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::gN' is declared but never used",
+      "location": "main::gN",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "use a value name of the matching type",
+    "`args` must be a JSON array of strings whose length matches the callee's params. A bare string is not an argument list. (declared in main::g12_release: params [], locals [])",
+    "supply one argument per modeled parameter, or mark unused parameters \"modeled\": false",
+    "`args` must be a JSON array of strings whose length matches the callee's params. A bare string is not an argument list. (declared in main::g12_acquire: params [], locals [])",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::w1",
+    "main::w2",
+    "main::notifier",
+    "main::g12_release",
+    "main::g12_acquire",
+    "main::sem_release",
+    "main::sem_acquire"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

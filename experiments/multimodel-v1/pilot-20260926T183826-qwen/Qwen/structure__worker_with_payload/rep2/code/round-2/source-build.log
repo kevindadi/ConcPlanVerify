@@ -1,0 +1,46 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/pilot-20260926T183826-qwen/Qwen/structure__worker_with_payload/rep2/code/round-2/source-proj)
+error[E0308]: mismatched types
+  --> src/main.rs:37:44
+   |
+37 |     let t1 = std::thread::spawn(move || w1(m1, a1));
+   |                                         -- ^^ expected `Arc<Mutex<i32>>`, found `Arc<Mutex<()>>`
+   |                                         |
+   |                                         arguments to this function are incorrect
+   |
+   = note: expected struct `Arc<Mutex<i32>>`
+              found struct `Arc<Mutex<()>>`
+note: function defined here
+  --> src/main.rs:8:4
+   |
+ 8 | fn w1(m: Arc<Mutex<i32>>, acc: Arc<Mutex<i32>>) {
+   |    ^^ ------------------
+
+error[E0308]: mismatched types
+  --> src/main.rs:38:44
+   |
+38 |     let t2 = std::thread::spawn(move || w2(m2, a2));
+   |                                         -- ^^ expected `Arc<Mutex<i32>>`, found `Arc<Mutex<()>>`
+   |                                         |
+   |                                         arguments to this function are incorrect
+   |
+   = note: expected struct `Arc<Mutex<i32>>`
+              found struct `Arc<Mutex<()>>`
+note: function defined here
+  --> src/main.rs:18:4
+   |
+18 | fn w2(m: Arc<Mutex<i32>>, acc: Arc<Mutex<i32>>) {
+   |    ^^ ------------------
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `probe` (bin "probe") due to 2 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning

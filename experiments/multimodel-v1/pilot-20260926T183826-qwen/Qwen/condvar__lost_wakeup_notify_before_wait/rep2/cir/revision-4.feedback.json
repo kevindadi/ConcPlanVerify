@@ -1,0 +1,45 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E201",
+      "severity": "error",
+      "message": "branch condition \"r\" is not a comparison expression",
+      "path": "modules[0].functions[1].body[2]",
+      "location": "main::waiter.s3",
+      "fix_hint": "use a comparison operator: ==, !=, >, <, >=, <=",
+      "json_path": "modules[0].functions[1].body[2]"
+    },
+    {
+      "code": "E201",
+      "severity": "error",
+      "message": "branch condition \"r\" is not a comparison expression",
+      "path": "modules[0].functions[1].body[5]",
+      "location": "main::waiter.s6",
+      "fix_hint": "use a comparison operator: ==, !=, >, <, >=, <=",
+      "json_path": "modules[0].functions[1].body[5]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'waiter' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[1]",
+      "location": "main::waiter",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[1]"
+    }
+  ],
+  "expected_shapes": [
+    "use a comparison operator: ==, !=, >, <, >=, <=",
+    "keep activation slots unmodeled, or publish concurrent values through a Var"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::waiter",
+    "main::notifier"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

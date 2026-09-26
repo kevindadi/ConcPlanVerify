@@ -1,0 +1,70 @@
+{
+  "batch": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/pilot-20260926T183640-qwen",
+  "kind": "g3-pilot",
+  "tasks": [
+    "channel/rendezvous_both_send",
+    "lock-order/cross_module_cycle"
+  ],
+  "models": [
+    "Qwen"
+  ],
+  "reps": 1,
+  "k_cir": 4,
+  "k_code": 3,
+  "max_requests": 20,
+  "cells": [
+    {
+      "model": "Qwen",
+      "requested_model": "qwen3.8-flash",
+      "provider": "qwen",
+      "transport": "dashscope-direct",
+      "arm": "G3",
+      "task": "channel/rendezvous_both_send",
+      "tier": "Simple",
+      "replicate": 0,
+      "status": "accepted",
+      "cir_accepted": true,
+      "code_accepted": true,
+      "accepted": true,
+      "accepted_with_proof": false,
+      "first_cir_pass_round": 3,
+      "first_code_accept_round": 2,
+      "cir_repairs": 2,
+      "code_repairs": 1,
+      "first_accept_total_candidate_rounds": 5,
+      "calls": 5,
+      "input_tokens": 11344,
+      "output_tokens": 1930,
+      "total_tokens": 13274,
+      "latency_ms": 26771,
+      "error": null
+    },
+    {
+      "model": "Qwen",
+      "requested_model": "qwen3.8-flash",
+      "provider": "qwen",
+      "transport": "dashscope-direct",
+      "arm": "G3",
+      "task": "lock-order/cross_module_cycle",
+      "tier": "Medium",
+      "replicate": 0,
+      "status": "generation_failed",
+      "cir_accepted": false,
+      "code_accepted": false,
+      "accepted": false,
+      "accepted_with_proof": false,
+      "first_cir_pass_round": null,
+      "first_code_accept_round": null,
+      "cir_repairs": null,
+      "code_repairs": null,
+      "first_accept_total_candidate_rounds": null,
+      "calls": 4,
+      "input_tokens": 11826,
+      "output_tokens": 4386,
+      "total_tokens": 16212,
+      "latency_ms": 54066,
+      "error": null
+    }
+  ],
+  "requests_used": 9
+}

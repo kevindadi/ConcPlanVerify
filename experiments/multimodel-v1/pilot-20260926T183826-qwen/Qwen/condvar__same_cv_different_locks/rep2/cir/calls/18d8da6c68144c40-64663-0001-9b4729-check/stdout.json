@@ -1,0 +1,92 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'ready' is a sync resource and cannot appear as a value",
+      "location": "main::notify_ready.s1",
+      "path": "modules[0].functions[4].body[0]",
+      "fix_hint": "use a value name of the matching type"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'ready' is a sync resource and cannot appear as a value",
+      "location": "main::wait_for_two.s1",
+      "path": "modules[0].functions[6].body[0]",
+      "fix_hint": "use a value name of the matching type"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'ready' is a sync resource and cannot appear as a value",
+      "location": "main::wait_for_two.s2",
+      "path": "modules[0].functions[6].body[1]",
+      "fix_hint": "use a value name of the matching type"
+    },
+    {
+      "code": "E114",
+      "severity": "warning",
+      "message": "function 'notify_ready' ends at 's1' without an explicit return/goto/branch/switch; control falls off the end, which is an implicit return",
+      "location": "main::notify_ready",
+      "path": "modules[0].functions[4]",
+      "fix_hint": "add an explicit return, or rely on the documented implicit return"
+    },
+    {
+      "code": "E602",
+      "severity": "error",
+      "message": "function 'notify_ready' has a path ending at 's1' without return",
+      "location": "main::notify_ready.s1",
+      "path": "modules[0].functions[4].body[0]",
+      "fix_hint": "add a return statement at the end of this path"
+    },
+    {
+      "code": "E114",
+      "severity": "warning",
+      "message": "function 'wait_for_two' ends at 's2' without an explicit return/goto/branch/switch; control falls off the end, which is an implicit return",
+      "location": "main::wait_for_two",
+      "path": "modules[0].functions[6]",
+      "fix_hint": "add an explicit return, or rely on the documented implicit return"
+    },
+    {
+      "code": "E602",
+      "severity": "error",
+      "message": "function 'wait_for_two' has a path ending at 's2' without return",
+      "location": "main::wait_for_two.s2",
+      "path": "modules[0].functions[6].body[1]",
+      "fix_hint": "add a return statement at the end of this path"
+    },
+    {
+      "code": "E920",
+      "severity": "error",
+      "message": "call('main::sem_post') expects 0 argument(s) for its modeled parameters, got 1",
+      "location": "main::notify_ready.s1",
+      "path": "modules[0].functions[4].body[0]",
+      "fix_hint": "supply one argument per modeled parameter, or mark unused parameters \"modeled\": false"
+    },
+    {
+      "code": "E920",
+      "severity": "error",
+      "message": "call('main::sem_wait') expects 0 argument(s) for its modeled parameters, got 1",
+      "location": "main::wait_for_two.s1",
+      "path": "modules[0].functions[6].body[0]",
+      "fix_hint": "supply one argument per modeled parameter, or mark unused parameters \"modeled\": false"
+    },
+    {
+      "code": "E920",
+      "severity": "error",
+      "message": "call('main::sem_wait') expects 0 argument(s) for its modeled parameters, got 1",
+      "location": "main::wait_for_two.s2",
+      "path": "modules[0].functions[6].body[1]",
+      "fix_hint": "supply one argument per modeled parameter, or mark unused parameters \"modeled\": false"
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ready' is declared but never used",
+      "location": "main::ready",
+      "fix_hint": "remove the resource, or use it in a statement/protection"
+    }
+  ]
+}

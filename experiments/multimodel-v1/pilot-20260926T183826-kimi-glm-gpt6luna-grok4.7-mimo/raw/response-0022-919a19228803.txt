@@ -1,0 +1,61 @@
+```json
+{
+  "program": "two_workers_atomic_cas_counter",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {"resources": ["c"], "functions": ["main", "w1", "w2"]},
+      "requires": {"resources": [], "functions": []},
+      "resources": [
+        {"name": "c", "kind": "var", "type": "Atomic", "base": "Int", "init": 0}
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "spawn", "func": "main::w1", "handle": "h1"},
+            {"sid": "s2", "kind": "spawn", "func": "main::w2", "handle": "h2"},
+            {"sid": "s3", "kind": "join", "handle": "h1"},
+            {"sid": "s4", "kind": "join", "handle": "h2"},
+            {"sid": "s5", "kind": "return"}
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {"name": "old", "type": "Int", "modeled": true, "init": 0},
+            {"name": "prev", "type": "Int", "modeled": true, "init": 0}
+          ],
+          "body": [
+            {"sid": "s1", "kind": "atomic_load", "resource": "main::c", "dst": "old"},
+            {"sid": "s2", "kind": "atomic_cas", "resource": "main::c", "expected": "old", "desired": "old + 1", "dst": "prev"},
+            {"sid": "s3", "kind": "branch", "cond": "prev == old", "then": "s4", "else": "s1"},
+            {"sid": "s4", "kind": "return"}
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {"name": "old", "type": "Int", "modeled": true, "init": 0},
+            {"name": "prev", "type": "Int", "modeled": true, "init": 0}
+          ],
+          "body": [
+            {"sid": "s1", "kind": "atomic_load", "resource": "main::c", "dst": "old"},
+            {"sid": "s2", "kind": "atomic_cas", "resource": "main::c", "expected": "old", "desired": "old + 1", "dst": "prev"},
+            {"sid": "s3", "kind": "branch", "cond": "prev == old", "then": "s4", "else": "s1"},
+            {"sid": "s4", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```

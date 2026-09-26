@@ -1,0 +1,438 @@
+# Rust from a verified ConcIR design (v2)
+
+You write one Rust program that implements a verified ConcIR design. The
+checker decides whether the program is accepted. Output only the Rust source
+inside one ```rust fence.
+
+## Authority
+
+The ConcIR design is authoritative for threads, resources, and the order of
+synchronization and shared-state updates. Use the same function and resource
+names. The requirement document supplies payload formatting and the exact
+terminal line. If they disagree about synchronization, follow the CIR.
+
+## Libraries
+
+`std` and the already-linked crate `concir_sync` are allowed. Write
+`use concir_sync::Semaphore;` when the design has a semaphore. Do not write
+`mod concir_sync` and do not implement a semaphore yourself. Do not use
+`std::sync::Semaphore` or `Semaphore::release`; neither exists.
+
+Semaphore API, matching the linked crate:
+
+- `Semaphore::new(n) -> Arc<Semaphore>`
+- `acquire(&self) -> Permit` (blocks until a permit is available)
+- `try_acquire(&self) -> Option<Permit>`
+- `Permit::release(self)` consumes the permit and releases it early
+- dropping a `Permit` also releases it once
+
+A CIR `semaphore_acquire` is `acquire`. A CIR `semaphore_release` is either
+`permit.release()` or the permit leaving scope. Do not acquire an extra permit
+or drop one twice to manufacture events.
+
+Other primitives:
+
+- `Mutex` and `Condvar` from `std::sync`
+- `std::sync::mpsc::{channel, sync_channel}` for channels; capacity 0 is rendezvous
+- `std::sync::atomic` for CIR atomics
+- `std::thread::spawn` plus `join`
+
+Do not mention `cir_trace` and do not declare `mod cir_trace`. Instrumentation
+is applied later by the checker.
+
+## Correspondence
+
+- One CIR function is one Rust function. The entry scope starts the threads it names.
+- One CIR mutex, condvar, channel, or semaphore is one primitive with that name.
+  Do not add a primitive the CIR does not have.
+- A CIR `var` lives in the mutex named by its protection edge, or in a local.
+  Do not add a new lock for it.
+- `condvar_wait` is `while !predicate { guard = cv.wait(guard) }` under the paired mutex.
+- After joins, `main` may read shared state only to print the required terminal line.
+
+## Rules
+
+- One file, `fn main`, no `unsafe`, no `#![feature]`.
+- Do not make the program sequential and do not delete a critical section.
+- Do not use `sleep` or `yield_now` to dodge synchronization.
+- Join every spawned thread. Print the terminal line from the requirements.
+
+Requirement document:
+# Requirements
+
+R1. The design contains one main thread and four worker threads.
+R2. Four locks are shared among the workers, arranged as a first pair and a second pair.
+R3. The first two workers each need both locks of the first pair, and the last two workers each need both locks of the second pair.
+R4. Each worker must hold both locks of its pair at the same time while it works.
+R5. The two pairs must be independent, so that progress in one pair does not depend on the other pair.
+R6. Within the first pair, the two workers must take their two locks in the same relative sequence.
+R7. Within the second pair, the two workers must take their two locks in the same relative sequence.
+R8. No worker may hold one lock of its pair while waiting forever for the other lock of that pair.
+R9. Every worker must release each lock it holds before it finishes.
+R10. The main thread starts all four workers and only finishes after all four have finished.
+R11. Every possible schedule or interleaving of the workers must terminate.
+R12. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): t1, t2, t3, t4.
+- Shared resources: a (lock), b (lock), c (lock), d (lock).
+
+Thread plan (authoritative; mirror it exactly):
+module main:
+- main: start [main::t1, main::t2, main::t3, main::t4]
+- t1: mutex_lock main::a; mutex_lock main::b; mutex_unlock main::b; mutex_unlock main::a
+- t2: mutex_lock main::a; mutex_lock main::b; mutex_unlock main::b; mutex_unlock main::a
+- t3: mutex_lock main::c; mutex_lock main::d; mutex_unlock main::d; mutex_unlock main::c
+- t4: mutex_lock main::c; mutex_lock main::d; mutex_unlock main::d; mutex_unlock main::c
+
+Verified ConcIR design (authoritative):
+```json
+{
+  "program": "independent_lock_pairs",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "functions": [
+          "main",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "c",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "d",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::t1",
+                "main::t2",
+                "main::t3",
+                "main::t4"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "t1",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "work",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s3",
+              "kind": "assign_local",
+              "target": "work",
+              "expr": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "t2",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "work",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s3",
+              "kind": "assign_local",
+              "target": "work",
+              "expr": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "t3",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "work",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::c"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::d"
+            },
+            {
+              "sid": "s3",
+              "kind": "assign_local",
+              "target": "work",
+              "expr": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::d"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::c"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "t4",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "work",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::c"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::d"
+            },
+            {
+              "sid": "s3",
+              "kind": "assign_local",
+              "target": "work",
+              "expr": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::d"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::c"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Previous Rust program:
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn t1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {
+    let _a_guard = a.lock().unwrap();
+    let b_guard = b.lock().unwrap();
+    let mut work = 0;
+    work = 1;
+    let _ = work;
+    drop(b_guard);
+    drop(_a_guard);
+}
+
+fn t2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {
+    let _a_guard = a.lock().unwrap();
+    let b_guard = b.lock().unwrap();
+    let mut work = 0;
+    work = 1;
+    let _ = work;
+    drop(b_guard);
+    drop(_a_guard);
+}
+
+fn t3(c: Arc<Mutex<()>>, d: Arc<Mutex<()>>) {
+    let _c_guard = c.lock().unwrap();
+    let d_guard = d.lock().unwrap();
+    let mut work = 0;
+    work = 1;
+    let _ = work;
+    drop(d_guard);
+    drop(_c_guard);
+}
+
+fn t4(c: Arc<Mutex<()>>, d: Arc<Mutex<()>>) {
+    let _c_guard = c.lock().unwrap();
+    let d_guard = d.lock().unwrap();
+    let mut work = 0;
+    work = 1;
+    let _ = work;
+    drop(d_guard);
+    drop(_c_guard);
+}
+
+fn main() {
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+    let c = Arc::new(Mutex::new(()));
+    let d = Arc::new(Mutex::new(()));
+
+    let h1 = thread::spawn({
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        move || t1(a, b)
+    });
+    let h2 = thread::spawn({
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        move || t2(a, b)
+    });
+    let h3 = thread::spawn({
+        let c = Arc::clone(&c);
+        let d = Arc::clone(&d);
+        move || t3(c, d)
+    });
+    let h4 = thread::spawn({
+        let c = Arc::clone(&c);
+        let d = Arc::clone(&d);
+        move || t4(c, d)
+    });
+
+    h1.join().unwrap();
+    h2.join().unwrap();
+    h3.join().unwrap();
+    h4.join().unwrap();
+
+    println!("DONE done=1");
+}
+```
+
+Feedback on that Rust program:
+Tool error: resource or thread identity is ambiguous and was not guessed. [{"rust": "h1", "kind": "Spawn", "candidates": ["main::t1", "main::t2", "main::t3", "main::t4"]}, {"rust": "h2", "kind": "Spawn", "candidates": ["main::t1", "main::t2", "main::t3", "main::t4"]}, {"rust": "h3", "kind": "Spawn", "candidates": ["main::t1", "main::t2", "main::t3", "main::t4"]}, {"rust": "h4", "kind": "Spawn", "candidates": ["main::t1", "main::t2", "main::t3", "main::t4"]}]
+Fix the Rust; do not change the design.
+
+Output only the complete Rust program in one ```rust fence.

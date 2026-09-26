@@ -1,0 +1,74 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E010",
+      "severity": "error",
+      "message": "function 'sem_release' has invalid kind 'builtin'",
+      "path": "modules[0].functions[4].kind",
+      "fix_hint": "kind must be \"normal\" or \"async\" (structured fork-join is a scope statement, not a function kind)"
+    },
+    {
+      "code": "E010",
+      "severity": "error",
+      "message": "function 'sem_acquire' has invalid kind 'builtin'",
+      "path": "modules[0].functions[5].kind",
+      "fix_hint": "kind must be \"normal\" or \"async\" (structured fork-join is a scope statement, not a function kind)"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ready' is a sync resource and cannot appear as a value",
+      "location": "main::w1.s2",
+      "path": "modules[0].functions[1].body[1]",
+      "fix_hint": "use a value name of the matching type"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ready' is a sync resource and cannot appear as a value",
+      "location": "main::w2.s2",
+      "path": "modules[0].functions[2].body[1]",
+      "fix_hint": "use a value name of the matching type"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ready' is a sync resource and cannot appear as a value",
+      "location": "main::notifier.s1",
+      "path": "modules[0].functions[3].body[0]",
+      "fix_hint": "use a value name of the matching type"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ready' is a sync resource and cannot appear as a value",
+      "location": "main::notifier.s2",
+      "path": "modules[0].functions[3].body[1]",
+      "fix_hint": "use a value name of the matching type"
+    },
+    {
+      "code": "E114",
+      "severity": "warning",
+      "message": "function 'sem_release' has an empty body; control falls off the end, which is an implicit return",
+      "location": "main::sem_release",
+      "path": "modules[0].functions[4]",
+      "fix_hint": "add an explicit return, or rely on the documented implicit return"
+    },
+    {
+      "code": "E114",
+      "severity": "warning",
+      "message": "function 'sem_acquire' has an empty body; control falls off the end, which is an implicit return",
+      "location": "main::sem_acquire",
+      "path": "modules[0].functions[5]",
+      "fix_hint": "add an explicit return, or rely on the documented implicit return"
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ready' is declared but never used",
+      "location": "main::ready",
+      "fix_hint": "remove the resource, or use it in a statement/protection"
+    }
+  ]
+}

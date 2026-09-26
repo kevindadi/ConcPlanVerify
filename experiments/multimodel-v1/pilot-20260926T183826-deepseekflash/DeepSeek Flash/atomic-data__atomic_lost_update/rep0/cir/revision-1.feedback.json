@@ -1,0 +1,54 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::c'",
+      "path": "modules[0].functions[1].body[2]",
+      "location": "main::w1.s3",
+      "fix_hint": "use a Var-typed resource",
+      "json_path": "modules[0].functions[1].body[2]"
+    },
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::c'",
+      "path": "modules[0].functions[2].body[2]",
+      "location": "main::w2.s3",
+      "fix_hint": "use a Var-typed resource",
+      "json_path": "modules[0].functions[2].body[2]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'w1' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[1]",
+      "location": "main::w1",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[1]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'w2' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[2]",
+      "location": "main::w2",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[2]"
+    }
+  ],
+  "expected_shapes": [
+    "use a Var-typed resource",
+    "keep activation slots unmodeled, or publish concurrent values through a Var"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::w1",
+    "main::w2"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

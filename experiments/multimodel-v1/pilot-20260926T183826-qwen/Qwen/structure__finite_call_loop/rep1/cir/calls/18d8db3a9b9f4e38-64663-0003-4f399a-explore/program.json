@@ -1,0 +1,55 @@
+{
+  "program": "sequential_calls",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [],
+        "functions": [
+          "main",
+          "helper"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::helper"
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::helper"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "helper",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

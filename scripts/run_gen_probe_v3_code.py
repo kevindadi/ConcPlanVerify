@@ -32,7 +32,7 @@ def main() -> int:
     parser.add_argument("--binary", default=os.environ.get(
         "CONCIR_BACKEND", "concir/target/release/concir-backend"))
     args = parser.parse_args()
-    load_dotenv(REPO / ".env")
+    load_dotenv(REPO / ".env", override=True)
     api_key = os.environ.get("OPENCODE_API_KEY", "")
     if not api_key:
         print("OPENCODE_API_KEY missing", file=sys.stderr)

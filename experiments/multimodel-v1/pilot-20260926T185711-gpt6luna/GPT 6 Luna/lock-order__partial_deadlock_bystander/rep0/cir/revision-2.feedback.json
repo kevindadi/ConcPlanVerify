@@ -1,0 +1,57 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E401",
+      "severity": "warning",
+      "message": "spawn handle 'bystander_handle' has no matching join",
+      "path": "modules[0].functions[0].body[2]",
+      "location": "main::main.s3",
+      "fix_hint": "add join on this handle, or use a scope statement (implicit join_all)",
+      "json_path": "modules[0].functions[0].body[2]"
+    },
+    {
+      "code": "E114",
+      "severity": "warning",
+      "message": "function 'bystander' ends at 's2' without an explicit return/goto/branch/switch; control falls off the end, which is an implicit return",
+      "path": "modules[0].functions[3]",
+      "location": "main::bystander",
+      "fix_hint": "add an explicit return, or rely on the documented implicit return",
+      "json_path": "modules[0].functions[3]"
+    },
+    {
+      "code": "E602",
+      "severity": "error",
+      "message": "function 'bystander' has a path ending at 's2' without return",
+      "path": "modules[0].functions[3].body[1]",
+      "location": "main::bystander.s2",
+      "fix_hint": "add a return statement at the end of this path",
+      "json_path": "modules[0].functions[3].body[1]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'bystander' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[3]",
+      "location": "main::bystander",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[3]"
+    }
+  ],
+  "expected_shapes": [
+    "add join on this handle, or use a scope statement (implicit join_all)",
+    "add an explicit return, or rely on the documented implicit return",
+    "add a return statement at the end of this path",
+    "keep activation slots unmodeled, or publish concurrent values through a Var"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::a",
+    "main::b",
+    "main::bystander"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

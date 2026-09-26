@@ -1,0 +1,36 @@
+```rust
+use concir_sync::Semaphore;
+use std::sync::Arc;
+use std::thread;
+
+fn main() {
+    let s = Semaphore::new(2);
+
+    let w1 = {
+        let s = Arc::clone(&s);
+        thread::spawn(move || {
+            let _permit = s.acquire();
+        })
+    };
+
+    let w2 = {
+        let s = Arc::clone(&s);
+        thread::spawn(move || {
+            let _permit = s.acquire();
+        })
+    };
+
+    let w3 = {
+        let s = Arc::clone(&s);
+        thread::spawn(move || {
+            let _permit = s.acquire();
+        })
+    };
+
+    w1.join().unwrap();
+    w2.join().unwrap();
+    w3.join().unwrap();
+
+    println!("DONE done=1");
+}
+```

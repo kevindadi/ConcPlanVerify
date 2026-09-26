@@ -1,0 +1,202 @@
+{
+  "program": "rendezvous_channels",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "ch1",
+          "ch2"
+        ],
+        "functions": [
+          "main",
+          "s",
+          "r"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "ch1",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        },
+        {
+          "name": "ch2",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::s",
+                "main::r"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "s",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::send",
+              "args": [
+                "1"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "r",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::recv",
+              "dst": "v"
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "send",
+          "kind": "normal",
+          "params": [
+            {
+              "name": "x",
+              "type": "Int",
+              "modeled": true
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::chan_send",
+              "args": [
+                "main::ch1",
+                "x"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "recv",
+          "kind": "normal",
+          "locals": [
+            {
+              "name": "v",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::chan_recv",
+              "args": [
+                "main::ch1"
+              ],
+              "dst": "v"
+            },
+            {
+              "sid": "s2",
+              "kind": "return",
+              "value": "v"
+            }
+          ]
+        },
+        {
+          "name": "chan_send",
+          "kind": "normal",
+          "params": [
+            {
+              "name": "c",
+              "type": "Int",
+              "modeled": true
+            },
+            {
+              "name": "x",
+              "type": "Int",
+              "modeled": true
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "chan_recv",
+          "kind": "normal",
+          "params": [
+            {
+              "name": "c",
+              "type": "Int",
+              "modeled": true
+            }
+          ],
+          "locals": [
+            {
+              "name": "v",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return",
+              "value": "v"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

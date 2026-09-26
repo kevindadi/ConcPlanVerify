@@ -1,0 +1,45 @@
+use std::sync::{Arc, Mutex};
+
+fn compute(x: i32) -> i32 {
+    let res = x + 1;
+    res
+}
+
+fn w1(m: Arc<Mutex<i32>>, acc: Arc<Mutex<i32>>) {
+    let _guard = m.lock().unwrap();
+    let _ = compute(0);
+    {
+        let mut a_guard = acc.lock().unwrap();
+        *a_guard += 1;
+    }
+    // mutex_unlock happens when _guard is dropped at end of scope
+}
+
+fn w2(m: Arc<Mutex<i32>>, acc: Arc<Mutex<i32>>) {
+    let _guard = m.lock().unwrap();
+    let _ = compute(0);
+    {
+        let mut a_guard = acc.lock().unwrap();
+        *a_guard += 1;
+    }
+    // mutex_unlock happens when _guard is dropped at end of scope
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(()));
+    let acc = Arc::new(Mutex::new(0));
+    
+    let m1 = Arc::clone(&m);
+    let a1 = Arc::clone(&acc);
+    let m2 = Arc::clone(&m);
+    let a2 = Arc::clone(&acc);
+    
+    let t1 = std::thread::spawn(move || w1(m1, a1));
+    let t2 = std::thread::spawn(move || w2(m2, a2));
+    
+    t1.join().unwrap();
+    t2.join().unwrap();
+    
+    let done = *acc.lock().unwrap();
+    println!("DONE done={}", done);
+}

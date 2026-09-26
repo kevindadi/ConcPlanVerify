@@ -1,0 +1,30 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/pilot-20260926T182434-qwen-composer2.5/Composer 2.5/channel__rendezvous_both_send/rep0/code/round-1/source-proj)
+error[E0308]: mismatched types
+  --> src/main.rs:18:41
+   |
+18 |     let h_s1 = thread::spawn(move || s1(ch_tx));
+   |                                      -- ^^^^^ expected `Sender<i32>`, found `SyncSender<i32>`
+   |                                      |
+   |                                      arguments to this function are incorrect
+   |
+   = note: expected struct `std::sync::mpsc::Sender<i32>`
+              found struct `SyncSender<i32>`
+note: function defined here
+  --> src/main.rs:4:4
+   |
+ 4 | fn s1(ch: std::sync::mpsc::Sender<i32>) {
+   |    ^^ --------------------------------
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `probe` (bin "probe") due to 1 previous error
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning

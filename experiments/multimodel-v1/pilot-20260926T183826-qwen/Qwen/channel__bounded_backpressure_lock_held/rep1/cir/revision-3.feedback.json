@@ -1,0 +1,62 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::ch'",
+      "path": "modules[0].functions[3].body[0]",
+      "location": "main::ch_send.s1",
+      "fix_hint": "use a Var-typed resource",
+      "json_path": "modules[0].functions[3].body[0]"
+    },
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::ch'",
+      "path": "modules[0].functions[4].body[0]",
+      "location": "main::ch_recv.s1",
+      "fix_hint": "use a Var-typed resource",
+      "json_path": "modules[0].functions[4].body[0]"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::ch_recv') captures a return into 'v1', but 'main::ch_recv' has no modeled return",
+      "path": "modules[0].functions[2].body[0]",
+      "location": "main::receiver.s1",
+      "fix_hint": "declare a modeled return on the callee, or drop dst",
+      "json_path": "modules[0].functions[2].body[0]"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::ch_recv') captures a return into 'v2', but 'main::ch_recv' has no modeled return",
+      "path": "modules[0].functions[2].body[3]",
+      "location": "main::receiver.s4",
+      "fix_hint": "declare a modeled return on the callee, or drop dst",
+      "json_path": "modules[0].functions[2].body[3]"
+    }
+  ],
+  "expected_shapes": [
+    "use a Var-typed resource",
+    "declare a modeled return on the callee, or drop dst"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::sender",
+    "main::receiver",
+    "main::ch_send",
+    "main::ch_recv"
+  ],
+  "normalizations": [
+    {
+      "rule": "drop_sync_init",
+      "resource": "ch",
+      "location": "/modules/0"
+    }
+  ],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

@@ -16,12 +16,17 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(ds.status, "available")
         self.assertTrue(ds.discovered)
 
-    def test_qwen_and_composer_are_blocked_with_reasons(self):
-        blocked = {s.display_name: s for s in transport.blocked_models()}
-        self.assertIn("Qwen", blocked)
-        self.assertIn("Composer 2.5", blocked)
-        self.assertIn("401", blocked["Qwen"].blocked_reason)
-        self.assertIn("cursor_sdk", blocked["Composer 2.5"].blocked_reason)
+    def test_qwen_direct_and_composer_are_available(self):
+        specs = transport.build_registry()
+        qwen = transport.resolve_model(specs, "Qwen")
+        self.assertEqual(qwen.channel, "dashscope-direct")
+        self.assertEqual(qwen.model_id, "qwen3.8-flash")
+        self.assertEqual(qwen.status, "available")
+        self.assertIn("qwen3.8-max", qwen.candidates)
+        composer = transport.resolve_model(specs, "Composer 2.5")
+        self.assertEqual(composer.channel, "cursor")
+        self.assertEqual(composer.model_id, "composer-2.5")
+        self.assertEqual(composer.status, "available")
 
     def test_blocked_models_have_no_available_id(self):
         for spec in transport.blocked_models():

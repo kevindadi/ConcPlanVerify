@@ -1,0 +1,263 @@
+# Rust from a verified ConcIR design (v2)
+
+You write one Rust program that implements a verified ConcIR design. The
+checker decides whether the program is accepted. Output only the Rust source
+inside one ```rust fence.
+
+## Authority
+
+The ConcIR design is authoritative for threads, resources, and the order of
+synchronization and shared-state updates. Use the same function and resource
+names. The requirement document supplies payload formatting and the exact
+terminal line. If they disagree about synchronization, follow the CIR.
+
+## Libraries
+
+`std` and the already-linked crate `concir_sync` are allowed. Write
+`use concir_sync::Semaphore;` when the design has a semaphore. Do not write
+`mod concir_sync` and do not implement a semaphore yourself. Do not use
+`std::sync::Semaphore` or `Semaphore::release`; neither exists.
+
+Semaphore API, matching the linked crate:
+
+- `Semaphore::new(n) -> Arc<Semaphore>`
+- `acquire(&self) -> Permit` (blocks until a permit is available)
+- `try_acquire(&self) -> Option<Permit>`
+- `Permit::release(self)` consumes the permit and releases it early
+- dropping a `Permit` also releases it once
+
+A CIR `semaphore_acquire` is `acquire`. A CIR `semaphore_release` is either
+`permit.release()` or the permit leaving scope. Do not acquire an extra permit
+or drop one twice to manufacture events.
+
+Other primitives:
+
+- `Mutex` and `Condvar` from `std::sync`
+- `std::sync::mpsc::{channel, sync_channel}` for channels; capacity 0 is rendezvous
+- `std::sync::atomic` for CIR atomics
+- `std::thread::spawn` plus `join`
+
+Do not mention `cir_trace` and do not declare `mod cir_trace`. Instrumentation
+is applied later by the checker.
+
+## Correspondence
+
+- One CIR function is one Rust function. The entry scope starts the threads it names.
+- One CIR mutex, condvar, channel, or semaphore is one primitive with that name.
+  Do not add a primitive the CIR does not have.
+- A CIR `var` lives in the mutex named by its protection edge, or in a local.
+  Do not add a new lock for it.
+- `condvar_wait` is `while !predicate { guard = cv.wait(guard) }` under the paired mutex.
+- After joins, `main` may read shared state only to print the required terminal line.
+
+## Rules
+
+- One file, `fn main`, no `unsafe`, no `#![feature]`.
+- Do not make the program sequential and do not delete a critical section.
+- Do not use `sleep` or `yield_now` to dodge synchronization.
+- Join every spawned thread. Print the terminal line from the requirements.
+
+Requirement document:
+# Requirements
+
+R1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.
+R2. Both worker threads share a single integer counter that is declared to range from zero to two and starts at zero.
+R3. Each worker adds exactly one to the shared counter while it holds the mutual-exclusion lock.
+R4. A worker must hold the mutual-exclusion lock whenever it reads or writes the shared counter, so the two workers never update it at the same time.
+R5. In every state that can occur, the counter value stays within its declared range from zero to two.
+R6. Every possible schedule and interleaving of the two workers must terminate.
+R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2.
+- Shared resources: m (lock), c (shared variable).
+
+Thread plan (authoritative; mirror it exactly):
+module main:
+- main: start [main::w1, main::w2]
+- w1: mutex_lock main::m; mutex_unlock main::m
+- w2: mutex_lock main::m; mutex_unlock main::m
+
+Verified ConcIR design (authoritative):
+```json
+{
+  "program": "supervised_two_workers_counter",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m",
+          "c"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "c",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [
+        {
+          "var": "c",
+          "lock": "m"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::w1",
+                "main::w2"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "write_shared",
+              "resource": "main::c",
+              "expr": "c + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "write_shared",
+              "resource": "main::c",
+              "expr": "c + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Previous Rust program:
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+// Resources (module main):
+//   m : Mutex (the mutual-exclusion lock)
+//   c : Var(Int, init 0), protected by m per the protection edge,
+//       so c lives inside the mutex m (no extra lock is added).
+fn main() {
+    // m holds the shared counter c, initialized to 0 (declared range 0..=2).
+    let m: Arc<Mutex<i32>> = Arc::new(Mutex::new(0));
+
+    let m_for_w1 = Arc::clone(&m);
+    let m_for_w2 = Arc::clone(&m);
+
+    // scope s1: start [main::w1, main::w2]
+    let h1 = thread::spawn(move || w1(&m_for_w1));
+    let h2 = thread::spawn(move || w2(&m_for_w2));
+
+    // The supervising scope waits for both workers to finish.
+    h1.join().expect("w1 thread panicked");
+    h2.join().expect("w2 thread panicked");
+
+    // s2: return; terminal line required by the requirements.
+    println!("DONE done=1");
+}
+
+// main::w1
+fn w1(m: &Mutex<i32>) {
+    // s1: mutex_lock main::m
+    let mut guard = m.lock().unwrap();
+    // s2: write_shared main::c := c + 1  (c lives in m, accessed under the lock)
+    *guard = *guard + 1;
+    // s3: mutex_unlock main::m
+    drop(guard);
+    // s4: return
+}
+
+// main::w2
+fn w2(m: &Mutex<i32>) {
+    // s1: mutex_lock main::m
+    let mut guard = m.lock().unwrap();
+    // s2: write_shared main::c := c + 1
+    *guard = *guard + 1;
+    // s3: mutex_unlock main::m
+    drop(guard);
+    // s4: return
+}
+```
+
+Feedback on that Rust program:
+Tool error: resource or thread identity is ambiguous and was not guessed. [{"rust": "res_mutex0", "kind": "Mutex", "candidates": []}]
+Fix the Rust; do not change the design.
+
+Output only the complete Rust program in one ```rust fence.

@@ -1,0 +1,220 @@
+# Rust from a verified ConcIR design (v2)
+
+You write one Rust program that implements a verified ConcIR design. The
+checker decides whether the program is accepted. Output only the Rust source
+inside one ```rust fence.
+
+## Authority
+
+The ConcIR design is authoritative for threads, resources, and the order of
+synchronization and shared-state updates. Use the same function and resource
+names. The requirement document supplies payload formatting and the exact
+terminal line. If they disagree about synchronization, follow the CIR.
+
+## Libraries
+
+`std` and the already-linked crate `concir_sync` are allowed. Write
+`use concir_sync::Semaphore;` when the design has a semaphore. Do not write
+`mod concir_sync` and do not implement a semaphore yourself. Do not use
+`std::sync::Semaphore` or `Semaphore::release`; neither exists.
+
+Semaphore API, matching the linked crate:
+
+- `Semaphore::new(n) -> Arc<Semaphore>`
+- `acquire(&self) -> Permit` (blocks until a permit is available)
+- `try_acquire(&self) -> Option<Permit>`
+- `Permit::release(self)` consumes the permit and releases it early
+- dropping a `Permit` also releases it once
+
+A CIR `semaphore_acquire` is `acquire`. A CIR `semaphore_release` is either
+`permit.release()` or the permit leaving scope. Do not acquire an extra permit
+or drop one twice to manufacture events.
+
+Other primitives:
+
+- `Mutex` and `Condvar` from `std::sync`
+- `std::sync::mpsc::{channel, sync_channel}` for channels; capacity 0 is rendezvous
+- `std::sync::atomic` for CIR atomics
+- `std::thread::spawn` plus `join`
+
+Do not mention `cir_trace` and do not declare `mod cir_trace`. Instrumentation
+is applied later by the checker.
+
+## Correspondence
+
+- One CIR function is one Rust function. The entry scope starts the threads it names.
+- One CIR mutex, condvar, channel, or semaphore is one primitive with that name.
+  Do not add a primitive the CIR does not have.
+- A CIR `var` lives in the mutex named by its protection edge, or in a local.
+  Do not add a new lock for it.
+- `condvar_wait` is `while !predicate { guard = cv.wait(guard) }` under the paired mutex.
+- After joins, `main` may read shared state only to print the required terminal line.
+
+## Rules
+
+- One file, `fn main`, no `unsafe`, no `#![feature]`.
+- Do not make the program sequential and do not delete a critical section.
+- Do not use `sleep` or `yield_now` to dodge synchronization.
+- Join every spawned thread. Print the terminal line from the requirements.
+
+Requirement document:
+# Requirements
+
+R1. A main task starts one sending task and one receiving task that run at the same time.
+R2. The two tasks communicate over a channel with no buffering, so a send and a take must meet to exchange the value.
+R3. The sender passes one value and the receiver takes one value, so both tasks finish.
+R4. No task may wait forever for a partner that never arrives.
+R5. Every schedule and interleaving must terminate with both tasks finished and no value left in the channel.
+R6. The channel is empty once both tasks have finished.
+R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): s1, r.
+- Shared resources: ch (channel).
+
+Thread plan (authoritative; mirror it exactly):
+module main:
+- main: start [main::s1, main::r]
+- s1: channel_send main::ch
+- r: channel_recv main::ch
+
+Verified ConcIR design (authoritative):
+```json
+{
+  "program": "sender_receiver_unbuffered_channel",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "ch"
+        ],
+        "functions": [
+          "main",
+          "s1",
+          "r"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "ch",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::s1",
+                "main::r"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "s1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "channel_send",
+              "channel": "main::ch",
+              "value": "1"
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "r",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "v",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "channel_recv",
+              "channel": "main::ch",
+              "dst": "v"
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Previous Rust program:
+```rust
+use std::sync::mpsc::sync_channel;
+use std::thread;
+
+fn s1(ch: std::sync::mpsc::Sender<i32>) {
+    ch.send(1).unwrap();
+}
+
+fn r(ch: std::sync::mpsc::Receiver<i32>) {
+    let v = ch.recv().unwrap();
+    let _ = v;
+}
+
+fn main() {
+    let ch = sync_channel::<i32>(0);
+    let ch_tx = ch.0;
+    let ch_rx = ch.1;
+
+    let h_s1 = thread::spawn(move || s1(ch_tx));
+    let h_r = thread::spawn(move || r(ch_rx));
+
+    h_s1.join().unwrap();
+    h_r.join().unwrap();
+
+    println!("DONE done=1");
+}
+```
+
+Feedback on that Rust program:
+The Rust source did not compile:
+error[E0308]: mismatched types
+error: could not compile `probe` (bin "probe") due to 1 previous error
+Fix the Rust; do not change the design.
+
+Output only the complete Rust program in one ```rust fence.

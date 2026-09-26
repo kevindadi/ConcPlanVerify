@@ -1,0 +1,66 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E931",
+      "severity": "error",
+      "message": "expected expression, found '!r'",
+      "path": "modules[0].functions[1].body[2]",
+      "location": "main::waiter.s3",
+      "fix_hint": "fix the expression syntax, or use a declared slot or enum variant",
+      "json_path": "modules[0].functions[1].body[2]",
+      "declared_symbols": {
+        "function": "main::waiter",
+        "params": [],
+        "locals": [
+          "r"
+        ]
+      },
+      "declared_functions": [
+        "main::main",
+        "main::waiter",
+        "main::notifier"
+      ]
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'waiter' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[1]",
+      "location": "main::waiter",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[1]"
+    }
+  ],
+  "expected_shapes": [
+    "every name used in an expression must be a declared param/local of the function or a shared resource; declare new locals in the function's `locals` list (declared in main::waiter: params [], locals ['r'])",
+    "fix the expression syntax, or use a declared slot or enum variant",
+    "keep activation slots unmodeled, or publish concurrent values through a Var"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::waiter",
+    "main::notifier"
+  ],
+  "normalizations": [
+    {
+      "rule": "array_unwrap",
+      "function": "waiter",
+      "sid": "s3",
+      "field": "then",
+      "location": "/modules/0/functions/1/body/2/then",
+      "to": "s4"
+    },
+    {
+      "rule": "array_unwrap",
+      "function": "waiter",
+      "sid": "s3",
+      "field": "else",
+      "location": "/modules/0/functions/1/body/2/else",
+      "to": "s6"
+    }
+  ],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

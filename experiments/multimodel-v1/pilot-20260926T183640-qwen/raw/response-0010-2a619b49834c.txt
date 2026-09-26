@@ -1,0 +1,21 @@
+```rust
+use std::sync::mpsc::{channel, Sender, Receiver};
+use std::thread;
+
+fn main() {
+    let (tx, rx): (Sender<i32>, Receiver<i32>) = channel();
+
+    let s1_handle = thread::Builder::new().name("main::s1".to_string()).spawn(move || {
+        tx.send(1).unwrap();
+    }).unwrap();
+
+    let r_handle = thread::Builder::new().name("main::r".to_string()).spawn(move || {
+        let _val = rx.recv().unwrap();
+    }).unwrap();
+
+    s1_handle.join().unwrap();
+    r_handle.join().unwrap();
+
+    println!("DONE done=1");
+}
+```

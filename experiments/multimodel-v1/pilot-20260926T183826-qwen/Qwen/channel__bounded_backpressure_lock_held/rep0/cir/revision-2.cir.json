@@ -1,0 +1,170 @@
+{
+  "program": "bounded_channel_sender_receiver",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m",
+          "ch"
+        ],
+        "functions": [
+          "main",
+          "sender",
+          "receiver"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "ch",
+          "kind": "sync",
+          "type": "Channel",
+          "base": "Int",
+          "capacity": 1,
+          "mode": "Sync"
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::sender",
+                "main::receiver"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "sender",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "v1",
+              "type": "Int",
+              "modeled": false,
+              "init": 1
+            },
+            {
+              "name": "v2",
+              "type": "Int",
+              "modeled": false,
+              "init": 2
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s3",
+              "kind": "call",
+              "func": "main::ch.send",
+              "args": [
+                "v1"
+              ]
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s6",
+              "kind": "call",
+              "func": "main::ch.send",
+              "args": [
+                "v2"
+              ]
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "receiver",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "r1",
+              "type": "Int",
+              "modeled": false,
+              "init": 0
+            },
+            {
+              "name": "r2",
+              "type": "Int",
+              "modeled": false,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::ch.recv",
+              "dst": "r1"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s4",
+              "kind": "call",
+              "func": "main::ch.recv",
+              "dst": "r2"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

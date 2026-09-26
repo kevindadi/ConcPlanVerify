@@ -1,0 +1,251 @@
+{
+  "program": "handshake_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "a",
+          "b",
+          "sa",
+          "sb",
+          "flag"
+        ],
+        "functions": [
+          "main",
+          "a",
+          "b",
+          "bystander"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "a",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "b",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "sa",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 1
+        },
+        {
+          "name": "sb",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 1
+        },
+        {
+          "name": "flag",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [
+        {
+          "var": "flag",
+          "lock": "a"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::a",
+              "handle": "ha"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "main::b",
+              "handle": "hb"
+            },
+            {
+              "sid": "s3",
+              "kind": "spawn",
+              "func": "main::bystander",
+              "handle": "hby"
+            },
+            {
+              "sid": "s4",
+              "kind": "join",
+              "handle": "ha"
+            },
+            {
+              "sid": "s5",
+              "kind": "join",
+              "handle": "hb"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "a",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::acquire_sem",
+              "args": [
+                "main::sa"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s3",
+              "kind": "call",
+              "func": "main::release_sem",
+              "args": [
+                "main::sb"
+              ]
+            },
+            {
+              "sid": "s4",
+              "kind": "call",
+              "func": "main::acquire_sem",
+              "args": [
+                "main::sb"
+              ]
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s6",
+              "kind": "write_shared",
+              "resource": "main::flag",
+              "expr": "1"
+            },
+            {
+              "sid": "s7",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s8",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s9",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "b",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::acquire_sem",
+              "args": [
+                "main::sb"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s3",
+              "kind": "call",
+              "func": "main::release_sem",
+              "args": [
+                "main::sa"
+              ]
+            },
+            {
+              "sid": "s4",
+              "kind": "call",
+              "func": "main::acquire_sem",
+              "args": [
+                "main::sa"
+              ]
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s6",
+              "kind": "write_shared",
+              "resource": "main::flag",
+              "expr": "1"
+            },
+            {
+              "sid": "s7",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s8",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s9",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "bystander",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "loop_start"
+            },
+            {
+              "sid": "s2",
+              "kind": "nop"
+            },
+            {
+              "sid": "s3",
+              "kind": "loop_end"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

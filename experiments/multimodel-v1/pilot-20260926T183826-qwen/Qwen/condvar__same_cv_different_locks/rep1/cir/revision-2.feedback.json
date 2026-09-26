@@ -1,0 +1,184 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::semaphore_release' referenced",
+      "path": "modules[0].functions[1].body[2]",
+      "location": "main::w1.s3",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[1].body[2]",
+      "declared_symbols": {
+        "function": "main::w1",
+        "params": [],
+        "locals": [
+          "done"
+        ]
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::notifier"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::semaphore_release' referenced",
+      "path": "modules[0].functions[2].body[3]",
+      "location": "main::w2.s4",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[2].body[3]",
+      "declared_symbols": {
+        "function": "main::w2",
+        "params": [],
+        "locals": [
+          "done"
+        ]
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::notifier"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::semaphore_acquire' referenced",
+      "path": "modules[0].functions[3].body[0]",
+      "location": "main::notifier.s1",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[3].body[0]",
+      "declared_symbols": {
+        "function": "main::notifier",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::notifier"
+      ]
+    },
+    {
+      "code": "E102",
+      "severity": "error",
+      "message": "undefined function 'main::semaphore_acquire' referenced",
+      "path": "modules[0].functions[3].body[1]",
+      "location": "main::notifier.s2",
+      "fix_hint": "define the function or import it via requires",
+      "json_path": "modules[0].functions[3].body[1]",
+      "declared_symbols": {
+        "function": "main::notifier",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "main::main",
+        "main::w1",
+        "main::w2",
+        "main::notifier"
+      ]
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ready' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[1].body[2]",
+      "location": "main::w1.s3",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[1].body[2]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ready' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[2].body[3]",
+      "location": "main::w2.s4",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[2].body[3]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ready' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[3].body[0]",
+      "location": "main::notifier.s1",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[3].body[0]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ready' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[3].body[1]",
+      "location": "main::notifier.s2",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[3].body[1]"
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ready' is declared but never used",
+      "location": "main::ready",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::w1: params [], locals ['done'])",
+    "define the function or import it via requires",
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::w2: params [], locals ['done'])",
+    "call only a function that appears in some module's functions list. Do not invent println, print, or io::/stdio:: helpers. Exact terminal text is implemented later in Rust, not as a CIR call. (declared in main::notifier: params [], locals [])",
+    "use a value name of the matching type",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::w1",
+    "main::w2",
+    "main::notifier"
+  ],
+  "normalizations": [
+    {
+      "rule": "fqn_prefix",
+      "function": "w1",
+      "sid": "s3",
+      "field": "func",
+      "from": "semaphore_release",
+      "to": "main::semaphore_release"
+    },
+    {
+      "rule": "fqn_prefix",
+      "function": "w2",
+      "sid": "s4",
+      "field": "func",
+      "from": "semaphore_release",
+      "to": "main::semaphore_release"
+    },
+    {
+      "rule": "fqn_prefix",
+      "function": "notifier",
+      "sid": "s1",
+      "field": "func",
+      "from": "semaphore_acquire",
+      "to": "main::semaphore_acquire"
+    },
+    {
+      "rule": "fqn_prefix",
+      "function": "notifier",
+      "sid": "s2",
+      "field": "func",
+      "from": "semaphore_acquire",
+      "to": "main::semaphore_acquire"
+    }
+  ],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

@@ -1,0 +1,88 @@
+{
+  "program": "concir_two_workers_handshake",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": ["a", "b", "sa", "sb", "flag"],
+        "functions": ["main", "worker_a", "worker_b", "bystander"]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {"name": "a", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+        {"name": "b", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+        {"name": "sa", "kind": "sync", "type": "Semaphore", "mode": "Sync", "count": 1},
+        {"name": "sb", "kind": "sync", "type": "Semaphore", "mode": "Sync", "count": 1},
+        {"name": "flag", "kind": "var", "type": "Var", "base": "Int", "init": 0}
+      ],
+      "protection": [
+        {"var": "flag", "lock": "a"}
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "spawn", "func": "main::worker_a", "handle": "h_a"},
+            {"sid": "s2", "kind": "spawn", "func": "main::worker_b", "handle": "h_b"},
+            {"sid": "s3", "kind": "spawn", "func": "main::bystander", "handle": "h_by"},
+            {"sid": "s4", "kind": "join", "handle": "h_a"},
+            {"sid": "s5", "kind": "join", "handle": "h_b"},
+            {"sid": "s6", "kind": "return"}
+          ]
+        },
+        {
+          "name": "worker_a",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::a"},
+            {"sid": "s2", "kind": "call", "func": "semaphore_release", "args": ["main::sa"]},
+            {"sid": "s3", "kind": "call", "func": "semaphore_acquire", "args": ["main::sb"]},
+            {"sid": "s4", "kind": "mutex_lock", "resource": "main::b"},
+            {"sid": "s5", "kind": "write_shared", "resource": "main::flag", "expr": "1"},
+            {"sid": "s6", "kind": "mutex_unlock", "resource": "main::b"},
+            {"sid": "s7", "kind": "mutex_unlock", "resource": "main::a"},
+            {"sid": "s8", "kind": "return"}
+          ]
+        },
+        {
+          "name": "worker_b",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::b"},
+            {"sid": "s2", "kind": "call", "func": "semaphore_release", "args": ["main::sb"]},
+            {"sid": "s3", "kind": "call", "func": "semaphore_acquire", "args": ["main::sa"]},
+            {"sid": "s4", "kind": "mutex_lock", "resource": "main::a"},
+            {"sid": "s5", "kind": "read_shared", "resource": "main::flag", "dst": "val"},
+            {"sid": "s6", "kind": "mutex_unlock", "resource": "main::a"},
+            {"sid": "s7", "kind": "mutex_unlock", "resource": "main::b"},
+            {"sid": "s8", "kind": "return"}
+          ],
+          "locals": [
+            {"name": "val", "type": "Int", "modeled": true, "init": 0}
+          ]
+        },
+        {
+          "name": "bystander",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "loop_start"},
+            {"sid": "s2", "kind": "assign_local", "target": "dummy", "expr": "1"},
+            {"sid": "s3", "kind": "loop_end"}
+          ],
+          "locals": [
+            {"name": "dummy", "type": "Int", "modeled": false, "init": 0}
+          ]
+        }
+      ]
+    }
+  ]
+}

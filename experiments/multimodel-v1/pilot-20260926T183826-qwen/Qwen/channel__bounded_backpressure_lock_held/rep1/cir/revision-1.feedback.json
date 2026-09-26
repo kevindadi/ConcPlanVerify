@@ -1,0 +1,80 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::ch'",
+      "path": "modules[0].functions[1].body[1]",
+      "location": "main::sender.s2",
+      "fix_hint": "use a Var-typed resource",
+      "json_path": "modules[0].functions[1].body[1]"
+    },
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::ch'",
+      "path": "modules[0].functions[1].body[5]",
+      "location": "main::sender.s6",
+      "fix_hint": "use a Var-typed resource",
+      "json_path": "modules[0].functions[1].body[5]"
+    },
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::ch'",
+      "path": "modules[0].functions[2].body[2]",
+      "location": "main::receiver.s3",
+      "fix_hint": "use a Var-typed resource",
+      "json_path": "modules[0].functions[2].body[2]"
+    },
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::ch'",
+      "path": "modules[0].functions[2].body[6]",
+      "location": "main::receiver.s7",
+      "fix_hint": "use a Var-typed resource",
+      "json_path": "modules[0].functions[2].body[6]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'sender' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[1]",
+      "location": "main::sender",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[1]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'receiver' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[2]",
+      "location": "main::receiver",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[2]"
+    }
+  ],
+  "expected_shapes": [
+    "use a Var-typed resource",
+    "keep activation slots unmodeled, or publish concurrent values through a Var"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::sender",
+    "main::receiver",
+    "main::wait_for_space",
+    "main::wait_for_data"
+  ],
+  "normalizations": [
+    {
+      "rule": "drop_sync_init",
+      "resource": "ch",
+      "location": "/modules/0"
+    }
+  ],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

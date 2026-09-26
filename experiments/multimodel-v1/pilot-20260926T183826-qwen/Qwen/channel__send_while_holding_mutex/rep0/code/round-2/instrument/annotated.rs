@@ -1,0 +1,58 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+use std::sync::{Arc, mpsc};
+use std::thread;
+
+fn ch1_send(ch1_tx: &mpsc::SyncSender<i32>, v: i32) {
+    cir_trace::record("channel_send", "ch1_tx"); ch1_tx.send(v).unwrap();
+}
+
+fn ch1_recv(ch1_rx: &mpsc::Receiver<i32>) -> i32 {
+    cir_trace::record("channel_recv", "ch1_rx"); ch1_rx.recv().unwrap()
+}
+
+fn ch2_send(ch2_tx: &mpsc::SyncSender<i32>, v: i32) {
+    cir_trace::record("channel_send", "ch2_tx"); ch2_tx.send(v).unwrap();
+}
+
+fn ch2_recv(ch2_rx: &mpsc::Receiver<i32>) -> i32 {
+    cir_trace::record("channel_recv", "ch2_rx"); ch2_rx.recv().unwrap()
+}
+
+fn main() { cir_trace::init();
+    let m = Arc::new(Mutex::new_named("m_mutex0", ()));
+
+    // ch1: capacity 0 (rendezvous)
+    let (ch1_tx, ch1_rx) = mpsc::sync_channel::<i32>(0);
+    // ch2: capacity 0 (rendezvous)
+    let (ch2_tx, ch2_rx) = mpsc::sync_channel::<i32>(0);
+
+    let m_s = Arc::clone(&m);
+    let s_handle = cir_trace::spawn("ch1_send", move || {
+        // s: mutex_lock main::m; mutex_unlock main::m
+        {
+            let _guard = m_s.lock().unwrap();
+        }
+        // call main::ch1_send with arg 1
+        ch1_send(&ch1_tx, 1);
+        // call main::ch2_recv
+        let _ack = ch2_recv(&ch2_rx);
+    });
+
+    let m_r = Arc::clone(&m);
+    let r_handle = cir_trace::spawn("ch1_recv", move || {
+        // call main::ch1_recv
+        let _val = ch1_recv(&ch1_rx);
+        // r: mutex_lock main::m; mutex_unlock main::m
+        {
+            let _guard = m_r.lock().unwrap();
+        }
+        // call main::ch2_send with arg 1
+        ch2_send(&ch2_tx, 1);
+    });
+
+    s_handle.join().unwrap();
+    r_handle.join().unwrap();
+
+    println!("DONE done=1");
+ cir_trace::finish();}
