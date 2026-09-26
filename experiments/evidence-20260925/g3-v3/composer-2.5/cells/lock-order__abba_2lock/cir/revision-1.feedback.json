@@ -1,0 +1,52 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E705",
+      "severity": "error",
+      "message": "duplicate protection entry for Var 't1'",
+      "path": "modules[0].protection[1]",
+      "fix_hint": "remove the duplicate entry",
+      "json_path": "modules[0].protection[1]"
+    },
+    {
+      "code": "E705",
+      "severity": "error",
+      "message": "duplicate protection entry for Var 't2'",
+      "path": "modules[0].protection[3]",
+      "fix_hint": "remove the duplicate entry",
+      "json_path": "modules[0].protection[3]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 't1' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[1]",
+      "location": "main::t1",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[1]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 't2' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[2]",
+      "location": "main::t2",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[2]"
+    }
+  ],
+  "expected_shapes": [
+    "remove the duplicate entry",
+    "keep activation slots unmodeled, or publish concurrent values through a Var"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::t1",
+    "main::t2"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

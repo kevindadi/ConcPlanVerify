@@ -1,0 +1,178 @@
+{
+  "program": "scope_bound_k_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "s",
+          "done"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2",
+          "w3"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "s",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 1
+        },
+        {
+          "name": "done",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::w1",
+                "main::w1",
+                "main::w2",
+                "main::w2",
+                "main::w3",
+                "main::w3"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "write_shared",
+              "resource": "main::done",
+              "expr": "1"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "sem_wait",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "phase",
+              "expr": "1"
+            },
+            {
+              "sid": "s3",
+              "kind": "sem_post",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "phase",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "sem_wait",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "phase",
+              "expr": "1"
+            },
+            {
+              "sid": "s3",
+              "kind": "sem_post",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "phase",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ]
+        },
+        {
+          "name": "w3",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "sem_wait",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "phase",
+              "expr": "1"
+            },
+            {
+              "sid": "s3",
+              "kind": "sem_post",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "phase",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

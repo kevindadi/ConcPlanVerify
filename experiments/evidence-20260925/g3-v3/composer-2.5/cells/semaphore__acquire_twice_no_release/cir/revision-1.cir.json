@@ -1,0 +1,156 @@
+{
+  "program": "semaphore_supervisor_two_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "s"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "s",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 1
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::w1",
+                "main::w2"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "work",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "sem_acquire",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "work",
+              "expr": "1"
+            },
+            {
+              "sid": "s3",
+              "kind": "sem_release",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s4",
+              "kind": "sem_acquire",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s5",
+              "kind": "assign_local",
+              "target": "work",
+              "expr": "2"
+            },
+            {
+              "sid": "s6",
+              "kind": "sem_release",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "work",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "sem_acquire",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "work",
+              "expr": "1"
+            },
+            {
+              "sid": "s3",
+              "kind": "sem_release",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s4",
+              "kind": "sem_acquire",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s5",
+              "kind": "assign_local",
+              "target": "work",
+              "expr": "2"
+            },
+            {
+              "sid": "s6",
+              "kind": "sem_release",
+              "resource": "main::s"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

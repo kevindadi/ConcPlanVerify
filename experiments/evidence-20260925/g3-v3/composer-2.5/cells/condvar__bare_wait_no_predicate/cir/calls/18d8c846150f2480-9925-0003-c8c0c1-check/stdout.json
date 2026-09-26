@@ -1,0 +1,29 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E201",
+      "severity": "error",
+      "message": "branch condition \"ready\" is not a comparison expression",
+      "location": "main::wait_until_ready.s1",
+      "path": "modules[0].functions[2].body[0]",
+      "fix_hint": "use a comparison operator: ==, !=, >, <, >=, <="
+    },
+    {
+      "code": "E309",
+      "severity": "error",
+      "message": "access to protected Var 'ready' without holding lock 'main::m' in function 'wait_until_ready'",
+      "location": "main::wait_until_ready.s1",
+      "path": "modules[0].functions[2].body[0]",
+      "fix_hint": "acquire the lock before accessing this variable"
+    },
+    {
+      "code": "E512",
+      "severity": "error",
+      "message": "condvar_wait in function 'wait_until_ready' requires lock 'main::m' to be held",
+      "location": "main::wait_until_ready.s2",
+      "path": "modules[0].functions[2].body[1]",
+      "fix_hint": "acquire the paired lock before waiting on the condvar"
+    }
+  ]
+}

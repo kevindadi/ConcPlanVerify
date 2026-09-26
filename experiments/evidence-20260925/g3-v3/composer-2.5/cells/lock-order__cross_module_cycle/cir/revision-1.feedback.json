@@ -1,0 +1,56 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E108",
+      "severity": "error",
+      "message": "cross-module reference 'mod_b::t2' is not listed in requires.functions",
+      "path": "modules[0].functions[0].body[0]",
+      "location": "mod_a::main.s1",
+      "fix_hint": "add this FQN to the module's requires.functions",
+      "json_path": "modules[0].functions[0].body[0]",
+      "declared_symbols": {
+        "function": "mod_a::main",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "mod_a::main",
+        "mod_a::t1",
+        "mod_b::t2"
+      ]
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 't1' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[1]",
+      "location": "mod_a::t1",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[1]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 't2' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[1].functions[0]",
+      "location": "mod_b::t2",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[1].functions[0]"
+    }
+  ],
+  "expected_shapes": [
+    "a cross-module function reference must be declared and listed in requires.functions (declared in mod_a::main: params [], locals [])",
+    "add this FQN to the module's requires.functions",
+    "keep activation slots unmodeled, or publish concurrent values through a Var"
+  ],
+  "declared_functions": [
+    "mod_a::main",
+    "mod_a::t1",
+    "mod_b::t2"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

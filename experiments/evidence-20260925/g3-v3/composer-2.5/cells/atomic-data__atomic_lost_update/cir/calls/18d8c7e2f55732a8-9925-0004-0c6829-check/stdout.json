@@ -1,0 +1,29 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E205",
+      "severity": "error",
+      "message": "atomic_cas dst 'ok' has type Bool, but must hold the pre-CAS old value (Atomic base Int), not a Bool success flag",
+      "location": "main::inc_counter.s3",
+      "path": "modules[0].functions[3].body[2]",
+      "fix_hint": "bind dst to a local or Var/Atomic of the same base type; test success with branch(dst == expected)"
+    },
+    {
+      "code": "E201",
+      "severity": "error",
+      "message": "branch condition \"ok\" is not a comparison expression",
+      "location": "main::inc_counter.s4",
+      "path": "modules[0].functions[3].body[3]",
+      "fix_hint": "use a comparison operator: ==, !=, >, <, >=, <="
+    },
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::c'",
+      "location": "main::inc_counter.s1",
+      "path": "modules[0].functions[3].body[0]",
+      "fix_hint": "use a Var-typed resource"
+    }
+  ]
+}

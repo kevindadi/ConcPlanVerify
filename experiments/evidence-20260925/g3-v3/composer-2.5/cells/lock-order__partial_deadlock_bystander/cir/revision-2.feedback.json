@@ -1,0 +1,75 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E704",
+      "severity": "warning",
+      "message": "Var resource 'flag' has no protection mapping",
+      "path": "modules[0].resources[4]",
+      "fix_hint": "add a protection mapping or change to Atomic type",
+      "json_path": "modules[0].resources[4]"
+    },
+    {
+      "code": "E401",
+      "severity": "warning",
+      "message": "spawn handle 'hby' has no matching join",
+      "path": "modules[0].functions[0].body[2]",
+      "location": "main::main.s3",
+      "fix_hint": "add join on this handle, or use a scope statement (implicit join_all)",
+      "json_path": "modules[0].functions[0].body[2]"
+    },
+    {
+      "code": "E114",
+      "severity": "warning",
+      "message": "function 'bystander' ends at 's1' without an explicit return/goto/branch/switch; control falls off the end, which is an implicit return",
+      "path": "modules[0].functions[3]",
+      "location": "main::bystander",
+      "fix_hint": "add an explicit return, or rely on the documented implicit return",
+      "json_path": "modules[0].functions[3]"
+    },
+    {
+      "code": "E602",
+      "severity": "error",
+      "message": "function 'bystander' has a path ending at 's1' without return",
+      "path": "modules[0].functions[3].body[0]",
+      "location": "main::bystander.s1",
+      "fix_hint": "add a return statement at the end of this path",
+      "json_path": "modules[0].functions[3].body[0]"
+    },
+    {
+      "code": "E114",
+      "severity": "warning",
+      "message": "function 'bystander_step' ends at 's2' without an explicit return/goto/branch/switch; control falls off the end, which is an implicit return",
+      "path": "modules[0].functions[4]",
+      "location": "main::bystander_step",
+      "fix_hint": "add an explicit return, or rely on the documented implicit return",
+      "json_path": "modules[0].functions[4]"
+    },
+    {
+      "code": "E602",
+      "severity": "error",
+      "message": "function 'bystander_step' has a path ending at 's2' without return",
+      "path": "modules[0].functions[4].body[1]",
+      "location": "main::bystander_step.s2",
+      "fix_hint": "add a return statement at the end of this path",
+      "json_path": "modules[0].functions[4].body[1]"
+    }
+  ],
+  "expected_shapes": [
+    "add a protection mapping or change to Atomic type",
+    "add join on this handle, or use a scope statement (implicit join_all)",
+    "add an explicit return, or rely on the documented implicit return",
+    "add a return statement at the end of this path"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::a",
+    "main::b",
+    "main::bystander",
+    "main::bystander_step"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

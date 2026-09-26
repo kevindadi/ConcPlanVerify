@@ -1,0 +1,215 @@
+{
+  "arm": "G3_concir",
+  "task": "channel/send_while_holding_mutex",
+  "cir_stage": {
+    "accepted": true,
+    "status": "accepted",
+    "model": {
+      "outcome": "PASS",
+      "complete": true
+    },
+    "coverage": {
+      "total": 5,
+      "decidable": 4,
+      "satisfied": 4,
+      "failed": [],
+      "statuses": {
+        "R1": "PASS",
+        "R2": "PASS",
+        "R3": "PASS",
+        "R4": "PASS",
+        "R5": "unverifiable"
+      },
+      "rc": 0.8,
+      "rf": 0.8
+    }
+  },
+  "cir_rounds": 3,
+  "code_stage": {
+    "arm": "G3_concir_llmcode",
+    "task": "channel/send_while_holding_mutex",
+    "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/g3-v3/composer-2.5/cells/channel__send_while_holding_mutex/cir/revision-3.cir.json",
+    "rounds": [
+      {
+        "round": 1,
+        "decision": "post_verify_fail",
+        "prompt_tokens": 29126,
+        "completion_tokens": 1266,
+        "llm_ms": 6962,
+        "instrument_limit": [],
+        "behavior_ok": true,
+        "conform": {
+          "conformant": 0,
+          "traces": 32,
+          "statuses": {
+            "violation": 32
+          }
+        },
+        "monitor_status": "ok",
+        "monitor_fail": [],
+        "first_violation": {
+          "binary_sha256": "c560631542f4ee0e128e3c2da6e9f8f9b7b5c0ad210a3743f1a01368272e6bce",
+          "coverage": {
+            "sids_seen": 0,
+            "sids_total": 13
+          },
+          "detail": "no model statement matches channel_recv on \"ch1_rx\" (thread t2)",
+          "event_index": 5,
+          "events": 12,
+          "expected": [],
+          "git_rev": "8eed4ee61bd068f7036dc42fa2bd845d9c66296a",
+          "got": "channel_recv:ch1_rx",
+          "post_join_main_ops": [],
+          "status": "violation",
+          "wrapper_ops": []
+        },
+        "conform_kind": "order",
+        "stage": "code"
+      },
+      {
+        "round": 2,
+        "decision": "build_failed",
+        "prompt_tokens": 197118,
+        "completion_tokens": 7092,
+        "llm_ms": 44178,
+        "instrument_limit": [
+          "thread::scope tags are runtime-derived, scope event absent"
+        ],
+        "stage": "code"
+      },
+      {
+        "round": 3,
+        "decision": "build_failed",
+        "prompt_tokens": 808313,
+        "completion_tokens": 9124,
+        "llm_ms": 67938,
+        "instrument_limit": [],
+        "stage": "code"
+      }
+    ],
+    "accepted": false,
+    "accepted_with_proof": false,
+    "status": "generation_failed",
+    "instrument_limit": null
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "schema_error",
+      "check": "usage_error",
+      "explore": null,
+      "prompt_tokens": 24381,
+      "completion_tokens": 3688,
+      "llm_ms": 24768,
+      "check_kind": "usage_error",
+      "normalizations": [],
+      "program_sha256": "9dc21a68e12fca225f99b760808a10063b86987deab5db3d8d125061a21a8814",
+      "raw_sha256": "5e18b0d4790a0a8582c616517b6e918929ff35e5abc5d4d18c4cea7b03487922",
+      "error_class": "schema_parse",
+      "diagnostic_signature": "2ecbf20016b1846cc26d870b6f852831af6ca8eab02ce9d135ef87d00c723bd5",
+      "repeated_diagnostic": false,
+      "program_changed": false,
+      "stage": "cir"
+    },
+    {
+      "round": 2,
+      "decision": "schema_error",
+      "check": "usage_error",
+      "explore": null,
+      "prompt_tokens": 10234,
+      "completion_tokens": 983,
+      "llm_ms": 5778,
+      "check_kind": "usage_error",
+      "normalizations": [],
+      "program_sha256": "c0c2e3260cc9027c8b416ee79b94a795a82b68bf761c9178c384e4d8e3ca1348",
+      "raw_sha256": "9815aa3b59769784296aef455e5493be4717dce137c77939d9755588b2bf3e3c",
+      "error_class": "schema_parse",
+      "diagnostic_signature": "498c9433aec15fa520d57221f7d9286650caa77b6440e9c0b5ed5df2058603ef",
+      "repeated_diagnostic": false,
+      "program_changed": true,
+      "stage": "cir"
+    },
+    {
+      "round": 3,
+      "decision": "accepted",
+      "check": "valid",
+      "explore": "PASS",
+      "prompt_tokens": 12433,
+      "completion_tokens": 772,
+      "llm_ms": 4871,
+      "check_kind": "semantic",
+      "normalizations": [],
+      "program_sha256": "b9e8cdf558aa261fa7d253721e6bf957338f6685560c94644531c3c75debe467",
+      "raw_sha256": "cdd0225da2d3f06ff017ff99f0bc9c6f9c9ee99d667a7ca7b836a6720802d4ce",
+      "stage": "cir"
+    },
+    {
+      "round": 1,
+      "decision": "post_verify_fail",
+      "prompt_tokens": 29126,
+      "completion_tokens": 1266,
+      "llm_ms": 6962,
+      "instrument_limit": [],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 0,
+        "traces": 32,
+        "statuses": {
+          "violation": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "first_violation": {
+        "binary_sha256": "c560631542f4ee0e128e3c2da6e9f8f9b7b5c0ad210a3743f1a01368272e6bce",
+        "coverage": {
+          "sids_seen": 0,
+          "sids_total": 13
+        },
+        "detail": "no model statement matches channel_recv on \"ch1_rx\" (thread t2)",
+        "event_index": 5,
+        "events": 12,
+        "expected": [],
+        "git_rev": "8eed4ee61bd068f7036dc42fa2bd845d9c66296a",
+        "got": "channel_recv:ch1_rx",
+        "post_join_main_ops": [],
+        "status": "violation",
+        "wrapper_ops": []
+      },
+      "conform_kind": "order",
+      "stage": "code"
+    },
+    {
+      "round": 2,
+      "decision": "build_failed",
+      "prompt_tokens": 197118,
+      "completion_tokens": 7092,
+      "llm_ms": 44178,
+      "instrument_limit": [
+        "thread::scope tags are runtime-derived, scope event absent"
+      ],
+      "stage": "code"
+    },
+    {
+      "round": 3,
+      "decision": "build_failed",
+      "prompt_tokens": 808313,
+      "completion_tokens": 9124,
+      "llm_ms": 67938,
+      "instrument_limit": [],
+      "stage": "code"
+    }
+  ],
+  "accepted": false,
+  "accepted_with_proof": false,
+  "status": "generation_failed",
+  "coverage": null,
+  "monitor_fail": null,
+  "oracle": {
+    "hang": true
+  },
+  "model": {
+    "outcome": "PASS",
+    "complete": true
+  }
+}

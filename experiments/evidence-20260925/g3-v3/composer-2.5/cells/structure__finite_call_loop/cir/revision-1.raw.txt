@@ -1,0 +1,36 @@
+根据需求：主任务顺序调用两次 `helper`（无共享状态、每次调用完成后再进行下一次），输出如下 ConcIR JSON：
+
+```json
+{
+  "program": "finite_call_loop",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {"resources": [], "functions": ["main", "helper"]},
+      "requires": {"resources": [], "functions": []},
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "helper",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "return"}
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "call", "func": "main::helper"},
+            {"sid": "s2", "kind": "call", "func": "main::helper"},
+            {"sid": "s3", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```

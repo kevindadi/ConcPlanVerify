@@ -1,0 +1,70 @@
+```json
+{
+  "program": "sender_receiver_channel_exchange",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": ["lk", "ch1", "ch2"],
+        "functions": ["main", "s", "r"]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {"name": "lk", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+        {"name": "ch1", "kind": "sync", "type": "Channel", "mode": "Sync", "base": "Int", "capacity": 0},
+        {"name": "ch2", "kind": "sync", "type": "Channel", "mode": "Sync", "base": "Int", "capacity": 0}
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "scope", "funcs": ["main::s", "main::r"]},
+            {"sid": "s2", "kind": "return"}
+          ]
+        },
+        {
+          "name": "s",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {"name": "v", "type": "Int", "modeled": true, "init": 0}
+          ],
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::lk"},
+            {"sid": "s2", "kind": "mutex_unlock", "resource": "main::lk"},
+            {"sid": "s3", "kind": "channel_send", "resource": "main::ch1", "expr": "1"},
+            {"sid": "s4", "kind": "channel_recv", "resource": "main::ch2", "target": "v"},
+            {"sid": "s5", "kind": "mutex_lock", "resource": "main::lk"},
+            {"sid": "s6", "kind": "mutex_unlock", "resource": "main::lk"},
+            {"sid": "s7", "kind": "return"}
+          ]
+        },
+        {
+          "name": "r",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {"name": "v", "type": "Int", "modeled": true, "init": 0}
+          ],
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::lk"},
+            {"sid": "s2", "kind": "mutex_unlock", "resource": "main::lk"},
+            {"sid": "s3", "kind": "channel_recv", "resource": "main::ch1", "target": "v"},
+            {"sid": "s4", "kind": "channel_send", "resource": "main::ch2", "expr": "1"},
+            {"sid": "s5", "kind": "mutex_lock", "resource": "main::lk"},
+            {"sid": "s6", "kind": "mutex_unlock", "resource": "main::lk"},
+            {"sid": "s7", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```

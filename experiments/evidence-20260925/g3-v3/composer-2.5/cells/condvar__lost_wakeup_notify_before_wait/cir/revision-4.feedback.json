@@ -1,0 +1,61 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E931",
+      "severity": "error",
+      "message": "expected expression, found '!r'",
+      "path": "modules[0].functions[2].body[1]",
+      "location": "main::wait_until_ready.s2",
+      "fix_hint": "fix the expression syntax, or use a declared slot or enum variant",
+      "json_path": "modules[0].functions[2].body[1]",
+      "declared_symbols": {
+        "function": "main::wait_until_ready",
+        "params": [],
+        "locals": [
+          "r"
+        ]
+      },
+      "declared_functions": [
+        "main::main",
+        "main::waiter",
+        "main::wait_until_ready",
+        "main::notifier"
+      ]
+    },
+    {
+      "code": "E309",
+      "severity": "error",
+      "message": "access to protected Var 'main::ready' without holding lock 'main::m' in function 'wait_until_ready'",
+      "path": "modules[0].functions[2].body[0]",
+      "location": "main::wait_until_ready.s1",
+      "fix_hint": "acquire the lock before accessing this variable",
+      "json_path": "modules[0].functions[2].body[0]"
+    },
+    {
+      "code": "E512",
+      "severity": "error",
+      "message": "condvar_wait in function 'wait_until_ready' requires lock 'main::m' to be held",
+      "path": "modules[0].functions[2].body[2]",
+      "location": "main::wait_until_ready.s3",
+      "fix_hint": "acquire the paired lock before waiting on the condvar",
+      "json_path": "modules[0].functions[2].body[2]"
+    }
+  ],
+  "expected_shapes": [
+    "every name used in an expression must be a declared param/local of the function or a shared resource; declare new locals in the function's `locals` list (declared in main::wait_until_ready: params [], locals ['r'])",
+    "fix the expression syntax, or use a declared slot or enum variant",
+    "acquire the lock before accessing this variable",
+    "acquire the paired lock before waiting on the condvar"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::waiter",
+    "main::wait_until_ready",
+    "main::notifier"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

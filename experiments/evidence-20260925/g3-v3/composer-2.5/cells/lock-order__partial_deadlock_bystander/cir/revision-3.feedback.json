@@ -1,0 +1,57 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::flag'",
+      "path": "modules[0].functions[3].body[0]",
+      "location": "main::bystander.s1",
+      "fix_hint": "use a Var-typed resource",
+      "json_path": "modules[0].functions[3].body[0]"
+    },
+    {
+      "code": "E114",
+      "severity": "warning",
+      "message": "function 'main' ends at 's7' without an explicit return/goto/branch/switch; control falls off the end, which is an implicit return",
+      "path": "modules[0].functions[0]",
+      "location": "main::main",
+      "fix_hint": "add an explicit return, or rely on the documented implicit return",
+      "json_path": "modules[0].functions[0]"
+    },
+    {
+      "code": "E601",
+      "severity": "warning",
+      "message": "unreachable statement 's7' in function 'main'",
+      "path": "modules[0].functions[0].body[6]",
+      "location": "main::main.s7",
+      "fix_hint": "remove the statement or fix control flow to reach it",
+      "json_path": "modules[0].functions[0].body[6]"
+    },
+    {
+      "code": "E602",
+      "severity": "error",
+      "message": "function 'main' has a path ending at 's7' without return",
+      "path": "modules[0].functions[0].body[6]",
+      "location": "main::main.s7",
+      "fix_hint": "add a return statement at the end of this path",
+      "json_path": "modules[0].functions[0].body[6]"
+    }
+  ],
+  "expected_shapes": [
+    "use a Var-typed resource",
+    "add an explicit return, or rely on the documented implicit return",
+    "remove the statement or fix control flow to reach it",
+    "add a return statement at the end of this path"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::a",
+    "main::b",
+    "main::bystander"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

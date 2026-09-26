@@ -1,0 +1,47 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E201",
+      "severity": "error",
+      "message": "branch condition \"ready\" is not a comparison expression",
+      "path": "modules[0].functions[2].body[0]",
+      "location": "main::wait_until_ready.s1",
+      "fix_hint": "use a comparison operator: ==, !=, >, <, >=, <=",
+      "json_path": "modules[0].functions[2].body[0]"
+    },
+    {
+      "code": "E309",
+      "severity": "error",
+      "message": "access to protected Var 'ready' without holding lock 'main::m' in function 'wait_until_ready'",
+      "path": "modules[0].functions[2].body[0]",
+      "location": "main::wait_until_ready.s1",
+      "fix_hint": "acquire the lock before accessing this variable",
+      "json_path": "modules[0].functions[2].body[0]"
+    },
+    {
+      "code": "E512",
+      "severity": "error",
+      "message": "condvar_wait in function 'wait_until_ready' requires lock 'main::m' to be held",
+      "path": "modules[0].functions[2].body[1]",
+      "location": "main::wait_until_ready.s2",
+      "fix_hint": "acquire the paired lock before waiting on the condvar",
+      "json_path": "modules[0].functions[2].body[1]"
+    }
+  ],
+  "expected_shapes": [
+    "use a comparison operator: ==, !=, >, <, >=, <=",
+    "acquire the lock before accessing this variable",
+    "acquire the paired lock before waiting on the condvar"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::waiter",
+    "main::wait_until_ready",
+    "main::notifier"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

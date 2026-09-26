@@ -1,0 +1,220 @@
+{
+  "arm": "G3_concir",
+  "task": "atomic-data/counter_overflow_safety",
+  "cir_stage": {
+    "accepted": true,
+    "status": "accepted",
+    "model": {
+      "outcome": "PASS",
+      "complete": true
+    },
+    "coverage": {
+      "total": 7,
+      "decidable": 6,
+      "satisfied": 6,
+      "failed": [],
+      "statuses": {
+        "R1": "PASS",
+        "R2": "PASS",
+        "R3": "PASS",
+        "R4": "PASS",
+        "R5": "PASS",
+        "R6": "PASS",
+        "R7": "unverifiable"
+      },
+      "rc": 0.8571428571428571,
+      "rf": 0.8571428571428571
+    }
+  },
+  "cir_rounds": 4,
+  "code_stage": {
+    "arm": "G3_concir_llmcode",
+    "task": "atomic-data/counter_overflow_safety",
+    "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/g3-v3/composer-2.5/cells/atomic-data__counter_overflow_safety/cir/revision-4.cir.json",
+    "rounds": [
+      {
+        "round": 1,
+        "decision": "accepted",
+        "prompt_tokens": 19218,
+        "completion_tokens": 1335,
+        "llm_ms": 6683,
+        "instrument_limit": [],
+        "behavior_ok": true,
+        "conform": {
+          "conformant": 32,
+          "traces": 32,
+          "statuses": {
+            "conformant": 32
+          }
+        },
+        "monitor_status": "ok",
+        "monitor_fail": [],
+        "stage": "code"
+      }
+    ],
+    "accepted": true,
+    "accepted_with_proof": true,
+    "status": "accepted",
+    "instrument_limit": null,
+    "coverage": {
+      "total": 7,
+      "decidable": 4,
+      "satisfied": 4,
+      "failed": 0,
+      "not_observed": 0,
+      "unmapped": 0,
+      "unsupported": 2,
+      "deferred": 0,
+      "unverifiable": 1,
+      "rc": 0.5714285714285714,
+      "rf": 0.5714285714285714,
+      "statuses": {
+        "R1": "PASS_bounded",
+        "R2": "unsupported",
+        "R3": "PASS_bounded",
+        "R4": "PASS_bounded",
+        "R5": "unsupported",
+        "R6": "PASS_bounded",
+        "R7": "unverifiable"
+      }
+    },
+    "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/g3-v3/composer-2.5/cells/atomic-data__counter_overflow_safety/code/round-1.rs"
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "schema_error",
+      "check": "usage_error",
+      "explore": null,
+      "prompt_tokens": 24624,
+      "completion_tokens": 3271,
+      "llm_ms": 27206,
+      "check_kind": "usage_error",
+      "normalizations": [],
+      "program_sha256": "796d213f5e1ccab0ceb2aa298c552bffb3a71bf1b19e29fbf0b272da90fa3c72",
+      "raw_sha256": "b108558c524c435fde39ae1a70a03c715ac4e52e89a27ecb76962c06c31d2f1c",
+      "error_class": "schema_parse",
+      "diagnostic_signature": "ac725208f2e2a96fb9233bb56bd09aa013d8c4f007a7908000b86342ee1929ae",
+      "repeated_diagnostic": false,
+      "program_changed": false,
+      "stage": "cir"
+    },
+    {
+      "round": 2,
+      "decision": "schema_error",
+      "check": "usage_error",
+      "explore": null,
+      "prompt_tokens": 53301,
+      "completion_tokens": 2445,
+      "llm_ms": 12296,
+      "check_kind": "usage_error",
+      "normalizations": [
+        {
+          "rule": "drop_empty_field",
+          "function": "w1",
+          "sid": "s3",
+          "field": "else",
+          "location": "/modules/0/functions/1/body/2/else"
+        },
+        {
+          "rule": "drop_empty_field",
+          "function": "w2",
+          "sid": "s3",
+          "field": "else",
+          "location": "/modules/0/functions/2/body/2/else"
+        }
+      ],
+      "program_sha256": "af2afcfeb11ccd9db4cdaa736aabf4d187610fd62c9310c7d89954424f953e7a",
+      "raw_sha256": "a6f088750af6ce7a5756d4fad3e9e7f901ed8297d209984ab3a70e92176b57b3",
+      "error_class": "schema_parse",
+      "diagnostic_signature": "54e6c8c458069854d26c7a34c9ad320ce206c3b9ca416034044d506b565d5f26",
+      "repeated_diagnostic": false,
+      "program_changed": true,
+      "stage": "cir"
+    },
+    {
+      "round": 3,
+      "decision": "schema_error",
+      "check": "usage_error",
+      "explore": null,
+      "prompt_tokens": 14191,
+      "completion_tokens": 873,
+      "llm_ms": 4814,
+      "check_kind": "usage_error",
+      "normalizations": [],
+      "program_sha256": "7b93ebf4e54b368b2cfcf26b0d2d341dc855671deaba86cbccd337ddb2ecfdbd",
+      "raw_sha256": "6b259e8860da8b45ef36e4aebd03bf0c473000f56873723315f3cbc2e4848dc2",
+      "error_class": "schema_parse",
+      "diagnostic_signature": "1d21b0618aef3eaf255e2bb55f3783de3909ee70c329d4589837bd3ef7425f3c",
+      "repeated_diagnostic": false,
+      "program_changed": true,
+      "stage": "cir"
+    },
+    {
+      "round": 4,
+      "decision": "accepted",
+      "check": "valid",
+      "explore": "PASS",
+      "prompt_tokens": 49606,
+      "completion_tokens": 1633,
+      "llm_ms": 7455,
+      "check_kind": "semantic",
+      "normalizations": [],
+      "program_sha256": "4ef83478c1aef9d8ac48eecdb12ef22e021472472798753d32f4e2c247a0291d",
+      "raw_sha256": "d053f50d8a5c0142e309ef73a8f7b6178ada2831d5cc43556301332983b5471e",
+      "stage": "cir"
+    },
+    {
+      "round": 1,
+      "decision": "accepted",
+      "prompt_tokens": 19218,
+      "completion_tokens": 1335,
+      "llm_ms": 6683,
+      "instrument_limit": [],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 32,
+        "traces": 32,
+        "statuses": {
+          "conformant": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "stage": "code"
+    }
+  ],
+  "accepted": true,
+  "accepted_with_proof": true,
+  "status": "accepted",
+  "coverage": {
+    "total": 7,
+    "decidable": 4,
+    "satisfied": 4,
+    "failed": 0,
+    "not_observed": 0,
+    "unmapped": 0,
+    "unsupported": 2,
+    "deferred": 0,
+    "unverifiable": 1,
+    "rc": 0.5714285714285714,
+    "rf": 0.5714285714285714,
+    "statuses": {
+      "R1": "PASS_bounded",
+      "R2": "unsupported",
+      "R3": "PASS_bounded",
+      "R4": "PASS_bounded",
+      "R5": "unsupported",
+      "R6": "PASS_bounded",
+      "R7": "unverifiable"
+    }
+  },
+  "monitor_fail": [],
+  "oracle": {
+    "hang": false
+  },
+  "model": {
+    "outcome": "PASS",
+    "complete": true
+  }
+}
