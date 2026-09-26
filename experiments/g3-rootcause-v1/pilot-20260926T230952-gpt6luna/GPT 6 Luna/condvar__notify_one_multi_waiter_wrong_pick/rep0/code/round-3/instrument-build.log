@@ -1,0 +1,57 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/g3-rootcause-v1/pilot-20260926T230952-gpt6luna/GPT 6 Luna/condvar__notify_one_multi_waiter_wrong_pick/rep0/code/round-3/proj)
+warning: unused import: `std::thread`
+ --> src/main.rs:5:5
+  |
+5 | use std::thread;
+  |     ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable `gN` should have a snake case name
+ --> src/main.rs:7:67
+  |
+7 | fn w1(m: Arc<Mutex<bool>>, cv: Arc<Condvar>, g12: Arc<Semaphore>, gN: Arc<Semaphore>) {
+  |                                                                   ^^ help: convert the identifier to snake case: `g_n`
+  |
+  = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:22:67
+   |
+22 | fn w2(m: Arc<Mutex<bool>>, cv: Arc<Condvar>, g12: Arc<Semaphore>, gN: Arc<Semaphore>) {
+   |                                                                   ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:37:73
+   |
+37 | fn notifier(m: Arc<Mutex<bool>>, cv: Arc<Condvar>, g12: Arc<Semaphore>, gN: Arc<Semaphore>) {
+   |                                                                         ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:58:9
+   |
+58 |     let gN = Semaphore::new_named("gN_semaphore0", 2);
+   |         ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:64:13
+   |
+64 |         let gN = Arc::clone(&gN);
+   |             ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:72:13
+   |
+72 |         let gN = Arc::clone(&gN);
+   |             ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:80:13
+   |
+80 |         let gN = Arc::clone(&gN);
+   |             ^^ help: convert the identifier to snake case: `g_n`
+
+warning: `probe` (bin "probe") generated 8 warnings (run `cargo fix --bin "probe" -p probe` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.32s

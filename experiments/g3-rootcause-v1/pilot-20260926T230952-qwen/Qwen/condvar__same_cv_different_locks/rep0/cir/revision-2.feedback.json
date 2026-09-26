@@ -1,0 +1,27 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E309",
+      "severity": "error",
+      "message": "access to protected Var 'announced' without holding lock 'main::m1' in function 'w2'",
+      "path": "modules[0].functions[1].body[6]",
+      "location": "main::w2.s7",
+      "fix_hint": "acquire the lock before accessing this variable",
+      "json_path": "modules[0].functions[1].body[6]"
+    }
+  ],
+  "expected_shapes": [
+    "acquire the lock before accessing this variable"
+  ],
+  "declared_functions": [
+    "main::w1",
+    "main::w2",
+    "main::notifier",
+    "main::main"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

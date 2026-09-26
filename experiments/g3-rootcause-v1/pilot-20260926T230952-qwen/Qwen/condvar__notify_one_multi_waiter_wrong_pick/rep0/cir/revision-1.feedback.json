@@ -1,0 +1,36 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E201",
+      "severity": "error",
+      "message": "branch condition \"true\" is not a comparison expression",
+      "path": "modules[0].functions[0].body[2]",
+      "location": "main::w1.s3",
+      "fix_hint": "use a comparison operator: ==, !=, >, <, >=, <=",
+      "json_path": "modules[0].functions[0].body[2]"
+    },
+    {
+      "code": "E201",
+      "severity": "error",
+      "message": "branch condition \"true\" is not a comparison expression",
+      "path": "modules[0].functions[1].body[2]",
+      "location": "main::w2.s3",
+      "fix_hint": "use a comparison operator: ==, !=, >, <, >=, <=",
+      "json_path": "modules[0].functions[1].body[2]"
+    }
+  ],
+  "expected_shapes": [
+    "use a comparison operator: ==, !=, >, <, >=, <="
+  ],
+  "declared_functions": [
+    "main::w1",
+    "main::w2",
+    "main::notifier",
+    "main::main"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

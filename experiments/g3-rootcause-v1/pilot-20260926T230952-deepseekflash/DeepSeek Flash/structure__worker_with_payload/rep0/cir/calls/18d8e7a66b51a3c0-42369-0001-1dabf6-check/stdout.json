@@ -1,0 +1,37 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::compute') captures a return into 'v', but 'main::compute' has no modeled return",
+      "location": "main::w1.s2",
+      "path": "modules[0].functions[1].body[1]",
+      "fix_hint": "declare a modeled return on the callee, or drop dst"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'w1' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "location": "main::w1",
+      "path": "modules[0].functions[1]",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::compute') captures a return into 'v', but 'main::compute' has no modeled return",
+      "location": "main::w2.s2",
+      "path": "modules[0].functions[2].body[1]",
+      "fix_hint": "declare a modeled return on the callee, or drop dst"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'w2' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "location": "main::w2",
+      "path": "modules[0].functions[2]",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var"
+    }
+  ]
+}

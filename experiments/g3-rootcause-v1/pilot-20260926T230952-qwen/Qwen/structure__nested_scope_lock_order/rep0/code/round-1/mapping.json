@@ -1,0 +1,52 @@
+{
+  "mapping": {
+    "a_mutex0": "main::a",
+    "b_mutex0": "main::b"
+  },
+  "provenance": {
+    "by_kind": {
+      "Mutex": [
+        "main::a",
+        "main::b"
+      ]
+    },
+    "rules": {
+      "a_mutex0": "exact",
+      "b_mutex0": "exact"
+    },
+    "threads": {
+      "outer_handle": null,
+      "x1_handle": null,
+      "x2_handle": null
+    },
+    "ambiguous": [
+      {
+        "rust": "outer_handle",
+        "kind": "Spawn",
+        "candidates": [
+          "main::x1",
+          "main::x2",
+          "main::outer"
+        ]
+      },
+      {
+        "rust": "x1_handle",
+        "kind": "Spawn",
+        "candidates": [
+          "main::x1",
+          "main::x2",
+          "main::outer"
+        ]
+      },
+      {
+        "rust": "x2_handle",
+        "kind": "Spawn",
+        "candidates": [
+          "main::x1",
+          "main::x2",
+          "main::outer"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+```rust
+use std::sync::{Arc, Mutex};
+use std::sync::mpsc::sync_channel;
+use std::thread;
+
+fn main() {
+    let m = Arc::new(Mutex::new(()));
+    let (tx, rx) = sync_channel::<i32>(1);
+
+    let m_sender = Arc::clone(&m);
+    let sender_handle = thread::spawn(move || {
+        // s1: mutex_lock main::m
+        let _guard1 = m_sender.lock().unwrap();
+        // s2: mutex_unlock main::m
+        drop(_guard1);
+
+        // s3: channel_send main::ch value 1
+        tx.send(1).unwrap();
+
+        // s4: mutex_lock main::m
+        let _guard2 = m_sender.lock().unwrap();
+        // s5: mutex_unlock main::m
+        drop(_guard2);
+
+        // s6: channel_send main::ch value 2
+        tx.send(2).unwrap();
+        // s7: return
+    });
+
+    let m_receiver = Arc::clone(&m);
+    let receiver_handle = thread::spawn(move || {
+        // s1: channel_recv main::ch
+        let _val1 = rx.recv().unwrap();
+
+        // s2: mutex_lock main::m
+        let _guard1 = m_receiver.lock().unwrap();
+        // s3: mutex_unlock main::m
+        drop(_guard1);
+
+        // s4: channel_recv main::ch
+        let _val2 = rx.recv().unwrap();
+
+        // s5: mutex_lock main::m
+        let _guard2 = m_receiver.lock().unwrap();
+        // s6: mutex_unlock main::m
+        drop(_guard2);
+
+        // s7: return
+    });
+
+    sender_handle.join().unwrap();
+    receiver_handle.join().unwrap();
+
+    println!("DONE done=1");
+}
+```

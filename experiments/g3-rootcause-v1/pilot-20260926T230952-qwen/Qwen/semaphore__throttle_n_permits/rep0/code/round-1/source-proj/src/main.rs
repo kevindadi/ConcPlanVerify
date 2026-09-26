@@ -1,0 +1,39 @@
+use concir_sync::Semaphore;
+use std::sync::Arc;
+
+fn w1(s: Arc<Semaphore>) {
+    let permit = s.acquire();
+    // Perform work (no-op in this design)
+    permit.release();
+}
+
+fn w2(s: Arc<Semaphore>) {
+    let permit = s.acquire();
+    // Perform work (no-op in this design)
+    permit.release();
+}
+
+fn w3(s: Arc<Semaphore>) {
+    let permit = s.acquire();
+    // Perform work (no-op in this design)
+    permit.release();
+}
+
+fn main() {
+    let s = Semaphore::new(2);
+
+    let s1 = Arc::clone(&s);
+    let h1 = std::thread::spawn(move || w1(s1));
+
+    let s2 = Arc::clone(&s);
+    let h2 = std::thread::spawn(move || w2(s2));
+
+    let s3 = Arc::clone(&s);
+    let h3 = std::thread::spawn(move || w3(s3));
+
+    h1.join().unwrap();
+    h2.join().unwrap();
+    h3.join().unwrap();
+
+    println!("DONE done=1");
+}

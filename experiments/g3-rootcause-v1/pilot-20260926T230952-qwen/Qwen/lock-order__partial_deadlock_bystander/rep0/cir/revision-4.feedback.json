@@ -1,0 +1,57 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E401",
+      "severity": "warning",
+      "message": "spawn handle 'h_by' has no matching join",
+      "path": "modules[0].functions[3].body[2]",
+      "location": "main::main.s3",
+      "fix_hint": "add join on this handle, or use a scope statement (implicit join_all)",
+      "json_path": "modules[0].functions[3].body[2]"
+    },
+    {
+      "code": "E309",
+      "severity": "error",
+      "message": "access to protected Var 'main::flag' without holding lock 'main::a' in function 'b'",
+      "path": "modules[0].functions[1].body[2]",
+      "location": "main::b.s3",
+      "fix_hint": "acquire the lock before accessing this variable",
+      "json_path": "modules[0].functions[1].body[2]"
+    },
+    {
+      "code": "E605",
+      "severity": "warning",
+      "message": "potential infinite loop with no exit in function 'bystander' starting at 's2'",
+      "path": "modules[0].functions[2].body[1]",
+      "location": "main::bystander.s2",
+      "fix_hint": "add an exit condition or confirm this is an intentional event loop",
+      "json_path": "modules[0].functions[2].body[1]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'bystander' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[2]",
+      "location": "main::bystander",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[2]"
+    }
+  ],
+  "expected_shapes": [
+    "add join on this handle, or use a scope statement (implicit join_all)",
+    "acquire the lock before accessing this variable",
+    "add an exit condition or confirm this is an intentional event loop",
+    "keep activation slots unmodeled, or publish concurrent values through a Var"
+  ],
+  "declared_functions": [
+    "main::a",
+    "main::b",
+    "main::bystander",
+    "main::main"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

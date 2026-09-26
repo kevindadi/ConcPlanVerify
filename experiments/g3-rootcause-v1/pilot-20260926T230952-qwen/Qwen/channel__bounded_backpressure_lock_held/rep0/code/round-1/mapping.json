@@ -1,0 +1,44 @@
+{
+  "mapping": {
+    "m_mutex0": "main::m",
+    "tx": "main::ch",
+    "rx": "main::ch"
+  },
+  "provenance": {
+    "by_kind": {
+      "Channel": [
+        "main::ch"
+      ],
+      "Mutex": [
+        "main::m"
+      ]
+    },
+    "rules": {
+      "m_mutex0": "exact",
+      "tx": "channel-unique",
+      "rx": "channel-unique"
+    },
+    "threads": {
+      "sender_handle": null,
+      "receiver_handle": null
+    },
+    "ambiguous": [
+      {
+        "rust": "sender_handle",
+        "kind": "Spawn",
+        "candidates": [
+          "main::sender",
+          "main::receiver"
+        ]
+      },
+      {
+        "rust": "receiver_handle",
+        "kind": "Spawn",
+        "candidates": [
+          "main::sender",
+          "main::receiver"
+        ]
+      }
+    ]
+  }
+}

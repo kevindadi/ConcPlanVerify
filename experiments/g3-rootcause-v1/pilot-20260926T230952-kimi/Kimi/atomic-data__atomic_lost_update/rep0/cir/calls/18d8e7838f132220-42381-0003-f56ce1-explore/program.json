@@ -1,0 +1,168 @@
+{
+  "program": "atomic_counter_two_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "c"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "c",
+          "kind": "var",
+          "type": "Atomic",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "cur",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            },
+            {
+              "name": "obs",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "cur"
+            },
+            {
+              "sid": "s2",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "cur",
+              "desired": "cur + 1",
+              "dst": "obs"
+            },
+            {
+              "sid": "s3",
+              "kind": "branch",
+              "cond": "obs == cur",
+              "then": "s5",
+              "else": "s4"
+            },
+            {
+              "sid": "s4",
+              "kind": "assign_local",
+              "target": "cur",
+              "expr": "obs"
+            },
+            {
+              "sid": "s6",
+              "kind": "goto",
+              "target": "s2"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "cur",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            },
+            {
+              "name": "obs",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "cur"
+            },
+            {
+              "sid": "s2",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "cur",
+              "desired": "cur + 1",
+              "dst": "obs"
+            },
+            {
+              "sid": "s3",
+              "kind": "branch",
+              "cond": "obs == cur",
+              "then": "s5",
+              "else": "s4"
+            },
+            {
+              "sid": "s4",
+              "kind": "assign_local",
+              "target": "cur",
+              "expr": "obs"
+            },
+            {
+              "sid": "s6",
+              "kind": "goto",
+              "target": "s2"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::w1",
+                "main::w2"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

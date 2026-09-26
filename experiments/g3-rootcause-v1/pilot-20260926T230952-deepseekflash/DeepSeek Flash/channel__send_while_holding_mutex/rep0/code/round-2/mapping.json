@@ -1,0 +1,59 @@
+{
+  "mapping": {
+    "m_mutex0": "main::m",
+    "s": "main::s",
+    "r": "main::r"
+  },
+  "provenance": {
+    "by_kind": {
+      "Mutex": [
+        "main::m"
+      ],
+      "Channel": [
+        "main::ch1",
+        "main::ch2"
+      ]
+    },
+    "rules": {
+      "m_mutex0": "exact"
+    },
+    "threads": {
+      "s": "main::s",
+      "r": "main::r"
+    },
+    "ambiguous": [
+      {
+        "rust": "tx1",
+        "kind": "Channel",
+        "candidates": [
+          "main::ch1",
+          "main::ch2"
+        ]
+      },
+      {
+        "rust": "rx2",
+        "kind": "Channel",
+        "candidates": [
+          "main::ch1",
+          "main::ch2"
+        ]
+      },
+      {
+        "rust": "rx1",
+        "kind": "Channel",
+        "candidates": [
+          "main::ch1",
+          "main::ch2"
+        ]
+      },
+      {
+        "rust": "tx2",
+        "kind": "Channel",
+        "candidates": [
+          "main::ch1",
+          "main::ch2"
+        ]
+      }
+    ]
+  }
+}

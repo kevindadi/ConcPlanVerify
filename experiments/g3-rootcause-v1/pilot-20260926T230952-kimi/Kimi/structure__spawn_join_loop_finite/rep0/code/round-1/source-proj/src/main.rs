@@ -1,0 +1,13 @@
+fn worker() {
+    // no operations
+}
+
+fn main() {
+    let mut i = 0;
+    while i < 2 {
+        let h = std::thread::spawn(worker);
+        h.join().unwrap();
+        i += 1;
+    }
+    println!("DONE done=1");
+}

@@ -1,0 +1,201 @@
+{
+  "program": "atomic_counter_supervisor",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "c"
+        ],
+        "functions": [
+          "main",
+          "supervisor",
+          "w1",
+          "w2"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "c",
+          "kind": "var",
+          "type": "Atomic",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "old_val",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            },
+            {
+              "name": "observed",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "goto",
+              "target": "s2"
+            },
+            {
+              "sid": "s2",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "old_val"
+            },
+            {
+              "sid": "s3",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "old_val",
+              "desired": "old_val + 1",
+              "dst": "observed"
+            },
+            {
+              "sid": "s4",
+              "kind": "branch",
+              "cond": "observed == old_val",
+              "then": "s5",
+              "else": "s2"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "old_val",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            },
+            {
+              "name": "observed",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "goto",
+              "target": "s2"
+            },
+            {
+              "sid": "s2",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "old_val"
+            },
+            {
+              "sid": "s3",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "old_val",
+              "desired": "old_val + 1",
+              "dst": "observed"
+            },
+            {
+              "sid": "s4",
+              "kind": "branch",
+              "cond": "observed == old_val",
+              "then": "s5",
+              "else": "s2"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "supervisor",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "h1",
+              "type": "Int",
+              "modeled": false,
+              "init": 0
+            },
+            {
+              "name": "h2",
+              "type": "Int",
+              "modeled": false,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::w1",
+              "handle": "h1"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "main::w2",
+              "handle": "h2"
+            },
+            {
+              "sid": "s3",
+              "kind": "join",
+              "handle": "h1"
+            },
+            {
+              "sid": "s4",
+              "kind": "join",
+              "handle": "h2"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::supervisor"
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

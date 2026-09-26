@@ -1,0 +1,38 @@
+```rust
+use std::sync::{Arc, Mutex};
+
+fn compute() {
+    let mut tmp: i64 = 0;
+    tmp = tmp + 1;
+    let _ = tmp;
+}
+
+fn w1(m: Arc<Mutex<i64>>) {
+    let mut guard = m.lock().unwrap();
+    compute();
+    *guard = *guard + 1;
+    drop(guard);
+}
+
+fn w2(m: Arc<Mutex<i64>>) {
+    let mut guard = m.lock().unwrap();
+    compute();
+    *guard = *guard + 1;
+    drop(guard);
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(0i64)); // acc, protected by m
+
+    let m1 = Arc::clone(&m);
+    let m2 = Arc::clone(&m);
+
+    let h1 = std::thread::spawn(move || w1(m1));
+    let h2 = std::thread::spawn(move || w2(m2));
+
+    h1.join().unwrap();
+    h2.join().unwrap();
+
+    println!("DONE done=1");
+}
+```

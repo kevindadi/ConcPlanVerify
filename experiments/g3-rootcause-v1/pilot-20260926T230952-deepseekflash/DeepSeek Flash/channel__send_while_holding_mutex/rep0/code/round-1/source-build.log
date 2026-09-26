@@ -1,0 +1,34 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/g3-rootcause-v1/pilot-20260926T230952-deepseekflash/DeepSeek Flash/channel__send_while_holding_mutex/rep0/code/round-1/source-proj)
+error[E0597]: `m` does not live long enough
+   --> src/main.rs:26:17
+    |
+ 22 |     let m = Mutex::new(());
+    |         - binding `m` declared here
+...
+ 26 |     let m_ref = &m;
+    |                 ^^ borrowed value does not live long enough
+ 27 |     let hs = thread::spawn(move || s(tx1, rx2, m_ref));
+    |              ----------------------------------------- argument requires that `m` is borrowed for `'static`
+...
+ 34 | }
+    | - `m` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+For more information about this error, try `rustc --explain E0597`.
+error: could not compile `probe` (bin "probe") due to 1 previous error
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning

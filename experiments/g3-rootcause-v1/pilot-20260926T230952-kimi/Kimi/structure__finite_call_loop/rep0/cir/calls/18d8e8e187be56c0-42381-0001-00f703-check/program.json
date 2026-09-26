@@ -1,0 +1,95 @@
+{
+  "program": "sequential_helper_calls",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [],
+        "functions": [
+          "main",
+          "helper"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "helper",
+          "kind": "normal",
+          "locals": [
+            {
+              "name": "i",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "branch",
+              "cond": "i < 2",
+              "then": "s2",
+              "else": "s4"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "i",
+              "expr": "i + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "goto",
+              "target": "s1"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "locals": [
+            {
+              "name": "done",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::helper"
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::helper"
+            },
+            {
+              "sid": "s3",
+              "kind": "assign_local",
+              "target": "done",
+              "expr": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
