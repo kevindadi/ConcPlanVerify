@@ -1,0 +1,67 @@
+我先查看 ConcIR 的模式和跨模块锁顺序示例，确保生成的程序能表达两个模块各自持有一把锁、任务按一致顺序同时持有两把锁。```json
+{
+  "program": "lock_order_cross_module_cycle",
+  "version": "3.5.0",
+  "entry": "mod_a::main",
+  "modules": [
+    {
+      "name": "mod_a",
+      "provides": {"resources": ["a"], "functions": ["main", "t1"]},
+      "requires": {"resources": ["mod_b::b"], "functions": ["mod_b::t2"]},
+      "resources": [
+        {"name": "a", "kind": "sync", "type": "Mutex", "mode": "Sync"}
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "scope", "funcs": ["mod_a::t1", "mod_b::t2"]},
+            {"sid": "s2", "kind": "return"}
+          ]
+        },
+        {
+          "name": "t1",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [{"name": "work", "type": "Int", "modeled": true, "init": 0}],
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "mod_a::a"},
+            {"sid": "s2", "kind": "mutex_lock", "resource": "mod_b::b"},
+            {"sid": "s3", "kind": "assign_local", "target": "work", "expr": "1"},
+            {"sid": "s4", "kind": "mutex_unlock", "resource": "mod_b::b"},
+            {"sid": "s5", "kind": "mutex_unlock", "resource": "mod_a::a"},
+            {"sid": "s6", "kind": "return"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mod_b",
+      "provides": {"resources": ["b"], "functions": ["t2"]},
+      "requires": {"resources": ["mod_a::a"], "functions": []},
+      "resources": [
+        {"name": "b", "kind": "sync", "type": "Mutex", "mode": "Sync"}
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "t2",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [{"name": "work", "type": "Int", "modeled": true, "init": 0}],
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "mod_a::a"},
+            {"sid": "s2", "kind": "mutex_lock", "resource": "mod_b::b"},
+            {"sid": "s3", "kind": "assign_local", "target": "work", "expr": "1"},
+            {"sid": "s4", "kind": "mutex_unlock", "resource": "mod_b::b"},
+            {"sid": "s5", "kind": "mutex_unlock", "resource": "mod_a::a"},
+            {"sid": "s6", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```

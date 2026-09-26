@@ -1,0 +1,167 @@
+{
+  "arm": "G3_concir",
+  "task": "channel/send_while_holding_mutex",
+  "cir_stage": {
+    "accepted": true,
+    "status": "accepted",
+    "model": {
+      "outcome": "PASS",
+      "complete": true
+    },
+    "coverage": {
+      "total": 5,
+      "decidable": 4,
+      "satisfied": 4,
+      "failed": [],
+      "statuses": {
+        "R1": "PASS",
+        "R2": "PASS",
+        "R3": "PASS",
+        "R4": "PASS",
+        "R5": "unverifiable"
+      },
+      "rc": 0.8,
+      "rf": 0.8
+    }
+  },
+  "cir_rounds": 2,
+  "code_stage": {
+    "arm": "G3_concir_llmcode",
+    "task": "channel/send_while_holding_mutex",
+    "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/g3-v3/grok-4.7/cells/channel__send_while_holding_mutex/cir/revision-2.cir.json",
+    "rounds": [
+      {
+        "round": 1,
+        "decision": "accepted",
+        "prompt_tokens": 34895,
+        "completion_tokens": 3479,
+        "llm_ms": 28928,
+        "instrument_limit": [
+          "thread::scope tags are runtime-derived, scope event absent"
+        ],
+        "behavior_ok": true,
+        "conform": {
+          "conformant": 32,
+          "traces": 32,
+          "statuses": {
+            "conformant": 32
+          }
+        },
+        "monitor_status": "ok",
+        "monitor_fail": [],
+        "stage": "code"
+      }
+    ],
+    "accepted": true,
+    "accepted_with_proof": true,
+    "status": "accepted",
+    "instrument_limit": null,
+    "coverage": {
+      "total": 5,
+      "decidable": 4,
+      "satisfied": 4,
+      "failed": 0,
+      "not_observed": 0,
+      "unmapped": 0,
+      "unsupported": 0,
+      "deferred": 0,
+      "unverifiable": 1,
+      "rc": 0.8,
+      "rf": 0.8,
+      "statuses": {
+        "R1": "PASS_bounded",
+        "R2": "PASS_bounded",
+        "R3": "PASS_bounded",
+        "R4": "PASS_bounded",
+        "R5": "unverifiable"
+      }
+    },
+    "final_rust": "/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/g3-v3/grok-4.7/cells/channel__send_while_holding_mutex/code/round-1.rs"
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "schema_error",
+      "check": "usage_error",
+      "explore": null,
+      "prompt_tokens": 47255,
+      "completion_tokens": 13130,
+      "llm_ms": 118171,
+      "check_kind": "usage_error",
+      "normalizations": [],
+      "program_sha256": "6c3230cb99f9c37811bf561f08b362ac496cb30653cf36d96780d1111153c2f3",
+      "raw_sha256": "16393253599618060cd75ad1c68710166f957919b30b630747fa8f1cef548d92",
+      "error_class": "schema_parse",
+      "diagnostic_signature": "2ecbf20016b1846cc26d870b6f852831af6ca8eab02ce9d135ef87d00c723bd5",
+      "repeated_diagnostic": false,
+      "program_changed": false,
+      "stage": "cir"
+    },
+    {
+      "round": 2,
+      "decision": "accepted",
+      "check": "valid",
+      "explore": "PASS",
+      "prompt_tokens": 73756,
+      "completion_tokens": 9882,
+      "llm_ms": 77790,
+      "check_kind": "semantic",
+      "normalizations": [],
+      "program_sha256": "fc8b80593c32cb1a2a43e2470b264d3eab76c2b5f98736e174d36215f7cefcef",
+      "raw_sha256": "a848883af37b7820c53800be4bd1b7a01c0f00e1582da1ea92b24fbc544d9e42",
+      "stage": "cir"
+    },
+    {
+      "round": 1,
+      "decision": "accepted",
+      "prompt_tokens": 34895,
+      "completion_tokens": 3479,
+      "llm_ms": 28928,
+      "instrument_limit": [
+        "thread::scope tags are runtime-derived, scope event absent"
+      ],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 32,
+        "traces": 32,
+        "statuses": {
+          "conformant": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "stage": "code"
+    }
+  ],
+  "accepted": true,
+  "accepted_with_proof": true,
+  "status": "accepted",
+  "coverage": {
+    "total": 5,
+    "decidable": 4,
+    "satisfied": 4,
+    "failed": 0,
+    "not_observed": 0,
+    "unmapped": 0,
+    "unsupported": 0,
+    "deferred": 0,
+    "unverifiable": 1,
+    "rc": 0.8,
+    "rf": 0.8,
+    "statuses": {
+      "R1": "PASS_bounded",
+      "R2": "PASS_bounded",
+      "R3": "PASS_bounded",
+      "R4": "PASS_bounded",
+      "R5": "unverifiable"
+    }
+  },
+  "monitor_fail": [],
+  "oracle": {
+    "hang": false
+  },
+  "model": {
+    "outcome": "PASS",
+    "complete": true
+  }
+}

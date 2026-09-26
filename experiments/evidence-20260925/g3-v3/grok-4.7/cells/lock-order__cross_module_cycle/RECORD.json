@@ -1,0 +1,274 @@
+{
+  "arm": "G3_concir",
+  "task": "lock-order/cross_module_cycle",
+  "cir_stage": {
+    "accepted": true,
+    "status": "accepted",
+    "model": {
+      "outcome": "PASS",
+      "complete": true
+    },
+    "coverage": {
+      "total": 10,
+      "decidable": 9,
+      "satisfied": 9,
+      "failed": [],
+      "statuses": {
+        "R1": "PASS",
+        "R2": "PASS",
+        "R3": "PASS",
+        "R4": "PASS",
+        "R5": "PASS",
+        "R6": "PASS",
+        "R7": "PASS",
+        "R8": "PASS",
+        "R9": "PASS",
+        "R10": "unverifiable"
+      },
+      "rc": 0.9,
+      "rf": 0.9
+    }
+  },
+  "cir_rounds": 3,
+  "code_stage": {
+    "arm": "G3_concir_llmcode",
+    "task": "lock-order/cross_module_cycle",
+    "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/g3-v3/grok-4.7/cells/lock-order__cross_module_cycle/cir/revision-3.cir.json",
+    "rounds": [
+      {
+        "round": 1,
+        "decision": "build_failed",
+        "prompt_tokens": 108458,
+        "completion_tokens": 13519,
+        "llm_ms": 118064,
+        "instrument_limit": [
+          "thread::scope tags are runtime-derived, scope event absent"
+        ],
+        "stage": "code"
+      },
+      {
+        "round": 2,
+        "decision": "post_verify_fail",
+        "prompt_tokens": 56121,
+        "completion_tokens": 6969,
+        "llm_ms": 62062,
+        "instrument_limit": [
+          "thread::scope tags are runtime-derived, scope event absent"
+        ],
+        "behavior_ok": true,
+        "conform": {
+          "conformant": 0,
+          "traces": 32,
+          "statuses": {
+            "violation": 32
+          }
+        },
+        "monitor_status": "ok",
+        "monitor_fail": [],
+        "first_violation": {
+          "binary_sha256": "c560631542f4ee0e128e3c2da6e9f8f9b7b5c0ad210a3743f1a01368272e6bce",
+          "coverage": {
+            "sids_seen": 0,
+            "sids_total": 9
+          },
+          "detail": "no model statement matches mutex_lock on \"mutex\" (thread t1)",
+          "event_index": 0,
+          "events": 8,
+          "expected": [],
+          "git_rev": "8eed4ee61bd068f7036dc42fa2bd845d9c66296a",
+          "got": "mutex_lock:mutex",
+          "post_join_main_ops": [],
+          "status": "violation",
+          "wrapper_ops": []
+        },
+        "conform_kind": "extra_op",
+        "stage": "code"
+      },
+      {
+        "round": 3,
+        "decision": "post_verify_fail",
+        "prompt_tokens": 18585,
+        "completion_tokens": 961,
+        "llm_ms": 12417,
+        "instrument_limit": [
+          "thread::scope tags are runtime-derived, scope event absent"
+        ],
+        "behavior_ok": true,
+        "conform": {
+          "conformant": 0,
+          "traces": 32,
+          "statuses": {
+            "violation": 32
+          }
+        },
+        "monitor_status": "ok",
+        "monitor_fail": [],
+        "first_violation": {
+          "binary_sha256": "c560631542f4ee0e128e3c2da6e9f8f9b7b5c0ad210a3743f1a01368272e6bce",
+          "coverage": {
+            "sids_seen": 0,
+            "sids_total": 9
+          },
+          "detail": "no model statement matches mutex_lock on \"mutex\" (thread t1)",
+          "event_index": 0,
+          "events": 8,
+          "expected": [],
+          "git_rev": "8eed4ee61bd068f7036dc42fa2bd845d9c66296a",
+          "got": "mutex_lock:mutex",
+          "post_join_main_ops": [],
+          "status": "violation",
+          "wrapper_ops": []
+        },
+        "conform_kind": "extra_op",
+        "stage": "code"
+      }
+    ],
+    "accepted": false,
+    "accepted_with_proof": false,
+    "status": "generation_failed",
+    "instrument_limit": null
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "explore_fail",
+      "check": "valid",
+      "explore": "INVALID",
+      "prompt_tokens": 47773,
+      "completion_tokens": 11703,
+      "llm_ms": 108948,
+      "check_kind": "semantic",
+      "normalizations": [],
+      "program_sha256": "9576043dcd5fe9fd2d2502c62382e5435d71cb3db4fb315e86b35897c9812485",
+      "raw_sha256": "9cfaad402eab553cfdc464205111c7d86c5ad0b239001cdcb5b857ce044ba767",
+      "stage": "cir"
+    },
+    {
+      "round": 2,
+      "decision": "explore_fail",
+      "check": "valid",
+      "explore": "INVALID",
+      "prompt_tokens": 39496,
+      "completion_tokens": 12427,
+      "llm_ms": 108655,
+      "check_kind": "semantic",
+      "normalizations": [],
+      "program_sha256": "a913af7be8d48742375131d7f7ddc6902a767d8e5f8547d3b50594290b366a18",
+      "raw_sha256": "57f42c7eefcc0795234768b51cc50caf1b286e9b2da6f0fc716e64f6bf38d112",
+      "stage": "cir"
+    },
+    {
+      "round": 3,
+      "decision": "accepted",
+      "check": "valid",
+      "explore": "PASS",
+      "prompt_tokens": 75614,
+      "completion_tokens": 7636,
+      "llm_ms": 66517,
+      "check_kind": "semantic",
+      "normalizations": [],
+      "program_sha256": "9b3e0dcb682245e8f825561578af54a4d76235b3121aa7ccd7bd161179a76fac",
+      "raw_sha256": "26b6fb7884f7f97dfb8446c02945a767900b1eb1b710f80af133c45081ee8bb3",
+      "stage": "cir"
+    },
+    {
+      "round": 1,
+      "decision": "build_failed",
+      "prompt_tokens": 108458,
+      "completion_tokens": 13519,
+      "llm_ms": 118064,
+      "instrument_limit": [
+        "thread::scope tags are runtime-derived, scope event absent"
+      ],
+      "stage": "code"
+    },
+    {
+      "round": 2,
+      "decision": "post_verify_fail",
+      "prompt_tokens": 56121,
+      "completion_tokens": 6969,
+      "llm_ms": 62062,
+      "instrument_limit": [
+        "thread::scope tags are runtime-derived, scope event absent"
+      ],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 0,
+        "traces": 32,
+        "statuses": {
+          "violation": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "first_violation": {
+        "binary_sha256": "c560631542f4ee0e128e3c2da6e9f8f9b7b5c0ad210a3743f1a01368272e6bce",
+        "coverage": {
+          "sids_seen": 0,
+          "sids_total": 9
+        },
+        "detail": "no model statement matches mutex_lock on \"mutex\" (thread t1)",
+        "event_index": 0,
+        "events": 8,
+        "expected": [],
+        "git_rev": "8eed4ee61bd068f7036dc42fa2bd845d9c66296a",
+        "got": "mutex_lock:mutex",
+        "post_join_main_ops": [],
+        "status": "violation",
+        "wrapper_ops": []
+      },
+      "conform_kind": "extra_op",
+      "stage": "code"
+    },
+    {
+      "round": 3,
+      "decision": "post_verify_fail",
+      "prompt_tokens": 18585,
+      "completion_tokens": 961,
+      "llm_ms": 12417,
+      "instrument_limit": [
+        "thread::scope tags are runtime-derived, scope event absent"
+      ],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 0,
+        "traces": 32,
+        "statuses": {
+          "violation": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "first_violation": {
+        "binary_sha256": "c560631542f4ee0e128e3c2da6e9f8f9b7b5c0ad210a3743f1a01368272e6bce",
+        "coverage": {
+          "sids_seen": 0,
+          "sids_total": 9
+        },
+        "detail": "no model statement matches mutex_lock on \"mutex\" (thread t1)",
+        "event_index": 0,
+        "events": 8,
+        "expected": [],
+        "git_rev": "8eed4ee61bd068f7036dc42fa2bd845d9c66296a",
+        "got": "mutex_lock:mutex",
+        "post_join_main_ops": [],
+        "status": "violation",
+        "wrapper_ops": []
+      },
+      "conform_kind": "extra_op",
+      "stage": "code"
+    }
+  ],
+  "accepted": false,
+  "accepted_with_proof": false,
+  "status": "generation_failed",
+  "coverage": null,
+  "monitor_fail": [],
+  "oracle": {
+    "hang": false
+  },
+  "model": {
+    "outcome": "PASS",
+    "complete": true
+  }
+}

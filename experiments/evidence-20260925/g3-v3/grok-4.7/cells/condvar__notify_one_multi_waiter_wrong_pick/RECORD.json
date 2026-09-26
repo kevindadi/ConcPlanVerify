@@ -1,0 +1,304 @@
+{
+  "arm": "G3_concir",
+  "task": "condvar/notify_one_multi_waiter_wrong_pick",
+  "cir_stage": {
+    "accepted": true,
+    "status": "accepted",
+    "model": {
+      "outcome": "PASS",
+      "complete": true
+    },
+    "coverage": {
+      "total": 10,
+      "decidable": 8,
+      "satisfied": 8,
+      "failed": [],
+      "statuses": {
+        "R1": "unverifiable",
+        "R2": "PASS",
+        "R3": "PASS",
+        "R4": "PASS",
+        "R5": "PASS",
+        "R6": "PASS",
+        "R7": "PASS",
+        "R8": "PASS",
+        "R9": "PASS",
+        "R10": "unverifiable"
+      },
+      "rc": 0.8,
+      "rf": 0.8
+    }
+  },
+  "cir_rounds": 1,
+  "code_stage": {
+    "arm": "G3_concir_llmcode",
+    "task": "condvar/notify_one_multi_waiter_wrong_pick",
+    "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/g3-v3/grok-4.7/cells/condvar__notify_one_multi_waiter_wrong_pick/cir/revision-1.cir.json",
+    "rounds": [
+      {
+        "round": 1,
+        "decision": "post_verify_fail",
+        "prompt_tokens": 44333,
+        "completion_tokens": 6223,
+        "llm_ms": 54903,
+        "instrument_limit": [],
+        "behavior_ok": true,
+        "conform": {
+          "conformant": 0,
+          "traces": 32,
+          "statuses": {
+            "violation": 32
+          }
+        },
+        "monitor_status": "ok",
+        "monitor_fail": [],
+        "first_violation": {
+          "binary_sha256": "c560631542f4ee0e128e3c2da6e9f8f9b7b5c0ad210a3743f1a01368272e6bce",
+          "coverage": {
+            "sids_seen": 0,
+            "sids_total": 19
+          },
+          "detail": "no model statement matches mutex_lock on \"mutex\" (thread t3)",
+          "event_index": 0,
+          "events": 34,
+          "expected": [],
+          "git_rev": "8eed4ee61bd068f7036dc42fa2bd845d9c66296a",
+          "got": "mutex_lock:mutex",
+          "post_join_main_ops": [],
+          "status": "violation",
+          "wrapper_ops": []
+        },
+        "conform_kind": "extra_op",
+        "stage": "code"
+      },
+      {
+        "round": 2,
+        "decision": "post_verify_fail",
+        "prompt_tokens": 148567,
+        "completion_tokens": 34664,
+        "llm_ms": 334092,
+        "instrument_limit": [
+          "atomics are not instrumented (no value events)"
+        ],
+        "behavior_ok": true,
+        "conform": {
+          "conformant": 0,
+          "traces": 32,
+          "statuses": {
+            "violation": 32
+          }
+        },
+        "monitor_status": "ok",
+        "monitor_fail": [],
+        "first_violation": {
+          "binary_sha256": "c560631542f4ee0e128e3c2da6e9f8f9b7b5c0ad210a3743f1a01368272e6bce",
+          "coverage": {
+            "sids_seen": 0,
+            "sids_total": 19
+          },
+          "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 1",
+          "event_index": 1,
+          "events": 10,
+          "expected": [
+            "sem_release:main::g12"
+          ],
+          "git_rev": "8eed4ee61bd068f7036dc42fa2bd845d9c66296a",
+          "got": "mutex_lock:main::m",
+          "post_join_main_ops": [],
+          "status": "violation",
+          "wrapper_ops": []
+        },
+        "conform_kind": "order",
+        "stage": "code"
+      },
+      {
+        "round": 3,
+        "decision": "post_verify_fail",
+        "prompt_tokens": 427618,
+        "completion_tokens": 75293,
+        "llm_ms": 665331,
+        "instrument_limit": [
+          "atomics are not instrumented (no value events)"
+        ],
+        "behavior_ok": true,
+        "conform": {
+          "conformant": 0,
+          "traces": 32,
+          "statuses": {
+            "violation": 32
+          }
+        },
+        "monitor_status": "ok",
+        "monitor_fail": [],
+        "first_violation": {
+          "binary_sha256": "c560631542f4ee0e128e3c2da6e9f8f9b7b5c0ad210a3743f1a01368272e6bce",
+          "coverage": {
+            "sids_seen": 0,
+            "sids_total": 19
+          },
+          "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 1",
+          "event_index": 1,
+          "events": 10,
+          "expected": [
+            "sem_release:main::g12"
+          ],
+          "git_rev": "8eed4ee61bd068f7036dc42fa2bd845d9c66296a",
+          "got": "mutex_lock:main::m",
+          "post_join_main_ops": [],
+          "status": "violation",
+          "wrapper_ops": []
+        },
+        "conform_kind": "order",
+        "stage": "code"
+      }
+    ],
+    "accepted": false,
+    "accepted_with_proof": false,
+    "status": "generation_failed",
+    "instrument_limit": null
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "decision": "accepted",
+      "check": "valid",
+      "explore": "PASS",
+      "prompt_tokens": 151278,
+      "completion_tokens": 36368,
+      "llm_ms": 335967,
+      "check_kind": "semantic",
+      "normalizations": [],
+      "program_sha256": "f27dab4b1a9dd396658131f2eb63da85dd264cf059a70a46928b47f5614f6092",
+      "raw_sha256": "885411c3010120281e4065650bbfb00d0440b1ccb1d1261112c13a0924c79c94",
+      "stage": "cir"
+    },
+    {
+      "round": 1,
+      "decision": "post_verify_fail",
+      "prompt_tokens": 44333,
+      "completion_tokens": 6223,
+      "llm_ms": 54903,
+      "instrument_limit": [],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 0,
+        "traces": 32,
+        "statuses": {
+          "violation": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "first_violation": {
+        "binary_sha256": "c560631542f4ee0e128e3c2da6e9f8f9b7b5c0ad210a3743f1a01368272e6bce",
+        "coverage": {
+          "sids_seen": 0,
+          "sids_total": 19
+        },
+        "detail": "no model statement matches mutex_lock on \"mutex\" (thread t3)",
+        "event_index": 0,
+        "events": 34,
+        "expected": [],
+        "git_rev": "8eed4ee61bd068f7036dc42fa2bd845d9c66296a",
+        "got": "mutex_lock:mutex",
+        "post_join_main_ops": [],
+        "status": "violation",
+        "wrapper_ops": []
+      },
+      "conform_kind": "extra_op",
+      "stage": "code"
+    },
+    {
+      "round": 2,
+      "decision": "post_verify_fail",
+      "prompt_tokens": 148567,
+      "completion_tokens": 34664,
+      "llm_ms": 334092,
+      "instrument_limit": [
+        "atomics are not instrumented (no value events)"
+      ],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 0,
+        "traces": 32,
+        "statuses": {
+          "violation": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "first_violation": {
+        "binary_sha256": "c560631542f4ee0e128e3c2da6e9f8f9b7b5c0ad210a3743f1a01368272e6bce",
+        "coverage": {
+          "sids_seen": 0,
+          "sids_total": 19
+        },
+        "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 1",
+        "event_index": 1,
+        "events": 10,
+        "expected": [
+          "sem_release:main::g12"
+        ],
+        "git_rev": "8eed4ee61bd068f7036dc42fa2bd845d9c66296a",
+        "got": "mutex_lock:main::m",
+        "post_join_main_ops": [],
+        "status": "violation",
+        "wrapper_ops": []
+      },
+      "conform_kind": "order",
+      "stage": "code"
+    },
+    {
+      "round": 3,
+      "decision": "post_verify_fail",
+      "prompt_tokens": 427618,
+      "completion_tokens": 75293,
+      "llm_ms": 665331,
+      "instrument_limit": [
+        "atomics are not instrumented (no value events)"
+      ],
+      "behavior_ok": true,
+      "conform": {
+        "conformant": 0,
+        "traces": 32,
+        "statuses": {
+          "violation": 32
+        }
+      },
+      "monitor_status": "ok",
+      "monitor_fail": [],
+      "first_violation": {
+        "binary_sha256": "c560631542f4ee0e128e3c2da6e9f8f9b7b5c0ad210a3743f1a01368272e6bce",
+        "coverage": {
+          "sids_seen": 0,
+          "sids_total": 19
+        },
+        "detail": "no enabled model step matches mutex_lock on \"main::m\" at event 1",
+        "event_index": 1,
+        "events": 10,
+        "expected": [
+          "sem_release:main::g12"
+        ],
+        "git_rev": "8eed4ee61bd068f7036dc42fa2bd845d9c66296a",
+        "got": "mutex_lock:main::m",
+        "post_join_main_ops": [],
+        "status": "violation",
+        "wrapper_ops": []
+      },
+      "conform_kind": "order",
+      "stage": "code"
+    }
+  ],
+  "accepted": false,
+  "accepted_with_proof": false,
+  "status": "generation_failed",
+  "coverage": null,
+  "monitor_fail": [],
+  "oracle": {
+    "hang": false
+  },
+  "model": {
+    "outcome": "PASS",
+    "complete": true
+  }
+}
