@@ -1,0 +1,100 @@
+{
+  "program": "sender_receiver",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": ["ch1", "ch2"],
+        "functions": ["main", "s", "r"]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "ch1",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        },
+        {
+          "name": "ch2",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "s",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "channel_send",
+              "channel": "main::ch1",
+              "value": "1"
+            },
+            {
+              "sid": "s2",
+              "kind": "channel_recv",
+              "channel": "main::ch2",
+              "dst": "_"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "r",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "channel_recv",
+              "channel": "main::ch1",
+              "dst": "_"
+            },
+            {
+              "sid": "s2",
+              "kind": "channel_send",
+              "channel": "main::ch2",
+              "value": "1"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": ["main::s", "main::r"]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
