@@ -144,11 +144,18 @@ class CirGenProvider:
 
     name = "llm"
 
-    def __init__(self, client) -> None:
+    def __init__(self, client, prompt_version: str | None = None) -> None:
+        import os
         from .prompts import (concir_generation_v3_system_prompt,
+                              concir_generation_v4_system_prompt,
                               requirements_only_user_prompt)
+        version = prompt_version or os.environ.get("CIR_PROMPT_VERSION", "v3")
+        if version == "v4":
+            self.system = concir_generation_v4_system_prompt()
+        else:
+            self.system = concir_generation_v3_system_prompt()
+        self.prompt_version = version
         self.client = client
-        self.system = concir_generation_v3_system_prompt()
         self._prompt = requirements_only_user_prompt
         self.calls: list[dict[str, Any]] = []
 
