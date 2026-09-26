@@ -49,6 +49,11 @@ def concir_generation_v2_system_prompt() -> str:
     return _read("concir_generation_v2.md")
 
 
+def concir_generation_v3_system_prompt() -> str:
+    """CIR generation prompt with schema shapes and no invented print calls."""
+    return _read("concir_generation_v3.md")
+
+
 def requirements_only_user_prompt(requirements: str, *,
                                   previous_candidate: str | None = None,
                                   feedback: str | None = None) -> str:

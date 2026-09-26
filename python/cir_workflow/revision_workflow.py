@@ -23,6 +23,7 @@ Ablation switches (protocol B6):
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -561,6 +562,12 @@ SHAPE_HINTS = {
     "E931": "every name used in an expression must be a declared param/local of the "
             "function or a shared resource; declare new locals in the function's "
             "`locals` list",
+    "E102": "call only a function that appears in some module's functions list. "
+            "Do not invent println, print, or io::/stdio:: helpers. Exact terminal "
+            "text is implemented later in Rust, not as a CIR call.",
+    "E920": "`args` must be a JSON array of strings whose length matches the callee's "
+            "params. A bare string is not an argument list.",
+    "E108": "a cross-module function reference must be declared and listed in requires.functions",
 }
 
 
@@ -588,39 +595,142 @@ def _first_function(check) -> str | None:
     return None
 
 
+_UNKNOWN_FIELD = re.compile(
+    r"unknown field `([^`]+)`, expected (?:one of )?(.*)")
+_INVALID_TYPE = re.compile(
+    r"invalid type: ([^,]+), expected (.+?)(?: at |$)")
+_MISSING_FIELD = re.compile(r"missing field `([^`]+)`")
+_PATH = re.compile(r"(?:JSON parse error in )?'[^']+'")
+
+
+def _sanitize_backend_text(text: str) -> str:
+    """Drop absolute paths. Keep the serde message."""
+    cleaned = _PATH.sub("'program.json'", text or "")
+    cleaned = re.sub(r"/[^\s'\"]+", "<path>", cleaned)
+    return cleaned.strip()
+
+
+def _declared_functions(program: dict[str, Any] | None) -> list[str]:
+    if not program:
+        return []
+    names = []
+    for module in program.get("modules", []) or []:
+        for fn in module.get("functions", []) or []:
+            names.append(f"{module.get('name')}::{fn.get('name')}")
+    return names
+
+
+def parse_schema_stderr(stderr: str) -> dict[str, Any]:
+    """Turn a backend schema/serde error into structured feedback.
+
+    Serde reports a line/column, not a JSON pointer. ``json_path`` stays null
+    unless the message itself contains one.
+    """
+    message = _sanitize_backend_text(stderr)
+    entry: dict[str, Any] = {
+        "stage": "check",
+        "error_class": "schema_parse",
+        "message": message,
+        "json_path": None,
+        "fix_hint": "Resend one complete CIR JSON object that matches the schema.",
+    }
+    unknown = _UNKNOWN_FIELD.search(message)
+    if unknown:
+        allowed = re.findall(r"`([^`]+)`", unknown.group(2))
+        entry["actual_value"] = unknown.group(1)
+        entry["allowed_fields"] = allowed
+        field = unknown.group(1)
+        if field == "base":
+            entry["fix_hint"] = (
+                "params and locals use `name`, `type`, and `modeled` "
+                "(locals may also have `init`). `base` belongs on a Var, Atomic, "
+                "or Channel resource, not on a parameter.")
+        else:
+            entry["fix_hint"] = (
+                f"remove unknown field `{field}`; allowed fields: {', '.join(allowed) or 'see schema'}.")
+        return entry
+    invalid = _INVALID_TYPE.search(message)
+    if invalid:
+        entry["actual_value"] = invalid.group(1).strip()
+        entry["expected_type"] = invalid.group(2).strip()
+        if "sequence" in entry["expected_type"]:
+            entry["fix_hint"] = (
+                "`args` and `funcs` are JSON arrays of strings, for example "
+                '[\"main::worker\"]. A single string is rejected.')
+        else:
+            entry["fix_hint"] = f"value has type {entry['actual_value']}; expected {entry['expected_type']}."
+        return entry
+    missing = _MISSING_FIELD.search(message)
+    if missing:
+        entry["actual_value"] = None
+        entry["fix_hint"] = f"add required field `{missing.group(1)}`."
+    return entry
+
+
 def build_schema_feedback(check, normalizations: list[dict[str, Any]],
                           program: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Schema feedback with JSON pointers and shapes, never file paths/lines."""
+    """Schema or static-check feedback. Never drops a serde error into empty diagnostics."""
+
+    if getattr(check, "kind", None) in {"process_error", "protocol_error"}:
+        return {
+            "stage": "check",
+            "error_class": "tool_error",
+            "status": getattr(check, "status", None),
+            "message": _sanitize_backend_text(getattr(check, "error", None) or getattr(check, "stderr", "") or ""),
+            "diagnostics": [],
+            "json_path": None,
+            "fix_hint": "The checker failed internally. This is not a CIR fault. Resend the same program.",
+            "normalizations": normalizations,
+        }
+    if getattr(check, "kind", None) == "usage_error":
+        stderr = getattr(check, "stderr", "") or getattr(check, "error", "") or ""
+        parsed = parse_schema_stderr(stderr or "schema parse error")
+        parsed["normalizations"] = normalizations
+        parsed["diagnostics"] = [{
+            "error_class": "schema_parse",
+            "message": parsed["message"],
+            "json_path": None,
+            "expected_type": parsed.get("expected_type"),
+            "allowed_fields": parsed.get("allowed_fields"),
+            "actual_value": parsed.get("actual_value"),
+            "fix_hint": parsed["fix_hint"],
+        }]
+        return parsed
 
     payload = check.payload or {}
     diagnostics = []
     hints: list[str] = []
+    declared = _declared_functions(program)
     for diag in payload.get("diagnostics", []) or []:
         code = str(diag.get("code"))
-        entry = {k: diag.get(k) for k in ("code", "message", "path", "location")
+        entry = {k: diag.get(k) for k in ("code", "severity", "message", "path", "location", "fix_hint")
                  if diag.get(k) is not None}
-        if code == "E931":
+        entry["json_path"] = diag.get("path")
+        source = ""
+        if code in {"E931", "E102", "E920", "E108"}:
             symbols = _function_symbols(program, str(diag.get("location") or ""))
             if symbols:
                 entry["declared_symbols"] = symbols
                 source = (f" (declared in {symbols['function']}: params "
                           f"{symbols['params']}, locals {symbols['locals']})")
-            else:
-                source = ""
-        else:
-            source = ""
+            if declared:
+                entry["declared_functions"] = declared
         diagnostics.append(entry)
         hint = SHAPE_HINTS.get(code)
         if hint and hint + source not in hints:
             hints.append(hint + source)
+        if diag.get("fix_hint") and diag["fix_hint"] not in hints:
+            hints.append(str(diag["fix_hint"]))
     return {
         "stage": "check",
+        "error_class": "static_check",
         "status": "INVALID",
         "diagnostics": diagnostics,
         "expected_shapes": hints,
+        "declared_functions": declared,
         "normalizations": normalizations,
-        "note": "`path` is a JSON pointer into the program; resend the whole program "
-                "with those fields fixed (do not add fields the schema forbids).",
+        "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. "
+                "Resend the whole program.",
     }
 
 

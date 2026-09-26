@@ -144,10 +144,10 @@ class CirGenProvider:
     name = "llm"
 
     def __init__(self, client) -> None:
-        from .prompts import (concir_generation_v2_system_prompt,
+        from .prompts import (concir_generation_v3_system_prompt,
                               requirements_only_user_prompt)
         self.client = client
-        self.system = concir_generation_v2_system_prompt()
+        self.system = concir_generation_v3_system_prompt()
         self._prompt = requirements_only_user_prompt
         self.calls: list[dict[str, Any]] = []
 
@@ -322,10 +322,36 @@ def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
                                 encoding="utf-8")
         check = backend.check(program_path)
         round_info["check"] = check.status
-        if check.status != "valid":
-            round_info["decision"] = "check_invalid"
+        round_info["check_kind"] = check.kind
+        round_info["normalizations"] = norm_records
+        round_info["program_sha256"] = hashlib.sha256(
+            program_path.read_bytes()).hexdigest()
+        raw_path = out_dir / f"revision-{round_no}.raw.txt"
+        raw_path.write_text(response.text, encoding="utf-8")
+        round_info["raw_sha256"] = hashlib.sha256(response.text.encode()).hexdigest()
+        if check.kind in {"process_error", "protocol_error"}:
+            round_info["decision"] = "tool_error"
+            round_info["error_class"] = "tool_error"
             fb = build_schema_feedback(check, norm_records, parsed)
             feedback = render_feedback(fb)
+            (out_dir / f"revision-{round_no}.feedback.json").write_text(
+                feedback, encoding="utf-8")
+            continue
+        if check.status != "valid":
+            fb = build_schema_feedback(check, norm_records, parsed)
+            error_class = fb.get("error_class") or "static_check"
+            round_info["decision"] = "schema_error" if error_class == "schema_parse" else "check_invalid"
+            round_info["error_class"] = error_class
+            sig = json.dumps(fb.get("diagnostics"), sort_keys=True)
+            round_info["diagnostic_signature"] = hashlib.sha256(sig.encode()).hexdigest()
+            prev = record["rounds"][-2] if len(record["rounds"]) > 1 else None
+            round_info["repeated_diagnostic"] = bool(
+                prev and prev.get("diagnostic_signature") == round_info["diagnostic_signature"])
+            round_info["program_changed"] = bool(
+                prev and prev.get("program_sha256") != round_info["program_sha256"])
+            feedback = render_feedback(fb)
+            (out_dir / f"revision-{round_no}.feedback.json").write_text(
+                feedback, encoding="utf-8")
             continue
         support = backend.support(program_path)
         if support.status == "unsupported":

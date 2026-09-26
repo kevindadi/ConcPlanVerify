@@ -1,0 +1,152 @@
+# ConcIR generation prompt (v3)
+
+You propose one ConcIR program as a single JSON object. A separate checker
+decides whether it is accepted. You may revise after feedback. You do not
+verify, translate, or accept the program yourself. Output only the JSON object.
+
+`sid` is per function and matches `^s[0-9]+$`. Expressions (`expr`, `cond`,
+`value`, `expected`, `desired`, and each `args` element) are JSON strings, never
+objects.
+
+## What belongs in CIR
+
+Model concurrency structure, shared state, the data conditions that guard
+synchronization, and the required behaviors named by the requirements: threads,
+locks, condition variables, channels, semaphores, and the shared variables they
+protect.
+
+Exact output text, log lines, and other formatting that the requirements mark
+as not formally checked are implemented later in Rust. Do not encode them as
+CIR calls. There is no builtin `println`, `print`, `io::println`, or
+`stdio::println`. Calling an undefined function is a static error.
+
+If a step is ordinary local computation, write it with `assign_local` on a
+declared local, or `call` a function you defined in this program. `args` is a
+JSON array of strings. Do not set `modeled` to false to skip a value that
+affects control flow, synchronization, or shared data.
+
+## Params and locals
+
+A parameter is `{"name","type","modeled"}`. A local is
+`{"name","type","modeled","init"}`. They do not have `base`. `base` and `init`
+on a resource are for `Var`, `Atomic`, and `Channel` only.
+
+`type` is `Int` or `Bool`. `modeled: true` means the checker tracks the value.
+
+## Resources
+
+| type | fields |
+| --- | --- |
+| Mutex | `name`, `kind`=`sync`, `type`=`Mutex`, `mode`=`Sync` |
+| Condvar | `name`, `kind`=`sync`, `type`=`Condvar`, `mode`=`Sync` |
+| Semaphore | those, plus optional `count` |
+| Channel | those, plus `base` and `capacity` |
+| Var or Atomic | `name`, `kind`=`var`, `type`, `base`, `init` |
+
+A `Var` that is written under a lock needs `protection`: `{"var","lock"}`.
+
+## Statements
+
+`call` requires `func` and may include `args` (array of strings) and `dst`.
+`spawn` requires `func` and `handle`, and may include `args`.
+`scope` requires `funcs` (array of strings). `join` requires `handle`.
+`mutex_lock` / `mutex_unlock` require `resource`.
+`condvar_wait` requires `condvar` and `lock`. `condvar_notify` requires `condvar`.
+`write_shared` requires `resource` and `expr`. `return` may include `value`.
+
+Do not emit `rwlock_*`, `select`, `async_call`, `await`, `abstract_step`, or `seq_hole`.
+
+## Example: two workers share one counter
+
+```json
+{
+  "program": "two_workers_one_lock",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {"resources": ["m", "n"], "functions": ["main", "w1", "w2"]},
+      "requires": {"resources": [], "functions": []},
+      "resources": [
+        {"name": "m", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+        {"name": "n", "kind": "var", "type": "Var", "base": "Int", "init": 0}
+      ],
+      "protection": [{"var": "n", "lock": "m"}],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "scope", "funcs": ["main::w1", "main::w2"]},
+            {"sid": "s2", "kind": "return"}
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s2", "kind": "write_shared", "resource": "main::n", "expr": "1"},
+            {"sid": "s3", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s4", "kind": "return"}
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s2", "kind": "write_shared", "resource": "main::n", "expr": "2"},
+            {"sid": "s3", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s4", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Example: a call passes an argument array
+
+```json
+{
+  "program": "call_with_args",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {"resources": [], "functions": ["main", "step"]},
+      "requires": {"resources": [], "functions": []},
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "step",
+          "kind": "normal",
+          "params": [{"name": "n", "type": "Int", "modeled": true}],
+          "locals": [{"name": "tmp", "type": "Int", "modeled": true, "init": 0}],
+          "body": [
+            {"sid": "s1", "kind": "assign_local", "target": "tmp", "expr": "n"},
+            {"sid": "s2", "kind": "return", "value": "tmp"}
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "call", "func": "main::step", "args": ["1"]},
+            {"sid": "s2", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Use the entity names from the requirements. Resend the whole program after feedback.
