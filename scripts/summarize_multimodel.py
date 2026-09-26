@@ -121,7 +121,7 @@ def main() -> int:
     add("")
 
     # 1. end-to-end success
-    add("## 1. 模型 × 实验组端到端成功率（试点）")
+    add("## 1. 模型 × 实验组端到端成功率（主矩阵 G3）")
     add("")
     add("实验组固定为 G3（需求→已验证 CIR→模型写 Rust）。分子/分母逐格列出。")
     add("")
@@ -145,7 +145,7 @@ def main() -> int:
     add("")
 
     # 2. G3 funnel
-    add("## 2. G3 阶段漏斗与条件代码接受率（试点）")
+    add("## 2. G3 阶段漏斗与条件代码接受率（主矩阵 G3）")
     add("")
     add("| 模型 | CIR 通过/任务 | CIR 通过后代码接受 | 端到端接受 | 首次接受总候选轮 |")
     add("| --- | --- | --- | --- | --- |")
@@ -161,11 +161,11 @@ def main() -> int:
         cond = f"{code}/{len(code_cond)}" if code_cond else "—"
         add(f"| {model} | {cir}/{n} | {cond} | {end}/{n} | {rt} |")
     add("")
-    add("代码阶段条件分母是 CIR 通过任务数；端到端分母是完整任务集合（此处各 2）。")
+    add("代码阶段条件分母是 CIR 通过任务数；端到端分母是该模型已尝试的 cells。")
     add("")
 
     # 3. first-pass rounds
-    add("## 3. 预算内首次通过轮次（试点）")
+    add("## 3. 预算内首次通过轮次（主矩阵 G3）")
     add("")
     add("`first_cir_pass_round` / `first_code_accept_round`（第 1 轮 = 0 次修复）。未通过为 null。")
     add("")
