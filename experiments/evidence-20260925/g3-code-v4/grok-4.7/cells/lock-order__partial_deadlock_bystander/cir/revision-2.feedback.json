@@ -1,0 +1,46 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E705",
+      "severity": "error",
+      "message": "duplicate protection entry for Var 'flag'",
+      "path": "modules[0].protection[1]",
+      "fix_hint": "remove the duplicate entry",
+      "json_path": "modules[0].protection[1]"
+    },
+    {
+      "code": "E401",
+      "severity": "warning",
+      "message": "spawn handle 'by_h' has no matching join",
+      "path": "modules[0].functions[0].body[0]",
+      "location": "main::main.s1",
+      "fix_hint": "add join on this handle, or use a scope statement (implicit join_all)",
+      "json_path": "modules[0].functions[0].body[0]"
+    },
+    {
+      "code": "E605",
+      "severity": "warning",
+      "message": "potential infinite loop with no exit in function 'bystander' starting at 's2'",
+      "path": "modules[0].functions[3].body[1]",
+      "location": "main::bystander.s2",
+      "fix_hint": "add an exit condition or confirm this is an intentional event loop",
+      "json_path": "modules[0].functions[3].body[1]"
+    }
+  ],
+  "expected_shapes": [
+    "remove the duplicate entry",
+    "add join on this handle, or use a scope statement (implicit join_all)",
+    "add an exit condition or confirm this is an intentional event loop"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::a",
+    "main::b",
+    "main::bystander"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

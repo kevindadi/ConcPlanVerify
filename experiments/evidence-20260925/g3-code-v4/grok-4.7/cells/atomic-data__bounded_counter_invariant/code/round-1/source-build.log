@@ -1,0 +1,32 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/g3-code-v4/grok-4.7/cells/atomic-data__bounded_counter_invariant/code/round-1/source-proj)
+warning: value assigned to `tmp` is never read
+  --> src/main.rs:25:24
+   |
+25 |     let mut tmp: i32 = 0;
+   |                        ^ this value is reassigned later and never used
+26 |     tmp = guard.c;
+   |     ------------- `tmp` is overwritten here before the previous value is read
+   |
+   = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `tmp` is never read
+  --> src/main.rs:34:24
+   |
+34 |     let mut tmp: i32 = 0;
+   |                        ^ this value is reassigned later and never used
+35 |     tmp = guard.c;
+   |     ------------- `tmp` is overwritten here before the previous value is read
+
+warning: `probe` (bin "probe") generated 2 warnings
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.21s
