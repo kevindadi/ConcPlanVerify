@@ -772,6 +772,24 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
             record["status"] = "accepted"
             record["accepted_with_proof"] = False
             record["observed_trace_ok"] = True
+            # Evidence boundary: a bounded accept is not automatically
+            # "implementation correspondence evidenced". Empty traces with a
+            # CIR that models observable operations are insufficient evidence.
+            from .evidence import cir_observability
+            ops, spawns = cir_observability(Path(cir_path))
+            observed = sum(
+                1 for f in conform_dir.glob("*.jsonl")
+                for line in f.read_text(encoding="utf-8").splitlines() if line.strip())
+            if ops + spawns == 0:
+                correspondence = "not_applicable"
+            elif observed == 0:
+                correspondence = "insufficient"
+            else:
+                correspondence = "supported"
+            record["evidence"] = {"observable_ops": ops, "spawns": spawns,
+                                  "observed_events": observed,
+                                  "correspondence": correspondence}
+            record["evidence_sufficient"] = correspondence != "insufficient"
             record["coverage"] = bounded_monitor.coverage(
                 contract, report, task.requirements, task.unverifiable,
                 behavior_ok=behavior_ok).as_dict()

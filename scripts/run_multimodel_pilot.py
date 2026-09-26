@@ -42,8 +42,14 @@ def _first_round(rounds, stage, accept_decision="accepted"):
 
 
 def _sum_calls(events, cell_id):
+    """Sum known server usage; count calls whose usage is unknown separately.
+
+    A missing usage is never coerced to zero: it is counted as unknown so the
+    reported total is not presented as a complete cost.
+    """
+
     inp = out = tot = 0
-    n = 0
+    n = unknown = 0
     latency = 0
     for e in events:
         if e.get("cell_id") != cell_id or e.get("kind") != "model-call":
@@ -51,10 +57,32 @@ def _sum_calls(events, cell_id):
         n += 1
         latency += int(e.get("latency_ms") or 0)
         u = e.get("usage") or {}
+        if u.get("input_tokens") is None and u.get("output_tokens") is None \
+                and u.get("total_tokens") is None:
+            unknown += 1
+            continue
         inp += int(u.get("input_tokens") or 0)
         out += int(u.get("output_tokens") or 0)
         tot += int(u.get("total_tokens") or 0)
-    return n, inp, out, tot, latency
+    return n, inp, out, tot, latency, unknown
+
+
+def _failure_stage(rec):
+    """Classify a non-accepted cell by the stage it actually stopped at."""
+
+    if rec.get("accepted"):
+        return "accepted", None
+    cir = rec.get("cir_stage") or {}
+    if not cir.get("accepted"):
+        status = cir.get("status") or rec.get("status") or "cir_failed"
+        return "cir", status
+    code = rec.get("code_stage") or {}
+    if not code:
+        return "code", "code_not_run"
+    rounds = code.get("rounds") or []
+    last = rounds[-1] if rounds else {}
+    decision = last.get("decision") or code.get("status") or "code_failed"
+    return "code", decision
 
 
 def main() -> int:
@@ -95,7 +123,15 @@ def main() -> int:
     audit = AuditLog(batch / "REQUEST_EVENTS.jsonl")
     budget = LiveBudget(batch / "budget.json", max_requests=args.max_requests,
                         max_seconds=6 * 3600)
-    summary = {"batch": str(batch), "kind": "g3-pilot", "tasks": wanted,
+    manifest_path = out / "MANIFEST.json"
+    protocol_hash = None
+    if manifest_path.is_file():
+        import hashlib
+        protocol_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    summary = {"batch": str(batch), "kind": "g3-pilot", "run_id": batch.name,
+               "protocol_hash": protocol_hash,
+               "started_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+               "tasks": wanted,
                "models": [s.display_name for s in specs], "reps": args.reps,
                "k_cir": args.k_cir, "k_code": args.k_code,
                "max_requests": args.max_requests, "cells": []}
@@ -120,7 +156,9 @@ def main() -> int:
                        "first_cir_pass_round": None, "first_code_accept_round": None,
                        "cir_repairs": None, "code_repairs": None,
                        "first_accept_total_candidate_rounds": None,
-                       "calls": 0, "input_tokens": None, "output_tokens": None,
+                       "failure_stage": None, "failure_detail": None,
+                       "calls": 0, "calls_usage_unknown": 0,
+                       "input_tokens": None, "output_tokens": None,
                        "total_tokens": None, "latency_ms": None, "error": None}
                 reason = budget.exhausted()
                 if reason:
@@ -144,19 +182,27 @@ def main() -> int:
                     rounds = rec.get("rounds", [])
                     cir_pass = _first_round(rounds, "cir")
                     code_pass = _first_round(rounds, "code")
+                    accepted = bool(rec.get("accepted"))
+                    fail_stage, fail_detail = _failure_stage(rec)
                     row.update({
                         "status": rec.get("status"),
                         "cir_accepted": bool((rec.get("cir_stage") or {}).get("accepted")),
                         "code_accepted": bool((rec.get("code_stage") or {}).get("accepted")),
-                        "accepted": bool(rec.get("accepted")),
+                        "accepted": accepted,
                         "accepted_with_proof": bool(rec.get("accepted_with_proof")),
                         "first_cir_pass_round": cir_pass,
                         "first_code_accept_round": code_pass,
                         "cir_repairs": None if cir_pass is None else cir_pass - 1,
                         "code_repairs": None if code_pass is None else code_pass - 1,
+                        # End-to-end first-accept total is only defined when the
+                        # cell was actually accepted; a CIR pass with a code
+                        # failure is null, never cir_pass.
                         "first_accept_total_candidate_rounds":
-                            None if cir_pass is None else
-                            cir_pass + (0 if code_pass is None else code_pass),
+                            (cir_pass + (code_pass or 0))
+                            if accepted and cir_pass is not None and code_pass is not None
+                            else None,
+                        "failure_stage": None if accepted else fail_stage,
+                        "failure_detail": None if accepted else fail_detail,
                         "error": rec.get("error"),
                     })
                 except ChannelUnavailable as exc:
@@ -166,8 +212,9 @@ def main() -> int:
                     row["status"] = "error"
                     row["error"] = f"{type(exc).__name__}: {exc}"
                 events = read_events(batch / "REQUEST_EVENTS.jsonl")
-                n, inp, outp, tot, latency = _sum_calls(events, cell_id)
-                row.update({"calls": n, "input_tokens": inp, "output_tokens": outp,
+                n, inp, outp, tot, latency, unknown = _sum_calls(events, cell_id)
+                row.update({"calls": n, "calls_usage_unknown": unknown,
+                            "input_tokens": inp, "output_tokens": outp,
                             "total_tokens": tot, "latency_ms": latency})
                 summary["cells"].append(row)
                 _flush(batch, summary)

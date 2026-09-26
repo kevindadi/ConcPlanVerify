@@ -50,12 +50,18 @@ def _classify(cell: dict, events: list[dict]) -> str:
         return "channel-protocol"
     if status == "budget_exhausted":
         return "budget"
+    if cell.get("accepted") is True:
+        return "accepted"
+    stage = cell.get("failure_stage")
+    detail = cell.get("failure_detail")
+    if stage == "cir":
+        return f"cir:{detail}" if detail else "cir-failed"
+    if stage == "code":
+        return f"code:{detail}" if detail else "code-failed"
     if status == "generation_failed":
-        return "model-failed-cir"
+        return "unclassified-generation_failed"
     if status == "error":
         return "unknown"
-    if status == "accepted":
-        return "accepted"
     return status or "unknown"
 
 
@@ -183,15 +189,16 @@ def main() -> int:
     add("")
     add("服务端实测 usage；缺失为 null，不写 0。费用未获取（OpenCode 未回传 cost），标 null。")
     add("")
-    add("| 模型 | 调用数 | input | output | total | 总耗时(s) |")
-    add("| --- | --- | --- | --- | --- | --- |")
+    add("| 模型 | 调用数 | usage未知调用 | 已知 input | 已知 output | 已知 total | 延迟之和(s) |")
+    add("| --- | --- | --- | --- | --- | --- | --- |")
     for model, cells in by_model.items():
         calls = sum(int(c.get("calls") or 0) for c in cells)
+        unknown = sum(int(c.get("calls_usage_unknown") or 0) for c in cells)
         it = sum(int(c.get("input_tokens") or 0) for c in cells)
         ot = sum(int(c.get("output_tokens") or 0) for c in cells)
         tt = sum(int(c.get("total_tokens") or 0) for c in cells)
         lat = sum(int(c.get("latency_ms") or 0) for c in cells) / 1000.0
-        add(f"| {model} | {calls} | {it} | {ot} | {tt} | {lat:.0f} |")
+        add(f"| {model} | {calls} | {unknown} | {it} | {ot} | {tt} | {lat:.0f} |")
     add("")
 
     # 5. failure decomposition
