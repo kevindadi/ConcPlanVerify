@@ -26,7 +26,10 @@ class RegistryTests(unittest.TestCase):
         composer = transport.resolve_model(specs, "Composer 2.5")
         self.assertEqual(composer.channel, "cursor")
         self.assertEqual(composer.model_id, "composer-2.5")
-        self.assertEqual(composer.status, "available")
+        # Callable, but excluded from the fair comparison: the Cursor agent's
+        # context is large and not fully observable.
+        self.assertEqual(composer.status, "blocked")
+        self.assertEqual(composer.role, "diagnostic")
 
     def test_blocked_models_have_no_available_id(self):
         for spec in transport.blocked_models():
