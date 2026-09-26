@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::thread;\n\n/// Auxiliary routine: uses only local state, so it shares nothing\n/// with the calling task and always terminates.\nfn helper() {\n    let mut local_sum: u64 = 0;\n    for i in 0..10u64 {\n        local_sum = local_sum.wrapping_add(i);\n    }\n    let _ = local_sum;\n}\n\nfn main() {\n    // First call sequence: run the auxiliary routine to completion.\n    let first = thread::spawn(helper);\n    first.join().expect(\"helper thread panicked\");\n\n    // Begin the same call sequence again, only after the first finished.\n    let second = thread::spawn(helper);\n    second.join().expect(\"helper thread panicked\");\n\n    println!(\"DONE done=1\");\n}\n```"
+}

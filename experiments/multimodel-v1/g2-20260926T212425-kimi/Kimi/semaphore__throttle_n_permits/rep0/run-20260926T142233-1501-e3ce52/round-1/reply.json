@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::thread;\nuse std::hint::black_box;\n\nfn w1(s: Arc<Semaphore>) {\n    let permit = s.acquire();\n    // Perform work while holding one permit.\n    black_box(1u64.wrapping_mul(3));\n    drop(permit); // release the permit so a waiting worker can proceed\n}\n\nfn w2(s: Arc<Semaphore>) {\n    let permit = s.acquire();\n    // Perform work while holding one permit.\n    black_box(2u64.wrapping_mul(3));\n    drop(permit); // release the permit so a waiting worker can proceed\n}\n\nfn w3(s: Arc<Semaphore>) {\n    let permit = s.acquire();\n    // Perform work while holding one permit.\n    black_box(3u64.wrapping_mul(3));\n    drop(permit); // release the permit so a waiting worker can proceed\n}\n\nfn main() {\n    // Supervising task: one shared pool with exactly two permits.\n    let s = Semaphore::new(2);\n\n    let h1 = thread::spawn({\n        let s = s.clone();\n        move || w1(s)\n    });\n    let h2 = thread::spawn({\n        let s = s.clone();\n        move || w2(s)\n    });\n    let h3 = thread::spawn({\n        let s = s.clone();\n        move || w3(s)\n    });\n\n    // Wait for all three workers to finish.\n    h1.join().unwrap();\n    h2.join().unwrap();\n    h3.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

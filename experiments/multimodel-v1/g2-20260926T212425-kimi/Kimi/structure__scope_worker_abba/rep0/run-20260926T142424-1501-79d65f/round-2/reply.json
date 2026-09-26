@@ -1,0 +1,7 @@
+{
+  "round": 2,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::thread;\n\nfn main() {\n    // Shared resources: two mutexes, a and b, each implemented as a binary\n    // semaphore (exactly one permit => at most one worker can hold it).\n    let a = Semaphore::new(1);\n    let b = Semaphore::new(1);\n\n    // Worker w1: takes a then b (same order as w2, so no wait cycle can\n    // form), holds both at the same time, then releases each exactly once.\n    let a1 = a.clone();\n    let b1 = b.clone();\n    let w1 = thread::spawn(move || {\n        let permit_a = a1.acquire();\n        let permit_b = b1.acquire();\n        // Both mutexes a and b are held at the same time here.\n        permit_b.release();\n        permit_a.release();\n    });\n\n    // Worker w2: takes a then b (same order as w1, so no wait cycle can\n    // form), holds both at the same time, then releases each exactly once.\n    let a2 = a.clone();\n    let b2 = b.clone();\n    let w2 = thread::spawn(move || {\n        let permit_a = a2.acquire();\n        let permit_b = b2.acquire();\n        // Both mutexes a and b are held at the same time here.\n        permit_b.release();\n        permit_a.release();\n    });\n\n    // The group finishes only after both workers have completed.\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

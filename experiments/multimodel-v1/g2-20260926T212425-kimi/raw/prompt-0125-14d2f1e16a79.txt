@@ -1,0 +1,86 @@
+# Rust tool-feedback prompt (v1, arm A2)
+
+You are fixing a Rust program using the raw diagnostics produced by the build
+and analysis tools. The diagnostics are the ground truth.
+
+- `cargo build` errors mean the program does not compile: fix them.
+- Miri reports (deadlock or data race) identify a real interleaving problem:
+  change the synchronization so the reported problem cannot occur.
+- Do not silence a diagnostic by deleting synchronization, making the program
+  sequential, or catching/ignoring errors.
+- Keep standard-library-only, `fn main`, no external crates, no sleep-based
+  workarounds.
+- Output only the full corrected Rust source inside a single ```rust code fence.
+
+An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.
+
+Specification:
+# Requirements
+
+R1. A main task starts a group of two workers that both contend for the same two mutexes, A and B. [U]
+R2. Each worker takes mutex A and mutex B and, at some point, holds both of them at the same time.
+R3. Each worker releases each mutex it took once its work is finished. [U]
+R4. At most one worker may hold a given mutex at any moment.
+R5. The two workers take the mutexes in the same order so that no wait cycle can form.
+R6. A worker that cannot take a held mutex waits until it becomes free.
+R7. Every schedule and interleaving of the workers must terminate.
+R8. Each worker completes, and the group finishes only after both workers have completed.
+R9. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2.
+- Shared resources: a (lock), b (lock).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    // Shared resources: two mutexes, a and b.
+    let a = Arc::new(Mutex::new(0i32));
+    let b = Arc::new(Mutex::new(0i32));
+
+    // Worker w1: takes a then b (same order as w2), holds both, releases each once.
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let w1 = thread::spawn(move || {
+        let mut guard_a = a1.lock().unwrap();
+        let mut guard_b = b1.lock().unwrap();
+        // Both mutexes are held at the same time here.
+        *guard_a += 1;
+        *guard_b += 1;
+        drop(guard_b);
+        drop(guard_a);
+    });
+
+    // Worker w2: takes a then b (same order as w1), holds both, releases each once.
+    let a2 = Arc::clone(&a);
+    let b2 = Arc::clone(&b);
+    let w2 = thread::spawn(move || {
+        let mut guard_a = a2.lock().unwrap();
+        let mut guard_b = b2.lock().unwrap();
+        // Both mutexes are held at the same time here.
+        *guard_a += 1;
+        *guard_b += 1;
+        drop(guard_b);
+        drop(guard_a);
+    });
+
+    // The group finishes only after both workers have completed.
+    w1.join().unwrap();
+    w2.join().unwrap();
+
+    println!("DONE done=1");
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": {"argv": ["cargo", "test", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/structure__scope_worker_abba/rep0/run-20260926T142424-1501-79d65f/round-1/calls/002-test", "exit_code": 0, "extra": {"argv_sha256": "cc3da228dc283c8c870111cd17a782ce2fc66baa52d80dfc5966bd81aef16a9f", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/structure__scope_worker_abba/rep0/run-20260926T142424-1501-79d65f/round-1/calls/002-test/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/structure__scope_worker_abba/rep0/run-20260926T142424-1501-79d65f/round-1/calls/002-test/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/structure__scope_worker_abba/rep0/run-20260926T142424-1501-79d65f/round-1/calls/002-test/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/structure__scope_worker_abba/rep0/run-20260926T142424-1501-79d65f/round-1/calls/002-test/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/structure__scope_worker_abba/rep0/run-20260926T142424-1501-79d65f/round-1/calls/002-test/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/structure__scope_worker_abba/rep0/run-20260926T142424-1501-79d65f/round-1/calls/002-test/wall_ms.txt"}, "stderr_sha256": "af2b2b633d553586b45fb22abbb99bfd7399f6b14e70dd11ea4422fbdbd4add9", "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd", "timed_out": false, "tool": "test", "wall_ms": 500}, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/structure__scope_worker_abba/rep0/run-20260926T142424-1501-79d65f/round-1/calls/001-build", "exit_code": 0, "extra": {"argv_sha256": "4a004916abfbb6584b29fd461380726fbdfd3e4e8d857b994f995300dc03e322", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/structure__scope_worker_abba/rep0/run-20260926T142424-1501-79d65f/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/structure__scope_worker_abba/rep0/run-20260926T142424-1501-79d65f/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/structure__scope_worker_abba/rep0/run-20260926T142424-1501-79d65f/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/structure__scope_worker_abba/rep0/run-20260926T142424-1501-79d65f/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/structure__scope_worker_abba/rep0/run-20260926T142424-1501-79d65f/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/structure__scope_worker_abba/rep0/run-20260926T142424-1501-79d65f/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "af2b2b633d553586b45fb22abbb99bfd7399f6b14e70dd11ea4422fbdbd4add9", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 357}, "build_ok": true, "lockbud_detected": true, "lockbud_status": "detected", "miri_detected": false, "miri_statuses": ["clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean"]}
+
+Output the complete corrected Rust program.

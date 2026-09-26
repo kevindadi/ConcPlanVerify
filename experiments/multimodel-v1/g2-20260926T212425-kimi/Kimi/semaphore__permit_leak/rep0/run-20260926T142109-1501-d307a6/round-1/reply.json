@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::thread;\n\nfn w1(s: Arc<Semaphore>) {\n    // Acquire the single shared permit before working.\n    let permit = s.acquire();\n\n    // Perform work while holding the permit.\n    let mut acc: u64 = 0;\n    for i in 0..10_000u64 {\n        acc = acc.wrapping_add(i);\n    }\n    std::hint::black_box(acc);\n\n    // Release the permit before finishing.\n    permit.release();\n}\n\nfn w2(s: Arc<Semaphore>) {\n    // Acquire the single shared permit before working.\n    let permit = s.acquire();\n\n    // Perform work while holding the permit.\n    let mut acc: u64 = 1;\n    for i in 1..10_000u64 {\n        acc = acc.wrapping_mul(i % 97 + 1);\n    }\n    std::hint::black_box(acc);\n\n    // Release the permit before finishing.\n    permit.release();\n}\n\nfn main() {\n    // One counting permit pool with exactly one permit, shared by both workers.\n    let s = Semaphore::new(1);\n\n    let s_w1 = Arc::clone(&s);\n    let s_w2 = Arc::clone(&s);\n\n    let h1 = thread::spawn(move || w1(s_w1));\n    let h2 = thread::spawn(move || w2(s_w2));\n\n    // Supervising task waits for both workers to finish.\n    h1.join().unwrap();\n    h2.join().unwrap();\n\n    println!(\"DONE permits=1\");\n}\n```"
+}

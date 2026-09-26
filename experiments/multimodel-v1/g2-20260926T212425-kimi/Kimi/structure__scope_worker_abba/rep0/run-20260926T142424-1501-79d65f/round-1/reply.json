@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    // Shared resources: two mutexes, a and b.\n    let a = Arc::new(Mutex::new(0i32));\n    let b = Arc::new(Mutex::new(0i32));\n\n    // Worker w1: takes a then b (same order as w2), holds both, releases each once.\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let w1 = thread::spawn(move || {\n        let mut guard_a = a1.lock().unwrap();\n        let mut guard_b = b1.lock().unwrap();\n        // Both mutexes are held at the same time here.\n        *guard_a += 1;\n        *guard_b += 1;\n        drop(guard_b);\n        drop(guard_a);\n    });\n\n    // Worker w2: takes a then b (same order as w1), holds both, releases each once.\n    let a2 = Arc::clone(&a);\n    let b2 = Arc::clone(&b);\n    let w2 = thread::spawn(move || {\n        let mut guard_a = a2.lock().unwrap();\n        let mut guard_b = b2.lock().unwrap();\n        // Both mutexes are held at the same time here.\n        *guard_a += 1;\n        *guard_b += 1;\n        drop(guard_b);\n        drop(guard_a);\n    });\n\n    // The group finishes only after both workers have completed.\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

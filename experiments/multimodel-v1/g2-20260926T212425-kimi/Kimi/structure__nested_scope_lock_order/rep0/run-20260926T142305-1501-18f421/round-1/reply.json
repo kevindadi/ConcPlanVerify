@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let a = Arc::new(Mutex::new(0i32));\n    let b = Arc::new(Mutex::new(0i32));\n\n    let outer = {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        thread::spawn(move || {\n            // Nested group: two inner tasks x1 and x2.\n            let x1 = {\n                let a = Arc::clone(&a);\n                let b = Arc::clone(&b);\n                thread::spawn(move || {\n                    // Lock order: a then b.\n                    let _guard_a = a.lock().unwrap();\n                    let _guard_b = b.lock().unwrap();\n                    // Both mutexes are held here.\n                })\n            };\n            let x2 = {\n                let a = Arc::clone(&a);\n                let b = Arc::clone(&b);\n                thread::spawn(move || {\n                    // Same lock order: a then b, so no wait cycle can form.\n                    let _guard_a = a.lock().unwrap();\n                    let _guard_b = b.lock().unwrap();\n                    // Both mutexes are held here.\n                })\n            };\n            // Outer completes only after both inner tasks have finished.\n            x1.join().unwrap();\n            x2.join().unwrap();\n        })\n    };\n\n    outer.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```"
+}

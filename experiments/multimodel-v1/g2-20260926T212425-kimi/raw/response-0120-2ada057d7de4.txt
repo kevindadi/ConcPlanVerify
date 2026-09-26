@@ -1,0 +1,43 @@
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    let a = Arc::new(Mutex::new(0i32));
+    let b = Arc::new(Mutex::new(0i32));
+
+    let outer = {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        thread::spawn(move || {
+            // Nested group: two inner tasks x1 and x2.
+            let x1 = {
+                let a = Arc::clone(&a);
+                let b = Arc::clone(&b);
+                thread::spawn(move || {
+                    // Lock order: a then b.
+                    let _guard_a = a.lock().unwrap();
+                    let _guard_b = b.lock().unwrap();
+                    // Both mutexes are held here.
+                })
+            };
+            let x2 = {
+                let a = Arc::clone(&a);
+                let b = Arc::clone(&b);
+                thread::spawn(move || {
+                    // Same lock order: a then b, so no wait cycle can form.
+                    let _guard_a = a.lock().unwrap();
+                    let _guard_b = b.lock().unwrap();
+                    // Both mutexes are held here.
+                })
+            };
+            // Outer completes only after both inner tasks have finished.
+            x1.join().unwrap();
+            x2.join().unwrap();
+        })
+    };
+
+    outer.join().unwrap();
+    println!("DONE done=1");
+}
+```

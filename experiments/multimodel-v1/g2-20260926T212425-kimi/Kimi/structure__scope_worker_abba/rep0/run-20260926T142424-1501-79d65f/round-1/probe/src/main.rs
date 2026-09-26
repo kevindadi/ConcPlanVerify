@@ -1,0 +1,40 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    // Shared resources: two mutexes, a and b.
+    let a = Arc::new(Mutex::new(0i32));
+    let b = Arc::new(Mutex::new(0i32));
+
+    // Worker w1: takes a then b (same order as w2), holds both, releases each once.
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let w1 = thread::spawn(move || {
+        let mut guard_a = a1.lock().unwrap();
+        let mut guard_b = b1.lock().unwrap();
+        // Both mutexes are held at the same time here.
+        *guard_a += 1;
+        *guard_b += 1;
+        drop(guard_b);
+        drop(guard_a);
+    });
+
+    // Worker w2: takes a then b (same order as w1), holds both, releases each once.
+    let a2 = Arc::clone(&a);
+    let b2 = Arc::clone(&b);
+    let w2 = thread::spawn(move || {
+        let mut guard_a = a2.lock().unwrap();
+        let mut guard_b = b2.lock().unwrap();
+        // Both mutexes are held at the same time here.
+        *guard_a += 1;
+        *guard_b += 1;
+        drop(guard_b);
+        drop(guard_a);
+    });
+
+    // The group finishes only after both workers have completed.
+    w1.join().unwrap();
+    w2.join().unwrap();
+
+    println!("DONE done=1");
+}

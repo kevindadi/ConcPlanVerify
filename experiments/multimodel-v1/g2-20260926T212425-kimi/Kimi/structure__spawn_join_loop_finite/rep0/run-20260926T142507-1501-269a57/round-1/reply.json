@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::thread;\n\n// The worker performs no shared work and shares no mutexes or counters\n// with the main task, so it always finishes on its own.\nfn worker() {\n    // No shared state, no blocking: this task always terminates.\n}\n\nfn main() {\n    // R1/R3: start a worker, wait for it exactly once, then repeat the cycle.\n    for _ in 0..2 {\n        let handle = thread::spawn(worker);\n        handle.join().expect(\"worker must finish without panicking\");\n    }\n\n    // R6: print exactly this line and exit.\n    println!(\"DONE done=1\");\n}\n```"
+}

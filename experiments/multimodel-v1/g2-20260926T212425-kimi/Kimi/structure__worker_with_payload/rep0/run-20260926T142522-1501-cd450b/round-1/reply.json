@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\n// Sequential helper routine: performs only local computation.\nfn compute() -> i32 {\n    let mut sum: i32 = 0;\n    for i in 0..1024 {\n        sum = sum.wrapping_add(i * i);\n    }\n    sum\n}\n\nfn w1(m: Arc<Mutex<i32>>) {\n    let mut acc = m.lock().unwrap(); // take the shared mutex (waits if held)\n    let _local = compute();          // local computation while holding m\n    *acc = 1;                        // update shared variable while holding m\n}                                    // guard drops here: m is released\n\nfn w2(m: Arc<Mutex<i32>>) {\n    let mut acc = m.lock().unwrap();\n    let _local = compute();\n    *acc = 1;\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(0i32)); // m protects acc\n\n    let m1 = Arc::clone(&m);\n    let h1 = thread::spawn(move || w1(m1));\n\n    let m2 = Arc::clone(&m);\n    let h2 = thread::spawn(move || w2(m2));\n\n    h1.join().unwrap();\n    h2.join().unwrap();\n\n    let done = *m.lock().unwrap();\n    println!(\"DONE done={}\", done);\n}\n```"
+}
