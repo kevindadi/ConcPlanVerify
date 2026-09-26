@@ -1,0 +1,68 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260925T122540-15430-455b6a/round-2/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0597]: `ready` does not live long enough
+   --> src/main.rs:12:18
+    |
+  9 |       let ready = Semaphore::new(2);
+    |           ----- binding `ready` declared here
+...
+ 12 |       let ann_w1 = ready.acquire();
+    |                    ^^^^^ borrowed value does not live long enough
+...
+ 18 |       let w1 = thread::spawn(move || {
+    |  ______________-
+ 19 | |         let mut g = m1_w1.lock().unwrap();
+ 20 | |         ann_w1.release();
+ 21 | |         loop {
+...   |
+ 29 | |     });
+    | |______- argument requires that `ready` is borrowed for `'static`
+...
+ 68 |   }
+    |   - `ready` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `ready` does not live long enough
+   --> src/main.rs:13:18
+    |
+  9 |       let ready = Semaphore::new(2);
+    |           ----- binding `ready` declared here
+...
+ 13 |       let ann_w2 = ready.acquire();
+    |                    ^^^^^ borrowed value does not live long enough
+...
+ 34 |       let w2 = thread::spawn(move || {
+    |  ______________-
+ 35 | |         let mut g = m2_w2.lock().unwrap();
+ 36 | |         ann_w2.release();
+ 37 | |         loop {
+...   |
+ 45 | |     });
+    | |______- argument requires that `ready` is borrowed for `'static`
+...
+ 68 |   }
+    |   - `ready` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+For more information about this error, try `rustc --explain E0597`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "根据规格（无缓冲 rendezvous、`s1`/`r`/`ch`、需使用 `concir_sync::Semaphore`、避免双方同时 send 导致死锁），完整程序如下：\n\n```rust\nuse concir_sync::Semaphore;\nuse std::sync::mpsc;\nuse std::thread;\n\nfn main() {\n    let ch = mpsc::sync_channel::<i32>(0);\n    let start = Semaphore::new(2);\n\n    let tx = ch.0;\n    let start_s1 = start.clone();\n    let s1 = thread::spawn(move || {\n        let _permit = start_s1.acquire();\n        let _ = tx.send(1);\n    });\n\n    let rx = ch.1;\n    let start_r = start.clone();\n    let r = thread::spawn(move || {\n        let _permit = start_r.acquire();\n        let _ = rx.recv().unwrap();\n    });\n\n    s1.join().unwrap();\n    r.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```"
+}

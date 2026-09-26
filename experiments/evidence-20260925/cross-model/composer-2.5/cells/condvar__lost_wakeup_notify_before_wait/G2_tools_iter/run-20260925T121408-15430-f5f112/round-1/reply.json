@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "根据规范（在持锁下先置 `ready` 再 `notify`、waiter 用 `while !ready` 等待并每次唤醒后重检），完整程序如下：\n\n```rust\nuse concir_sync::Semaphore;\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Shared {\n    ready: bool,\n}\n\nfn waiter(m: Arc<Mutex<Shared>>, cv: Arc<Condvar>) {\n    let mut guard = m.lock().unwrap();\n    while !guard.ready {\n        guard = cv.wait(guard).unwrap();\n    }\n}\n\nfn notifier(m: Arc<Mutex<Shared>>, cv: Arc<Condvar>) {\n    let mut guard = m.lock().unwrap();\n    guard.ready = true;\n    cv.notify_one();\n}\n\nfn main() {\n    let sem = Semaphore::new(2);\n\n    let m = Arc::new(Mutex::new(Shared { ready: false }));\n    let cv = Arc::new(Condvar::new());\n\n    let m_w = Arc::clone(&m);\n    let cv_w = Arc::clone(&cv);\n    let sem_w = sem.clone();\n    let waiter_handle = thread::spawn(move || {\n        let _permit = sem_w.acquire();\n        waiter(m_w, cv_w);\n    });\n\n    let m_n = Arc::clone(&m);\n    let cv_n = Arc::clone(&cv);\n    let sem_n = sem.clone();\n    let notifier_handle = thread::spawn(move || {\n        let _permit = sem_n.acquire();\n        notifier(m_n, cv_n);\n    });\n\n    waiter_handle.join().unwrap();\n    notifier_handle.join().unwrap();\n\n    let ready = m.lock().unwrap().ready;\n    println!(\"DONE ready={}\", ready);\n}\n```"
+}

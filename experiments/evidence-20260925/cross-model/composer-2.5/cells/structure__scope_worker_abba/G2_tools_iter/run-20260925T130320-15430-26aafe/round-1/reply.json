@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "根据规格（两 worker 对 `a`、`b` 加锁、同一顺序、最终打印 `DONE done=1`），完整程序如下：\n\n```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::thread;\n\nfn w1(a: Arc<Semaphore>, b: Arc<Semaphore>) {\n    let _perm_a = a.acquire();\n    let _perm_b = b.acquire();\n}\n\nfn w2(a: Arc<Semaphore>, b: Arc<Semaphore>) {\n    let _perm_a = a.acquire();\n    let _perm_b = b.acquire();\n}\n\nfn main() {\n    let a = Semaphore::new(1);\n    let b = Semaphore::new(1);\n\n    let a_w2 = Arc::clone(&a);\n    let b_w2 = Arc::clone(&b);\n\n    let h1 = thread::spawn(move || w1(a, b));\n    let h2 = thread::spawn(move || w2(a_w2, b_w2));\n\n    h1.join().unwrap();\n    h2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```\n\n要点：`w1`、`w2` 都先 `a` 再 `b`（满足 R5，避免 AB-BA 死锁）；`Semaphore::new(1)` 互斥；许可在 `Drop` 时释放；主线程 `join` 后再打印并退出。"
+}

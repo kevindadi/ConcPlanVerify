@@ -1,0 +1,204 @@
+{
+  "program": "g3_semaphore_workers",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "s"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2",
+          "w3"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": [
+          "runtime::print"
+        ]
+      },
+      "resources": [
+        {
+          "name": "s",
+          "kind": "sync",
+          "type": "Semaphore",
+          "mode": "Sync",
+          "count": 1
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::w1",
+              "handle": "a1"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "main::w1",
+              "handle": "a2"
+            },
+            {
+              "sid": "s3",
+              "kind": "spawn",
+              "func": "main::w2",
+              "handle": "a3"
+            },
+            {
+              "sid": "s4",
+              "kind": "spawn",
+              "func": "main::w2",
+              "handle": "a4"
+            },
+            {
+              "sid": "s5",
+              "kind": "spawn",
+              "func": "main::w3",
+              "handle": "a5"
+            },
+            {
+              "sid": "s6",
+              "kind": "spawn",
+              "func": "main::w3",
+              "handle": "a6"
+            },
+            {
+              "sid": "s7",
+              "kind": "join",
+              "handle": "a1"
+            },
+            {
+              "sid": "s8",
+              "kind": "join",
+              "handle": "a2"
+            },
+            {
+              "sid": "s9",
+              "kind": "join",
+              "handle": "a3"
+            },
+            {
+              "sid": "s10",
+              "kind": "join",
+              "handle": "a4"
+            },
+            {
+              "sid": "s11",
+              "kind": "join",
+              "handle": "a5"
+            },
+            {
+              "sid": "s12",
+              "kind": "join",
+              "handle": "a6"
+            },
+            {
+              "sid": "s13",
+              "kind": "call",
+              "func": "runtime::print",
+              "args": [
+                "DONE done=1"
+              ]
+            },
+            {
+              "sid": "s14",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "semaphore_acquire",
+              "resource": "main::s",
+              "count": "1"
+            },
+            {
+              "sid": "s2",
+              "kind": "nop"
+            },
+            {
+              "sid": "s3",
+              "kind": "semaphore_release",
+              "resource": "main::s",
+              "count": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "semaphore_acquire",
+              "resource": "main::s",
+              "count": "1"
+            },
+            {
+              "sid": "s2",
+              "kind": "nop"
+            },
+            {
+              "sid": "s3",
+              "kind": "semaphore_release",
+              "resource": "main::s",
+              "count": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w3",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "semaphore_acquire",
+              "resource": "main::s",
+              "count": "1"
+            },
+            {
+              "sid": "s2",
+              "kind": "nop"
+            },
+            {
+              "sid": "s3",
+              "kind": "semaphore_release",
+              "resource": "main::s",
+              "count": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

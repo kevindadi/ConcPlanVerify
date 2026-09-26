@@ -1,0 +1,54 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260925T123931-15430-3474a5/round-3/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0618]: expected function, found `Arc<std::sync::Mutex<()>>`
+  --> src/main.rs:59:13
+   |
+ 5 | / fn a(
+ 6 | |     a: Arc<Mutex<()>>,
+ 7 | |     b: Arc<Mutex<()>>,
+ 8 | |     sa: Arc<concir_sync::Semaphore>,
+ 9 | |     sb: Arc<concir_sync::Semaphore>,
+10 | |     va: Arc<Mutex<u32>>,
+11 | | ) {
+   | |_- this function of the same name is available here, but it's shadowed by the local binding
+...
+44 |       let a = Arc::new(Mutex::new(()));
+   |           - `a` has type `Arc<std::sync::Mutex<()>>`
+...
+59 |               a(a_lock, b_lock, sa, sb, va);
+   |               ^----------------------------
+   |               |
+   |               call expression requires function
+
+error[E0618]: expected function, found `Arc<std::sync::Mutex<()>>`
+  --> src/main.rs:69:13
+   |
+20 | / fn b(
+21 | |     a: Arc<Mutex<()>>,
+22 | |     b: Arc<Mutex<()>>,
+23 | |     sa: Arc<concir_sync::Semaphore>,
+24 | |     sb: Arc<concir_sync::Semaphore>,
+25 | |     vb: Arc<Mutex<u32>>,
+26 | | ) {
+   | |_- this function of the same name is available here, but it's shadowed by the local binding
+...
+45 |       let b = Arc::new(Mutex::new(()));
+   |           - `b` has type `Arc<std::sync::Mutex<()>>`
+...
+69 |               b(a_lock, b_lock, sa, sb, vb);
+   |               ^----------------------------
+   |               |
+   |               call expression requires function
+
+For more information about this error, try `rustc --explain E0618`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors

@@ -1,0 +1,68 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260925T123849-15430-a0d241/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0618]: expected function, found `Arc<std::sync::Mutex<()>>`
+  --> src/main.rs:79:31
+   |
+ 5 | / fn a(
+ 6 | |     a: Arc<Mutex<()>>,
+ 7 | |     b: Arc<Mutex<()>>,
+ 8 | |     sa: Arc<Semaphore>,
+ 9 | |     sb: Arc<Semaphore>,
+10 | |     flag: Arc<Mutex<(u8, u8)>>,
+11 | | ) {
+   | |_- this function of the same name is available here, but it's shadowed by the local binding
+...
+60 |       let a = Arc::new(Mutex::new(()));
+   |           - `a` has type `Arc<std::sync::Mutex<()>>`
+...
+79 |           thread::spawn(move || a(a_w, b_w, sa_w, sb_w, flag_w))
+   |                                 ^------------------------------
+   |                                 |
+   |                                 call expression requires function
+
+error[E0618]: expected function, found `Arc<std::sync::Mutex<()>>`
+  --> src/main.rs:88:31
+   |
+25 | / fn b(
+26 | |     a: Arc<Mutex<()>>,
+27 | |     b: Arc<Mutex<()>>,
+28 | |     sa: Arc<Semaphore>,
+29 | |     sb: Arc<Semaphore>,
+30 | |     flag: Arc<Mutex<(u8, u8)>>,
+31 | | ) {
+   | |_- this function of the same name is available here, but it's shadowed by the local binding
+...
+61 |       let b = Arc::new(Mutex::new(()));
+   |           - `b` has type `Arc<std::sync::Mutex<()>>`
+...
+88 |           thread::spawn(move || b(a_w, b_w, sa_w, sb_w, flag_w))
+   |                                 ^------------------------------
+   |                                 |
+   |                                 call expression requires function
+
+warning: unused variable: `sa`
+ --> src/main.rs:8:5
+  |
+8 |     sa: Arc<Semaphore>,
+  |     ^^ help: if this is intentional, prefix it with an underscore: `_sa`
+  |
+  = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `sb`
+  --> src/main.rs:29:5
+   |
+29 |     sb: Arc<Semaphore>,
+   |     ^^ help: if this is intentional, prefix it with an underscore: `_sb`
+
+For more information about this error, try `rustc --explain E0618`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors; 2 warnings emitted

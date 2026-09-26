@@ -1,0 +1,290 @@
+{
+  "program": "condvar_two_waiters_notifier",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "io",
+      "provides": {
+        "resources": [],
+        "functions": [
+          "print_line"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [],
+      "functions": [
+        {
+          "name": "print_line",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m1",
+          "m2",
+          "cv",
+          "ready",
+          "go1",
+          "go2"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2",
+          "notifier"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": [
+          "io::print_line"
+        ]
+      },
+      "resources": [
+        {
+          "name": "m1",
+          "kind": "sync",
+          "mode": "Sync",
+          "type": "Mutex"
+        },
+        {
+          "name": "m2",
+          "kind": "sync",
+          "mode": "Sync",
+          "type": "Mutex"
+        },
+        {
+          "name": "cv",
+          "kind": "sync",
+          "mode": "Sync",
+          "type": "Condvar"
+        },
+        {
+          "name": "ready",
+          "kind": "sync",
+          "mode": "Sync",
+          "type": "Semaphore",
+          "count": 0
+        },
+        {
+          "name": "go1",
+          "kind": "var",
+          "type": "Var",
+          "base": "Bool",
+          "init": false
+        },
+        {
+          "name": "go2",
+          "kind": "var",
+          "type": "Var",
+          "base": "Bool",
+          "init": false
+        }
+      ],
+      "protection": [
+        {
+          "var": "go1",
+          "lock": "m1"
+        },
+        {
+          "var": "go2",
+          "lock": "m2"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::w1",
+                "main::w2",
+                "main::notifier"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "io::print_line",
+              "args": [
+                "\"DONE done=1\""
+              ]
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m1"
+            },
+            {
+              "sid": "s2",
+              "kind": "semaphore_release",
+              "resource": "main::ready",
+              "count": 1
+            },
+            {
+              "sid": "s3",
+              "kind": "branch",
+              "cond": "go1 == true",
+              "then": "s6",
+              "else": "s4"
+            },
+            {
+              "sid": "s4",
+              "kind": "condvar_wait",
+              "condvar": "main::cv",
+              "lock": "main::m1"
+            },
+            {
+              "sid": "s5",
+              "kind": "goto",
+              "target": "s3"
+            },
+            {
+              "sid": "s6",
+              "kind": "mutex_unlock",
+              "resource": "main::m1"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m2"
+            },
+            {
+              "sid": "s2",
+              "kind": "semaphore_release",
+              "resource": "main::ready",
+              "count": 1
+            },
+            {
+              "sid": "s3",
+              "kind": "branch",
+              "cond": "go2 == true",
+              "then": "s6",
+              "else": "s4"
+            },
+            {
+              "sid": "s4",
+              "kind": "condvar_wait",
+              "condvar": "main::cv",
+              "lock": "main::m2"
+            },
+            {
+              "sid": "s5",
+              "kind": "goto",
+              "target": "s3"
+            },
+            {
+              "sid": "s6",
+              "kind": "mutex_unlock",
+              "resource": "main::m2"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "notifier",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "semaphore_acquire",
+              "resource": "main::ready",
+              "count": 1
+            },
+            {
+              "sid": "s2",
+              "kind": "semaphore_acquire",
+              "resource": "main::ready",
+              "count": 1
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_lock",
+              "resource": "main::m1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_lock",
+              "resource": "main::m2"
+            },
+            {
+              "sid": "s5",
+              "kind": "write_shared",
+              "resource": "main::go1",
+              "expr": "true"
+            },
+            {
+              "sid": "s6",
+              "kind": "write_shared",
+              "resource": "main::go2",
+              "expr": "true"
+            },
+            {
+              "sid": "s7",
+              "kind": "condvar_notify_all",
+              "condvar": "main::cv"
+            },
+            {
+              "sid": "s8",
+              "kind": "mutex_unlock",
+              "resource": "main::m2"
+            },
+            {
+              "sid": "s9",
+              "kind": "mutex_unlock",
+              "resource": "main::m1"
+            },
+            {
+              "sid": "s10",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

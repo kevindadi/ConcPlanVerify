@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::thread;\n\nfn worker() {}\n\nfn main() {\n    let sem = Semaphore::new(1);\n    for _ in 0..2 {\n        let _permit = sem.acquire();\n        let handle = thread::spawn(worker);\n        handle.join().unwrap();\n    }\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn w1(m: Arc<Semaphore>, c: Arc<Mutex<i32>>) {\n    let _permit = m.acquire();\n    let mut guard = c.lock().unwrap();\n    *guard += 1;\n    assert!(*guard >= 0 && *guard <= 2);\n}\n\nfn w2(m: Arc<Semaphore>, c: Arc<Mutex<i32>>) {\n    let _permit = m.acquire();\n    let mut guard = c.lock().unwrap();\n    *guard += 1;\n    assert!(*guard >= 0 && *guard <= 2);\n}\n\nfn main() {\n    let m = Semaphore::new(1);\n    let c = Arc::new(Mutex::new(0_i32));\n\n    let m1 = Arc::clone(&m);\n    let c1 = Arc::clone(&c);\n    let m2 = Arc::clone(&m);\n    let c2 = Arc::clone(&c);\n\n    let h1 = thread::spawn(move || w1(m1, c1));\n    let h2 = thread::spawn(move || w2(m2, c2));\n\n    h1.join().unwrap();\n    h2.join().unwrap();\n\n    let done = 1;\n    println!(\"DONE done={}\", done);\n}\n```"
+}

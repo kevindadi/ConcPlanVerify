@@ -1,0 +1,56 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260925T122507-15430-1db239/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0597]: `ready` does not live long enough
+   --> src/main.rs:46:14
+    |
+ 44 |     let ready = Semaphore::new(2);
+    |         ----- binding `ready` declared here
+ 45 |
+ 46 |     let a1 = ready.acquire();
+    |              ^^^^^ borrowed value does not live long enough
+...
+ 51 |     let w1_handle = thread::spawn(move || w1(m1_w1, cv_w1, a1));
+    |                     ------------------------------------------- argument requires that `ready` is borrowed for `'static`
+...
+ 68 | }
+    | - `ready` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `ready` does not live long enough
+   --> src/main.rs:47:14
+    |
+ 44 |     let ready = Semaphore::new(2);
+    |         ----- binding `ready` declared here
+...
+ 47 |     let a2 = ready.acquire();
+    |              ^^^^^ borrowed value does not live long enough
+...
+ 55 |     let w2_handle = thread::spawn(move || w2(m2_w2, cv_w2, a2));
+    |                     ------------------------------------------- argument requires that `ready` is borrowed for `'static`
+...
+ 68 | }
+    | - `ready` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+For more information about this error, try `rustc --explain E0597`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors

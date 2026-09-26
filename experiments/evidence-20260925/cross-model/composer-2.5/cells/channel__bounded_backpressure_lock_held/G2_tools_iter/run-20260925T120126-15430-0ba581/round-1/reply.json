@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::mpsc::sync_channel;\nuse std::sync::Arc;\nuse std::thread;\n\nfn sender(ch: std::sync::mpsc::SyncSender<i32>, m: Arc<Semaphore>) {\n    {\n        let _permit = m.acquire();\n        let _ = _permit;\n    }\n    ch.send(1).unwrap();\n    {\n        let _permit = m.acquire();\n        let _ = _permit;\n    }\n    ch.send(2).unwrap();\n}\n\nfn receiver(ch: std::sync::mpsc::Receiver<i32>, m: Arc<Semaphore>) {\n    let v1 = ch.recv().unwrap();\n    {\n        let _permit = m.acquire();\n        let _ = v1;\n    }\n    let v2 = ch.recv().unwrap();\n    {\n        let _permit = m.acquire();\n        let _ = v2;\n    }\n}\n\nfn main() {\n    let (ch_tx, ch_rx) = sync_channel::<i32>(1);\n    let m = Semaphore::new(1);\n\n    let m_sender = Arc::clone(&m);\n    let sender_handle = thread::spawn(move || sender(ch_tx, m_sender));\n\n    let m_receiver = Arc::clone(&m);\n    let receiver_handle = thread::spawn(move || receiver(ch_rx, m_receiver));\n\n    sender_handle.join().unwrap();\n    receiver_handle.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

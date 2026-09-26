@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::mpsc;\nuse std::thread;\n\nfn s1(ch: mpsc::SyncSender<i32>) {\n    ch.send(1).unwrap();\n}\n\nfn r(ch: mpsc::Receiver<i32>) {\n    let _ = ch.recv().unwrap();\n}\n\nfn main() {\n    let (ch_tx, ch_rx) = mpsc::sync_channel::<i32>(0);\n\n    let s1_handle = thread::spawn(move || s1(ch_tx));\n    let r_handle = thread::spawn(move || r(ch_rx));\n\n    s1_handle.join().unwrap();\n    r_handle.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

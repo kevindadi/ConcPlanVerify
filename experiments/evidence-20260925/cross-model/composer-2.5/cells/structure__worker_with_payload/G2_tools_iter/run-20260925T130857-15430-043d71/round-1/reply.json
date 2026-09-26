@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "无法读取工作区文件，下面是根据规格与 `concir_sync::Semaphore` 互斥用法给出的完整程序（两 worker 在持有 `m` 时调用 `compute` 并将 `acc` 置为 1，最终打印 `DONE done=1`）：\n\n```rust\nuse concir_sync::Semaphore;\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn compute() {\n    let mut x = 0u64;\n    for i in 0..512 {\n        x = x.wrapping_mul(3).wrapping_add(i);\n    }\n    let _ = x;\n}\n\nfn w1(m: Arc<Semaphore>, acc: Arc<Mutex<i32>>) {\n    let permit = m.acquire();\n    compute();\n    *acc.lock().unwrap() = 1;\n    drop(permit);\n}\n\nfn w2(m: Arc<Semaphore>, acc: Arc<Mutex<i32>>) {\n    let permit = m.acquire();\n    compute();\n    *acc.lock().unwrap() = 1;\n    drop(permit);\n}\n\nfn main() {\n    let m = Semaphore::new(1);\n    let acc = Arc::new(Mutex::new(0));\n\n    let m1 = Arc::clone(&m);\n    let a1 = Arc::clone(&acc);\n    let t1 = thread::spawn(move || w1(m1, a1));\n\n    let m2 = Arc::clone(&m);\n    let a2 = Arc::clone(&acc);\n    let t2 = thread::spawn(move || w2(m2, a2));\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

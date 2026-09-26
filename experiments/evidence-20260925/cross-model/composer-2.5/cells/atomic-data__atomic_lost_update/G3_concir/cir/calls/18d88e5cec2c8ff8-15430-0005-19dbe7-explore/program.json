@@ -1,0 +1,178 @@
+{
+  "program": "supervised_atomic_inc",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "c"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2",
+          "print"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "c",
+          "kind": "var",
+          "type": "Atomic",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "print",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::w1",
+                "main::w2"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::print"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "v",
+              "type": "Int"
+            },
+            {
+              "name": "nv",
+              "type": "Int"
+            },
+            {
+              "name": "ok",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "v"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "nv",
+              "expr": "v + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "v",
+              "desired": "nv",
+              "dst": "ok"
+            },
+            {
+              "sid": "s4",
+              "kind": "branch",
+              "cond": "ok == true",
+              "then": "s5",
+              "else": "s1"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "v",
+              "type": "Int"
+            },
+            {
+              "name": "nv",
+              "type": "Int"
+            },
+            {
+              "name": "ok",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "v"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "nv",
+              "expr": "v + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "v",
+              "desired": "nv",
+              "dst": "ok"
+            },
+            {
+              "sid": "s4",
+              "kind": "branch",
+              "cond": "ok == true",
+              "then": "s5",
+              "else": "s1"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

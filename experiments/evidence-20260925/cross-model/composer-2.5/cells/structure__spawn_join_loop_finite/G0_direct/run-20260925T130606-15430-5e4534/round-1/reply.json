@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::thread;\n\nfn worker() {\n    // R2: no shared mutexes, counters, or work with the main task.\n}\n\nfn main() {\n    let sem: Arc<Semaphore> = Semaphore::new(1);\n\n    let mut done = 0;\n    while done < 1 {\n        let _permit = sem.acquire();\n        let handle = thread::spawn(worker);\n        handle.join().unwrap();\n        done += 1;\n    }\n\n    println!(\"DONE done={}\", done);\n}\n```"
+}

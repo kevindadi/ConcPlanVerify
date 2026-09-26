@@ -1,0 +1,64 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260925T120844-15430-02d5b2/round-3/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0597]: `sem` does not live long enough
+   --> src/main.rs:27:21
+    |
+ 25 |       let sem = Semaphore::new(2);
+    |           --- binding `sem` declared here
+ 26 |
+ 27 |       let release_w = sem.acquire();
+    |                       ^^^ borrowed value does not live long enough
+...
+ 32 |       let waiter_handle = thread::spawn(move || {
+    |  _________________________-
+ 33 | |         waiter(m_w.as_ref(), cv_w.as_ref());
+ 34 | |         drop(release_w);
+ 35 | |     });
+    | |______- argument requires that `sem` is borrowed for `'static`
+...
+ 51 |   }
+    |   - `sem` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `sem` does not live long enough
+   --> src/main.rs:28:21
+    |
+ 25 |       let sem = Semaphore::new(2);
+    |           --- binding `sem` declared here
+...
+ 28 |       let release_n = sem.acquire();
+    |                       ^^^ borrowed value does not live long enough
+...
+ 39 |       let notifier_handle = thread::spawn(move || {
+    |  ___________________________-
+ 40 | |         notifier(m_n.as_ref(), cv_n.as_ref());
+ 41 | |         drop(release_n);
+ 42 | |     });
+    | |______- argument requires that `sem` is borrowed for `'static`
+...
+ 51 |   }
+    |   - `sem` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+For more information about this error, try `rustc --explain E0597`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors

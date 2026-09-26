@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "按规范：主任务两次调用 `helper`，每次用信号量保证前一次完全结束后再开始下一次，且不引入主任务与 `helper` 之间的互斥/计数竞争；最后只打印 `DONE done=1`。\n\n```rust\nuse concir_sync::Semaphore;\nuse std::thread;\n\nfn helper() {}\n\nfn main() {\n    let sem = Semaphore::new(1);\n\n    {\n        let _permit = sem.acquire();\n        thread::spawn(helper).join().unwrap();\n    }\n\n    {\n        let _permit = sem.acquire();\n        thread::spawn(helper).join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}

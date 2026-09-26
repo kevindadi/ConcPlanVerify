@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::{Arc, Mutex};\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::thread;\n\nfn x1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>, enter: Arc<Semaphore>) {\n    let _enter = enter.acquire();\n    let _ga = a.lock().unwrap();\n    let _gb = b.lock().unwrap();\n}\n\nfn x2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>, enter: Arc<Semaphore>) {\n    let _enter = enter.acquire();\n    let _ga = a.lock().unwrap();\n    let _gb = b.lock().unwrap();\n}\n\nfn outer(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>, enter: Arc<Semaphore>) {\n    thread::scope(|s| {\n        s.spawn({\n            let a = a.clone();\n            let b = b.clone();\n            let enter = enter.clone();\n            move || x1(a, b, enter)\n        });\n        s.spawn({\n            let a = a.clone();\n            let b = b.clone();\n            let enter = enter.clone();\n            move || x2(a, b, enter)\n        });\n    });\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n    let enter = Semaphore::new(1);\n    let done = AtomicUsize::new(0);\n\n    thread::scope(|s| {\n        s.spawn({\n            let a = a.clone();\n            let b = b.clone();\n            let enter = enter.clone();\n            move || outer(a, b, enter)\n        });\n    });\n\n    done.store(1, Ordering::SeqCst);\n    println!(\"DONE done={}\", done.load(Ordering::SeqCst));\n}\n```"
+}

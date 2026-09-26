@@ -1,0 +1,194 @@
+{
+  "program": "bounded_counter_invariant",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "io",
+      "provides": {
+        "resources": [],
+        "functions": [
+          "println"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "println",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m",
+          "c"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": [
+          "io::println"
+        ]
+      },
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "mode": "Sync",
+          "type": "Mutex"
+        },
+        {
+          "name": "c",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [
+        {
+          "var": "c",
+          "lock": "m"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::w1",
+              "handle": "h1"
+            },
+            {
+              "sid": "s2",
+              "kind": "spawn",
+              "func": "main::w2",
+              "handle": "h2"
+            },
+            {
+              "sid": "s3",
+              "kind": "join",
+              "handle": "h1"
+            },
+            {
+              "sid": "s4",
+              "kind": "join",
+              "handle": "h2"
+            },
+            {
+              "sid": "s5",
+              "kind": "call",
+              "func": "io::println"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "v",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "read_shared",
+              "resource": "main::c",
+              "dst": "v"
+            },
+            {
+              "sid": "s3",
+              "kind": "write_shared",
+              "resource": "main::c",
+              "expr": "v + 1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "v",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "read_shared",
+              "resource": "main::c",
+              "dst": "v"
+            },
+            {
+              "sid": "s3",
+              "kind": "write_shared",
+              "resource": "main::c",
+              "expr": "v + 1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

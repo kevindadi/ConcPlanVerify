@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::thread;\n\nfn activation(s: Arc<Semaphore>) {\n    let _permit = s.acquire();\n}\n\nfn w1(s: Arc<Semaphore>) {\n    let s0 = s.clone();\n    let s1 = s.clone();\n    let h = thread::spawn(move || activation(s0));\n    activation(s1);\n    h.join().unwrap();\n}\n\nfn w2(s: Arc<Semaphore>) {\n    let s0 = s.clone();\n    let s1 = s.clone();\n    let h = thread::spawn(move || activation(s0));\n    activation(s1);\n    h.join().unwrap();\n}\n\nfn w3(s: Arc<Semaphore>) {\n    let s0 = s.clone();\n    let s1 = s.clone();\n    let h = thread::spawn(move || activation(s0));\n    activation(s1);\n    h.join().unwrap();\n}\n\nfn main() {\n    let s = Semaphore::new(1);\n\n    let s1 = s.clone();\n    let s2 = s.clone();\n    let s3 = s.clone();\n\n    let h1 = thread::spawn(move || w1(s1));\n    let h2 = thread::spawn(move || w2(s2));\n    let h3 = thread::spawn(move || w3(s3));\n\n    h1.join().unwrap();\n    h2.join().unwrap();\n    h3.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

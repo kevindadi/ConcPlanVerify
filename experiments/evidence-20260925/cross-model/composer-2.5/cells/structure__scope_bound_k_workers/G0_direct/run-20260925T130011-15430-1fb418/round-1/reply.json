@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::thread;\n\nfn activation(s: Arc<Semaphore>) {\n    let _permit = s.acquire();\n    // work while holding the single permit\n}\n\nfn w1(s: Arc<Semaphore>) {\n    let s0 = Arc::clone(&s);\n    let s1 = Arc::clone(&s);\n    let a0 = thread::spawn(move || activation(s0));\n    let a1 = thread::spawn(move || activation(s1));\n    a0.join().unwrap();\n    a1.join().unwrap();\n}\n\nfn w2(s: Arc<Semaphore>) {\n    let s0 = Arc::clone(&s);\n    let s1 = Arc::clone(&s);\n    let a0 = thread::spawn(move || activation(s0));\n    let a1 = thread::spawn(move || activation(s1));\n    a0.join().unwrap();\n    a1.join().unwrap();\n}\n\nfn w3(s: Arc<Semaphore>) {\n    let s0 = Arc::clone(&s);\n    let s1 = Arc::clone(&s);\n    let a0 = thread::spawn(move || activation(s0));\n    let a1 = thread::spawn(move || activation(s1));\n    a0.join().unwrap();\n    a1.join().unwrap();\n}\n\nfn main() {\n    let s = Semaphore::new(1);\n\n    let s_w1 = Arc::clone(&s);\n    let s_w2 = Arc::clone(&s);\n    let s_w3 = Arc::clone(&s);\n\n    let h1 = thread::spawn(move || w1(s_w1));\n    let h2 = thread::spawn(move || w2(s_w2));\n    let h3 = thread::spawn(move || w3(s_w3));\n\n    h1.join().unwrap();\n    h2.join().unwrap();\n    h3.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

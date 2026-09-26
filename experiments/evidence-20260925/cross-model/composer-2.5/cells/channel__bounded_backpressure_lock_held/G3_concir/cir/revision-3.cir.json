@@ -1,0 +1,265 @@
+{
+  "program": "channel_bounded_bp",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m",
+          "ch"
+        ],
+        "functions": [
+          "main",
+          "sender",
+          "receiver"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": [
+          "io::println"
+        ]
+      },
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "ch",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 1
+        },
+        {
+          "name": "acc",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        },
+        {
+          "name": "done",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [
+        {
+          "var": "acc",
+          "lock": "m"
+        },
+        {
+          "var": "done",
+          "lock": "m"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::sender",
+                "main::receiver"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s3",
+              "kind": "write_shared",
+              "resource": "main::done",
+              "expr": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s5",
+              "kind": "call",
+              "func": "io::println"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "sender",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "write_shared",
+              "resource": "main::acc",
+              "expr": "acc + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s4",
+              "kind": "channel_send",
+              "channel": "main::ch",
+              "value": "1"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s6",
+              "kind": "write_shared",
+              "resource": "main::acc",
+              "expr": "acc + 1"
+            },
+            {
+              "sid": "s7",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s8",
+              "kind": "channel_send",
+              "channel": "main::ch",
+              "value": "2"
+            },
+            {
+              "sid": "s9",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "receiver",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "v1",
+              "type": "Int"
+            },
+            {
+              "name": "v2",
+              "type": "Int"
+            },
+            {
+              "name": "a1",
+              "type": "Int"
+            },
+            {
+              "name": "a2",
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "channel_recv",
+              "channel": "main::ch",
+              "dst": "v1"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s3",
+              "kind": "read_shared",
+              "resource": "main::acc",
+              "dst": "a1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s5",
+              "kind": "channel_recv",
+              "channel": "main::ch",
+              "dst": "v2"
+            },
+            {
+              "sid": "s6",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s7",
+              "kind": "read_shared",
+              "resource": "main::acc",
+              "dst": "a2"
+            },
+            {
+              "sid": "s8",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s9",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "io",
+      "provides": {
+        "resources": [],
+        "functions": [
+          "println"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "println",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "根据规格（含 `while !ready` 的谓词等待、`concir_sync::Semaphore` 用于主线程等待两个角色结束），完整程序如下：\n\n```rust\nuse concir_sync::Semaphore;\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Shared {\n    ready: bool,\n}\n\nfn waiter(m: &Mutex<Shared>, cv: &Condvar) {\n    let mut guard = m.lock().unwrap();\n    while !guard.ready {\n        guard = cv.wait(guard).unwrap();\n    }\n}\n\nfn notifier(m: &Mutex<Shared>, cv: &Condvar) {\n    let mut guard = m.lock().unwrap();\n    guard.ready = true;\n    cv.notify_one();\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(Shared { ready: false }));\n    let cv = Arc::new(Condvar::new());\n    let sem = Semaphore::new(2);\n\n    let done1 = sem.acquire();\n    let done2 = sem.acquire();\n\n    let m_w = Arc::clone(&m);\n    let cv_w = Arc::clone(&cv);\n    let waiter_handle = thread::spawn(move || {\n        waiter(&m_w, &cv_w);\n        drop(done1);\n    });\n\n    let m_n = Arc::clone(&m);\n    let cv_n = Arc::clone(&cv);\n    let notifier_handle = thread::spawn(move || {\n        notifier(&m_n, &cv_n);\n        drop(done2);\n    });\n\n    let _ = sem.acquire();\n    let _ = sem.acquire();\n\n    waiter_handle.join().unwrap();\n    notifier_handle.join().unwrap();\n\n    println!(\"DONE ready=true\");\n}\n```"
+}

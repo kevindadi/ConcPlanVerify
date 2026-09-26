@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::sync::atomic::{AtomicU32, Ordering};\nuse std::thread;\n\nfn increment_c(c: &AtomicU32) {\n    loop {\n        let current = c.load(Ordering::Acquire);\n        let next = current + 1;\n        match c.compare_exchange_weak(current, next, Ordering::AcqRel, Ordering::Acquire) {\n            Ok(_) => break,\n            Err(_) => {}\n        }\n    }\n}\n\nfn main() {\n    let _gate = Semaphore::new(2);\n    let c = Arc::new(AtomicU32::new(0));\n\n    let c_w1 = Arc::clone(&c);\n    let w1 = thread::spawn(move || {\n        increment_c(&c_w1);\n    });\n\n    let c_w2 = Arc::clone(&c);\n    let w2 = thread::spawn(move || {\n        increment_c(&c_w2);\n    });\n\n    w1.join().expect(\"w1 join\");\n    w2.join().expect(\"w2 join\");\n\n    debug_assert_eq!(c.load(Ordering::Acquire), 2);\n    println!(\"DONE done=1\");\n}\n```"
+}

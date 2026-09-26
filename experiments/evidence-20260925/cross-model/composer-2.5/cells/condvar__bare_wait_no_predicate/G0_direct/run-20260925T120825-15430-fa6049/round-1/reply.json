@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn waiter(m: Arc<Mutex<bool>>, cv: Arc<Condvar>) {\n    let mut guard = m.lock().unwrap();\n    while !*guard {\n        guard = cv.wait(guard).unwrap();\n    }\n}\n\nfn notifier(m: Arc<Mutex<bool>>, cv: Arc<Condvar>) {\n    let mut guard = m.lock().unwrap();\n    *guard = true;\n    cv.notify_one();\n}\n\nfn main() {\n    let _sem = Semaphore::new(1);\n    let ready = Arc::new(Mutex::new(false));\n    let cv = Arc::new(Condvar::new());\n\n    let m_wait = Arc::clone(&ready);\n    let cv_wait = Arc::clone(&cv);\n    let handle_waiter = thread::spawn(move || waiter(m_wait, cv_wait));\n\n    let m_notify = Arc::clone(&ready);\n    let cv_notify = Arc::clone(&cv);\n    let handle_notifier = thread::spawn(move || notifier(m_notify, cv_notify));\n\n    handle_waiter.join().unwrap();\n    handle_notifier.join().unwrap();\n\n    let guard = ready.lock().unwrap();\n    assert!(*guard);\n    drop(guard);\n\n    println!(\"DONE ready=true\");\n}\n```"
+}

@@ -1,0 +1,133 @@
+{
+  "program": "finite_call_loop",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "stdio",
+      "provides": {
+        "resources": [],
+        "functions": [
+          "println"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "println",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "main",
+      "provides": {
+        "resources": [],
+        "functions": [
+          "main",
+          "helper",
+          "emit_done"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": [
+          "stdio::println"
+        ]
+      },
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "helper",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "emit_done",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "stdio::println",
+              "args": [
+                "\"DONE done=1\""
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "phase",
+              "base": "Int",
+              "init": 0,
+              "type": "Int"
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "call",
+              "func": "main::helper"
+            },
+            {
+              "sid": "s2",
+              "kind": "branch",
+              "cond": "phase == 0",
+              "then": "s3",
+              "else": "s5"
+            },
+            {
+              "sid": "s3",
+              "kind": "assign_local",
+              "target": "phase",
+              "expr": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "goto",
+              "target": "s1"
+            },
+            {
+              "sid": "s5",
+              "kind": "call",
+              "func": "main::emit_done"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

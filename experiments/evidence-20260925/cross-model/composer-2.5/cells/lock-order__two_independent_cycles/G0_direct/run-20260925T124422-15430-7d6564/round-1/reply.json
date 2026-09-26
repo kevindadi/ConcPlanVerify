@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::thread;\n\nfn t1(a: Arc<Semaphore>, b: Arc<Semaphore>) {\n    let _guard_a = a.acquire();\n    let _guard_b = b.acquire();\n}\n\nfn t2(a: Arc<Semaphore>, b: Arc<Semaphore>) {\n    let _guard_a = a.acquire();\n    let _guard_b = b.acquire();\n}\n\nfn t3(c: Arc<Semaphore>, d: Arc<Semaphore>) {\n    let _guard_c = c.acquire();\n    let _guard_d = d.acquire();\n}\n\nfn t4(c: Arc<Semaphore>, d: Arc<Semaphore>) {\n    let _guard_c = c.acquire();\n    let _guard_d = d.acquire();\n}\n\nfn main() {\n    let a = Semaphore::new(1);\n    let b = Semaphore::new(1);\n    let c = Semaphore::new(1);\n    let d = Semaphore::new(1);\n\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let h1 = thread::spawn(move || t1(a1, b1));\n\n    let a2 = Arc::clone(&a);\n    let b2 = Arc::clone(&b);\n    let h2 = thread::spawn(move || t2(a2, b2));\n\n    let c3 = Arc::clone(&c);\n    let d3 = Arc::clone(&d);\n    let h3 = thread::spawn(move || t3(c3, d3));\n\n    let c4 = Arc::clone(&c);\n    let d4 = Arc::clone(&d);\n    let h4 = thread::spawn(move || t4(c4, d4));\n\n    h1.join().unwrap();\n    h2.join().unwrap();\n    h3.join().unwrap();\n    h4.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

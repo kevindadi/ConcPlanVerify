@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_fail",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::mpsc::sync_channel;\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn s(ch1: std::sync::mpsc::SyncSender<i32>, ch2: std::sync::mpsc::SyncReceiver<i32>, lock: Arc<Mutex<()>>, sem: Arc<Semaphore>) {\n    {\n        let _permit = sem.acquire();\n        {\n            let _g = lock.lock().unwrap();\n        }\n    }\n    ch1.send(1).unwrap();\n    ch2.recv().unwrap();\n}\n\nfn r(ch2: std::sync::mpsc::SyncSender<i32>, ch1: std::sync::mpsc::SyncReceiver<i32>, lock: Arc<Mutex<()>>, sem: Arc<Semaphore>) {\n    let v = ch1.recv().unwrap();\n    {\n        let _permit = sem.acquire();\n        {\n            let _g = lock.lock().unwrap();\n        }\n    }\n    ch2.send(v).unwrap();\n}\n\nfn main() {\n    let lock = Arc::new(Mutex::new(()));\n    let sem = Semaphore::new(1);\n\n    let (ch1, ch1_end) = sync_channel::<i32>(0);\n    let (ch2, ch2_end) = sync_channel::<i32>(0);\n\n    let lock_s = Arc::clone(&lock);\n    let sem_s = Arc::clone(&sem);\n    let ts = thread::spawn(move || s(ch1, ch2_end, lock_s, sem_s));\n\n    let lock_r = Arc::clone(&lock);\n    let sem_r = Arc::clone(&sem);\n    let tr = thread::spawn(move || r(ch2, ch1_end, lock_r, sem_r));\n\n    ts.join().unwrap();\n    tr.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

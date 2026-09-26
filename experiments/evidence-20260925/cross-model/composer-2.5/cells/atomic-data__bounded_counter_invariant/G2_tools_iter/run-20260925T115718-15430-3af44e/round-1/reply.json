@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::atomic::{AtomicI32, Ordering};\nuse std::sync::Arc;\nuse std::thread;\n\nfn w1(m: Arc<Semaphore>, c: Arc<AtomicI32>) {\n    let _permit = m.acquire();\n    let v = c.load(Ordering::Acquire);\n    c.store(v + 1, Ordering::Release);\n}\n\nfn w2(m: Arc<Semaphore>, c: Arc<AtomicI32>) {\n    let _permit = m.acquire();\n    let v = c.load(Ordering::Acquire);\n    c.store(v + 1, Ordering::Release);\n}\n\nfn main() {\n    let m = Semaphore::new(1);\n    let c = Arc::new(AtomicI32::new(0));\n\n    let m_w1 = Arc::clone(&m);\n    let c_w1 = Arc::clone(&c);\n    let h1 = thread::spawn(move || w1(m_w1, c_w1));\n\n    let m_w2 = Arc::clone(&m);\n    let c_w2 = Arc::clone(&c);\n    let h2 = thread::spawn(move || w2(m_w2, c_w2));\n\n    h1.join().unwrap();\n    h2.join().unwrap();\n\n    let done = 1;\n    println!(\"DONE done={done}\");\n}\n```"
+}

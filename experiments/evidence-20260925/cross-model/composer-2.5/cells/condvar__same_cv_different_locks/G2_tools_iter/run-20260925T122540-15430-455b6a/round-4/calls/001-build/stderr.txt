@@ -1,0 +1,86 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260925T122540-15430-455b6a/round-4/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+warning: variable does not need to be mutable
+  --> src/main.rs:13:9
+   |
+13 |     let mut ann_w1 = ready.acquire();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+  --> src/main.rs:14:9
+   |
+14 |     let mut ann_w2 = ready.acquire();
+   |         ----^^^^^^
+   |         |
+   |         help: remove this `mut`
+
+error[E0597]: `ready` does not live long enough
+   --> src/main.rs:13:22
+    |
+ 10 |       let ready = Semaphore::new(2);
+    |           ----- binding `ready` declared here
+...
+ 13 |       let mut ann_w1 = ready.acquire();
+    |                        ^^^^^ borrowed value does not live long enough
+...
+ 19 |       let w1 = thread::spawn(move || {
+    |  ______________-
+ 20 | |         let mut g = m1_w1.lock().unwrap();
+ 21 | |         ann_w1.release();
+ 22 | |         while !notified_w1.load(Ordering::Acquire) {
+...   |
+ 25 | |     });
+    | |______- argument requires that `ready` is borrowed for `'static`
+...
+ 59 |   }
+    |   - `ready` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `ready` does not live long enough
+   --> src/main.rs:14:22
+    |
+ 10 |       let ready = Semaphore::new(2);
+    |           ----- binding `ready` declared here
+...
+ 14 |       let mut ann_w2 = ready.acquire();
+    |                        ^^^^^ borrowed value does not live long enough
+...
+ 30 |       let w2 = thread::spawn(move || {
+    |  ______________-
+ 31 | |         let mut g = m2_w2.lock().unwrap();
+ 32 | |         ann_w2.release();
+ 33 | |         while !notified_w2.load(Ordering::Acquire) {
+...   |
+ 36 | |     });
+    | |______- argument requires that `ready` is borrowed for `'static`
+...
+ 59 |   }
+    |   - `ready` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+For more information about this error, try `rustc --explain E0597`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors; 2 warnings emitted

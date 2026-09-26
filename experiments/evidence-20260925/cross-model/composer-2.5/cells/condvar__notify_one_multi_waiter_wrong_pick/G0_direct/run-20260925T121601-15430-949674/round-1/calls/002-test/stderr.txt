@@ -1,0 +1,68 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260925T121601-15430-949674/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:10:68
+   |
+10 | fn w1(m: Arc<Mutex<State>>, cv: Arc<Condvar>, g12: Arc<Semaphore>, gN: Arc<Semaphore>) {
+   |                                                                    ^^ help: convert the identifier to snake case: `g_n`
+   |
+   = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `tN` should have a snake case name
+  --> src/main.rs:12:9
+   |
+12 |     let tN = gN.acquire();
+   |         ^^ help: convert the identifier to snake case: `t_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:22:68
+   |
+22 | fn w2(m: Arc<Mutex<State>>, cv: Arc<Condvar>, g12: Arc<Semaphore>, gN: Arc<Semaphore>) {
+   |                                                                    ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `tN` should have a snake case name
+  --> src/main.rs:24:9
+   |
+24 |     let tN = gN.acquire();
+   |         ^^ help: convert the identifier to snake case: `t_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:34:74
+   |
+34 | fn notifier(m: Arc<Mutex<State>>, cv: Arc<Condvar>, g12: Arc<Semaphore>, gN: Arc<Semaphore>) {
+   |                                                                          ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:52:9
+   |
+52 |     let gN = Semaphore::new(2);
+   |         ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `gN_w1` should have a snake case name
+  --> src/main.rs:57:9
+   |
+57 |     let gN_w1 = gN.clone();
+   |         ^^^^^ help: convert the identifier to snake case: `g_n_w1`
+
+warning: variable `gN_w2` should have a snake case name
+  --> src/main.rs:63:9
+   |
+63 |     let gN_w2 = gN.clone();
+   |         ^^^^^ help: convert the identifier to snake case: `g_n_w2`
+
+warning: variable `gN_n` should have a snake case name
+  --> src/main.rs:69:9
+   |
+69 |     let gN_n = gN.clone();
+   |         ^^^^ help: convert the identifier to snake case: `g_n_n`
+

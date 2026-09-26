@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::thread;\n\nfn helper() {\n}\n\nfn main() {\n    let sem = Semaphore::new(1);\n\n    {\n        let _permit = sem.acquire();\n        thread::spawn(helper).join().unwrap();\n    }\n\n    {\n        let _permit = sem.acquire();\n        thread::spawn(helper).join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}
