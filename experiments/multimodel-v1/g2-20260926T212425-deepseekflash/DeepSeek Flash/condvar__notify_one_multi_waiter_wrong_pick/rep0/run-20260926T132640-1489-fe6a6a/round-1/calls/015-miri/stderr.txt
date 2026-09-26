@@ -1,0 +1,161 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...20260926T132640-1489-fe6a6a/round-1/probe/target/miri/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+warning: variable does not need to be mutable
+  --> src/main.rs:80:13
+   |
+80 |         let mut guard = m3.lock().unwrap();
+   |             ----^^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:15:9
+   |
+15 |     let gN = Semaphore::new(0);
+   |         ^^ help: convert the identifier to snake case: `g_n`
+   |
+   = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `gN_w1` should have a snake case name
+  --> src/main.rs:23:9
+   |
+23 |     let gN_w1 = Arc::clone(&gN);
+   |         ^^^^^ help: convert the identifier to snake case: `g_n_w1`
+
+warning: variable `gN_w2` should have a snake case name
+  --> src/main.rs:49:9
+   |
+49 |     let gN_w2 = Arc::clone(&gN);
+   |         ^^^^^ help: convert the identifier to snake case: `g_n_w2`
+
+warning: variable `gN_n` should have a snake case name
+  --> src/main.rs:69:9
+   |
+69 |     let gN_n = Arc::clone(&gN);
+   |         ^^^^ help: convert the identifier to snake case: `g_n_n`
+
+error: the evaluated program deadlocked
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66
+    |
+135 |         let ret = unsafe { libc::pthread_join(id, ptr::null_mut()) };
+    |                                                                  ^ thread got stuck here
+    |
+    = note: this is on thread `main`
+    = note: stack backtrace:
+            0: std::sys::thread::unix::Thread::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/thread/unix.rs:135:66: 135:67
+            1: std::thread::lifecycle::JoinInner::<'_, ()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/lifecycle.rs:220:9: 220:27
+            2: std::thread::JoinHandle::<()>::join
+                at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/join_handle.rs:150:9: 150:22
+            3: main
+                at src/main.rs:96:5: 96:14
+
+error: the evaluated program deadlocked
+  --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73
+   |
+47 |         let r = unsafe { libc::pthread_cond_wait(self.raw(), mutex.raw()) };
+   |                                                                         ^ thread got stuck here
+   |
+   = note: this is on thread `unnamed-1`
+   = note: stack backtrace:
+           0: std::sys::pal::unix::sync::condvar::Condvar::wait
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73: 47:74
+           1: std::sys::sync::condvar::pthread::Condvar::wait
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/condvar/pthread.rs:64:18: 64:40
+           2: std::sync::Condvar::wait::<i64>
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/poison/condvar.rs:128:13: 128:34
+           3: concir_sync::Semaphore::acquire
+               at /Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync/src/lib.rs:50:17: 50:32
+           4: main::{closure#0}
+               at src/main.rs:28:9: 28:25
+note: the last function in that backtrace got called indirectly due to this code
+  --> src/main.rs:26:14
+   |
+26 |       let w1 = thread::spawn(move || {
+   |  ______________^
+27 | |         // Signal readiness: release a permit on g12.
+28 | |         g12_w1.acquire().release();
+...  |
+43 | |         drop(guard);
+44 | |     });
+   | |______^
+
+error: the evaluated program deadlocked
+  --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73
+   |
+47 |         let r = unsafe { libc::pthread_cond_wait(self.raw(), mutex.raw()) };
+   |                                                                         ^ thread got stuck here
+   |
+   = note: this is on thread `unnamed-2`
+   = note: stack backtrace:
+           0: std::sys::pal::unix::sync::condvar::Condvar::wait
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73: 47:74
+           1: std::sys::sync::condvar::pthread::Condvar::wait
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/condvar/pthread.rs:64:18: 64:40
+           2: std::sync::Condvar::wait::<i64>
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/poison/condvar.rs:128:13: 128:34
+           3: concir_sync::Semaphore::acquire
+               at /Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync/src/lib.rs:50:17: 50:32
+           4: main::{closure#1}
+               at src/main.rs:53:9: 53:25
+note: the last function in that backtrace got called indirectly due to this code
+  --> src/main.rs:52:14
+   |
+52 |       let w2 = thread::spawn(move || {
+   |  ______________^
+53 | |         g12_w2.acquire().release();
+54 | |
+55 | |         let mut guard = m2.lock().unwrap();
+...  |
+63 | |         drop(guard);
+64 | |     });
+   | |______^
+
+error: the evaluated program deadlocked
+  --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73
+   |
+47 |         let r = unsafe { libc::pthread_cond_wait(self.raw(), mutex.raw()) };
+   |                                                                         ^ thread got stuck here
+   |
+   = note: this is on thread `unnamed-3`
+   = note: stack backtrace:
+           0: std::sys::pal::unix::sync::condvar::Condvar::wait
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/pal/unix/sync/condvar.rs:47:73: 47:74
+           1: std::sys::sync::condvar::pthread::Condvar::wait
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/condvar/pthread.rs:64:18: 64:40
+           2: std::sync::Condvar::wait::<i64>
+               at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/poison/condvar.rs:128:13: 128:34
+           3: concir_sync::Semaphore::acquire
+               at /Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync/src/lib.rs:50:17: 50:32
+           4: main::{closure#2}
+               at src/main.rs:74:18: 74:33
+note: the last function in that backtrace got called indirectly due to this code
+  --> src/main.rs:72:20
+   |
+72 |       let notifier = thread::spawn(move || {
+   |  ____________________^
+73 | |         // Wait until both waiters are ready: acquire two permits from g12.
+74 | |         let p1 = g12_n.acquire();
+75 | |         let p2 = g12_n.acquire();
+...  |
+93 | |         drop(guard);
+94 | |     });
+   | |______^
+
+note: some details are omitted, run with `MIRIFLAGS=-Zmiri-backtrace=full` for a verbose backtrace
+
+error: aborting due to 4 previous errors; 5 warnings emitted
+

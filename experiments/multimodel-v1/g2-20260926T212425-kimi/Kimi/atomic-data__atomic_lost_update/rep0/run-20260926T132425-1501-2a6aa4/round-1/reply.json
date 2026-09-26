@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Arc;\nuse std::thread;\n\n// Shared resource: c (atomic counter), updated only via a CAS retry loop so\n// each increment is a single indivisible read-modify-write step and a failed\n// attempt is always retried, never abandoned.\nfn increment(c: &AtomicUsize) {\n    let mut cur = c.load(Ordering::Relaxed);\n    loop {\n        match c.compare_exchange_weak(cur, cur + 1, Ordering::SeqCst, Ordering::Relaxed) {\n            Ok(_) => break,       // increment took effect atomically\n            Err(actual) => cur = actual, // lost a race: retry with the fresh value\n        }\n    }\n}\n\nfn w1(c: Arc<AtomicUsize>) {\n    increment(&c);\n}\n\nfn w2(c: Arc<AtomicUsize>) {\n    increment(&c);\n}\n\nfn main() {\n    // Supervising task: create the shared counter, launch both workers,\n    // and wait for both of them to finish.\n    let c = Arc::new(AtomicUsize::new(0));\n\n    let c1 = Arc::clone(&c);\n    let c2 = Arc::clone(&c);\n\n    let h1 = thread::spawn(move || w1(c1));\n    let h2 = thread::spawn(move || w2(c2));\n\n    h1.join().unwrap();\n    h2.join().unwrap();\n\n    // Both workers have finished; each added exactly one, so c == 2.\n    println!(\"DONE done=1\");\n}\n```"
+}

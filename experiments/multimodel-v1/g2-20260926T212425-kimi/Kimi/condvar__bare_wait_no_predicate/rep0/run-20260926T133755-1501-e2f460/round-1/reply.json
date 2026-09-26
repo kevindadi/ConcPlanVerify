@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    // Shared resources: the lock `m`, the condition variable `cv`,\n    // and the shared boolean flag `ready` guarded by `m`.\n    let m = Arc::new(Mutex::new(false));\n    let cv = Arc::new(Condvar::new());\n\n    // Waiter role: checks the flag first, waits only while it is false,\n    // and re-checks after every wake. The lock is released while blocked\n    // inside `wait` and re-acquired before the flag is re-checked.\n    let m_waiter = Arc::clone(&m);\n    let cv_waiter = Arc::clone(&cv);\n    let waiter = thread::spawn(move || {\n        let mut ready = m_waiter.lock().unwrap();\n        while !*ready {\n            ready = cv_waiter.wait(ready).unwrap();\n        }\n        // Flag is guaranteed true here, even if the notifier signaled\n        // before the waiter started waiting.\n        println!(\"DONE ready={}\", *ready);\n    });\n\n    // Notifier role: sets the flag while holding the lock, signals the\n    // condition variable, then releases the lock.\n    let m_notifier = Arc::clone(&m);\n    let cv_notifier = Arc::clone(&cv);\n    let notifier = thread::spawn(move || {\n        let mut ready = m_notifier.lock().unwrap();\n        *ready = true;\n        cv_notifier.notify_one();\n    });\n\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n}\n```"
+}

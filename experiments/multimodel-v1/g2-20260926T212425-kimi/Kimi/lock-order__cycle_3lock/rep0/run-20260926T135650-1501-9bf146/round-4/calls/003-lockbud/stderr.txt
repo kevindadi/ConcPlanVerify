@@ -1,0 +1,53 @@
+     Locking 1 package to latest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling cir_arm_probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-4/lockbud-probe)
+[2026-09-26T13:59:47Z WARN  lockbud::callbacks] [
+      {
+        "ConflictLock": {
+          "bug_kind": "ConflictLock",
+          "possibility": "Possibly",
+          "diagnosis": [
+            {
+              "first_lock_type": "StdMutex(())",
+              "first_lock_span": "src/main.rs:36:13: 36:21 (#0)",
+              "second_lock_type": "StdMutex(())",
+              "second_lock_span": "src/main.rs:37:13: 37:21 (#0)",
+              "callchains": []
+            },
+            {
+              "first_lock_type": "StdMutex(())",
+              "first_lock_span": "src/main.rs:24:13: 24:21 (#0)",
+              "second_lock_type": "StdMutex(())",
+              "second_lock_span": "src/main.rs:25:13: 25:21 (#0)",
+              "callchains": []
+            }
+          ],
+          "explanation": "Locks mutually wait for each other to form a cycle"
+        }
+      },
+      {
+        "ConflictLock": {
+          "bug_kind": "ConflictLock",
+          "possibility": "Possibly",
+          "diagnosis": [
+            {
+              "first_lock_type": "StdMutex(())",
+              "first_lock_span": "src/main.rs:36:13: 36:21 (#0)",
+              "second_lock_type": "StdMutex(())",
+              "second_lock_span": "src/main.rs:37:13: 37:21 (#0)",
+              "callchains": []
+            },
+            {
+              "first_lock_type": "StdMutex(())",
+              "first_lock_span": "src/main.rs:14:13: 14:21 (#0)",
+              "second_lock_type": "StdMutex(())",
+              "second_lock_span": "src/main.rs:15:13: 15:21 (#0)",
+              "callchains": []
+            }
+          ],
+          "explanation": "Locks mutually wait for each other to form a cycle"
+        }
+      }
+    ]
+[2026-09-26T13:59:47Z WARN  lockbud::callbacks] crate cir_arm_probe contains bugs: { probably: 0, possibly: 0 }, conflictlock: { probably: 0, possibly: 2 }, condvar_deadlock: { probably: 0, possibly: 0 }, atomicity_violation: { possibly: 0 }, invalid_free: { possibly: 0 }, use_after_free: { possibly: 0 }
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.23s

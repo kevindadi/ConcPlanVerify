@@ -1,0 +1,7 @@
+{
+  "round": 2,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\nuse concir_sync::Semaphore;\n\nfn main() {\n    // Three locks shared among the workers.\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n    let c = Arc::new(Mutex::new(()));\n\n    // A global ordering semaphore ensures no circular wait (deadlock-free).\n    // Only one worker may attempt to acquire its locks at a time.\n    let gate = Semaphore::new(1);\n\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let g1 = Arc::clone(&gate);\n    let t1 = thread::spawn(move || {\n        let _permit = g1.acquire();\n        let _la = a1.lock().unwrap();\n        let _lb = b1.lock().unwrap();\n        // critical work\n    });\n\n    let b2 = Arc::clone(&b);\n    let c2 = Arc::clone(&c);\n    let g2 = Arc::clone(&gate);\n    let t2 = thread::spawn(move || {\n        let _permit = g2.acquire();\n        let _lb = b2.lock().unwrap();\n        let _lc = c2.lock().unwrap();\n        // critical work\n    });\n\n    let c3 = Arc::clone(&c);\n    let a3 = Arc::clone(&a);\n    let g3 = Arc::clone(&gate);\n    let t3 = thread::spawn(move || {\n        let _permit = g3.acquire();\n        let _lc = c3.lock().unwrap();\n        let _la = a3.lock().unwrap();\n        // critical work\n    });\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n    t3.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

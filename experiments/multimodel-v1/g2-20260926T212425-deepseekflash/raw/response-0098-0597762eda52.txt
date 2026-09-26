@@ -1,0 +1,152 @@
+Looking at the diagnostics: the build succeeds, but Miri detects a problem. The issue is the semaphore usage.
+
+The `done` semaphore is created with 0 permits. Each inner task calls `done1.acquire()` / `done2.acquire()`, which blocks forever because no permits are ever released. This is a deadlock — the inner tasks never finish, so `x1.join()` and `x2.join()` block forever, and the program never prints `DONE done=1`.
+
+The semaphore is being misused as a "wait for signal" mechanism, but nothing ever signals it. The correct approach: the outer worker should wait for both inner tasks to finish via `join()`, which it already does. The semaphore is unnecessary and causes the deadlock.
+
+The fix is to remove the deadlocking `acquire()` calls. The `join()` calls already satisfy R5 (outer completes only after both inner tasks finish). I'll keep the semaphore usage meaningful by having each inner task release a permit when done, and the outer acquire both — but simpler and correct is to just rely on join. However, to preserve the synchronization intent without deadlock, I'll have inner tasks release permits and outer acquire them.
+
+Let me use the semaphore correctly: create with 0 permits, each inner task releases one permit after finishing its critical section, and the outer acquires two permits before joining. This keeps the semaphore meaningful and deadlock-free.
+
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+use concir_sync::Semaphore;
+
+fn main() {
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    let done = Arc::new(Semaphore::new(0));
+
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let done1 = Arc::clone(&done);
+
+    let outer = thread::spawn(move || {
+        let x1 = thread::spawn(move || {
+            let _ga = a1.lock().unwrap();
+            let _gb = b1.lock().unwrap();
+            drop(_gb);
+            drop(_ga);
+            let permit = done1.try_acquire();
+            if let Some(p) = permit {
+                p.release();
+            }
+        });
+
+        let a2 = Arc::clone(&a);
+        let b2 = Arc::clone(&b);
+        let done2 = Arc::clone(&done);
+
+        let x2 = thread::spawn(move || {
+            let _ga = a2.lock().unwrap();
+            let _gb = b2.lock().unwrap();
+            drop(_gb);
+            drop(_ga);
+            let permit = done2.try_acquire();
+            if let Some(p) = permit {
+                p.release();
+            }
+        });
+
+        x1.join().unwrap();
+        x2.join().unwrap();
+    });
+
+    outer.join().unwrap();
+
+    println!("DONE done=1");
+}
+```
+
+Wait — this still doesn't use the semaphore meaningfully and `try_acquire` on a 0-permit semaphore returns None. Let me reconsider.
+
+The cleanest correct fix: the semaphore should be used so that the outer worker waits for both inner tasks to signal completion. Each inner task releases a permit (via `permit.release()` on a permit it holds, or by acquiring then releasing). But `Semaphore::new(0)` has no permits to acquire.
+
+The proper pattern: create the semaphore with 0 permits. Inner tasks need to *release* a permit to signal. But the API says `permit.release()` consumes a permit — you must first have a permit. With 0 initial permits, inner tasks can't get one.
+
+So the semaphore can't be used as a signal here without initial permits. The simplest correct solution that satisfies all requirements is to drop the semaphore entirely and rely on `join()`, which already guarantees R5 and R6.
+
+Let me remove the semaphore and the deadlocking acquires:
+
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+
+    let outer = thread::spawn(move || {
+        let x1 = thread::spawn(move || {
+            let _ga = a1.lock().unwrap();
+            let _gb = b1.lock().unwrap();
+        });
+
+        let a2 = Arc::clone(&a);
+        let b2 = Arc::clone(&b);
+
+        let x2 = thread::spawn(move || {
+            let _ga = a2.lock().unwrap();
+            let _gb = b2.lock().unwrap();
+        });
+
+        x1.join().unwrap();
+        x2.join().unwrap();
+    });
+
+    outer.join().unwrap();
+
+    println!("DONE done=1");
+}
+```
+
+This satisfies:
+- R1: main starts outer worker ✓
+- R2: outer starts two inner tasks ✓
+- R3: each inner holds both a and b simultaneously ✓
+- R4: both take a then b (same order) ✓
+- R5: outer joins both inner tasks ✓
+- R6: no deadlock, all terminate ✓
+- R7: prints `DONE done=1` ✓
+
+The semaphore was the source of the deadlock (acquiring from a 0-permit semaphore with no releaser). Removing it fixes the Miri-detected deadlock while keeping the required synchronization via `join()`.
+
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+
+    let outer = thread::spawn(move || {
+        let x1 = thread::spawn(move || {
+            let _ga = a1.lock().unwrap();
+            let _gb = b1.lock().unwrap();
+        });
+
+        let a2 = Arc::clone(&a);
+        let b2 = Arc::clone(&b);
+
+        let x2 = thread::spawn(move || {
+            let _ga = a2.lock().unwrap();
+            let _gb = b2.lock().unwrap();
+        });
+
+        x1.join().unwrap();
+        x2.join().unwrap();
+    });
+
+    outer.join().unwrap();
+
+    println!("DONE done=1");
+}
+```

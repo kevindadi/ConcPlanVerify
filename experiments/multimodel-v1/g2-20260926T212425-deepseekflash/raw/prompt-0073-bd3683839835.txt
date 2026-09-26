@@ -1,0 +1,111 @@
+# Rust tool-feedback prompt (v1, arm A2)
+
+You are fixing a Rust program using the raw diagnostics produced by the build
+and analysis tools. The diagnostics are the ground truth.
+
+- `cargo build` errors mean the program does not compile: fix them.
+- Miri reports (deadlock or data race) identify a real interleaving problem:
+  change the synchronization so the reported problem cannot occur.
+- Do not silence a diagnostic by deleting synchronization, making the program
+  sequential, or catching/ignoring errors.
+- Keep standard-library-only, `fn main`, no external crates, no sleep-based
+  workarounds.
+- Output only the full corrected Rust source inside a single ```rust code fence.
+
+An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.
+
+Specification:
+# Requirements
+
+R1. The design contains one main thread and two short-lived workers.
+R2. An independent bystander task also runs and keeps making progress without ever finishing on its own. [U]
+R3. The two workers share the same two locks and also use two counting permits to coordinate with each other.
+R4. Each worker must hold both locks at the same time while it enters its critical section.
+R5. The two workers must use the two permits as a handshake, so that neither takes its second lock before the other has taken its first.
+R6. The bystander task must not prevent the two workers from finishing.
+R7. At every point during execution, it must still be possible for the first worker to finish.
+R8. At every point during execution, it must still be possible for the second worker to finish.
+R9. Neither worker may wait forever for a permit or a lock that the other worker never provides.
+R10. Every worker must release each lock it holds before it finishes.
+R11. The main thread starts all three tasks and only finishes after both workers have finished, even though the bystander may keep running.
+R12. The program must print exactly the line `DONE a=1 b=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): a, b, bystander.
+- Shared resources: a (lock), b (lock), sa (semaphore), sb (semaphore), flag (shared variable).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+use concir_sync::Semaphore;
+
+fn main() {
+    let a = Arc::new(Mutex::new(0));
+    let b = Arc::new(Mutex::new(0));
+    let sa = Semaphore::new(0);
+    let sb = Semaphore::new(0);
+    let flag = Arc::new(Mutex::new(0));
+
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let sa1 = Arc::clone(&sa);
+    let sb1 = Arc::clone(&sb);
+    let flag1 = Arc::clone(&flag);
+
+    let a2 = Arc::clone(&a);
+    let b2 = Arc::clone(&b);
+    let sa2 = Arc::clone(&sa);
+    let sb2 = Arc::clone(&sb);
+    let flag2 = Arc::clone(&flag);
+
+    let bystander_flag = Arc::clone(&flag);
+
+    let worker_a = thread::spawn(move || {
+        let _pa = sa1.acquire();
+        {
+            let _ga = a1.lock().unwrap();
+            sb1.release();
+            let _gb = b1.lock().unwrap();
+            let mut f = flag1.lock().unwrap();
+            *f += 1;
+        }
+    });
+
+    let worker_b = thread::spawn(move || {
+        let _pb = sb2.acquire();
+        {
+            let _gb = b2.lock().unwrap();
+            sa2.release();
+            let _ga = a2.lock().unwrap();
+            let mut f = flag2.lock().unwrap();
+            *f += 1;
+        }
+    });
+
+    let bystander = thread::spawn(move || loop {
+        let mut f = bystander_flag.lock().unwrap();
+        *f += 0;
+        drop(f);
+        thread::yield_now();
+    });
+
+    worker_a.join().unwrap();
+    worker_b.join().unwrap();
+
+    let f = flag.lock().unwrap();
+    println!("DONE a=1 b=1");
+
+    drop(bystander);
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": null, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__partial_deadlock_bystander/rep0/run-20260926T133030-1489-fc7987/round-2/calls/001-build", "exit_code": 101, "extra": {"argv_sha256": "cb3815297f7dc450d8d118aef13cf8c216938cf2ac69105b39f3f5314b3a677a", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__partial_deadlock_bystander/rep0/run-20260926T133030-1489-fc7987/round-2/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__partial_deadlock_bystander/rep0/run-20260926T133030-1489-fc7987/round-2/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__partial_deadlock_bystander/rep0/run-20260926T133030-1489-fc7987/round-2/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__partial_deadlock_bystander/rep0/run-20260926T133030-1489-fc7987/round-2/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__partial_deadlock_bystander/rep0/run-20260926T133030-1489-fc7987/round-2/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__partial_deadlock_bystander/rep0/run-20260926T133030-1489-fc7987/round-2/calls/001-build/wall_ms.txt"}, "stderr_sha256": "e5e31333882226753948b95aa390666e48d4cb485405c35d841b16283a31bbf7", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 188}, "build_ok": false, "lockbud_detected": false, "lockbud_status": "lockbud_unavailable", "miri_detected": false, "miri_statuses": []}
+
+Output the complete corrected Rust program.

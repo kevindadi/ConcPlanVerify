@@ -1,0 +1,246 @@
+Looking at this problem, the issue is that a single `Condvar` (`cv`) is used with two different mutexes (`m1` and `m2`). This is a classic bug: `Condvar::notify_all` only wakes threads waiting on the *same* mutex that the notifier holds. When the notifier holds `m1` and calls `notify_all`, it wakes w1 (waiting on m1), but w2 is waiting on m2 with the same cv — and the notification semantics with a shared cv across different mutexes are undefined/broken. Miri detects this.
+
+The fix: use a separate `Condvar` per waiter, so each waiter's cv is paired with its own mutex. The notifier holds each lock and notifies the corresponding cv.
+
+Let me restructure:
+- `cv1` paired with `m1` for w1
+- `cv2` paired with `m2` for w2
+
+The notifier holds `m1`, sets flag, notifies `cv1`; then holds `m2`, sets flag, notifies `cv2`.
+
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+use concir_sync::Semaphore;
+
+fn main() {
+    // m1 and m2 are the two waiters' own locks.
+    let m1 = Arc::new(Mutex::new(false));
+    let m2 = Arc::new(Mutex::new(false));
+    // cv1 is paired with m1, cv2 is paired with m2.
+    let cv1 = Arc::new(Condvar::new());
+    let cv2 = Arc::new(Condvar::new());
+    // ready counts how many waiters have announced themselves.
+    let ready = Semaphore::new(0);
+
+    let m1_w1 = Arc::clone(&m1);
+    let cv1_w1 = Arc::clone(&cv1);
+    let ready_w1 = Arc::clone(&ready);
+
+    let m2_w2 = Arc::clone(&m2);
+    let cv2_w2 = Arc::clone(&cv2);
+    let ready_w2 = Arc::clone(&ready);
+
+    let m1_n = Arc::clone(&m1);
+    let m2_n = Arc::clone(&m2);
+    let cv1_n = Arc::clone(&cv1);
+    let cv2_n = Arc::clone(&cv2);
+    let ready_n = Arc::clone(&ready);
+
+    // w1: hold m1, announce, wait for notification while holding m1.
+    let w1 = thread::spawn(move || {
+        let mut guard = m1_w1.lock().unwrap();
+        // Announce that we are about to wait.
+        ready_w1.acquire().release();
+        // Wait for the notification while holding m1.
+        while !*guard {
+            guard = cv1_w1.wait(guard).unwrap();
+        }
+    });
+
+    // w2: hold m2, announce, wait for notification while holding m2.
+    let w2 = thread::spawn(move || {
+        let mut guard = m2_w2.lock().unwrap();
+        ready_w2.acquire().release();
+        while !*guard {
+            guard = cv2_w2.wait(guard).unwrap();
+        }
+    });
+
+    // notifier: wait until both waiters have announced, then wake them
+    // while holding each lock.
+    let notifier = thread::spawn(move || {
+        // Wait for both announcements.
+        ready_n.acquire().release();
+        ready_n.acquire().release();
+
+        // Wake w1 while holding m1.
+        {
+            let mut g1 = m1_n.lock().unwrap();
+            *g1 = true;
+            cv1_n.notify_all();
+        }
+
+        // Wake w2 while holding m2.
+        {
+            let mut g2 = m2_n.lock().unwrap();
+            *g2 = true;
+            cv2_n.notify_all();
+        }
+    });
+
+    w1.join().unwrap();
+    w2.join().unwrap();
+    notifier.join().unwrap();
+
+    println!("DONE done=1");
+}
+```
+
+Wait — there's a subtlety with the `ready` semaphore. `Semaphore::new(0)` starts at 0. The waiters call `ready.acquire()` which would block since count is 0. That's wrong. The waiters should *release* (signal) and the notifier should *acquire* (wait). Let me reconsider.
+
+The waiters announce by incrementing `ready` (release), and the notifier waits by acquiring twice. But `acquire()` returns a permit whose Drop releases — so `ready_w1.acquire().release()` acquires then immediately releases, net zero. That's a no-op and wrong.
+
+The correct pattern: waiters should *release* the semaphore to signal. But the API says `acquire()` returns a permit, `permit.release()` consumes it to release early. There's no standalone `release`. Hmm.
+
+Actually with this semaphore API, to signal you'd need to acquire a permit and then release it — but that requires the semaphore to have a permit available. With `Semaphore::new(0)`, you can't acquire.
+
+Let me reconsider. Perhaps the intended usage: `ready` starts at 0. Waiters need to signal. The only way to add permits is... Actually maybe the semaphore is meant to be used as a counting barrier differently.
+
+Hmm, but the given program uses `ready_w1.acquire().release()` in the waiters and `ready_n.acquire().release()` in the notifier. With `Semaphore::new(0)`, the waiter's `acquire()` blocks forever. So the original program would deadlock. But the diagnostic says build ok and test exit 0... and miri detected issues.
+
+Wait, maybe `Semaphore::new(0)` — let me reconsider. Perhaps the semantics are that `acquire()` on a zero semaphore blocks. So the original is broken. But the test passed (exit 0)? The test might just be `cargo test` with no tests, so it doesn't run main.
+
+Let me think about what the correct design should be. The requirement R5: waiter announces before blocking. R6: notifier waits until both announced.
+
+A natural approach: `ready` semaphore initialized to 0. Waiters signal by releasing. But the API doesn't have a plain release... unless `acquire().release()` is meant to be used where the semaphore already has permits.
+
+Hmm, actually maybe I'm misreading. Let me reconsider: maybe the intended pattern is that `ready` is initialized with enough permits, and waiters *acquire* to consume, notifier... no.
+
+Actually, re-reading: "Semaphore::new(n) (returns an Arc), acquire() (returns a permit whose Drop releases), try_acquire(), permit.release() (consumes the permit to release early)."
+
+So `acquire()` decrements, and dropping the permit increments. `permit.release()` increments immediately (consuming permit).
+
+To signal (increment), you need a permit to release. So you can't increment from zero without first acquiring.
+
+Given this, the design must be: `ready` initialized to 2 (or some count). Waiters acquire a permit (decrementing), and... no, that doesn't signal.
+
+Hmm. Let me think differently. Maybe the semaphore is used as a barrier where the notifier acquires and waiters release. But waiters can't release without a permit.
+
+Alternative: Use `ready` as a semaphore initialized to 0, and the waiters use `try_acquire()`? No.
+
+Actually, maybe the trick: the waiters each acquire a permit from a semaphore initialized to 2, then release it — no.
+
+Let me reconsider the whole thing. Perhaps the intended use is: `ready = Semaphore::new(0)`. The notifier does `ready.acquire()` twice (blocks until 2 permits). The waiters need to add permits. Since there's no direct release, maybe the waiters do `ready.acquire().release()` — but that requires permits to exist.
+
+This is circular. Unless... the semaphore's `acquire()` when count is 0 blocks, but maybe the implementation allows negative? No.
+
+Let me reconsider: maybe the correct approach uses the semaphore differently — the waiters *acquire* permits that were pre-placed, and the notifier waits on something else. But R6 says notifier waits until both announced.
+
+Hmm, actually maybe I should reconsider: perhaps `Semaphore::new(2)` and waiters each `acquire()` (consuming a permit, blocking if none), and the notifier... no, notifier needs to know both announced.
+
+Wait — actually a cleaner reading: the semaphore counts *available* permits. If we want waiters to signal, we could have the notifier acquire and waiters release. But release needs a permit.
+
+Let me reconsider whether `acquire().release()` could work if the semaphore starts with permits. If `ready = Semaphore::new(2)`:
+- w1: `ready.acquire()` gets a permit (count 2→1), then `.release()` puts it back (1→2). Net zero. Useless.
+
+So that pattern is genuinely a no-op regardless of initial count. The original program's use of `ready` is broken.
+
+Given the constraints, I think the intended correct solution is to use the semaphore as a counting mechanism where waiters *release* permits. Since the API only allows release via a permit, perhaps the design is:
+
+Actually, wait. Let me re-read: "permit.release() (consumes the permit to release early)". And "acquire() (returns a permit whose Drop releases)". 
+
+Maybe the intended pattern for signaling: a thread acquires a permit (blocking until available), and this acquisition itself is the "wait". For signaling, you'd need to add permits. 
+
+Hmm, I wonder if the semaphore is meant to be used as: `ready = Semaphore::new(0)`, waiters call `ready.acquire()` — no.
+
+OK here's another thought. What if the roles are reversed: the *notifier* holds permits and the waiters wait. No.
+
+Let me think about what makes R5/R6 work with this API. R5: waiter announces before blocking. R6: notifier waits until both announced.
+
+If `ready` starts at 0 and waiters need to increment it, and the only increment is via releasing a permit... The waiters could each be given a permit at start? No, permits come from acquire.
+
+Actually — maybe the design is: `ready = Semaphore::new(2)`. Each waiter does `ready.acquire()` and *holds* the permit (doesn't release). This decrements to 0. The notifier does `ready.acquire()` — blocks until permits available. But waiters holding permits means count stays 0, notifier blocks forever. No.
+
+Reverse: notifier acquires 2 permits first (count 2→0), then waiters... no.
+
+Hmm, let me think about it as: the semaphore represents "number of waiters that have announced". Start at 0. Waiter announces by releasing → but can't.
+
+I think there might be a different intended interpretation: maybe `acquire()` on a semaphore with 0 permits, when called by the waiter, is actually the *announcement* mechanism combined with the notifier. Let me think about a rendezvous:
+
+- `ready = Semaphore::new(0)`.
+- Notifier: `ready.acquire()` twice — waits for 2 signals.
+- Waiters: need to signal. 
+
+Since we can't signal directly, maybe use `try_acquire` in a loop? No.
+
+Alternatively, maybe the semaphore is used in the opposite direction: the notifier *releases* permits to wake waiters, and waiters *acquire*. But R3 says notifier wakes waiters, and R5/R6 about announcement.
+
+Hmm, actually maybe the announcement uses the semaphore as: waiters acquire (blocking), notifier releases. But then waiters block on acquire, not on condvar. R4 says waiter holds its lock while waiting for notification. The condvar is the notification mechanism.
+
+Let me reconsider: perhaps `ready` is used so that the notifier waits for announcements, and the announcement is done by the waiters *acquiring* permits that the notifier pre-released? No, that's backwards.
+
+OK, let me step back. The key diagnostic is Miri detecting a problem, and the task is to fix the synchronization. The most likely real bug is the shared `cv` across two different mutexes. The `ready` semaphore usage might actually be fine if I understand it correctly, OR it's also part of the bug.
+
+Let me reconsider `ready.acquire().release()`. If `ready = Semaphore::new(0)`:
+- This blocks forever. So the program deadlocks. Miri would detect deadlock.
+
+But the diagnostic says miri_detected with 16 "detected" statuses. Could be deadlock detection.
+
+Hmm, but actually if it deadlocks, the fix would be to make `ready` work. Let me think about how to make a proper announcement with this API.
+
+Idea: Use `ready` as a semaphore where the *notifier* waits by acquiring, and waiters signal by... Actually, you know what, maybe the intended semantics is that `Semaphore::new(n)` creates a semaphore with `n` permits, and to signal you acquire a permit and release it — but that only works if permits are available.
+
+Given the API limitation, the cleanest correct approach: initialize `ready` with 2 permits. Waiters each `acquire()` a permit and *hold* it until they've announced... no.
+
+Hmm, let me think about this more carefully as a barrier. We want: notifier proceeds only after both waiters have announced.
+
+Approach with semaphore as counter of announcements, starting at 0, where waiters increment:
+- We need an increment operation. `permit.release()` increments but needs a permit.
+
+What if we give each waiter a permit initially by having the main thread acquire 2 permits and... no, permits aren't transferable.
+
+Alternative: Maybe the semaphore is used as a "wait for N" where the notifier acquires N permits, and the waiters each release a permit they obtained from a *different* initial state. 
+
+Actually, here's a clean idea: `ready = Semaphore::new(0)`. The notifier wants to wait for 2 announcements. Instead of waiters releasing, we could have the notifier *release* 2 permits and waiters *acquire* them — but that's the notifier signaling waiters, not waiters announcing.
+
+I think the real intended design might be simpler than I'm making it. Let me reconsider: maybe `ready` is meant to be acquired by waiters to *block* until the notifier is ready, and the notifier releases. But R5/R6 clearly say waiters announce and notifier waits.
+
+Given the API, perhaps the correct usage is:
+- `ready = Semaphore::new(0)`
+- Waiters: `ready.acquire()` — NO.
+
+Hmm, let me just consider: maybe the semaphore's `acquire()` returns a permit, and calling `.release()` on it *adds* a permit (increments), and the initial `new(0)` means 0 permits. So `ready.acquire()` on 0 blocks. So waiters can't announce this way.
+
+Unless `new(0)` means something else. Let me assume standard: 0 permits, acquire blocks.
+
+Given all this, I believe the correct fix must change how `ready` is used. Let me design a working version:
+
+Use `ready = Semaphore::new(0)`. Waiters announce by... we need increment. 
+
+What if we flip: the notifier does `ready.acquire()` twice to wait, and the waiters each do `ready.acquire().release()`? For this to work, `ready` must have permits. If `ready = Semaphore::new(2)`:
+- w1: acquire (2→1), release (1→2). 
+- w2: acquire (2→1), release (1→2).
+- notifier: acquire (2→1), acquire (1→0). Proceeds.
+But this doesn't guarantee waiters announced before notifier proceeds — the notifier could acquire both permits before waiters run. So it's not a proper barrier. And it's racy.
+
+Hmm, this is getting complicated. Let me reconsider the problem from the perspective of "what's the minimal fix that makes Miri happy and satisfies the spec."
+
+Actually, maybe the semaphore IS meant to be used as a counting semaphore where waiters *release* by acquiring-then-releasing is wrong, but there's another way: the waiters could each acquire a permit from a semaphore initialized to 2, and the notifier waits by... 
+
+Let me try yet another interpretation. What if `ready` is initialized to 0, and the *waiters* are supposed to call `ready.acquire()` which blocks, and the *notifier* releases permits to let them proceed — but that contradicts R5/R6.
+
+I'll go with the interpretation that the semaphore counts announcements and we need waiters to increment. Since the API doesn't provide a bare release, the trick must be that waiters acquire from a semaphore that has permits, and the notifier waits for the count to reach 0.
+
+Design: `ready = Semaphore::new(2)`. Each waiter acquires one permit (2→1→0) and holds it (doesn't release). The notifier waits by acquiring... but if waiters hold permits, count is 0, notifier's acquire blocks forever. No.
+
+Design: `ready = Semaphore::new(0)`. Notifier acquires twice (blocks). Waiters release. But waiters can't release without permits.
+
+I'm stuck on the API. Let me reconsider: maybe `permit.release()` is the way to *signal*, and the pattern `ready.acquire().release()` is used by the *notifier* to consume signals, while waiters... no.
+
+Hold on. Let me re-read the original code once more:
+
+```rust
+// w1
+ready_w1.acquire().release();
+// notifier
+ready_n.acquire().release();
+ready_n.acquire().release();
+```
+
+Both use the same pattern. If `ready = Semaphore::new(0)`, both block. So the original deadlocks. The fix must make this work.
+
+What if `ready = Semaphore::new(2)`? Then:
+- w1: acquire (2→1), release (1→2). 
+- w2: acquire (2→1), release (1→2).
+- notifier: acquire (2→1), acquire (1→0), then releases? No, it does `.release()` on the second: acquire (1→0), release (0→1). H

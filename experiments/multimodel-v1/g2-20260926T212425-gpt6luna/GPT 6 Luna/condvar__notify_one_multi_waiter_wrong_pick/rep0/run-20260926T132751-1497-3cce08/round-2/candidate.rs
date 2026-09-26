@@ -1,0 +1,96 @@
+use concir_sync::Semaphore;
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+struct State {
+    ready: usize,
+    proceed: bool,
+    remaining: usize,
+}
+
+fn w1(shared: Arc<(Mutex<State>, Condvar)>, g12: Arc<Semaphore>) {
+    let permit = g12.acquire();
+    let (m, cv) = &*shared;
+    let mut state = m.lock().unwrap();
+
+    state.ready += 1;
+    cv.notify_all();
+    permit.release();
+
+    while !state.proceed {
+        state = cv.wait(state).unwrap();
+    }
+    state.remaining -= 1;
+}
+
+fn w2(shared: Arc<(Mutex<State>, Condvar)>, g12: Arc<Semaphore>) {
+    let permit = g12.acquire();
+    let (m, cv) = &*shared;
+    let mut state = m.lock().unwrap();
+
+    state.ready += 1;
+    cv.notify_all();
+    permit.release();
+
+    while !state.proceed {
+        state = cv.wait(state).unwrap();
+    }
+    state.remaining -= 1;
+}
+
+fn notifier(
+    shared: Arc<(Mutex<State>, Condvar)>,
+    g12: Arc<Semaphore>,
+    gN: Arc<Semaphore>,
+) {
+    let _notifier_permit = gN.acquire();
+    let (m, cv) = &*shared;
+    let mut state = m.lock().unwrap();
+
+    while state.ready < 2 {
+        state = cv.wait(state).unwrap();
+    }
+
+    let _waiter_permit1 = g12.acquire();
+    let _waiter_permit2 = g12.acquire();
+
+    state.proceed = true;
+    cv.notify_all();
+}
+
+fn main() {
+    let shared = Arc::new((
+        Mutex::new(State {
+            ready: 0,
+            proceed: false,
+            remaining: 2,
+        }),
+        Condvar::new(),
+    ));
+    let g12 = Semaphore::new(2);
+    let gN = Semaphore::new(1);
+
+    let w1_handle = {
+        let shared = Arc::clone(&shared);
+        let g12 = Arc::clone(&g12);
+        thread::spawn(move || w1(shared, g12))
+    };
+    let w2_handle = {
+        let shared = Arc::clone(&shared);
+        let g12 = Arc::clone(&g12);
+        thread::spawn(move || w2(shared, g12))
+    };
+    let notifier_handle = {
+        let shared = Arc::clone(&shared);
+        let g12 = Arc::clone(&g12);
+        let gN = Arc::clone(&gN);
+        thread::spawn(move || notifier(shared, g12, gN))
+    };
+
+    w1_handle.join().unwrap();
+    w2_handle.join().unwrap();
+    notifier_handle.join().unwrap();
+
+    let remaining = shared.0.lock().unwrap().remaining;
+    println!("DONE waiters={remaining}");
+}

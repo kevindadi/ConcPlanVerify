@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::{Arc, Barrier};\nuse std::thread;\n\nfn w1(a: Arc<Semaphore>, b: Arc<Semaphore>, start: Arc<Barrier>) {\n    start.wait();\n    let _a = a.acquire();\n    let _b = b.acquire();\n}\n\nfn w2(a: Arc<Semaphore>, b: Arc<Semaphore>, start: Arc<Barrier>) {\n    start.wait();\n    let _a = a.acquire();\n    let _b = b.acquire();\n}\n\nfn main() {\n    let a = Semaphore::new(1);\n    let b = Semaphore::new(1);\n    let start = Arc::new(Barrier::new(2));\n\n    let worker1 = {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        let start = Arc::clone(&start);\n        thread::spawn(move || w1(a, b, start))\n    };\n\n    let worker2 = {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        let start = Arc::clone(&start);\n        thread::spawn(move || w2(a, b, start))\n    };\n\n    worker1.join().unwrap();\n    worker2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

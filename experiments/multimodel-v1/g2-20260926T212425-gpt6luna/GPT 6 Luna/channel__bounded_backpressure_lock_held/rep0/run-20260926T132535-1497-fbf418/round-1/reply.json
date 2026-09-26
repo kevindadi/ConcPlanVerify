@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::mpsc::{sync_channel, Receiver, SyncSender};\nuse std::sync::Arc;\nuse std::thread;\n\nfn sender(ch: SyncSender<i32>, m: Arc<Semaphore>, done: Arc<AtomicUsize>) {\n    for value in [1, 2] {\n        {\n            let _permit = m.acquire();\n        }\n        ch.send(value).unwrap();\n    }\n    done.fetch_add(1, Ordering::Relaxed);\n}\n\nfn receiver(ch: Receiver<i32>, m: Arc<Semaphore>, done: Arc<AtomicUsize>) {\n    for _ in 0..2 {\n        {\n            let _permit = m.acquire();\n        }\n        ch.recv().unwrap();\n    }\n    done.fetch_add(1, Ordering::Relaxed);\n}\n\nfn main() {\n    let m = Semaphore::new(1);\n    let ch = sync_channel(1);\n    let (sender_ch, receiver_ch) = ch;\n    let done = Arc::new(AtomicUsize::new(0));\n\n    let sender_handle = {\n        let m = Arc::clone(&m);\n        let done = Arc::clone(&done);\n        thread::spawn(move || sender(sender_ch, m, done))\n    };\n    let receiver_handle = {\n        let m = Arc::clone(&m);\n        let done = Arc::clone(&done);\n        thread::spawn(move || receiver(receiver_ch, m, done))\n    };\n\n    sender_handle.join().unwrap();\n    receiver_handle.join().unwrap();\n\n    println!(\"DONE done={}\", done.load(Ordering::Relaxed));\n}\n```"
+}

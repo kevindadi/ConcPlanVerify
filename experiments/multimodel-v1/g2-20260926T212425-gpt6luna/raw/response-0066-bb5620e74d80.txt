@@ -1,0 +1,18 @@
+```rust
+use concir_sync::Semaphore;
+
+fn worker() {}
+
+fn main() {
+    let semaphore = Semaphore::new(1);
+
+    for _ in 0..2 {
+        let permit = semaphore.acquire();
+        let handle = std::thread::spawn(worker);
+        handle.join().unwrap();
+        permit.release();
+    }
+
+    println!("DONE done=1");
+}
+```

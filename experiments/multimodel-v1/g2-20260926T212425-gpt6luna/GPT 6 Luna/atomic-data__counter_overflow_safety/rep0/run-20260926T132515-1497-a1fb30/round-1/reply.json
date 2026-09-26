@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::atomic::{AtomicU8, Ordering};\nuse std::sync::Arc;\nuse std::thread;\n\nfn worker(m: Arc<Semaphore>, c: Arc<AtomicU8>) {\n    let _permit = m.acquire();\n    let value = c.load(Ordering::SeqCst);\n    if value < 1 {\n        c.store(value + 1, Ordering::SeqCst);\n    }\n}\n\nfn w1(m: Arc<Semaphore>, c: Arc<AtomicU8>) {\n    worker(m, c);\n}\n\nfn w2(m: Arc<Semaphore>, c: Arc<AtomicU8>) {\n    worker(m, c);\n}\n\nfn main() {\n    let m = Semaphore::new(1);\n    let c = Arc::new(AtomicU8::new(0)); // c ranges from 0 to 2.\n\n    let first = {\n        let m = Arc::clone(&m);\n        let c = Arc::clone(&c);\n        thread::spawn(move || w1(m, c))\n    };\n\n    let second = {\n        let m = Arc::clone(&m);\n        let c = Arc::clone(&c);\n        thread::spawn(move || w2(m, c))\n    };\n\n    first.join().unwrap();\n    second.join().unwrap();\n\n    println!(\"DONE done={}\", c.load(Ordering::SeqCst));\n}\n```"
+}

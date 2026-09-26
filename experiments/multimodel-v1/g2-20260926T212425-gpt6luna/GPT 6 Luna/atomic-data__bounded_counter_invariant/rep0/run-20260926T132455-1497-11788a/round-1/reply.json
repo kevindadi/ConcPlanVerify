@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nconst COUNTER_MIN: u8 = 0;\nconst COUNTER_MAX: u8 = 2;\n\nfn w1(m: Arc<Semaphore>, c: Arc<Mutex<u8>>) {\n    let _permit = m.acquire();\n    let mut counter = c.lock().unwrap();\n    assert!(*counter >= COUNTER_MIN && *counter < COUNTER_MAX);\n    *counter += 1;\n    assert!(*counter <= COUNTER_MAX);\n}\n\nfn w2(m: Arc<Semaphore>, c: Arc<Mutex<u8>>) {\n    let _permit = m.acquire();\n    let mut counter = c.lock().unwrap();\n    assert!(*counter >= COUNTER_MIN && *counter < COUNTER_MAX);\n    *counter += 1;\n    assert!(*counter <= COUNTER_MAX);\n}\n\nfn main() {\n    let m = Semaphore::new(1);\n    let c = Arc::new(Mutex::new(COUNTER_MIN));\n\n    let m1 = Arc::clone(&m);\n    let c1 = Arc::clone(&c);\n    let worker1 = thread::spawn(move || w1(m1, c1));\n\n    let m2 = Arc::clone(&m);\n    let c2 = Arc::clone(&c);\n    let worker2 = thread::spawn(move || w2(m2, c2));\n\n    worker1.join().unwrap();\n    worker2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

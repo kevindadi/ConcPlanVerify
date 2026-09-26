@@ -1,0 +1,86 @@
+use concir_sync::Semaphore;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+
+mod module_a {
+    use concir_sync::Semaphore;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    pub struct OwnerA {
+        a: Arc<Semaphore>,
+    }
+
+    impl OwnerA {
+        pub fn new() -> Self {
+            Self {
+                a: Semaphore::new(1),
+            }
+        }
+
+        pub fn resource(&self) -> Arc<Semaphore> {
+            Arc::clone(&self.a)
+        }
+
+        pub fn t1(&self, b: Arc<Semaphore>, done: Arc<AtomicUsize>) {
+            let permit_a = self.a.acquire();
+            let permit_b = b.acquire();
+
+            // Work while holding both a and b.
+            drop(permit_b);
+            drop(permit_a);
+            done.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+}
+
+mod module_b {
+    use concir_sync::Semaphore;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    pub struct OwnerB {
+        b: Arc<Semaphore>,
+    }
+
+    impl OwnerB {
+        pub fn new() -> Self {
+            Self {
+                b: Semaphore::new(1),
+            }
+        }
+
+        pub fn resource(&self) -> Arc<Semaphore> {
+            Arc::clone(&self.b)
+        }
+
+        pub fn t2(&self, a: Arc<Semaphore>, done: Arc<AtomicUsize>) {
+            let permit_a = a.acquire();
+            let permit_b = self.b.acquire();
+
+            // Work while holding both a and b.
+            drop(permit_b);
+            drop(permit_a);
+            done.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+}
+
+fn main() {
+    let owner_a = module_a::OwnerA::new();
+    let owner_b = module_b::OwnerB::new();
+    let done = Arc::new(AtomicUsize::new(0));
+
+    let a_for_t2 = owner_a.resource();
+    let b_for_t1 = owner_b.resource();
+    let done_for_t1 = Arc::clone(&done);
+    let done_for_t2 = Arc::clone(&done);
+
+    let t1 = std::thread::spawn(move || owner_a.t1(b_for_t1, done_for_t1));
+    let t2 = std::thread::spawn(move || owner_b.t2(a_for_t2, done_for_t2));
+
+    t1.join().unwrap();
+    t2.join().unwrap();
+
+    println!("DONE done={}", done.load(Ordering::Relaxed));
+}

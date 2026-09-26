@@ -1,0 +1,45 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+use concir_sync::Semaphore;
+
+fn main() {
+    // Shared resources a and b are protected by semaphores with 1 permit each.
+    let sem_a = Semaphore::new(1);
+    let sem_b = Semaphore::new(1);
+
+    // To prevent deadlock (R5), we enforce a global lock ordering: always acquire 'a' before 'b'.
+    
+    let sem_a_t1 = Arc::clone(&sem_a);
+    let sem_b_t1 = Arc::clone(&sem_b);
+    let t1_handle = thread::spawn(move || {
+        // Acquire resource a first
+        let _permit_a = sem_a_t1.acquire();
+        // Then acquire resource b
+        let _permit_b = sem_b_t1.acquire();
+        
+        // Both resources held here (R4)
+        // Perform work...
+        
+        // Permits dropped at end of scope (R6)
+    });
+
+    let sem_a_t2 = Arc::clone(&sem_a);
+    let sem_b_t2 = Arc::clone(&sem_b);
+    let t2_handle = thread::spawn(move || {
+        // Acquire resource a first
+        let _permit_a = sem_a_t2.acquire();
+        // Then acquire resource b
+        let _permit_b = sem_b_t2.acquire();
+        
+        // Both resources held here (R4)
+        // Perform work...
+        
+        // Permits dropped at end of scope (R6)
+    });
+
+    // Wait for both tasks to finish (R7)
+    t1_handle.join().unwrap();
+    t2_handle.join().unwrap();
+
+    println!("DONE done=1");
+}

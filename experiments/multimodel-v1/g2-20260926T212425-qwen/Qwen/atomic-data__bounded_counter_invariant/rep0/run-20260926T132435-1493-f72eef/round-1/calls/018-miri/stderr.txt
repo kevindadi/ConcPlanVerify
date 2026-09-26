@@ -1,0 +1,27 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...20260926T132435-1493-f72eef/round-1/probe/target/miri/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+warning: extern crate `concir_sync` is unused in crate `cir_arm_probe`
+  |
+  = help: remove the dependency or add `use concir_sync as _;` to the crate root
+  = note: requested on the command line with `--force-warn unused-crate-dependencies`
+
+warning: unused variable: `final_val`
+  --> src/main.rs:28:9
+   |
+28 |     let final_val = *c.lock().unwrap();
+   |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_final_val`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: 2 warnings emitted
+

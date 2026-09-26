@@ -1,0 +1,27 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | .../run-20260926T133323-1493-dfe292/round-2/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error: this file contains an unclosed delimiter
+   --> src/main.rs:341:74
+    |
+  5 | fn main() {
+    |           - unclosed delimiter
+...
+ 36 |     let worker_a = thread::spawn(move || {
+    |                                 -        - unclosed delimiter
+    |                                 |
+    |                                 unclosed delimiter
+...
+341 |         // Given the constraints and typical puzzle nature, the intended
+    |                                                                         ^
+
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 1 previous error

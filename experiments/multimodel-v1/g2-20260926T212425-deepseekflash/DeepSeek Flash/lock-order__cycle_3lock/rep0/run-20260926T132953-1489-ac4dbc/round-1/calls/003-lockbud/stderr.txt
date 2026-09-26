@@ -1,0 +1,37 @@
+     Locking 1 package to latest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling cir_arm_probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/lockbud-probe)
+[2026-09-26T13:29:55Z WARN  lockbud::callbacks] [
+      {
+        "ConflictLock": {
+          "bug_kind": "ConflictLock",
+          "possibility": "Possibly",
+          "diagnosis": [
+            {
+              "first_lock_type": "StdMutex(())",
+              "first_lock_span": "src/main.rs:20:13: 20:16 (#0)",
+              "second_lock_type": "StdMutex(())",
+              "second_lock_span": "src/main.rs:21:13: 21:16 (#0)",
+              "callchains": []
+            },
+            {
+              "first_lock_type": "StdMutex(())",
+              "first_lock_span": "src/main.rs:30:13: 30:16 (#0)",
+              "second_lock_type": "StdMutex(())",
+              "second_lock_span": "src/main.rs:31:13: 31:16 (#0)",
+              "callchains": []
+            },
+            {
+              "first_lock_type": "StdMutex(())",
+              "first_lock_span": "src/main.rs:40:13: 40:16 (#0)",
+              "second_lock_type": "StdMutex(())",
+              "second_lock_span": "src/main.rs:41:13: 41:16 (#0)",
+              "callchains": []
+            }
+          ],
+          "explanation": "Locks mutually wait for each other to form a cycle"
+        }
+      }
+    ]
+[2026-09-26T13:29:55Z WARN  lockbud::callbacks] crate cir_arm_probe contains bugs: { probably: 0, possibly: 0 }, conflictlock: { probably: 0, possibly: 1 }, condvar_deadlock: { probably: 0, possibly: 0 }, atomicity_violation: { possibly: 0 }, invalid_free: { possibly: 0 }, use_after_free: { possibly: 0 }
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.22s

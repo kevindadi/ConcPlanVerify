@@ -1,0 +1,136 @@
+# Rust tool-feedback prompt (v1, arm A2)
+
+You are fixing a Rust program using the raw diagnostics produced by the build
+and analysis tools. The diagnostics are the ground truth.
+
+- `cargo build` errors mean the program does not compile: fix them.
+- Miri reports (deadlock or data race) identify a real interleaving problem:
+  change the synchronization so the reported problem cannot occur.
+- Do not silence a diagnostic by deleting synchronization, making the program
+  sequential, or catching/ignoring errors.
+- Keep standard-library-only, `fn main`, no external crates, no sleep-based
+  workarounds.
+- Output only the full corrected Rust source inside a single ```rust code fence.
+
+An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.
+
+Specification:
+# Requirements
+
+R1. A main task starts two waiter roles and one notifier role that run at the same time. [U]
+R2. Each waiter blocks on a shared condition variable until it is told to proceed.
+R3. The notifier must wake every waiter that is still blocked, so no waiter is left waiting forever.
+R4. A waiter must hold the lock while it waits on the condition variable.
+R5. The notifier must take the lock before it wakes the waiters and release the lock afterwards.
+R6. The waiters and the notifier use a separate permit counter so that the notifier only wakes the waiters after both are ready to wait.
+R7. Waking a single waiter is not enough; every blocked waiter must be woken.
+R8. Every schedule and interleaving must terminate with every waiter and the notifier finished.
+R9. Every waiter completes in every schedule.
+R10. The program must print exactly the line `DONE waiters=0` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2, notifier.
+- Shared resources: m (lock), cv (condition variable), g12 (semaphore), gN (semaphore).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Mutex, Condvar};
+use std::thread;
+use concir_sync::Semaphore;
+
+fn main() {
+    // Shared state: a lock and a condition variable.
+    let pair = Arc::new((Mutex::new(false), Condvar::new()));
+    
+    // g12 is used by waiters to signal they are ready to wait.
+    // Initialized to 0 permits. Waiters will release (increment) it.
+    // Notifier will acquire (decrement) it twice to ensure both waiters have signaled.
+    let g12 = Semaphore::new(0);
+    
+    // gN is listed in entities but not strictly required for the core wake-up logic described.
+    // We initialize it to satisfy the entity list requirement, though it may remain unused or be used for future extensions.
+    let _gN = Semaphore::new(0);
+    
+    let pair_clone_w1 = Arc::clone(&pair);
+    let pair_clone_w2 = Arc::clone(&pair);
+    let pair_clone_n = Arc::clone(&pair);
+    
+    let g12_clone_w1 = Arc::clone(&g12);
+    let g12_clone_w2 = Arc::clone(&g12);
+    let g12_clone_n = Arc::clone(&g12);
+    
+    // Start Waiter 1
+    let h1 = thread::spawn(move || {
+        let (lock, cvar) = &*pair_clone_w1;
+        let mut guard = lock.lock().unwrap();
+        
+        // Signal that this waiter is ready to wait (has acquired lock)
+        // Release increments the semaphore count.
+        g12_clone_w1.release();
+        
+        // Wait until notified
+        while !*guard {
+            guard = cvar.wait(guard).unwrap();
+        }
+        
+        // Done waiting
+    });
+    
+    // Start Waiter 2
+    let h2 = thread::spawn(move || {
+        let (lock, cvar) = &*pair_clone_w2;
+        let mut guard = lock.lock().unwrap();
+        
+        // Signal that this waiter is ready to wait
+        g12_clone_w2.release();
+        
+        // Wait until notified
+        while !*guard {
+            guard = cvar.wait(guard).unwrap();
+        }
+        
+        // Done waiting
+    });
+    
+    // Start Notifier
+    let hn = thread::spawn(move || {
+        // Ensure both waiters are ready (have released their permits into g12)
+        // Acquire 2 permits. This blocks until 2 releases happen.
+        let p1 = g12_clone_n.acquire();
+        let p2 = g12_clone_n.acquire();
+        
+        // Now we know both waiters have entered the lock and signaled.
+        // The notifier must take the lock before waking the waiters (R5).
+        let (lock, cvar) = &*pair_clone_n;
+        let mut guard = lock.lock().unwrap();
+        
+        // Set the condition to true so waiters can proceed
+        *guard = true;
+        
+        // Wake every waiter that is still blocked (R3, R7)
+        cvar.notify_all();
+        
+        // Drop guard to release lock (R5)
+        drop(guard);
+        
+        // Permits p1, p2 dropped here, releasing them back to semaphore
+    });
+    
+    // Join all threads
+    h1.join().unwrap();
+    h2.join().unwrap();
+    hn.join().unwrap();
+    
+    println!("DONE waiters=0");
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": null, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-qwen/Qwen/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132808-1493-4dfb59/round-3/calls/001-build", "exit_code": 101, "extra": {"argv_sha256": "efd28ca9cab00c2040a326fce290622ca6a8b5fe60ec4c5339606862cb602ca4", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-qwen/Qwen/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132808-1493-4dfb59/round-3/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-qwen/Qwen/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132808-1493-4dfb59/round-3/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-qwen/Qwen/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132808-1493-4dfb59/round-3/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-qwen/Qwen/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132808-1493-4dfb59/round-3/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-qwen/Qwen/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132808-1493-4dfb59/round-3/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-qwen/Qwen/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132808-1493-4dfb59/round-3/calls/001-build/wall_ms.txt"}, "stderr_sha256": "536f82c82ca24dcb562f1b1c4d23b31fbd1375cde2d8072c442e30cec207445d", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 172}, "build_ok": false, "lockbud_detected": false, "lockbud_status": "lockbud_unavailable", "miri_detected": false, "miri_statuses": []}
+
+Output the complete corrected Rust program.

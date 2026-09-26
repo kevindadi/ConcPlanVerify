@@ -1,0 +1,98 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+use concir_sync::Semaphore;
+use std::sync::{Arc};
+use std::thread;
+
+struct State {
+    ready: usize,
+    proceed: bool,
+    remaining: usize,
+}
+
+fn w1(shared: Arc<(Mutex<State>, Condvar)>, g12: Arc<Semaphore>) {
+    let permit = g12.acquire();
+    let (m, cv) = &*shared;
+    let mut state = m.lock().unwrap();
+
+    state.ready += 1;
+    cv.notify_all();
+    permit.release();
+
+    while !state.proceed {
+        state = cv.wait(state).unwrap();
+    }
+    state.remaining -= 1;
+}
+
+fn w2(shared: Arc<(Mutex<State>, Condvar)>, g12: Arc<Semaphore>) {
+    let permit = g12.acquire();
+    let (m, cv) = &*shared;
+    let mut state = m.lock().unwrap();
+
+    state.ready += 1;
+    cv.notify_all();
+    permit.release();
+
+    while !state.proceed {
+        state = cv.wait(state).unwrap();
+    }
+    state.remaining -= 1;
+}
+
+fn notifier(
+    shared: Arc<(Mutex<State>, Condvar)>,
+    g12: Arc<Semaphore>,
+    gN: Arc<Semaphore>,
+) {
+    let _notifier_permit = gN.acquire();
+    let (m, cv) = &*shared;
+    let mut state = m.lock().unwrap();
+
+    while state.ready < 2 {
+        state = cv.wait(state).unwrap();
+    }
+
+    let _waiter_permit1 = g12.acquire();
+    let _waiter_permit2 = g12.acquire();
+
+    state.proceed = true;
+    cv.notify_all();
+}
+
+fn main() { cir_trace::init();
+    let shared = Arc::new((
+        Mutex::new_named("shared_mutex0", State {
+            ready: 0,
+            proceed: false,
+            remaining: 2,
+        }),
+        Condvar::new_named("shared_condvar0"),
+    ));
+    let g12 = Semaphore::new_named("g12_semaphore0", 2);
+    let gN = Semaphore::new_named("gN_semaphore0", 1);
+
+    let w1_handle = {
+        let shared = Arc::clone(&shared);
+        let g12 = Arc::clone(&g12);
+        cir_trace::spawn("w1", move || w1(shared, g12))
+    };
+    let w2_handle = {
+        let shared = Arc::clone(&shared);
+        let g12 = Arc::clone(&g12);
+        cir_trace::spawn("w2", move || w2(shared, g12))
+    };
+    let notifier_handle = {
+        let shared = Arc::clone(&shared);
+        let g12 = Arc::clone(&g12);
+        let gN = Arc::clone(&gN);
+        cir_trace::spawn("notifier", move || notifier(shared, g12, gN))
+    };
+
+    w1_handle.join().unwrap();
+    w2_handle.join().unwrap();
+    notifier_handle.join().unwrap();
+
+    let remaining = shared.0.lock().unwrap().remaining;
+    println!("DONE waiters={remaining}");
+ cir_trace::finish();}

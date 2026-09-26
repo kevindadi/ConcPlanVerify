@@ -1,0 +1,81 @@
+# Rust tool-feedback prompt (v1, arm A2)
+
+You are fixing a Rust program using the raw diagnostics produced by the build
+and analysis tools. The diagnostics are the ground truth.
+
+- `cargo build` errors mean the program does not compile: fix them.
+- Miri reports (deadlock or data race) identify a real interleaving problem:
+  change the synchronization so the reported problem cannot occur.
+- Do not silence a diagnostic by deleting synchronization, making the program
+  sequential, or catching/ignoring errors.
+- Keep standard-library-only, `fn main`, no external crates, no sleep-based
+  workarounds.
+- Output only the full corrected Rust source inside a single ```rust code fence.
+
+An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.
+
+Specification:
+# Requirements
+
+R1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.
+R2. Both worker threads share a single integer counter that is declared to range from zero to two and starts at zero.
+R3. Each worker adds exactly one to the shared counter while it holds the mutual-exclusion lock.
+R4. A worker must hold the mutual-exclusion lock whenever it reads or writes the shared counter, so the two workers never update it at the same time.
+R5. In every state that can occur, the counter value stays within its declared range from zero to two.
+R6. Every possible schedule and interleaving of the two workers must terminate.
+R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2.
+- Shared resources: m (lock), c (shared variable).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+use concir_sync::Semaphore;
+
+fn main() {
+    let m = Arc::new(Mutex::new(0i32));
+    let done = Arc::new(Semaphore::new(0));
+
+    let m1 = Arc::clone(&m);
+    let d1 = Arc::clone(&done);
+    let w1 = thread::spawn(move || {
+        let mut guard = m1.lock().unwrap();
+        *guard += 1;
+        drop(guard);
+        d1.acquire();
+    });
+
+    let m2 = Arc::clone(&m);
+    let d2 = Arc::clone(&done);
+    let w2 = thread::spawn(move || {
+        let mut guard = m2.lock().unwrap();
+        *guard += 1;
+        drop(guard);
+        d2.acquire();
+    });
+
+    // Supervising task: wait for both workers to finish.
+    w1.join().unwrap();
+    w2.join().unwrap();
+
+    let value = {
+        let guard = m.lock().unwrap();
+        *guard
+    };
+
+    println!("DONE done={}", value);
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": {"argv": ["cargo", "test", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/atomic-data__bounded_counter_invariant/rep0/run-20260926T132434-1489-4f69b0/round-1/calls/002-test", "exit_code": 0, "extra": {"argv_sha256": "f4bbaa8198d452179c97d51ba3a23240cdc5d185cbdfb3b37194cd2df863a478", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/atomic-data__bounded_counter_invariant/rep0/run-20260926T132434-1489-4f69b0/round-1/calls/002-test/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/atomic-data__bounded_counter_invariant/rep0/run-20260926T132434-1489-4f69b0/round-1/calls/002-test/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/atomic-data__bounded_counter_invariant/rep0/run-20260926T132434-1489-4f69b0/round-1/calls/002-test/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/atomic-data__bounded_counter_invariant/rep0/run-20260926T132434-1489-4f69b0/round-1/calls/002-test/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/atomic-data__bounded_counter_invariant/rep0/run-20260926T132434-1489-4f69b0/round-1/calls/002-test/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/atomic-data__bounded_counter_invariant/rep0/run-20260926T132434-1489-4f69b0/round-1/calls/002-test/wall_ms.txt"}, "stderr_sha256": "ce2d2477e1215d548658c869420e62af4dc22680a4921ae6f4b4c336cfb585a6", "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd", "timed_out": false, "tool": "test", "wall_ms": 513}, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/atomic-data__bounded_counter_invariant/rep0/run-20260926T132434-1489-4f69b0/round-1/calls/001-build", "exit_code": 0, "extra": {"argv_sha256": "a7e39b0e2730cc6f6aa93cc58b9ba5cd2383dc7d90ae327766dfb55b1f96911a", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/atomic-data__bounded_counter_invariant/rep0/run-20260926T132434-1489-4f69b0/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/atomic-data__bounded_counter_invariant/rep0/run-20260926T132434-1489-4f69b0/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/atomic-data__bounded_counter_invariant/rep0/run-20260926T132434-1489-4f69b0/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/atomic-data__bounded_counter_invariant/rep0/run-20260926T132434-1489-4f69b0/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/atomic-data__bounded_counter_invariant/rep0/run-20260926T132434-1489-4f69b0/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/atomic-data__bounded_counter_invariant/rep0/run-20260926T132434-1489-4f69b0/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "ce2d2477e1215d548658c869420e62af4dc22680a4921ae6f4b4c336cfb585a6", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 278}, "build_ok": true, "lockbud_detected": true, "lockbud_status": "detected", "miri_detected": true, "miri_statuses": ["detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected"]}
+
+Output the complete corrected Rust program.

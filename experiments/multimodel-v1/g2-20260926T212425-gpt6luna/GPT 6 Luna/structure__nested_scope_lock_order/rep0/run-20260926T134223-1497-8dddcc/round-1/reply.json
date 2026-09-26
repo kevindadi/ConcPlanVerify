@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::thread;\n\nfn main() {\n    let a = Semaphore::new(1);\n    let b = Semaphore::new(1);\n\n    let outer_a = Arc::clone(&a);\n    let outer_b = Arc::clone(&b);\n\n    let outer = thread::spawn(move || {\n        let x1_a = Arc::clone(&outer_a);\n        let x1_b = Arc::clone(&outer_b);\n        let x1 = thread::spawn(move || {\n            let _a = x1_a.acquire();\n            let _b = x1_b.acquire();\n        });\n\n        let x2_a = Arc::clone(&outer_a);\n        let x2_b = Arc::clone(&outer_b);\n        let x2 = thread::spawn(move || {\n            let _a = x2_a.acquire();\n            let _b = x2_b.acquire();\n        });\n\n        x1.join().unwrap();\n        x2.join().unwrap();\n        1\n    });\n\n    let done = outer.join().unwrap();\n    println!(\"DONE done={done}\");\n}\n```"
+}

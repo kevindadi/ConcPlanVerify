@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\n\nfn helper(sem: &Semaphore) {\n    let _permit = sem.acquire();\n}\n\nfn main() {\n    let sem = Semaphore::new(1);\n    \n    // First call sequence\n    helper(&sem);\n    \n    // Second call sequence (same as first, runs to completion before next starts per R3)\n    helper(&sem);\n    \n    println!(\"DONE done=1\");\n}\n```"
+}

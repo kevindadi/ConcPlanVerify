@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn waiter(m: Arc<Mutex<bool>>, cv: Arc<Condvar>) {\n    let mut ready = m.lock().unwrap();\n    while !*ready {\n        ready = cv.wait(ready).unwrap();\n    }\n}\n\nfn notifier(m: Arc<Mutex<bool>>, cv: Arc<Condvar>) {\n    let mut ready = m.lock().unwrap();\n    *ready = true;\n    cv.notify_one();\n    drop(ready);\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(false));\n    let cv = Arc::new(Condvar::new());\n\n    let waiter_m = Arc::clone(&m);\n    let waiter_cv = Arc::clone(&cv);\n    let waiter_thread = thread::spawn(move || waiter(waiter_m, waiter_cv));\n\n    let notifier_m = Arc::clone(&m);\n    let notifier_cv = Arc::clone(&cv);\n    let notifier_thread = thread::spawn(move || notifier(notifier_m, notifier_cv));\n\n    waiter_thread.join().unwrap();\n    notifier_thread.join().unwrap();\n\n    let ready = *m.lock().unwrap();\n    println!(\"DONE ready={ready}\");\n}\n```"
+}

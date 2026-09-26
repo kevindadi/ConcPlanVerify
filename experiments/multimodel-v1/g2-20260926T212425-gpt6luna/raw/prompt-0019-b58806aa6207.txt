@@ -1,0 +1,122 @@
+# Rust tool-feedback prompt (v1, arm A2)
+
+You are fixing a Rust program using the raw diagnostics produced by the build
+and analysis tools. The diagnostics are the ground truth.
+
+- `cargo build` errors mean the program does not compile: fix them.
+- Miri reports (deadlock or data race) identify a real interleaving problem:
+  change the synchronization so the reported problem cannot occur.
+- Do not silence a diagnostic by deleting synchronization, making the program
+  sequential, or catching/ignoring errors.
+- Keep standard-library-only, `fn main`, no external crates, no sleep-based
+  workarounds.
+- Output only the full corrected Rust source inside a single ```rust code fence.
+
+An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.
+
+Specification:
+# Requirements
+
+R1. A main task starts two waiter roles and one notifier role that run at the same time. [U]
+R2. Each waiter blocks on a shared condition variable until it is told to proceed.
+R3. The notifier must wake every waiter that is still blocked, so no waiter is left waiting forever.
+R4. A waiter must hold the lock while it waits on the condition variable.
+R5. The notifier must take the lock before it wakes the waiters and release the lock afterwards.
+R6. The waiters and the notifier use a separate permit counter so that the notifier only wakes the waiters after both are ready to wait.
+R7. Waking a single waiter is not enough; every blocked waiter must be woken.
+R8. Every schedule and interleaving must terminate with every waiter and the notifier finished.
+R9. Every waiter completes in every schedule.
+R10. The program must print exactly the line `DONE waiters=0` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2, notifier.
+- Shared resources: m (lock), cv (condition variable), g12 (semaphore), gN (semaphore).
+
+
+Current program:
+```rust
+use concir_sync::Semaphore;
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+struct State {
+    ready: usize,
+    proceed: bool,
+    remaining: usize,
+}
+
+fn w1(shared: Arc<(Mutex<State>, Condvar)>, g12: Arc<Semaphore>) {
+    let permit = g12.acquire();
+    let (m, cv) = &*shared;
+    let mut state = m.lock().unwrap();
+    state.ready += 1;
+    cv.notify_all();
+    permit.release();
+
+    while !state.proceed {
+        state = cv.wait(state).unwrap();
+    }
+    state.remaining -= 1;
+}
+
+fn w2(shared: Arc<(Mutex<State>, Condvar)>, g12: Arc<Semaphore>) {
+    let permit = g12.acquire();
+    let (m, cv) = &*shared;
+    let mut state = m.lock().unwrap();
+    state.ready += 1;
+    cv.notify_all();
+    permit.release();
+
+    while !state.proceed {
+        state = cv.wait(state).unwrap();
+    }
+    state.remaining -= 1;
+}
+
+fn notifier(shared: Arc<(Mutex<State>, Condvar)>, g12: Arc<Semaphore>, gN: Arc<Semaphore>) {
+    let _notifier_permit = gN.acquire();
+    let (m, cv) = &*shared;
+    let mut state = m.lock().unwrap();
+
+    while state.ready < 2 {
+        state = cv.wait(state).unwrap();
+    }
+
+    let _waiter_permit1 = g12.acquire();
+    let _waiter_permit2 = g12.acquire();
+
+    state.proceed = true;
+    cv.notify_all();
+    drop(state);
+}
+
+fn main() {
+    let shared = Arc::new((
+        Mutex::new(State {
+            ready: 0,
+            proceed: false,
+            remaining: 2,
+        }),
+        Condvar::new(),
+    ));
+    let g12 = Semaphore::new(2);
+    let gN = Semaphore::new(1);
+
+    let w1_handle = {
+        let shared = Arc::clone(&shared);
+        let g12 = Arc::clone(&g12);
+        thread::spawn(move || w1(shared, g12))
+    };
+    let w2_handle = {
+        let shared = Arc::clone(&shared);
+        let g12 = Arc::clone(&g12);
+
+```
+
+Tool diagnostics:
+{"behavior_test": null, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-gpt6luna/GPT 6 Luna/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132751-1497-3cce08/round-1/calls/001-build", "exit_code": 101, "extra": {"argv_sha256": "81e0c92f2b9053da75f97e48083ab5fbf2a939a6932a0e1e6bc6ebd046965a51", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-gpt6luna/GPT 6 Luna/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132751-1497-3cce08/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-gpt6luna/GPT 6 Luna/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132751-1497-3cce08/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-gpt6luna/GPT 6 Luna/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132751-1497-3cce08/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-gpt6luna/GPT 6 Luna/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132751-1497-3cce08/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-gpt6luna/GPT 6 Luna/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132751-1497-3cce08/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-gpt6luna/GPT 6 Luna/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132751-1497-3cce08/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "aae317fc4a7e088e83e679a69d9eed448e1f9131d9ca3c0c21800171fcedef99", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 153}, "build_ok": false, "lockbud_detected": false, "lockbud_status": "lockbud_unavailable", "miri_detected": false, "miri_statuses": []}
+
+Output the complete corrected Rust program.

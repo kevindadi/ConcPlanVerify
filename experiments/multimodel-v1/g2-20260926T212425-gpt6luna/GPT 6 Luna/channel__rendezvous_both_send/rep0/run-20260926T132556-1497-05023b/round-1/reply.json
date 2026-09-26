@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::mpsc::{sync_channel, Receiver, SyncSender};\nuse std::sync::{Arc, Mutex};\n\nfn s1(tx: SyncSender<i32>) {\n    tx.send(1).unwrap();\n}\n\nfn r(rx: Receiver<i32>, done: Arc<Mutex<usize>>, lock: Arc<Semaphore>) {\n    let _value = rx.recv().unwrap();\n\n    let _permit = lock.acquire();\n    *done.lock().unwrap() = 1;\n}\n\nfn main() {\n    let ch = sync_channel::<i32>(0);\n    let (tx, rx) = ch;\n\n    let done = Arc::new(Mutex::new(0));\n    let lock = Semaphore::new(1);\n\n    let s1_task = std::thread::spawn(move || s1(tx));\n    let r_task = {\n        let done = Arc::clone(&done);\n        let lock = Arc::clone(&lock);\n        std::thread::spawn(move || r(rx, done, lock))\n    };\n\n    s1_task.join().unwrap();\n    r_task.join().unwrap();\n\n    let _permit = lock.acquire();\n    let done = *done.lock().unwrap();\n    println!(\"DONE done={}\", done);\n}\n```"
+}

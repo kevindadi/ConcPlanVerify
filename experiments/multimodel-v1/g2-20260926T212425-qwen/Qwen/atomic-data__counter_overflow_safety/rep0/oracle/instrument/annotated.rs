@@ -1,0 +1,53 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+use std::sync::{Arc};
+use std::thread;
+
+fn main() { cir_trace::init();
+    // R2: Shared integer counter c, declared range 0..=2, starts at 0.
+    let c = Arc::new(Mutex::new_named("c_mutex0", 0u32));
+    
+    // R4: Mutual-exclusion lock m is provided by the Mutex itself.
+    // We clone the Arc for each worker to share access.
+    let c1 = Arc::clone(&c);
+    let c2 = Arc::clone(&c);
+
+    // R1: Start two worker threads w1 and w2.
+    let h1 = cir_trace::spawn("h1", move || {
+        // R3 & R5: Each worker adds one only if it keeps value within upper limit.
+        // The requirement says "counter never exceeds one" in every state.
+        // This implies that effectively only one increment can succeed or be visible as >0?
+        // Let's re-read carefully: "R5. In every state that can occur, the counter never exceeds one".
+        // If both workers try to increment from 0 to 1, they must coordinate such that 
+        // the second one sees 1 and does not increment (since 1+1=2 which violates R5).
+        
+        let mut guard = c1.lock().unwrap();
+        if *guard < 1 {
+            *guard += 1;
+        }
+        // Drop guard automatically
+    });
+
+    let h2 = cir_trace::spawn("h2", move || {
+        let mut guard = c2.lock().unwrap();
+        if *guard < 1 {
+            *guard += 1;
+        }
+    });
+
+    // R1: Supervising task waits for both to finish.
+    h1.join().unwrap();
+    h2.join().unwrap();
+
+    // R7: Print exactly `DONE done=1`.
+    // Since R5 ensures counter never exceeds 1, and R3/R4 ensure mutual exclusion,
+    // and we start at 0, the final value will be 1 because at least one worker
+    // will see 0 and increment it to 1. The other will see 1 and not increment.
+    // Wait, what if both see 0? No, mutex prevents simultaneous read/write.
+    // One gets lock, sees 0, increments to 1, releases.
+    // Other gets lock, sees 1, condition *guard < 1 fails, does nothing.
+    // Final value is 1.
+    
+    let final_val = *c.lock().unwrap();
+    println!("DONE done={}", final_val);
+ cir_trace::finish();}

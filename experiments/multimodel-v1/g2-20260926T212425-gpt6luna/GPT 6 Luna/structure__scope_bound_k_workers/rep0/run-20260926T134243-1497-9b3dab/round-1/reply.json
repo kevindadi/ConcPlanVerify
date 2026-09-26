@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::thread;\n\nfn activation(s: Arc<Semaphore>) {\n    let permit = s.acquire();\n\n    let mut work = 0usize;\n    for i in 0..1000 {\n        work = work.wrapping_add(i);\n    }\n    std::hint::black_box(work);\n\n    drop(permit);\n}\n\nfn run_role(s: Arc<Semaphore>) {\n    let a1_s = Arc::clone(&s);\n    let a2_s = Arc::clone(&s);\n\n    let a1 = thread::spawn(move || activation(a1_s));\n    let a2 = thread::spawn(move || activation(a2_s));\n\n    a1.join().unwrap();\n    a2.join().unwrap();\n}\n\nfn w1(s: Arc<Semaphore>) {\n    run_role(s);\n}\n\nfn w2(s: Arc<Semaphore>) {\n    run_role(s);\n}\n\nfn w3(s: Arc<Semaphore>) {\n    run_role(s);\n}\n\nfn main() {\n    let s = Semaphore::new(1);\n\n    let w1_s = Arc::clone(&s);\n    let w2_s = Arc::clone(&s);\n    let w3_s = Arc::clone(&s);\n\n    let w1_handle = thread::spawn(move || w1(w1_s));\n    let w2_handle = thread::spawn(move || w2(w2_s));\n    let w3_handle = thread::spawn(move || w3(w3_s));\n\n    w1_handle.join().unwrap();\n    w2_handle.join().unwrap();\n    w3_handle.join().unwrap();\n\n    let done = 1;\n    println!(\"DONE done={done}\");\n}\n```"
+}

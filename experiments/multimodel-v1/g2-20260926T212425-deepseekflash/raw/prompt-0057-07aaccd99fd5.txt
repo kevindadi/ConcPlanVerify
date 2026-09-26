@@ -1,0 +1,39 @@
+# Rust tool-feedback prompt (v1, arm A2)
+
+You are fixing a Rust program using the raw diagnostics produced by the build
+and analysis tools. The diagnostics are the ground truth.
+
+- `cargo build` errors mean the program does not compile: fix them.
+- Miri reports (deadlock or data race) identify a real interleaving problem:
+  change the synchronization so the reported problem cannot occur.
+- Do not silence a diagnostic by deleting synchronization, making the program
+  sequential, or catching/ignoring errors.
+- Keep standard-library-only, `fn main`, no external crates, no sleep-based
+  workarounds.
+- Output only the full corrected Rust source inside a single ```rust code fence.
+
+An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.
+
+Specification:
+# Requirements
+
+R1. The design contains two modules, where one module owns the first shared resource and the other module owns the second shared resource.
+R2. One task runs in the first module and another task runs in the second module, and both tasks need both resources.
+R3. Each task must declare that it depends on the resource owned by the other module.
+R4. Each task must hold both resources at the same time while it performs its work.
+R5. It must never be possible for the two tasks to leave each other waiting forever, each holding one resource and needing the other.
+R6. Every task must release each resource it holds before it finishes.
+R7. A starting thread launches both tasks and only finishes after both tasks have finished.
+R8. Both tasks must finish even though they run in different modules.
+R9. Every possible schedule or interleaving must terminate.
+R10. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): t1, t2.
+- Shared resources: a (lock), b (lock).
+
+
+Output the complete Rust program.

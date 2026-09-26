@@ -1,0 +1,40 @@
+use concir_sync::Semaphore;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+const COUNTER_MIN: u8 = 0;
+const COUNTER_MAX: u8 = 2;
+
+fn w1(m: Arc<Semaphore>, c: Arc<Mutex<u8>>) {
+    let _permit = m.acquire();
+    let mut counter = c.lock().unwrap();
+    assert!(*counter >= COUNTER_MIN && *counter < COUNTER_MAX);
+    *counter += 1;
+    assert!(*counter <= COUNTER_MAX);
+}
+
+fn w2(m: Arc<Semaphore>, c: Arc<Mutex<u8>>) {
+    let _permit = m.acquire();
+    let mut counter = c.lock().unwrap();
+    assert!(*counter >= COUNTER_MIN && *counter < COUNTER_MAX);
+    *counter += 1;
+    assert!(*counter <= COUNTER_MAX);
+}
+
+fn main() {
+    let m = Semaphore::new(1);
+    let c = Arc::new(Mutex::new(COUNTER_MIN));
+
+    let m1 = Arc::clone(&m);
+    let c1 = Arc::clone(&c);
+    let worker1 = thread::spawn(move || w1(m1, c1));
+
+    let m2 = Arc::clone(&m);
+    let c2 = Arc::clone(&c);
+    let worker2 = thread::spawn(move || w2(m2, c2));
+
+    worker1.join().unwrap();
+    worker2.join().unwrap();
+
+    println!("DONE done=1");
+}

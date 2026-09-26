@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct State {\n    ready: bool,\n}\n\nstruct Shared {\n    m: Mutex<State>,\n    cv: Condvar,\n}\n\nfn main() {\n    let _semaphore = Semaphore::new(1);\n\n    let shared = Arc::new(Shared {\n        m: Mutex::new(State { ready: false }),\n        cv: Condvar::new(),\n    });\n\n    let waiter_shared = Arc::clone(&shared);\n    let waiter = thread::spawn(move || {\n        let mut state = waiter_shared.m.lock().unwrap();\n        while !state.ready {\n            state = waiter_shared.cv.wait(state).unwrap();\n        }\n    });\n\n    let notifier_shared = Arc::clone(&shared);\n    let notifier = thread::spawn(move || {\n        let mut state = notifier_shared.m.lock().unwrap();\n        state.ready = true;\n        notifier_shared.cv.notify_one();\n        drop(state);\n    });\n\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n\n    let ready = shared.m.lock().unwrap().ready;\n    println!(\"DONE ready={ready}\");\n}\n```"
+}

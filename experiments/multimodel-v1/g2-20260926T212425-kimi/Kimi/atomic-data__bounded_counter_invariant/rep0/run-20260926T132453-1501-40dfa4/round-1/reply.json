@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    // Shared counter c (declared range 0..=2, starts at 0),\n    // guarded by the mutual-exclusion lock m.\n    let m = Arc::new(Mutex::new(0i32));\n\n    // Worker w1: adds exactly one to c while holding m.\n    let m1 = Arc::clone(&m);\n    let w1 = thread::spawn(move || {\n        let mut c = m1.lock().unwrap();\n        *c += 1;\n    });\n\n    // Worker w2: adds exactly one to c while holding m.\n    let m2 = Arc::clone(&m);\n    let w2 = thread::spawn(move || {\n        let mut c = m2.lock().unwrap();\n        *c += 1;\n    });\n\n    // Supervising task waits for both workers to finish.\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

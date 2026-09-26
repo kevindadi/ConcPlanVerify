@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\nuse concir_sync::Semaphore;\n\nfn main() {\n    let m = Arc::new(Mutex::new(0i32));\n    let done = Arc::new(Semaphore::new(0));\n\n    let m1 = Arc::clone(&m);\n    let d1 = Arc::clone(&done);\n    let w1 = thread::spawn(move || {\n        let mut guard = m1.lock().unwrap();\n        *guard += 1;\n        drop(guard);\n        d1.acquire();\n    });\n\n    let m2 = Arc::clone(&m);\n    let d2 = Arc::clone(&done);\n    let w2 = thread::spawn(move || {\n        let mut guard = m2.lock().unwrap();\n        *guard += 1;\n        drop(guard);\n        d2.acquire();\n    });\n\n    // Supervising task: wait for both workers to finish.\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    let value = {\n        let guard = m.lock().unwrap();\n        *guard\n    };\n\n    println!(\"DONE done={}\", value);\n}\n```"
+}

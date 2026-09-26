@@ -1,0 +1,156 @@
+# Rust tool-feedback prompt (v1, arm A2)
+
+You are fixing a Rust program using the raw diagnostics produced by the build
+and analysis tools. The diagnostics are the ground truth.
+
+- `cargo build` errors mean the program does not compile: fix them.
+- Miri reports (deadlock or data race) identify a real interleaving problem:
+  change the synchronization so the reported problem cannot occur.
+- Do not silence a diagnostic by deleting synchronization, making the program
+  sequential, or catching/ignoring errors.
+- Keep standard-library-only, `fn main`, no external crates, no sleep-based
+  workarounds.
+- Output only the full corrected Rust source inside a single ```rust code fence.
+
+An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.
+
+Specification:
+# Requirements
+
+R1. The design contains two modules, where one module owns the first shared resource and the other module owns the second shared resource.
+R2. One task runs in the first module and another task runs in the second module, and both tasks need both resources.
+R3. Each task must declare that it depends on the resource owned by the other module.
+R4. Each task must hold both resources at the same time while it performs its work.
+R5. It must never be possible for the two tasks to leave each other waiting forever, each holding one resource and needing the other.
+R6. Every task must release each resource it holds before it finishes.
+R7. A starting thread launches both tasks and only finishes after both tasks have finished.
+R8. Both tasks must finish even though they run in different modules.
+R9. Every possible schedule or interleaving must terminate.
+R10. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): t1, t2.
+- Shared resources: a (lock), b (lock).
+
+
+Current program:
+```rust
+use concir_sync::Semaphore;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+// Module 1 owns resource `a`.
+mod module1 {
+    use super::*;
+
+    pub struct ResourceA {
+        pub lock: Mutex<()>,
+    }
+
+    impl ResourceA {
+        pub fn new() -> Self {
+            ResourceA {
+                lock: Mutex::new(()),
+            }
+        }
+    }
+
+    // Task t1 runs in module1, owns `a`, depends on `b`.
+    pub fn t1(
+        a: Arc<ResourceA>,
+        b: Arc<super::module2::ResourceB>,
+        done: Arc<Mutex<usize>>,
+        order: Arc<Semaphore>,
+    ) {
+        // Acquire both resources in a globally consistent order to avoid deadlock.
+        let _ga = a.lock.lock().unwrap();
+        let _gb = b.lock.lock().unwrap();
+
+        // Perform work while holding both resources.
+        let mut d = done.lock().unwrap();
+        *d += 1;
+
+        // Release order permit (resources released on drop).
+        order.acquire().release();
+    }
+}
+
+// Module 2 owns resource `b`.
+mod module2 {
+    use super::*;
+
+    pub struct ResourceB {
+        pub lock: Mutex<()>,
+    }
+
+    impl ResourceB {
+        pub fn new() -> Self {
+            ResourceB {
+                lock: Mutex::new(()),
+            }
+        }
+    }
+
+    // Task t2 runs in module2, owns `b`, depends on `a`.
+    pub fn t2(
+        b: Arc<ResourceB>,
+        a: Arc<super::module1::ResourceA>,
+        done: Arc<Mutex<usize>>,
+        order: Arc<Semaphore>,
+    ) {
+        // Same global acquisition order: a then b.
+        let _ga = a.lock.lock().unwrap();
+        let _gb = b.lock.lock().unwrap();
+
+        let mut d = done.lock().unwrap();
+        *d += 1;
+
+        order.acquire().release();
+    }
+}
+
+fn main() {
+    let a = Arc::new(module1::ResourceA::new());
+    let b = Arc::new(module2::ResourceB::new());
+    let done = Arc::new(Mutex::new(0usize));
+
+    // Semaphore used only to ensure both tasks have completed their critical work
+    // before the launcher finishes. Initialized with 0 permits; each task
+    // acquires one permit (blocking) and immediately releases it, which is a
+    // no-op ordering barrier. Instead, use a join-based barrier.
+    let order = Semaphore::new(0);
+
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let d1 = Arc::clone(&done);
+    let o1 = Arc::clone(&order);
+
+    let a2 = Arc::clone(&a);
+    let b2 = Arc::clone(&b);
+    let d2 = Arc::clone(&done);
+    let o2 = Arc::clone(&order);
+
+    let h1 = thread::spawn(move || {
+        module1::t1(a1, b1, d1, o1);
+    });
+
+    let h2 = thread::spawn(move || {
+        module2::t2(b2, a2, d2, o2);
+    });
+
+    h1.join().unwrap();
+    h2.join().unwrap();
+
+    let d = done.lock().unwrap();
+    println!("DONE done={}", *d);
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": {"argv": ["cargo", "test", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cross_module_cycle/rep0/run-20260926T132933-1489-e85c3f/round-1/calls/002-test", "exit_code": 0, "extra": {"argv_sha256": "77dd8f8789185bb797563665394030f88298e60beae5021b219dfc331cfc6cf6", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cross_module_cycle/rep0/run-20260926T132933-1489-e85c3f/round-1/calls/002-test/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cross_module_cycle/rep0/run-20260926T132933-1489-e85c3f/round-1/calls/002-test/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cross_module_cycle/rep0/run-20260926T132933-1489-e85c3f/round-1/calls/002-test/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cross_module_cycle/rep0/run-20260926T132933-1489-e85c3f/round-1/calls/002-test/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cross_module_cycle/rep0/run-20260926T132933-1489-e85c3f/round-1/calls/002-test/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cross_module_cycle/rep0/run-20260926T132933-1489-e85c3f/round-1/calls/002-test/wall_ms.txt"}, "stderr_sha256": "c5cc3f1e158c10ee885c16c802c3125e0a7000901d12eb17e7a83900021fa67a", "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd", "timed_out": false, "tool": "test", "wall_ms": 504}, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cross_module_cycle/rep0/run-20260926T132933-1489-e85c3f/round-1/calls/001-build", "exit_code": 0, "extra": {"argv_sha256": "e37ddc7e49336799fa81680c7e8034b24ba061f858f14a061a6e34a3346a30f2", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cross_module_cycle/rep0/run-20260926T132933-1489-e85c3f/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cross_module_cycle/rep0/run-20260926T132933-1489-e85c3f/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cross_module_cycle/rep0/run-20260926T132933-1489-e85c3f/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cross_module_cycle/rep0/run-20260926T132933-1489-e85c3f/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cross_module_cycle/rep0/run-20260926T132933-1489-e85c3f/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cross_module_cycle/rep0/run-20260926T132933-1489-e85c3f/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "c5cc3f1e158c10ee885c16c802c3125e0a7000901d12eb17e7a83900021fa67a", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 269}, "build_ok": true, "lockbud_detected": false, "lockbud_status": "clean", "miri_detected": true, "miri_statuses": ["detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected"]}
+
+Output the complete corrected Rust program.

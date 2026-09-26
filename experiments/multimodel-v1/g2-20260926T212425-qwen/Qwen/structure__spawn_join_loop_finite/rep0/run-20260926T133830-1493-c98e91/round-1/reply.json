@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::thread;\n\nfn main() {\n    // R1: A main task starts a worker task and waits for that worker to finish,\n    // then begins the same start-and-wait cycle again.\n    // We implement one cycle as specified by R6 (done=1).\n    \n    let sem = Semaphore::new(0);\n    let sem_clone = sem.clone();\n\n    // Start the worker task\n    let handle = thread::spawn(move || {\n        // R2: The worker task performs no shared work and shares no mutexes or counters with the main task.\n        // It just signals completion via the semaphore.\n        sem_clone.release();\n    });\n\n    // Wait for the worker to finish\n    // R3: Each started worker is waited for exactly once before the next worker is started.\n    // R4: No task ever waits for a worker that cannot finish, so no execution stalls.\n    // R5: Every schedule and interleaving must terminate.\n    sem.acquire();\n\n    // Join the thread to ensure it has fully terminated\n    handle.join().unwrap();\n\n    // R6: The program must print exactly the line `DONE done=1` and then exit.\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::mpsc::sync_channel;\nuse std::sync::Arc;\nuse std::thread;\n\nfn main() {\n    let ch1 = sync_channel::<usize>(0);\n    let ch2 = sync_channel::<usize>(0);\n\n    let shared_lock = Semaphore::new(1);\n    let visits = Arc::new(AtomicUsize::new(0));\n\n    let s_lock = Arc::clone(&shared_lock);\n    let s_visits = Arc::clone(&visits);\n    let ch1_tx = ch1.0;\n    let ch2_rx = ch2.1;\n    let s = thread::spawn(move || {\n        {\n            let _permit = s_lock.acquire();\n            s_visits.fetch_add(1, Ordering::SeqCst);\n        }\n\n        ch1_tx.send(1).unwrap();\n        ch2_rx.recv().unwrap() == 2\n    });\n\n    let r_lock = Arc::clone(&shared_lock);\n    let r_visits = Arc::clone(&visits);\n    let ch1_rx = ch1.1;\n    let ch2_tx = ch2.0;\n    let r = thread::spawn(move || {\n        {\n            let _permit = r_lock.acquire();\n            r_visits.fetch_add(1, Ordering::SeqCst);\n        }\n\n        let value = ch1_rx.recv().unwrap();\n        ch2_tx.send(value + 1).unwrap();\n        value == 1\n    });\n\n    let s_done = s.join().unwrap();\n    let r_done = r.join().unwrap();\n    let done = usize::from(\n        s_done && r_done && visits.load(Ordering::SeqCst) == 2,\n    );\n\n    println!(\"DONE done={done}\");\n}\n```"
+}

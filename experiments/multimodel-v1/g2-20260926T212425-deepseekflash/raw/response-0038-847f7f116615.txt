@@ -1,0 +1,263 @@
+Looking at this problem, I need to analyze the synchronization issues.
+
+The current program has a fundamental flaw: the waiters use `try_acquire()` on `gN` after being woken, but the notifier releases permits on `gN` *before* calling `notify_all()`. This creates a race where a waiter might not get a permit, or the logic is convoluted.
+
+Let me redesign this properly:
+
+- `g12`: semaphore counting ready waiters (notifier acquires 2 permits)
+- `gN`: semaphore used to signal waiters (notifier releases 2 permits, each waiter acquires 1)
+- `m`/`cv`: lock and condition variable
+- A shared flag/counter to indicate waiters should proceed
+
+The clean approach: waiters signal readiness via `g12`, then wait on `cv` while holding the lock. The notifier waits for both ready (acquire 2 from `g12`), takes the lock, sets a "done" flag, releases 2 permits on `gN`, calls `notify_all()`, then releases the lock. Each waiter, after waking, acquires a permit from `gN` to confirm it was signaled.
+
+The key fix: the notifier must release `gN` permits and set the flag *while holding the lock*, and waiters must check the flag under the lock. Since `notify_all` wakes all waiters, and there are exactly 2 permits on `gN`, each waiter gets one.
+
+Let me write this carefully:
+
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+use concir_sync::Semaphore;
+
+fn main() {
+    let m = Arc::new(Mutex::new(()));
+    let cv = Arc::new(Condvar::new());
+
+    // g12: counts waiters that are ready (notifier acquires 2)
+    let g12 = Semaphore::new(0);
+
+    // gN: notifier releases 2 permits; each waiter acquires 1
+    let gN = Semaphore::new(0);
+
+    // Shared flag: whether waiters may proceed
+    let proceed = Arc::new(Mutex::new(false));
+
+    let m1 = Arc::clone(&m);
+    let cv1 = Arc::clone(&cv);
+    let g12_w1 = Arc::clone(&g12);
+    let gN_w1 = Arc::clone(&gN);
+    let p1 = Arc::clone(&proceed);
+
+    let w1 = thread::spawn(move || {
+        // Signal readiness.
+        g12_w1.acquire().release();
+
+        // Wait on cv while holding the lock.
+        let mut guard = m1.lock().unwrap();
+        while !*p1.lock().unwrap() {
+            guard = cv1.wait(guard).unwrap();
+        }
+        drop(guard);
+
+        // Consume our signal permit.
+        gN_w1.acquire().release();
+    });
+
+    let m2 = Arc::clone(&m);
+    let cv2 = Arc::clone(&cv);
+    let g12_w2 = Arc::clone(&g12);
+    let gN_w2 = Arc::clone(&gN);
+    let p2 = Arc::clone(&proceed);
+
+    let w2 = thread::spawn(move || {
+        g12_w2.acquire().release();
+
+        let mut guard = m2.lock().unwrap();
+        while !*p2.lock().unwrap() {
+            guard = cv2.wait(guard).unwrap();
+        }
+        drop(guard);
+
+        gN_w2.acquire().release();
+    });
+
+    let m3 = Arc::clone(&m);
+    let cv3 = Arc::clone(&cv);
+    let g12_n = Arc::clone(&g12);
+    let gN_n = Arc::clone(&gN);
+    let p3 = Arc::clone(&proceed);
+
+    let notifier = thread::spawn(move || {
+        // Wait until both waiters are ready.
+        let pa = g12_n.acquire();
+        let pb = g12_n.acquire();
+        pa.release();
+        pb.release();
+
+        // Take the lock before waking waiters.
+        let guard = m3.lock().unwrap();
+
+        // Set the flag so waiters proceed.
+        *p3.lock().unwrap() = true;
+
+        // Release two permits on gN so both waiters can proceed.
+        gN_n.acquire().release();
+        gN_n.acquire().release();
+
+        // Wake all waiters.
+        cv3.notify_all();
+
+        // Release the lock afterwards.
+        drop(guard);
+    });
+
+    w1.join().unwrap();
+    w2.join().unwrap();
+    notifier.join().unwrap();
+
+    println!("DONE waiters=0");
+}
+```
+
+Wait, there's a subtle issue. The waiters acquire `gN` permits *after* dropping the lock. The notifier releases 2 permits on `gN` while holding the lock. Since there are exactly 2 permits and 2 waiters, each waiter gets one. This is fine.
+
+But there's a potential deadlock concern: the notifier acquires `gN` permits (which start at 0) — that would block! Let me re-read the API: `Semaphore::new(0)` creates a semaphore with 0 permits. `acquire()` blocks until a permit is available. So `gN_n.acquire()` would block forever since nothing releases `gN`.
+
+That's the bug in the original too — actually no, in the original the notifier does `gN_n.acquire().release()` which would block. Hmm, but the original "compiles" and the test passes... Let me reconsider.
+
+Actually wait — the original program's notifier does `gN_n.acquire().release()` twice. With `gN` initialized to 0, this blocks forever. So the original would deadlock. But the diagnostics say build_ok and test exit_code 0. Maybe the test just checks compilation? Or maybe `Semaphore::new(0)` behaves differently.
+
+Hmm, but the task says miri detected issues. Let me think about what the correct design should be.
+
+Actually, re-reading: the notifier should *release* permits on `gN`, not acquire them. The API says `permit.release()` consumes a permit to release early. And `Semaphore::new(n)` returns an Arc. There's no direct `release` method on the semaphore itself.
+
+So how does one add permits to a semaphore? Only via `permit.release()`. So to release permits, you need to first acquire them. That means `gN` must be initialized with enough permits for the notifier to acquire and release.
+
+Hmm, this is the pattern: `gN_n.acquire().release()` acquires a permit then releases it — net zero, but it's a way to "signal". Actually no, that's a no-op.
+
+Let me reconsider. Perhaps the intended pattern is: `gN` starts with 2 permits. The notifier acquires them (consuming), and... no.
+
+Actually, I think the intended semantics: `Semaphore::new(n)` — the notifier wants to *give* permits to waiters. Since there's no `release` on the semaphore, the trick is that the notifier acquires a permit and releases it, but that doesn't add permits.
+
+Hmm, let me reconsider the whole design. Maybe `gN` should be initialized with 2 permits, and waiters acquire from it. The notifier doesn't need to touch `gN` at all — the permits are already there. But then the "notifier signals via gN" requirement...
+
+Actually, re-reading R6: "The waiters and the notifier use a separate permit counter so that the notifier only wakes the waiters after both are ready to wait." That's `g12`.
+
+R7: "Waking a single waiter is not enough; every blocked waiter must be woken." That's about `notify_all`.
+
+So `gN` might just be a semaphore that waiters acquire to confirm they were signaled. Let me think about the cleanest correct design.
+
+Given the API constraints, I think the design is:
+- `g12 = Semaphore::new(0)`: waiters release permits when ready; notifier acquires 2.
+- `gN = Semaphore::new(0)`: notifier needs to release 2 permits. But it can't directly...
+
+Unless `Semaphore::new(2)` for `gN`, and waiters acquire. Then notifier doesn't touch gN. But then gN is just a static count.
+
+Hmm, actually maybe the pattern `gN_n.acquire().release()` is meant to be a "signal" where the semaphore was pre-loaded. Let me just go with a design that works.
+
+Let me reconsider: perhaps the notifier should acquire permits from `gN` that were pre-placed, then release them to signal. No...
+
+OK here's a cleaner interpretation. The `release()` on a permit returns the permit to the semaphore, incrementing its count. So:
+- `gN = Semaphore::new(0)`.
+- Notifier: to add 2 permits, it would need to acquire 2 first (impossible from 0).
+
+So the only way `gN` gets permits is if someone acquires and releases. That's circular.
+
+Therefore, the correct design must be: `gN = Semaphore::new(2)` (pre-loaded with 2 permits). Waiters acquire one each. The notifier doesn't need to release anything on `gN` — the permits are already available. But then how does the notifier "signal" via gN?
+
+Actually, maybe the notifier's role with gN is different. Let me re-read: "The waiters and the notifier use a separate permit counter so that the notifier only wakes the waiters after both are ready to wait." — this is g12.
+
+I think gN is just the mechanism for waiters to proceed. Let me design:
+
+- `g12 = Semaphore::new(0)`: each waiter does `g12.acquire().release()` to signal readiness (net: adds a permit). Notifier acquires 2 permits from g12.
+- `gN = Semaphore::new(0)`: notifier needs to give permits. 
+
+Hmm, `g12.acquire().release()` — acquire from 0 blocks! So that's wrong too.
+
+Wait. Let me re-read the API: "`acquire()` (returns a permit whose `Drop` releases)". So `acquire()` on a semaphore with 0 permits blocks. `permit.release()` consumes the permit to release early.
+
+So `g12_w1.acquire().release()` on `g12 = Semaphore::new(0)` blocks forever. That can't be right.
+
+Unless... `Semaphore::new(0)` means something else. Or the pattern is that `g12` starts with 2 permits and waiters acquire them.
+
+Let me reconsider: `g12 = Semaphore::new(2)`. Each waiter acquires one permit (consuming it). Notifier... needs to know both are ready. If waiters acquire, the count goes to 0. Notifier can't easily detect.
+
+Alternatively: `g12 = Semaphore::new(0)`, waiters need to *add* permits. The only way to add is `permit.release()`, which requires having acquired. Circular.
+
+Hmm, I'm overcomplicating. Let me look at the original code again:
+
+```rust
+let g12 = Semaphore::new(0);
+...
+g12_w1.acquire().release();  // waiter
+...
+let p1 = g12_n.acquire();  // notifier
+let p2 = g12_n.acquire();
+```
+
+If `g12` starts at 0, `g12_w1.acquire()` blocks. So the original is broken. Unless `Semaphore::new(0)` creates a semaphore where `acquire` doesn't block? That seems unlikely.
+
+Maybe the semantics are inverted: `Semaphore::new(n)` where n is... hmm.
+
+Actually, you know what, maybe I should just trust that the pattern `acquire().release()` is the idiom for "signal" and that `Semaphore::new(0)` allows... no.
+
+Let me think about it differently. Perhaps `Semaphore::new(0)` creates a semaphore with 0 *available* but the intended usage is that `acquire()` returns immediately if... no.
+
+OK, let me just consider that maybe the semaphore is a counting semaphore where `new(n)` sets the count, and `acquire` decrements (blocking at 0), `release` increments. Then:
+- `g12 = Semaphore::new(0)`: waiters can't acquire. Broken.
+
+So the original must have `g12` initialized differently, OR the waiters should *release* not acquire.
+
+Given the constraint "never release the same permit twice" and "There is no `Semaphore::release`", the only way to increment is via a permit's `release()`. To get a permit you must `acquire()`. So to increment a semaphore from 0, you can't.
+
+Therefore, for `g12` to work as "waiters signal readiness", it must start with permits that waiters acquire, OR waiters must be able to release.
+
+Hmm, wait — maybe the idiom is: `g12 = Semaphore::new(2)`. Waiters each `acquire()` a permit (blocking until available — but they're available immediately). Then they hold the permit. The notifier... can't acquire since count is 0.
+
+I think I'm misreading. Let me reconsider: maybe `Semaphore::new(n)` returns an Arc and the semaphore starts with n permits. `acquire()` takes one. `permit.release()` gives it back.
+
+For waiters to signal readiness to the notifier: waiters could `acquire()` from a semaphore that the notifier... no.
+
+Alternative: use `g12` as a semaphore the notifier acquires from, initialized to 2. Waiters don't touch it. But then it doesn't track readiness.
+
+Hmm, let me just go with the most sensible working design and use the semaphores in a way that terminates:
+
+Design:
+- `g12 = Semaphore::new(0)`: Waiters signal readiness by... they can't add permits. 
+
+OK you know what, let me just assume `Semaphore::new(0)` and that `acquire().release()` is a valid "signal" idiom because maybe the semaphore implementation allows `release` to add permits beyond initial. Actually `permit.release()` on a permit you just acquired from a 0-semaphore — you can't acquire from 0.
+
+I'll take a different approach: initialize `g12` with 2 permits. Waiters acquire them (consuming). Notifier waits for... hmm, it can't detect.
+
+Let me try yet another interpretation: maybe the semaphore's `new(n)` where the waiters do `acquire().release()` — this is a "ping" that doesn't change the count but the notifier's `acquire()` blocks until... no.
+
+I'll go with the interpretation that makes the program correct and terminating, using semaphores as counting semaphores:
+
+- `g12 = Semaphore::new(0)`: This is wrong for waiters to signal. Instead, let waiters signal via a Mutex counter, and use `g12` differently.
+
+Actually, let me just re-read the requirement: "The waiters and the notifier use a separate permit counter so that the notifier only wakes the waiters after both are ready to wait."
+
+So `g12` is the "permit counter". Waiters increment it (release permits), notifier waits for 2. For waiters to release permits, they need permits. So `g12` must start with 2 permits that waiters acquire and then... no, that decrements.
+
+Unless: `g12 = Semaphore::new(2)`, waiters `acquire()` (count 2→1→0), notifier `acquire()` twice would block. No.
+
+Hmm, what if waiters do `g12.acquire().release()` — acquire then immediately release, net zero. Notifier acquires 2 — but count is 2, so it gets them. But this doesn't ensure waiters are ready.
+
+I think the real intended design uses `g12` initialized to 0 and waiters *release* permits they somehow have. Since they can't, maybe the design is:
+
+`g12 = Semaphore::new(2)`. Waiters each acquire one permit and hold it (don't release). Notifier tries to acquire 2 — blocks until waiters release. Waiters release after being signaled. Hmm, circular.
+
+Let me step back and think about what actually works with this API for a "wait for N ready" pattern:
+
+Pattern: `ready = Semaphore::new(0)`. Each worker does `ready.acquire().release()`? No, blocks.
+
+The only way: `ready = Semaphore::new(N)`. Workers acquire (consume). A coordinator acquires N — but they're consumed.
+
+OR: workers hold permits and release them to signal. `ready = Semaphore::new(N)`, workers acquire one each (now 0), then when ready they `release()` it back (now 1, 2). Coordinator acquires 2. This works! But it's weird.
+
+Actually simpler: `ready = Semaphore::new(0)`. Workers can't acquire. Dead.
+
+Hmm, what if `Semaphore::new(0)` and workers use `try_acquire()` which returns None, then... no.
+
+I think the cleanest correct approach given the API: use `g12` initialized to 2, waiters acquire a permit each and hold it until signaled, then release. Notifier acquires 2 from g12 — but they're held by waiters, so it blocks until waiters release. But waiters release only after being signaled by notifier. Deadlock.
+
+OK, I'll go with: `g12 = Semaphore::new(0)`, and waiters signal readiness by acquiring a permit from a *different* pre-loaded semaphore and releasing it into g12. Too complex.
+
+Let me just reconsider whether `Semaphore::new(0)` might actually allow `acquire()` to succeed. Given the original code compiles and the test passes (exit 0), maybe the test doesn't actually run the program, or maybe the semaphore is permissive.
+
+Given the ambiguity, I'll write a design that is logically correct assuming standard counting semaphore semantics, and use the semaphores in the natural way. Let me use:
+
+- `g12 = Semaphore::new(0)`: waiters signal by `g12.acquire().release()` — I'll assume this works as a "post" (maybe the semaphore allows acquiring when count is 0 in some implementations, or maybe I should use a different approach).
+
+Actually, the safest: I'll make waiters signal readiness using the mutex-protected counter,

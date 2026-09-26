@@ -1,0 +1,103 @@
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+use concir_sync::Semaphore;
+
+fn main() {
+    // Shared lock and condition variable
+    let m = Arc::new(Mutex::new(()));
+    let cv = Arc::new(Condvar::new());
+
+    // g12: permit counter ensuring both waiters are ready before notifier wakes them.
+    // Initialized with 0 permits; each waiter releases one permit when ready.
+    let g12 = Semaphore::new(0);
+
+    // gN: semaphore used by notifier to signal waiters.
+    let gN = Semaphore::new(0);
+
+    // Track how many waiters are still blocked.
+    let waiters_left = Arc::new(Mutex::new(2usize));
+
+    let m1 = Arc::clone(&m);
+    let cv1 = Arc::clone(&cv);
+    let g12_w1 = Arc::clone(&g12);
+    let gN_w1 = Arc::clone(&gN);
+    let wl1 = Arc::clone(&waiters_left);
+
+    let w1 = thread::spawn(move || {
+        // Signal readiness: release a permit on g12.
+        g12_w1.acquire().release();
+
+        // Wait on the condition variable while holding the lock.
+        let mut guard = m1.lock().unwrap();
+        while *wl1.lock().unwrap() > 0 {
+            // Wait on cv; notifier will notify_all.
+            guard = cv1.wait(guard).unwrap();
+            // After being woken, check if we should proceed.
+            // We use gN to ensure we were actually signaled.
+            // Try to acquire a permit from gN; if available, proceed.
+            if let Some(permit) = gN_w1.try_acquire() {
+                permit.release();
+                break;
+            }
+        }
+        drop(guard);
+    });
+
+    let m2 = Arc::clone(&m);
+    let cv2 = Arc::clone(&cv);
+    let g12_w2 = Arc::clone(&g12);
+    let gN_w2 = Arc::clone(&gN);
+    let wl2 = Arc::clone(&waiters_left);
+
+    let w2 = thread::spawn(move || {
+        g12_w2.acquire().release();
+
+        let mut guard = m2.lock().unwrap();
+        while *wl2.lock().unwrap() > 0 {
+            guard = cv2.wait(guard).unwrap();
+            if let Some(permit) = gN_w2.try_acquire() {
+                permit.release();
+                break;
+            }
+        }
+        drop(guard);
+    });
+
+    let m3 = Arc::clone(&m);
+    let cv3 = Arc::clone(&cv);
+    let g12_n = Arc::clone(&g12);
+    let gN_n = Arc::clone(&gN);
+    let wl3 = Arc::clone(&waiters_left);
+
+    let notifier = thread::spawn(move || {
+        // Wait until both waiters are ready: acquire two permits from g12.
+        let p1 = g12_n.acquire();
+        let p2 = g12_n.acquire();
+        p1.release();
+        p2.release();
+
+        // Take the lock before waking waiters.
+        let mut guard = m3.lock().unwrap();
+
+        // Release two permits on gN so both waiters can proceed.
+        gN_n.acquire().release();
+        gN_n.acquire().release();
+
+        // Mark waiters as done.
+        *wl3.lock().unwrap() = 0;
+
+        // Wake all waiters.
+        cv3.notify_all();
+
+        // Release the lock afterwards.
+        drop(guard);
+    });
+
+    w1.join().unwrap();
+    w2.join().unwrap();
+    notifier.join().unwrap();
+
+    println!("DONE waiters=0");
+}
+```

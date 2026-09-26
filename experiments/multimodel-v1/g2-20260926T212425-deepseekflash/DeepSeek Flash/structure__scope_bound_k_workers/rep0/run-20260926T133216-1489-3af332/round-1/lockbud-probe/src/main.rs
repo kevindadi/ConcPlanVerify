@@ -1,0 +1,39 @@
+use concir_sync::Semaphore;
+use std::sync::Arc;
+use std::thread;
+
+fn main() {
+    let s = Semaphore::new(1);
+
+    let mut handles = Vec::new();
+
+    for _ in 0..2 {
+        let s1 = Arc::clone(&s);
+        handles.push(thread::spawn(move || {
+            let permit = s1.acquire();
+            drop(permit);
+        }));
+    }
+
+    for _ in 0..2 {
+        let s2 = Arc::clone(&s);
+        handles.push(thread::spawn(move || {
+            let permit = s2.acquire();
+            drop(permit);
+        }));
+    }
+
+    for _ in 0..2 {
+        let s3 = Arc::clone(&s);
+        handles.push(thread::spawn(move || {
+            let permit = s3.acquire();
+            drop(permit);
+        }));
+    }
+
+    for h in handles {
+        h.join().unwrap();
+    }
+
+    println!("DONE done=1");
+}

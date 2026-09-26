@@ -1,0 +1,82 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | .../run-20260926T133231-1497-f2eddf/round-4/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0597]: `sa` does not live long enough
+   --> src/main.rs:17:20
+    |
+ 11 |       let sa = Semaphore::new(1);
+    |           -- binding `sa` declared here
+...
+ 17 |       let sa_token = sa.acquire();
+    |                      ^^ borrowed value does not live long enough
+...
+ 25 |       let worker_a = thread::Builder::new()
+    |  ____________________-
+ 26 | |         .name("a".to_owned())
+ 27 | |         .spawn(move || {
+ 28 | |             sa_token.release();
+...   |
+ 56 | |         })
+    | |__________- argument requires that `sa` is borrowed for `'static`
+...
+112 |   }
+    |   - `sa` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/builder.rs:188:19
+    |
+188 |         F: Send + 'static,
+    |                   ^^^^^^^
+
+error[E0597]: `sb` does not live long enough
+   --> src/main.rs:18:20
+    |
+ 12 |       let sb = Semaphore::new(1);
+    |           -- binding `sb` declared here
+...
+ 18 |       let sb_token = sb.acquire();
+    |                      ^^ borrowed value does not live long enough
+...
+ 64 |       let worker_b = thread::Builder::new()
+    |  ____________________-
+ 65 | |         .name("b".to_owned())
+ 66 | |         .spawn(move || {
+ 67 | |             sb_token.release();
+...   |
+ 95 | |         })
+    | |__________- argument requires that `sb` is borrowed for `'static`
+...
+112 |   }
+    |   - `sb` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/builder.rs:188:19
+    |
+188 |         F: Send + 'static,
+    |                   ^^^^^^^
+
+warning: unused variable: `sa_worker`
+  --> src/main.rs:22:9
+   |
+22 |     let sa_worker = Arc::clone(&sa);
+   |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sa_worker`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `sb_worker`
+  --> src/main.rs:62:9
+   |
+62 |     let sb_worker = Arc::clone(&sb);
+   |         ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_sb_worker`
+
+For more information about this error, try `rustc --explain E0597`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors; 2 warnings emitted

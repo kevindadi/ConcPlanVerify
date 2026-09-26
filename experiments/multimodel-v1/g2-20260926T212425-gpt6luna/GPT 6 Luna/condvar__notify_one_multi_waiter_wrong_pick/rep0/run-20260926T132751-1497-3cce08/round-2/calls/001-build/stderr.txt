@@ -1,0 +1,32 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | .../run-20260926T132751-1497-3cce08/round-2/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:44:5
+   |
+44 |     gN: Arc<Semaphore>,
+   |     ^^ help: convert the identifier to snake case: `g_n`
+   |
+   = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:71:9
+   |
+71 |     let gN = Semaphore::new(1);
+   |         ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:86:13
+   |
+86 |         let gN = Arc::clone(&gN);
+   |             ^^ help: convert the identifier to snake case: `g_n`
+

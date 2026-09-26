@@ -1,0 +1,34 @@
+use concir_sync::Semaphore;
+use std::sync::Arc;
+use std::thread;
+
+fn main() {
+    let a = Semaphore::new(1);
+    let b = Semaphore::new(1);
+
+    let outer_a = Arc::clone(&a);
+    let outer_b = Arc::clone(&b);
+
+    let outer = thread::spawn(move || {
+        let x1_a = Arc::clone(&outer_a);
+        let x1_b = Arc::clone(&outer_b);
+        let x1 = thread::spawn(move || {
+            let _a = x1_a.acquire();
+            let _b = x1_b.acquire();
+        });
+
+        let x2_a = Arc::clone(&outer_a);
+        let x2_b = Arc::clone(&outer_b);
+        let x2 = thread::spawn(move || {
+            let _a = x2_a.acquire();
+            let _b = x2_b.acquire();
+        });
+
+        x1.join().unwrap();
+        x2.join().unwrap();
+        1
+    });
+
+    let done = outer.join().unwrap();
+    println!("DONE done={done}");
+}

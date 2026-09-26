@@ -1,0 +1,26 @@
+use std::sync::mpsc::sync_channel;
+use std::thread;
+
+fn main() {
+    // Rendezvous channel: zero capacity, so send and recv must meet.
+    let (tx, rx) = sync_channel::<i32>(0);
+
+    // Sending task s1.
+    let s1 = thread::spawn(move || {
+        tx.send(1).expect("s1: send failed");
+    });
+
+    // Receiving task r.
+    let r = thread::spawn(move || {
+        let v = rx.recv().expect("r: recv failed");
+        assert_eq!(v, 1);
+    });
+
+    // Both tasks must finish; neither can wait forever since each
+    // performs exactly one matching rendezvous operation.
+    s1.join().expect("main: failed to join s1");
+    r.join().expect("main: failed to join r");
+
+    // Channel is empty here: the single value was handed off.
+    println!("DONE done=1");
+}

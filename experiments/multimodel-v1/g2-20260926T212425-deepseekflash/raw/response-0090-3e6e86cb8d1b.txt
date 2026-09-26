@@ -1,0 +1,26 @@
+```rust
+use concir_sync::Semaphore;
+use std::sync::Arc;
+use std::thread;
+
+fn helper(done: Arc<Semaphore>) {
+    // Auxiliary routine: performs its work, then signals completion.
+    done.acquire();
+}
+
+fn main() {
+    let done = Semaphore::new(0);
+
+    // First call sequence: main calls helper, waits for it to complete.
+    let d1 = Arc::clone(&done);
+    let h1 = thread::spawn(move || helper(d1));
+    h1.join().unwrap();
+
+    // Second call sequence: main calls helper again, waits for completion.
+    let d2 = Arc::clone(&done);
+    let h2 = thread::spawn(move || helper(d2));
+    h2.join().unwrap();
+
+    println!("DONE done=1");
+}
+```

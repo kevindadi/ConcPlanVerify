@@ -1,0 +1,38 @@
+Looking at the diagnostics, `lockbud_detected: true` indicates a potential deadlock or lock ordering issue. The current program has two separate mutexes (`m` and `acc`), and each worker locks `m` first, then tries to lock `acc`. While this specific code doesn't actually deadlock (since both workers follow the same order), the specification says "updates a shared counter while still holding the mutex" — implying the counter update should happen under the same mutex `m`, not a separate one.
+
+The key insight from R2 is: "Each worker takes a shared mutex, calls a sequential helper routine that performs only local computation, then updates a shared counter **while still holding the mutex**." This means `acc` should be protected by `m` itself, not a separate mutex. Using two separate mutexes creates a lock-ordering concern that LockBuds flags.
+
+Let me restructure so that `acc` is inside the mutex `m`:
+
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn compute() -> i32 {
+    // Sequential helper routine that performs only local computation.
+    1
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(0i32));
+
+    let m1 = Arc::clone(&m);
+    let w1 = thread::spawn(move || {
+        let mut guard = m1.lock().unwrap();
+        let val = compute();
+        *guard += val;
+    });
+
+    let m2 = Arc::clone(&m);
+    let w2 = thread::spawn(move || {
+        let mut guard = m2.lock().unwrap();
+        let val = compute();
+        *guard += val;
+    });
+
+    w1.join().unwrap();
+    w2.join().unwrap();
+
+    println!("DONE done={}", *m.lock().unwrap());
+}
+```

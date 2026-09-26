@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::thread;\n\nfn main() {\n    let s = Semaphore::new(1);\n\n    let s_w1 = s.clone();\n    let w1 = thread::spawn(move || {\n        let permit = s_w1.acquire();\n        let _work = std::hint::black_box((0..1_000_u64).sum::<u64>());\n        permit.release();\n    });\n\n    let s_w2 = s.clone();\n    let w2 = thread::spawn(move || {\n        let permit = s_w2.acquire();\n        let _work = std::hint::black_box((0..1_000_u64).sum::<u64>());\n        permit.release();\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    println!(\"DONE permits=1\");\n}\n```"
+}

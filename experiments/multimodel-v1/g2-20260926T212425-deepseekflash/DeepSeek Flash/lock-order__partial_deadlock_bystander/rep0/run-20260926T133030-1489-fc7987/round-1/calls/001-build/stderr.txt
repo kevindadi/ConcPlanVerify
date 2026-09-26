@@ -1,0 +1,26 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | .../run-20260926T133030-1489-fc7987/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0599]: no method named `release` found for struct `Arc<Semaphore>` in the current scope
+  --> src/main.rs:30:17
+   |
+30 |             sb1.release();
+   |                 ^^^^^^^ method not found in `Arc<Semaphore>`
+
+error[E0599]: no method named `release` found for struct `Arc<Semaphore>` in the current scope
+  --> src/main.rs:41:17
+   |
+41 |             sa2.release();
+   |                 ^^^^^^^ method not found in `Arc<Semaphore>`
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors

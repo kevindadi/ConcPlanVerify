@@ -1,0 +1,148 @@
+# Rust tool-feedback prompt (v1, arm A2)
+
+You are fixing a Rust program using the raw diagnostics produced by the build
+and analysis tools. The diagnostics are the ground truth.
+
+- `cargo build` errors mean the program does not compile: fix them.
+- Miri reports (deadlock or data race) identify a real interleaving problem:
+  change the synchronization so the reported problem cannot occur.
+- Do not silence a diagnostic by deleting synchronization, making the program
+  sequential, or catching/ignoring errors.
+- Keep standard-library-only, `fn main`, no external crates, no sleep-based
+  workarounds.
+- Output only the full corrected Rust source inside a single ```rust code fence.
+
+An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.
+
+Specification:
+# Requirements
+
+R1. A main task starts two waiter roles and one notifier role that run at the same time. [U]
+R2. Each waiter blocks on a shared condition variable until it is told to proceed.
+R3. The notifier must wake every waiter that is still blocked, so no waiter is left waiting forever.
+R4. A waiter must hold the lock while it waits on the condition variable.
+R5. The notifier must take the lock before it wakes the waiters and release the lock afterwards.
+R6. The waiters and the notifier use a separate permit counter so that the notifier only wakes the waiters after both are ready to wait.
+R7. Waking a single waiter is not enough; every blocked waiter must be woken.
+R8. Every schedule and interleaving must terminate with every waiter and the notifier finished.
+R9. Every waiter completes in every schedule.
+R10. The program must print exactly the line `DONE waiters=0` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2, notifier.
+- Shared resources: m (lock), cv (condition variable), g12 (semaphore), gN (semaphore).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+use concir_sync::Semaphore;
+
+fn main() {
+    // Shared lock and condition variable
+    let m = Arc::new(Mutex::new(()));
+    let cv = Arc::new(Condvar::new());
+
+    // g12: permit counter ensuring both waiters are ready before notifier wakes them.
+    // Initialized with 0 permits; each waiter releases one permit when ready.
+    let g12 = Semaphore::new(0);
+
+    // gN: semaphore used by notifier to signal waiters.
+    let gN = Semaphore::new(0);
+
+    // Track how many waiters are still blocked.
+    let waiters_left = Arc::new(Mutex::new(2usize));
+
+    let m1 = Arc::clone(&m);
+    let cv1 = Arc::clone(&cv);
+    let g12_w1 = Arc::clone(&g12);
+    let gN_w1 = Arc::clone(&gN);
+    let wl1 = Arc::clone(&waiters_left);
+
+    let w1 = thread::spawn(move || {
+        // Signal readiness: release a permit on g12.
+        g12_w1.acquire().release();
+
+        // Wait on the condition variable while holding the lock.
+        let mut guard = m1.lock().unwrap();
+        while *wl1.lock().unwrap() > 0 {
+            // Wait on cv; notifier will notify_all.
+            guard = cv1.wait(guard).unwrap();
+            // After being woken, check if we should proceed.
+            // We use gN to ensure we were actually signaled.
+            // Try to acquire a permit from gN; if available, proceed.
+            if let Some(permit) = gN_w1.try_acquire() {
+                permit.release();
+                break;
+            }
+        }
+        drop(guard);
+    });
+
+    let m2 = Arc::clone(&m);
+    let cv2 = Arc::clone(&cv);
+    let g12_w2 = Arc::clone(&g12);
+    let gN_w2 = Arc::clone(&gN);
+    let wl2 = Arc::clone(&waiters_left);
+
+    let w2 = thread::spawn(move || {
+        g12_w2.acquire().release();
+
+        let mut guard = m2.lock().unwrap();
+        while *wl2.lock().unwrap() > 0 {
+            guard = cv2.wait(guard).unwrap();
+            if let Some(permit) = gN_w2.try_acquire() {
+                permit.release();
+                break;
+            }
+        }
+        drop(guard);
+    });
+
+    let m3 = Arc::clone(&m);
+    let cv3 = Arc::clone(&cv);
+    let g12_n = Arc::clone(&g12);
+    let gN_n = Arc::clone(&gN);
+    let wl3 = Arc::clone(&waiters_left);
+
+    let notifier = thread::spawn(move || {
+        // Wait until both waiters are ready: acquire two permits from g12.
+        let p1 = g12_n.acquire();
+        let p2 = g12_n.acquire();
+        p1.release();
+        p2.release();
+
+        // Take the lock before waking waiters.
+        let mut guard = m3.lock().unwrap();
+
+        // Release two permits on gN so both waiters can proceed.
+        gN_n.acquire().release();
+        gN_n.acquire().release();
+
+        // Mark waiters as done.
+        *wl3.lock().unwrap() = 0;
+
+        // Wake all waiters.
+        cv3.notify_all();
+
+        // Release the lock afterwards.
+        drop(guard);
+    });
+
+    w1.join().unwrap();
+    w2.join().unwrap();
+    notifier.join().unwrap();
+
+    println!("DONE waiters=0");
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": {"argv": ["cargo", "test", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132640-1489-fe6a6a/round-1/calls/002-test", "exit_code": 0, "extra": {"argv_sha256": "ae0ecd327c2f8bf37528918baece1ed4d20f7b52a8b116418c99181f6094d374", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132640-1489-fe6a6a/round-1/calls/002-test/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132640-1489-fe6a6a/round-1/calls/002-test/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132640-1489-fe6a6a/round-1/calls/002-test/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132640-1489-fe6a6a/round-1/calls/002-test/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132640-1489-fe6a6a/round-1/calls/002-test/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132640-1489-fe6a6a/round-1/calls/002-test/wall_ms.txt"}, "stderr_sha256": "ab5bc82fec1375523d82d952dfeb5a5f9b48b1b636075bca6a430997a2cdf65f", "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd", "timed_out": false, "tool": "test", "wall_ms": 558}, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132640-1489-fe6a6a/round-1/calls/001-build", "exit_code": 0, "extra": {"argv_sha256": "ebc81d31880fa7d67e8dc5d404b85fa32c3d886100edd2dace9c21cf6c1cf5a4", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132640-1489-fe6a6a/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132640-1489-fe6a6a/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132640-1489-fe6a6a/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132640-1489-fe6a6a/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132640-1489-fe6a6a/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/condvar__notify_one_multi_waiter_wrong_pick/rep0/run-20260926T132640-1489-fe6a6a/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "ab5bc82fec1375523d82d952dfeb5a5f9b48b1b636075bca6a430997a2cdf65f", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 269}, "build_ok": true, "lockbud_detected": false, "lockbud_status": "clean", "miri_detected": true, "miri_statuses": ["detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected", "detected"]}
+
+Output the complete corrected Rust program.

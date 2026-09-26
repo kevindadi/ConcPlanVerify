@@ -1,0 +1,56 @@
+Looking at the diagnostics, `lockbud_detected: true` indicates a potential deadlock or lock ordering issue. The current program has two workers that each acquire the same mutex `m`, perform computation, and update the shared counter while holding the lock. This seems correct for mutual exclusion (R4), but let me analyze more carefully.
+
+The issue is likely related to how the final print statement acquires the lock again after both threads have joined. While this shouldn't cause a deadlock in practice since both threads have released their locks, LockBUD might be flagging a pattern where the same lock is acquired in multiple places without clear reasoning about safety.
+
+However, looking more closely at the requirements:
+- R2 says "Each worker takes a shared mutex, calls a sequential helper routine... then updates a shared counter while still holding the mutex"
+- R3 says "Each worker releases the mutex it took before it finishes"
+
+The current code does exactly this - each worker locks, computes, updates, and the guard drops at the end of the closure (releasing the lock). Then main joins both threads and locks again to read the value.
+
+The problem might be that LockBUD sees the lock being held across a function call (`compute()`) and flags it as potentially problematic, even though `compute()` only does local work. But actually, re-reading R2: "calls a sequential helper routine that performs only local computation, then updates a shared counter while still holding the mutex." This means compute should be called while holding the lock, which is what we do.
+
+Let me check if there's an actual deadlock risk. Both w1 and w2 try to acquire `m`. Only one can hold it at a time (R4). The other waits (R5). Once the first releases, the second acquires. No circular dependency, so no deadlock.
+
+Wait - I think the issue might be simpler. Let me look at whether the structure matches the entity names required. The spec says to use roles named `w1`, `w2`, `compute` and shared resources `m`, `acc`. The variable `acc` isn't used - instead we're using the inner value of the Mutex directly. Perhaps we need a separate `acc` variable protected by `m`.
+
+Actually, re-reading: "updates a shared counter" - the counter IS the shared state. Using `Mutex<i32>` where the i32 is the counter is fine. But maybe LockBUD wants explicit separation?
+
+Let me reconsider. The most common LockBUD false positive with this pattern is when you have nested lock acquisitions or when the analysis can't prove termination. Since Miri shows clean results, the program works correctly. 
+
+I think the fix is to ensure the lock scope is minimal and clearly bounded. Let me restructure so that the lock acquisition and release are very explicit, and make sure `acc` is named as per the entities list.
+
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn compute() -> i32 {
+    // Sequential helper routine that performs only local computation.
+    1
+}
+
+fn main() {
+    let acc = Arc::new(Mutex::new(0i32));
+
+    let m1 = Arc::clone(&acc);
+    let w1 = thread::spawn(move || {
+        let mut guard = m1.lock().unwrap();
+        let val = compute();
+        *guard += val;
+        drop(guard);
+    });
+
+    let m2 = Arc::clone(&acc);
+    let w2 = thread::spawn(move || {
+        let mut guard = m2.lock().unwrap();
+        let val = compute();
+        *guard += val;
+        drop(guard);
+    });
+
+    w1.join().unwrap();
+    w2.join().unwrap();
+
+    println!("DONE done={}", *acc.lock().unwrap());
+}
+```

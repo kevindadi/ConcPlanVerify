@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\n\nfn main() {\n    let s = Semaphore::new(1);\n\n    let s1 = Arc::clone(&s);\n    let w1 = std::thread::spawn(move || {\n        // Acquire permit, do work, release permit.\n        // The permit is released when the guard goes out of scope.\n        let _permit = s1.acquire();\n        // Work happens while holding the permit\n        drop(_permit);\n    });\n\n    let s2 = Arc::clone(&s);\n    let w2 = std::thread::spawn(move || {\n        // Acquire permit, do work, release permit.\n        let _permit = s2.acquire();\n        // Work happens while holding the permit\n        drop(_permit);\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

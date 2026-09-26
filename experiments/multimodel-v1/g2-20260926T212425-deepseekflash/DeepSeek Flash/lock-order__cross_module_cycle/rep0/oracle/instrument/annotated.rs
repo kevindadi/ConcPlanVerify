@@ -1,0 +1,110 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+use concir_sync::Semaphore;
+use std::sync::{Arc};
+use std::thread;
+
+// Module 1 owns resource `a`.
+mod module1 {
+    use super::*;
+
+    pub struct ResourceA {
+        pub lock: Mutex<()>,
+    }
+
+    impl ResourceA {
+        pub fn new() -> Self {
+            ResourceA {
+                lock: Mutex::new(()),
+            }
+        }
+    }
+
+    // Task t1 runs in module1, owns `a`, depends on `b`.
+    pub fn t1(
+        a: Arc<ResourceA>,
+        b: Arc<super::module2::ResourceB>,
+        done: Arc<Mutex<usize>>,
+        order: Arc<Semaphore>,
+    ) {
+        // Acquire both resources in a globally consistent order to avoid deadlock.
+        let _ga = a.lock.lock().unwrap();
+        let _gb = b.lock.lock().unwrap();
+
+        // Perform work while holding both resources.
+        let mut d = done.lock().unwrap();
+        *d += 1;
+
+        // Release order permit (resources released on drop).
+        order.acquire().release();
+    }
+}
+
+// Module 2 owns resource `b`.
+mod module2 {
+    use super::*;
+
+    pub struct ResourceB {
+        pub lock: Mutex<()>,
+    }
+
+    impl ResourceB {
+        pub fn new() -> Self {
+            ResourceB {
+                lock: Mutex::new(()),
+            }
+        }
+    }
+
+    // Task t2 runs in module2, owns `b`, depends on `a`.
+    pub fn t2(
+        b: Arc<ResourceB>,
+        a: Arc<super::module1::ResourceA>,
+        done: Arc<Mutex<usize>>,
+        order: Arc<Semaphore>,
+    ) {
+        // Same global acquisition order: a then b.
+        let _ga = a.lock.lock().unwrap();
+        let _gb = b.lock.lock().unwrap();
+
+        let mut d = done.lock().unwrap();
+        *d += 1;
+
+        order.acquire().release();
+    }
+}
+
+fn main() { cir_trace::init();
+    let a = Arc::new(module1::ResourceA::new());
+    let b = Arc::new(module2::ResourceB::new());
+    let done = Arc::new(Mutex::new_named("done_mutex0", 0usize));
+
+    // Semaphore initialized with 2 permits; each task acquires one permit
+    // (blocking until available) and releases it. This is a no-op ordering
+    // barrier; the join-based barrier below ensures completion.
+    let order = Semaphore::new_named("order_semaphore0", 2);
+
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let d1 = Arc::clone(&done);
+    let o1 = Arc::clone(&order);
+
+    let a2 = Arc::clone(&a);
+    let b2 = Arc::clone(&b);
+    let d2 = Arc::clone(&done);
+    let o2 = Arc::clone(&order);
+
+    let h1 = cir_trace::spawn("t1", move || {
+        module1::t1(a1, b1, d1, o1);
+    });
+
+    let h2 = cir_trace::spawn("t2", move || {
+        module2::t2(b2, a2, d2, o2);
+    });
+
+    h1.join().unwrap();
+    h2.join().unwrap();
+
+    let d = done.lock().unwrap();
+    println!("DONE done={}", *d);
+ cir_trace::finish();}

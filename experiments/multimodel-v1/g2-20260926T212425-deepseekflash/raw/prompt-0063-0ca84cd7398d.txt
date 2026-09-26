@@ -1,0 +1,97 @@
+# Rust tool-feedback prompt (v1, arm A2)
+
+You are fixing a Rust program using the raw diagnostics produced by the build
+and analysis tools. The diagnostics are the ground truth.
+
+- `cargo build` errors mean the program does not compile: fix them.
+- Miri reports (deadlock or data race) identify a real interleaving problem:
+  change the synchronization so the reported problem cannot occur.
+- Do not silence a diagnostic by deleting synchronization, making the program
+  sequential, or catching/ignoring errors.
+- Keep standard-library-only, `fn main`, no external crates, no sleep-based
+  workarounds.
+- Output only the full corrected Rust source inside a single ```rust code fence.
+
+An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.
+
+Specification:
+# Requirements
+
+R1. The design contains one main thread and three worker threads.
+R2. Three locks are shared among the workers, and none of them may be held by more than one worker at a time.
+R3. The first worker needs the first and second lock, the second worker needs the second and third lock, and the third worker needs the third and the first lock.
+R4. Each worker must hold its two locks at the same time while it performs its critical work.
+R5. It must never be possible for the workers to leave one another waiting forever, each holding one lock and needing another.
+R6. Every worker must release each lock it holds before it finishes.
+R7. The main thread starts all three workers and only finishes after all three have finished.
+R8. Every worker must finish eventually, whatever order the workers run in.
+R9. Every possible schedule or interleaving of the workers must terminate.
+R10. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): t1, t2, t3.
+- Shared resources: a (lock), b (lock), c (lock).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+use concir_sync::Semaphore;
+
+fn main() {
+    // Three locks shared among the workers.
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+    let c = Arc::new(Mutex::new(()));
+
+    // A global ordering semaphore ensures no circular wait (deadlock-free).
+    // Only one worker may attempt to acquire its locks at a time.
+    let gate = Semaphore::new(1);
+
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let g1 = Arc::clone(&gate);
+    let t1 = thread::spawn(move || {
+        let _permit = g1.acquire();
+        let _la = a1.lock().unwrap();
+        let _lb = b1.lock().unwrap();
+        // critical work
+    });
+
+    let b2 = Arc::clone(&b);
+    let c2 = Arc::clone(&c);
+    let g2 = Arc::clone(&gate);
+    let t2 = thread::spawn(move || {
+        let _permit = g2.acquire();
+        let _lb = b2.lock().unwrap();
+        let _lc = c2.lock().unwrap();
+        // critical work
+    });
+
+    let c3 = Arc::clone(&c);
+    let a3 = Arc::clone(&a);
+    let g3 = Arc::clone(&gate);
+    let t3 = thread::spawn(move || {
+        let _permit = g3.acquire();
+        let _lc = c3.lock().unwrap();
+        let _la = a3.lock().unwrap();
+        // critical work
+    });
+
+    t1.join().unwrap();
+    t2.join().unwrap();
+    t3.join().unwrap();
+
+    println!("DONE done=1");
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": {"argv": ["cargo", "test", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/calls/002-test", "exit_code": 0, "extra": {"argv_sha256": "f89bd6ea9097ea92e56f40b4586798fe011ca118034865f39aa9cddd41c6184a", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/calls/002-test/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/calls/002-test/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/calls/002-test/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/calls/002-test/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/calls/002-test/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/calls/002-test/wall_ms.txt"}, "stderr_sha256": "51f1d84607e1dba5bef6793dfac1c02dd01cada5740c9bcb78723d51006eeeb2", "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd", "timed_out": false, "tool": "test", "wall_ms": 556}, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/calls/001-build", "exit_code": 0, "extra": {"argv_sha256": "546d4f9249bb9c1ac0bfd3f0751515e416d34a53d7e9f04720d1304bb777af95", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-deepseekflash/DeepSeek Flash/lock-order__cycle_3lock/rep0/run-20260926T132953-1489-ac4dbc/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "51f1d84607e1dba5bef6793dfac1c02dd01cada5740c9bcb78723d51006eeeb2", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 260}, "build_ok": true, "lockbud_detected": true, "lockbud_status": "detected", "miri_detected": false, "miri_statuses": ["clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean"]}
+
+Output the complete corrected Rust program.

@@ -1,0 +1,7 @@
+{
+  "round": 3,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::thread;\n\nfn helper(done: Arc<Semaphore>) {\n    // Auxiliary routine: performs its work, then signals completion.\n    let permit = done.acquire();\n    permit.release();\n}\n\nfn main() {\n    let done = Semaphore::new(0);\n\n    // First call sequence: main calls helper, waits for it to complete.\n    let d1 = Arc::clone(&done);\n    let h1 = thread::spawn(move || helper(d1));\n    h1.join().unwrap();\n\n    // Second call sequence: main calls helper again, waits for completion.\n    let d2 = Arc::clone(&done);\n    let h2 = thread::spawn(move || helper(d2));\n    h2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

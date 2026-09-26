@@ -1,0 +1,72 @@
+# Rust tool-feedback prompt (v1, arm A2)
+
+You are fixing a Rust program using the raw diagnostics produced by the build
+and analysis tools. The diagnostics are the ground truth.
+
+- `cargo build` errors mean the program does not compile: fix them.
+- Miri reports (deadlock or data race) identify a real interleaving problem:
+  change the synchronization so the reported problem cannot occur.
+- Do not silence a diagnostic by deleting synchronization, making the program
+  sequential, or catching/ignoring errors.
+- Keep standard-library-only, `fn main`, no external crates, no sleep-based
+  workarounds.
+- Output only the full corrected Rust source inside a single ```rust code fence.
+
+An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.
+
+Specification:
+# Requirements
+
+R1. A main task starts a worker task and waits for that worker to finish, then begins the same start-and-wait cycle again. [U]
+R2. The worker task performs no shared work and shares no mutexes or counters with the main task. [U]
+R3. Each started worker is waited for exactly once before the next worker is started.
+R4. No task ever waits for a worker that cannot finish, so no execution stalls.
+R5. Every schedule and interleaving must terminate.
+R6. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): worker.
+
+
+Current program:
+```rust
+use concir_sync::Semaphore;
+use std::thread;
+
+fn main() {
+    // R1: A main task starts a worker task and waits for that worker to finish,
+    // then begins the same start-and-wait cycle again.
+    // We implement one cycle as specified by R6 (done=1).
+    
+    let sem = Semaphore::new(0);
+    let sem_clone = sem.clone();
+
+    // Start the worker task
+    let handle = thread::spawn(move || {
+        // R2: The worker task performs no shared work and shares no mutexes or counters with the main task.
+        // It just signals completion via the semaphore.
+        sem_clone.release();
+    });
+
+    // Wait for the worker to finish
+    // R3: Each started worker is waited for exactly once before the next worker is started.
+    // R4: No task ever waits for a worker that cannot finish, so no execution stalls.
+    // R5: Every schedule and interleaving must terminate.
+    sem.acquire();
+
+    // Join the thread to ensure it has fully terminated
+    handle.join().unwrap();
+
+    // R6: The program must print exactly the line `DONE done=1` and then exit.
+    println!("DONE done=1");
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": null, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-qwen/Qwen/structure__spawn_join_loop_finite/rep0/run-20260926T133830-1493-c98e91/round-1/calls/001-build", "exit_code": 101, "extra": {"argv_sha256": "3d721b4853ab67e5ac8079823995b44efebf0792689b5c15801ba77a2b321fa8", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-qwen/Qwen/structure__spawn_join_loop_finite/rep0/run-20260926T133830-1493-c98e91/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-qwen/Qwen/structure__spawn_join_loop_finite/rep0/run-20260926T133830-1493-c98e91/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-qwen/Qwen/structure__spawn_join_loop_finite/rep0/run-20260926T133830-1493-c98e91/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-qwen/Qwen/structure__spawn_join_loop_finite/rep0/run-20260926T133830-1493-c98e91/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-qwen/Qwen/structure__spawn_join_loop_finite/rep0/run-20260926T133830-1493-c98e91/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-qwen/Qwen/structure__spawn_join_loop_finite/rep0/run-20260926T133830-1493-c98e91/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "46e07a3c2621000401fda495b76df35a814a208d3eb218431a4def09b5e97ed9", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 165}, "build_ok": false, "lockbud_detected": false, "lockbud_status": "lockbud_unavailable", "miri_detected": false, "miri_statuses": []}
+
+Output the complete corrected Rust program.

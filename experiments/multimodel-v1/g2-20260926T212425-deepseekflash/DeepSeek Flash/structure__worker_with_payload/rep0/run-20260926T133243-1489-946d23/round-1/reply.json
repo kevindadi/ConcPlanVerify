@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn compute(x: u64) -> u64 {\n    // Sequential helper routine: only local computation.\n    let mut v = x;\n    let mut i = 0;\n    while i < 1000 {\n        v = v.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);\n        i += 1;\n    }\n    v\n}\n\nfn worker(m: Arc<Mutex<u64>>, acc: Arc<Mutex<u64>>) {\n    let mut guard = m.lock().unwrap();\n    let local = compute(*guard);\n    *guard = local;\n    let mut a = acc.lock().unwrap();\n    *a += 1;\n    drop(a);\n    drop(guard);\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(1u64));\n    let acc = Arc::new(Mutex::new(0u64));\n\n    let m1 = Arc::clone(&m);\n    let acc1 = Arc::clone(&acc);\n    let w1 = thread::spawn(move || worker(m1, acc1));\n\n    let m2 = Arc::clone(&m);\n    let acc2 = Arc::clone(&acc);\n    let w2 = thread::spawn(move || worker(m2, acc2));\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    let done = *acc.lock().unwrap();\n    println!(\"DONE done={}\", done);\n}\n```"
+}

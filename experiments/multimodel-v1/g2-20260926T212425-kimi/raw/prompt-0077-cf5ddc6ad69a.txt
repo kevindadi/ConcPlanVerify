@@ -1,0 +1,94 @@
+# Rust tool-feedback prompt (v1, arm A2)
+
+You are fixing a Rust program using the raw diagnostics produced by the build
+and analysis tools. The diagnostics are the ground truth.
+
+- `cargo build` errors mean the program does not compile: fix them.
+- Miri reports (deadlock or data race) identify a real interleaving problem:
+  change the synchronization so the reported problem cannot occur.
+- Do not silence a diagnostic by deleting synchronization, making the program
+  sequential, or catching/ignoring errors.
+- Keep standard-library-only, `fn main`, no external crates, no sleep-based
+  workarounds.
+- Output only the full corrected Rust source inside a single ```rust code fence.
+
+An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.
+
+Specification:
+# Requirements
+
+R1. The design contains one main thread and three worker threads.
+R2. Three locks are shared among the workers, and none of them may be held by more than one worker at a time.
+R3. The first worker needs the first and second lock, the second worker needs the second and third lock, and the third worker needs the third and the first lock.
+R4. Each worker must hold its two locks at the same time while it performs its critical work.
+R5. It must never be possible for the workers to leave one another waiting forever, each holding one lock and needing another.
+R6. Every worker must release each lock it holds before it finishes.
+R7. The main thread starts all three workers and only finishes after all three have finished.
+R8. Every worker must finish eventually, whatever order the workers run in.
+R9. Every possible schedule or interleaving of the workers must terminate.
+R10. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): t1, t2, t3.
+- Shared resources: a (lock), b (lock), c (lock).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    // Three shared locks.
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+    let c = Arc::new(Mutex::new(()));
+
+    // Worker t1 needs locks a and b.
+    // Acquire in global order a -> b.
+    let (a1, b1) = (Arc::clone(&a), Arc::clone(&b));
+    let t1 = thread::spawn(move || {
+        let _guard_a = a1.lock().unwrap();
+        let _guard_b = b1.lock().unwrap();
+        // Critical work while holding both a and b.
+        // Guards drop here, releasing both locks.
+    });
+
+    // Worker t2 needs locks b and c.
+    // Acquire in global order b -> c.
+    let (b2, c2) = (Arc::clone(&b), Arc::clone(&c));
+    let t2 = thread::spawn(move || {
+        let _guard_b = b2.lock().unwrap();
+        let _guard_c = c2.lock().unwrap();
+        // Critical work while holding both b and c.
+    });
+
+    // Worker t3 needs locks c and a.
+    // Acquire in global order a -> c (NOT c -> a) so that all workers
+    // request locks in a consistent global order a < b < c. This makes
+    // circular waiting impossible, so no deadlock can occur in any
+    // interleaving.
+    let (c3, a3) = (Arc::clone(&c), Arc::clone(&a));
+    let t3 = thread::spawn(move || {
+        let _guard_a = a3.lock().unwrap();
+        let _guard_c = c3.lock().unwrap();
+        // Critical work while holding both a and c.
+    });
+
+    // Main thread waits for all workers to finish.
+    t1.join().unwrap();
+    t2.join().unwrap();
+    t3.join().unwrap();
+
+    println!("DONE done=1");
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": {"argv": ["cargo", "test", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-3/calls/002-test", "exit_code": 0, "extra": {"argv_sha256": "995a18a33152cacaac9c90dff12dcfa7ab30cf5004daf730d781fedaa5af12ed", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-3/calls/002-test/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-3/calls/002-test/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-3/calls/002-test/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-3/calls/002-test/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-3/calls/002-test/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-3/calls/002-test/wall_ms.txt"}, "stderr_sha256": "f8b0315b12fbef6755dcba54fbd9b91352cc0a4c01c90ee183441538153cdb7c", "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd", "timed_out": false, "tool": "test", "wall_ms": 652}, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-3/calls/001-build", "exit_code": 0, "extra": {"argv_sha256": "569a12ab6272e21717081436c3c2ff9c289378b15f2610c0689156f68cb666de", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-3/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-3/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-3/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-3/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-3/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/multimodel-v1/g2-20260926T212425-kimi/Kimi/lock-order__cycle_3lock/rep0/run-20260926T135650-1501-9bf146/round-3/calls/001-build/wall_ms.txt"}, "stderr_sha256": "f8b0315b12fbef6755dcba54fbd9b91352cc0a4c01c90ee183441538153cdb7c", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 270}, "build_ok": true, "lockbud_detected": true, "lockbud_status": "detected", "miri_detected": false, "miri_statuses": ["clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean"]}
+
+Output the complete corrected Rust program.

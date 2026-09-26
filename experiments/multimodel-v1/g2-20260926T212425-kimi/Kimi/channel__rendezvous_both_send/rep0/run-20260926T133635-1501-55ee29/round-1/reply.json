@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::mpsc::sync_channel;\nuse std::thread;\n\nfn main() {\n    // Rendezvous channel: zero capacity, so send and recv must meet.\n    let (tx, rx) = sync_channel::<i32>(0);\n\n    // Sending task s1.\n    let s1 = thread::spawn(move || {\n        tx.send(1).expect(\"s1: send failed\");\n    });\n\n    // Receiving task r.\n    let r = thread::spawn(move || {\n        let v = rx.recv().expect(\"r: recv failed\");\n        assert_eq!(v, 1);\n    });\n\n    // Both tasks must finish; neither can wait forever since each\n    // performs exactly one matching rendezvous operation.\n    s1.join().expect(\"main: failed to join s1\");\n    r.join().expect(\"main: failed to join r\");\n\n    // Channel is empty here: the single value was handed off.\n    println!(\"DONE done=1\");\n}\n```"
+}

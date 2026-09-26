@@ -1,0 +1,66 @@
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+use concir_sync::Semaphore;
+
+fn main() {
+    let a = Arc::new(Mutex::new(0));
+    let b = Arc::new(Mutex::new(0));
+    let sa = Semaphore::new(0);
+    let sb = Semaphore::new(0);
+    let flag = Arc::new(Mutex::new(0));
+
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let sa1 = Arc::clone(&sa);
+    let sb1 = Arc::clone(&sb);
+    let flag1 = Arc::clone(&flag);
+
+    let a2 = Arc::clone(&a);
+    let b2 = Arc::clone(&b);
+    let sa2 = Arc::clone(&sa);
+    let sb2 = Arc::clone(&sb);
+    let flag2 = Arc::clone(&flag);
+
+    let bystander_flag = Arc::clone(&flag);
+
+    let worker_a = thread::spawn(move || {
+        let pa = sa1.acquire();
+        {
+            let _ga = a1.lock().unwrap();
+            pa.release();
+            sb1.release();
+            let _gb = b1.lock().unwrap();
+            let mut f = flag1.lock().unwrap();
+            *f += 1;
+        }
+    });
+
+    let worker_b = thread::spawn(move || {
+        let pb = sb2.acquire();
+        {
+            let _gb = b2.lock().unwrap();
+            pb.release();
+            sa2.release();
+            let _ga = a2.lock().unwrap();
+            let mut f = flag2.lock().unwrap();
+            *f += 1;
+        }
+    });
+
+    let bystander = thread::spawn(move || loop {
+        let mut f = bystander_flag.lock().unwrap();
+        *f += 0;
+        drop(f);
+        thread::yield_now();
+    });
+
+    worker_a.join().unwrap();
+    worker_b.join().unwrap();
+
+    let _f = flag.lock().unwrap();
+    println!("DONE a=1 b=1");
+
+    drop(bystander);
+}
+```

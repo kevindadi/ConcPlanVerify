@@ -1,0 +1,267 @@
+Looking at the diagnostics: the build succeeds, but Miri detects a problem. The issue is the deadlock potential in the current design.
+
+The problem: The sender acquires `m` (the shared lock), then calls `ch_s.send(1)`. If the channel is full, `send` blocks while... actually no, the lock is released before send. Let me re-read.
+
+Actually the current code releases `m` before calling `send`. But the real issue is the `done` semaphore logic. Both threads call `done_s.acquire()` / `done_r.acquire()` on a semaphore initialized with 0 permits. This means both threads block forever waiting for a permit that is never released — a deadlock. The `join()` calls then hang.
+
+The `done` semaphore is meant to signal completion, but nobody releases it. The fix: the sender should release a permit when done, and the receiver should release a permit when done, so both can acquire. Or simpler — use the semaphore as a completion counter where each role releases after finishing.
+
+Let me redesign: `done` semaphore starts at 0. Each role, upon finishing its work, releases a permit (via `permit.release()` after acquiring, or just acquire then release). Actually the cleanest: each role acquires a permit at the end, and the main thread releases two permits after both are done... but main joins first.
+
+Better approach: use the semaphore so that each role signals completion. Initialize with 0. Each role does its work, then `done.acquire()` would block. Instead, each role should release. But `Semaphore::new(0)` has no permits to acquire.
+
+The intent of R8 is just to print `DONE done=1`. The `done` semaphore seems intended as a completion barrier. Let me make each role release a permit when finished, and have main acquire two permits before printing.
+
+Let me restructure:
+- `done = Semaphore::new(0)`
+- sender: does work, then `done.acquire()` — no. 
+
+Simplest correct: each role, when finished, releases a permit. Main acquires 2 permits (or the roles acquire). Since `acquire()` returns a permit whose Drop releases, and `permit.release()` consumes to release early.
+
+Let me have each role acquire a permit at the end that main releases. Actually, let me use the semaphore as a "both done" signal:
+
+```rust
+let done = Arc::new(Semaphore::new(0));
+// sender finishes -> done.acquire() would block
+```
+
+The cleanest fix that keeps the semaphore meaningful: each role releases a permit when it completes, and main waits for both permits.
+
+```rust
+let sender = thread::spawn(move || {
+    // work
+    done_s.acquire(); // blocks until main releases? no
+});
+```
+
+Let me just make each role signal completion by releasing, and main acquires twice:
+
+```rust
+let done = Arc::new(Semaphore::new(0));
+// sender:
+//   ... work ...
+//   let p = done_s.acquire(); // no, blocks
+```
+
+OK. The role should release. But `release()` is a method on a permit, not the semaphore. So to release without acquiring, we need to acquire first. With 0 permits, acquire blocks.
+
+Alternative: initialize `done` with 2 permits. Each role acquires one at the end (consuming it). Main joins both threads. That works and is meaningful — the semaphore ensures both roles have reached their end.
+
+```rust
+let done = Arc::new(Semaphore::new(2));
+// sender: ... work ...; done_s.acquire();
+// receiver: ... work ...; done_r.acquire();
+```
+
+Each role acquires one permit at the end. Since there are 2 permits, both succeed. Main joins. This is correct and terminates.
+
+Now the channel/lock design. R5: no role may wait on the channel while holding the shared lock. Current code releases `m` before `send`/`recv`, so that's fine. But there's a subtle issue: the sender holds `m` briefly, then sends. The receiver holds `m` briefly, then receives. No nesting. Good.
+
+But wait — is there a deadlock? The sender sends 1, then sends 2. The receiver receives a, then receives b. With capacity 1: sender sends 1 (slot full). Sender tries to send 2, blocks on not_full. Receiver receives 1 (slot empty, notifies not_full). Receiver receives 2. Fine. No deadlock.
+
+The Miri issue is the `done` semaphore deadlock. Let me fix that.
+
+Let me write the corrected program:
+
+```rust
+use std::sync::{Arc, Mutex, Condvar};
+use std::thread;
+use concir_sync::Semaphore;
+
+struct Channel {
+    slot: Option<i32>,
+}
+
+struct ChanState {
+    chan: Mutex<Channel>,
+    not_empty: Condvar,
+    not_full: Condvar,
+}
+
+impl ChanState {
+    fn new() -> Self {
+        ChanState {
+            chan: Mutex::new(Channel { slot: None }),
+            not_empty: Condvar::new(),
+            not_full: Condvar::new(),
+        }
+    }
+
+    fn send(&self, v: i32) {
+        let mut guard = self.chan.lock().unwrap();
+        while guard.slot.is_some() {
+            guard = self.not_full.wait(guard).unwrap();
+        }
+        guard.slot = Some(v);
+        self.not_empty.notify_one();
+    }
+
+    fn recv(&self) -> i32 {
+        let mut guard = self.chan.lock().unwrap();
+        while guard.slot.is_none() {
+            guard = self.not_empty.wait(guard).unwrap();
+        }
+        let v = guard.slot.take().unwrap();
+        self.not_full.notify_one();
+        v
+    }
+}
+
+fn main() {
+    let ch = Arc::new(ChanState::new());
+    let m = Arc::new(Mutex::new(0i32));
+    let done = Arc::new(Semaphore::new(2));
+
+    let ch_s = Arc::clone(&ch);
+    let m_s = Arc::clone(&m);
+    let done_s = Arc::clone(&done);
+
+    let sender = thread::spawn(move || {
+        {
+            let _g = m_s.lock().unwrap();
+        }
+        ch_s.send(1);
+
+        {
+            let _g = m_s.lock().unwrap();
+        }
+        ch_s.send(2);
+
+        done_s.acquire();
+    });
+
+    let ch_r = Arc::clone(&ch);
+    let m_r = Arc::clone(&m);
+    let done_r = Arc::clone(&done);
+
+    let receiver = thread::spawn(move || {
+        let a = ch_r.recv();
+        {
+            let _g = m_r.lock().unwrap();
+        }
+        let b = ch_r.recv();
+        {
+            let _g = m_r.lock().unwrap();
+        }
+        assert_eq!(a, 1);
+        assert_eq!(b, 2);
+        done_r.acquire();
+    });
+
+    sender.join().unwrap();
+    receiver.join().unwrap();
+
+    println!("DONE done=1");
+}
+```
+
+Wait, but the `done` semaphore with 2 permits — each role acquires one. That's fine and terminates. But is the semaphore actually needed? It's part of the spec's shared resources? The spec mentions `m` and `ch` as shared resources, not `done`. But the original used `done`. Keeping it with 2 permits makes it terminate.
+
+Actually, let me reconsider whether the semaphore is even required. The spec says shared resources are `m` (lock) and `ch` (channel). The `done` semaphore isn't required. But removing it might be seen as "deleting synchronization." However, the deadlock is caused by it. The safest fix that preserves intent: initialize with 2 so both acquires succeed.
+
+Hmm, but actually a cleaner interpretation: the semaphore is a completion barrier. Let me keep it with 2 permits. This is the minimal fix to the deadlock.
+
+Let me double check R5: "No role may wait on the channel while holding the shared lock." In my code, the lock guard `_g` is dropped at the end of the block, before `send`/`recv`. Good.
+
+R7: sender must not pass second value before receiver takes first. The capacity-1 channel enforces this. Good.
+
+This should resolve the Miri deadlock.```rust
+use std::sync::{Arc, Mutex, Condvar};
+use std::thread;
+use concir_sync::Semaphore;
+
+struct Channel {
+    slot: Option<i32>,
+    // capacity is 1
+}
+
+struct ChanState {
+    chan: Mutex<Channel>,
+    not_empty: Condvar,
+    not_full: Condvar,
+}
+
+impl ChanState {
+    fn new() -> Self {
+        ChanState {
+            chan: Mutex::new(Channel { slot: None }),
+            not_empty: Condvar::new(),
+            not_full: Condvar::new(),
+        }
+    }
+
+    fn send(&self, v: i32) {
+        let mut guard = self.chan.lock().unwrap();
+        while guard.slot.is_some() {
+            guard = self.not_full.wait(guard).unwrap();
+        }
+        guard.slot = Some(v);
+        self.not_empty.notify_one();
+    }
+
+    fn recv(&self) -> i32 {
+        let mut guard = self.chan.lock().unwrap();
+        while guard.slot.is_none() {
+            guard = self.not_empty.wait(guard).unwrap();
+        }
+        let v = guard.slot.take().unwrap();
+        self.not_full.notify_one();
+        v
+    }
+}
+
+fn main() {
+    let ch = Arc::new(ChanState::new());
+    let m = Arc::new(Mutex::new(0i32));
+    // Two permits: one for each role to consume when it finishes.
+    let done = Arc::new(Semaphore::new(2));
+
+    let ch_s = Arc::clone(&ch);
+    let m_s = Arc::clone(&m);
+    let done_s = Arc::clone(&done);
+
+    let sender = thread::spawn(move || {
+        // First value: take the shared lock briefly, then release it
+        // before touching the channel (R5).
+        {
+            let _g = m_s.lock().unwrap();
+        }
+        ch_s.send(1);
+
+        // Second value: again release the lock before sending.
+        {
+            let _g = m_s.lock().unwrap();
+        }
+        ch_s.send(2);
+
+        // Signal completion by consuming one permit.
+        done_s.acquire();
+    });
+
+    let ch_r = Arc::clone(&ch);
+    let m_r = Arc::clone(&m);
+    let done_r = Arc::clone(&done);
+
+    let receiver = thread::spawn(move || {
+        let a = ch_r.recv();
+        {
+            let _g = m_r.lock().unwrap();
+        }
+        let b = ch_r.recv();
+        {
+            let _g = m_r.lock().unwrap();
+        }
+        assert_eq!(a, 1);
+        assert_eq!(b, 2);
+
+        // Signal completion by consuming one permit.
+        done_r.acquire();
+    });
+
+    // Wait for both roles to finish.
+    sender.join().unwrap();
+    receiver.join().unwrap();
+
+    println!("DONE done=1");
+}
+```

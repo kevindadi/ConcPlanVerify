@@ -1,0 +1,49 @@
+mod cir_trace;
+use concir_sync::Semaphore;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::sync::Arc;
+use std::thread;
+
+fn sender(ch: SyncSender<i32>, m: Arc<Semaphore>, done: Arc<AtomicUsize>) {
+    for value in [1, 2] {
+        {
+            let _permit = m.acquire();
+        }
+        cir_trace::record("channel_send", "ch"); ch.send(value).unwrap();
+    }
+    done.fetch_add(1, Ordering::Relaxed);
+}
+
+fn receiver(ch: Receiver<i32>, m: Arc<Semaphore>, done: Arc<AtomicUsize>) {
+    for _ in 0..2 {
+        {
+            let _permit = m.acquire();
+        }
+        cir_trace::record("channel_recv", "ch"); ch.recv().unwrap();
+    }
+    done.fetch_add(1, Ordering::Relaxed);
+}
+
+fn main() { cir_trace::init();
+    let m = Semaphore::new_named("m_semaphore0", 1);
+    let ch = sync_channel(1);
+    let (sender_ch, receiver_ch) = ch;
+    let done = Arc::new(AtomicUsize::new(0));
+
+    let sender_handle = {
+        let m = Arc::clone(&m);
+        let done = Arc::clone(&done);
+        cir_trace::spawn("sender", move || sender(sender_ch, m, done))
+    };
+    let receiver_handle = {
+        let m = Arc::clone(&m);
+        let done = Arc::clone(&done);
+        cir_trace::spawn("receiver", move || receiver(receiver_ch, m, done))
+    };
+
+    sender_handle.join().unwrap();
+    receiver_handle.join().unwrap();
+
+    println!("DONE done={}", done.load(Ordering::Relaxed));
+ cir_trace::finish();}
