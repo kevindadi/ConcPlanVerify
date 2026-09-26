@@ -283,6 +283,8 @@ def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
     from .revision_workflow import build_schema_feedback
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    if hasattr(llm_client, "set_stage"):
+        llm_client.set_stage("cir")
     backend = ConcirClient(str(binary), workdir=out_dir / "calls", timeout=60.0)
     provider = CirGenProvider(llm_client)
     contract = task.contract
@@ -450,7 +452,7 @@ def _cir_json_text(path: Path) -> str:
 
 def _llmcode_system() -> str:
     from .prompts import PROMPT_ASSET_DIR
-    return (PROMPT_ASSET_DIR / "rust_from_cir_v1.md").read_text(encoding="utf-8")
+    return (PROMPT_ASSET_DIR / "rust_from_cir_v2.md").read_text(encoding="utf-8")
 
 
 def _cir_plan(cir: dict[str, Any]) -> str:
@@ -481,7 +483,8 @@ def _cir_plan(cir: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _llmcode_user(task: GenTask, cir_path: Path, feedback: str | None) -> str:
+def _llmcode_user(task: GenTask, cir_path: Path, feedback: str | None,
+                  previous_rust: str | None = None) -> str:
     cir = json.loads(cir_path.read_text(encoding="utf-8"))
     parts = [
         "Requirement document:",
@@ -494,36 +497,59 @@ def _llmcode_user(task: GenTask, cir_path: Path, feedback: str | None) -> str:
         _cir_json_text(cir_path),
         "```",
     ]
+    if previous_rust:
+        parts += ["", "Previous Rust program:", "```rust", previous_rust.rstrip(), "```"]
     if feedback:
-        parts += ["", "Post-verification feedback on your previous Rust:",
-                  feedback, "Fix the Rust; do not change the design."]
+        parts += ["", "Feedback on that Rust program:", feedback,
+                  "Fix the Rust; do not change the design."]
     parts += ["", "Output only the complete Rust program in one ```rust fence."]
     return "\n".join(parts)
 
 
+def _compiler_errors(log: str) -> str:
+    lines = [ln for ln in log.splitlines()
+             if ln.startswith("error") or ln.startswith("error[")]
+    return "\n".join(lines) if lines else log[-2000:]
+
+
+def _stage_row() -> dict[str, Any]:
+    return {
+        "format": "not_run", "source_build": "not_run", "instrument": "not_run",
+        "instrumented_build": "not_run", "execution": "not_run",
+        "conformance": "not_run", "requirements": "not_run",
+    }
+
+
+def _binding_base(name: str) -> str:
+    import re
+    return re.sub(r"_(mutex|condvar|semaphore|channel|atomic|var)\d+$", "", name)
+
+
 def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
                    ) -> tuple[dict[str, str], dict[str, Any]]:
-    """Map instrumented resource/handle names to the CIR's FQNs by kind/order."""
+    """Bind runtime resources to CIR FQNs by short name. Ambiguity is reported."""
     kinds = rust_oracle.reference_kinds(cir)
     by_kind: dict[str, list[str]] = {}
+    by_short: dict[tuple[str, str], list[str]] = {}
     for fqn, kind in kinds.items():
         by_kind.setdefault(kind, []).append(fqn)
+        by_short.setdefault((fqn.rsplit("::", 1)[-1], kind), []).append(fqn)
     mapping: dict[str, str] = {}
-    seen: dict[str, int] = {}
+    ambiguous: list[dict[str, Any]] = []
     for res in rust_resources:
         kind = res.get("kind", "")
-        if kind == "Spawn":
+        name = res.get("name", "")
+        if kind in {"Spawn", "ChannelWrapper"}:
             continue
-        targets = by_kind.get(kind, [])
-        # A channel has two endpoint bindings (sender/receiver); map them all to
-        # the single CIR channel when there is only one.
-        if kind == "Channel" and len(targets) == 1:
-            mapping[res["name"]] = targets[0]
+        if kind == "Channel" and len(by_kind.get("Channel", [])) == 1:
+            mapping[name] = by_kind["Channel"][0]
             continue
-        k = seen.get(kind, 0)
-        seen[kind] = k + 1
-        if k < len(targets):
-            mapping[res["name"]] = targets[k]
+        base = _binding_base(name.rsplit("::", 1)[-1])
+        candidates = by_short.get((base, kind), [])
+        if len(candidates) == 1:
+            mapping[name] = candidates[0]
+        else:
+            ambiguous.append({"rust": name, "kind": kind, "candidates": candidates})
     spawns = [r["name"] for r in rust_resources if r.get("kind") == "Spawn"]
     workers: list[str] = []
     for mod in cir.get("modules", []):
@@ -532,24 +558,16 @@ def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
                 workers.append(f"{mod['name']}::{fn['name']}")
     short = {w.rsplit("::", 1)[-1]: w for w in workers}
     used: set[str] = set()
-    # Name-first alignment: the spawn's callee name must match a CIR worker.
     for src in spawns:
         s = src.rsplit("::", 1)[-1]
         if s in short and short[s] not in used:
             mapping[src] = short[s]
             used.add(short[s])
-    # Fall back to declaration order for anything still unaligned.
-    remaining = [w for w in workers if w not in used]
-    for src in spawns:
-        if src in mapping:
-            continue
-        s = src.rsplit("::", 1)[-1]
-        if s in short:  # one worker may back several threads
-            mapping[src] = short[s]
-        elif remaining:
-            mapping[src] = remaining.pop(0)
+        else:
+            ambiguous.append({"rust": src, "kind": "Spawn", "candidates": workers})
     return mapping, {"by_kind": {k: v for k, v in by_kind.items()},
-                     "threads": {src: mapping.get(src) for src in spawns}}
+                     "threads": {src: mapping.get(src) for src in spawns},
+                     "ambiguous": ambiguous}
 
 
 def _rewrite_traces(src_dir: Path, dst_dir: Path, mapping: dict[str, str],
@@ -605,96 +623,175 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
     cir = json.loads(cir_path.read_text(encoding="utf-8"))
     contract = task.contract
     out_dir.mkdir(parents=True, exist_ok=True)
+    if hasattr(llm_client, "set_stage"):
+        llm_client.set_stage("code")
     record: dict[str, Any] = {
         "arm": "G3_concir_llmcode", "task": task.id, "cir_path": str(cir_path),
+        "prompt": "prompts/rust_from_cir_v2.md",
         "rounds": [], "accepted": False, "accepted_with_proof": False,
         "status": "generation_failed", "instrument_limit": None,
+        "proof_meaning": "32 observed traces conformed and the bounded monitor did not FAIL; not a proof of every execution",
     }
     feedback: str | None = None
+    previous_rust: str | None = None
+    from .project_template import cargo_toml
     for round_no in range(1, k_code + 1):
-        info: dict[str, Any] = {"round": round_no, "decision": None}
+        info: dict[str, Any] = {"round": round_no, "decision": None, "stages": _stage_row(),
+                                "reasons": []}
         record["rounds"].append(info)
-        user = _llmcode_user(task, cir_path, feedback)
+        user = _llmcode_user(task, cir_path, feedback, previous_rust)
+        sent = {"stage": "code", "system_sha256": hashlib.sha256(system.encode()).hexdigest(),
+                "user_sha256": hashlib.sha256(user.encode()).hexdigest()}
+        (out_dir / f"sent-round-{round_no}.json").write_text(
+            json.dumps(sent, indent=2) + "\n", encoding="utf-8")
         outcome = llm_client.complete(system, user)
+        if getattr(outcome, "sent", None):
+            (out_dir / f"sent-round-{round_no}.txt").write_text(
+                outcome.sent.get("message", ""), encoding="utf-8")
         info["prompt_tokens"] = _usage_get(outcome, "prompt_tokens")
         info["completion_tokens"] = _usage_get(outcome, "completion_tokens")
         info["llm_ms"] = getattr(outcome, "wall_ms", None)
+        info["message_sha256"] = getattr(outcome, "prompt_sha256", None)
         rust = _extract_rust_body(outcome.text)
         if rust is None:
+            info["stages"]["format"] = "format_error"
             info["decision"] = "format_error"
+            info["reasons"].append("format_error")
             feedback = ("Reply was not one Rust program in a ```rust fence. "
                         "Output the complete file.")
             continue
+        info["stages"]["format"] = "ok"
+        previous_rust = rust
         (out_dir / f"round-{round_no}.rs").write_text(rust, encoding="utf-8")
+        src_proj = out_dir / f"round-{round_no}" / "source-proj"
+        src_proj.mkdir(parents=True, exist_ok=True)
+        (src_proj / "src").mkdir(exist_ok=True)
+        (src_proj / "Cargo.toml").write_text(cargo_toml("probe"), encoding="utf-8")
+        (src_proj / "src" / "main.rs").write_text(rust, encoding="utf-8")
+        source_ok, source_log = rust_oracle.cargo_build(src_proj)
+        (out_dir / f"round-{round_no}" / "source-build.log").write_text(source_log, encoding="utf-8")
+        if not source_ok:
+            info["stages"]["source_build"] = "source_build_failed"
+            info["decision"] = "source_build_failed"
+            info["reasons"].append("source_build_failed")
+            feedback = "The Rust source did not compile:\n" + _compiler_errors(source_log)
+            continue
+        info["stages"]["source_build"] = "ok"
         inst = out_dir / f"round-{round_no}" / "instrument"
         try:
-            wrapped = rust_oracle.instrument_wrappers(rust, inst,
-                                                      binary=instrument_binary)
+            wrapped = rust_oracle.instrument_wrappers(rust, inst, binary=instrument_binary)
         except Exception as exc:  # noqa: BLE001
+            info["stages"]["instrument"] = "instrument_error"
             info["decision"] = "instrument_error"
-            info["instrument_error"] = str(exc)[:300]
-            feedback = (f"concir-instrument could not instrument your Rust: {exc}. "
-                        "Use only std::sync::{Mutex, Condvar}, Arc, and thread::spawn.")
+            info["reasons"].append("instrument_error")
+            info["instrument_error"] = str(exc)[:500]
+            feedback = ("Tool error from concir-instrument, not a request to change "
+                        f"synchronization structure: {exc}")
             continue
+        info["stages"]["instrument"] = "ok"
         info["instrument_limit"] = wrapped["limitations"]
+        scope_limited = any("thread::scope" in item for item in wrapped["limitations"])
         project = out_dir / f"round-{round_no}" / "proj"
         rust_oracle.prepare_project(project, wrapped["annotated"], wrapped["runtime"])
         built, build_log = rust_oracle.cargo_build(project)
+        (out_dir / f"round-{round_no}" / "instrument-build.log").write_text(build_log, encoding="utf-8")
         if not built:
-            info["decision"] = "build_failed"
-            feedback = f"Your Rust did not build:\n{build_log[-1200:]}"
+            info["stages"]["instrumented_build"] = "instrumented_build_failed"
+            info["decision"] = "instrumented_build_failed"
+            info["reasons"].append("instrumented_build_failed")
+            feedback = ("Tool error: the original Rust compiled, and the instrumented "
+                        "program did not. Do not change the synchronization structure "
+                        "to satisfy the instrumenter.\n" + _compiler_errors(build_log))
+            continue
+        info["stages"]["instrumented_build"] = "ok"
+        if scope_limited:
+            info["stages"]["execution"] = "not_run"
+            info["decision"] = "instrument_unsupported"
+            info["reasons"].append("instrument_unsupported")
+            feedback = ("Tool limitation: thread::scope spawns do not receive stable "
+                        "thread identities. This is not a request to change lock order.")
             continue
         traces_dir = out_dir / f"round-{round_no}" / "traces"
         runs = rust_oracle.run_native(project, traces_dir, n=32, timeout=10.0)
         behavior_ok = all(r["completed"] for r in runs) if runs else False
+        hang = any(r["timed_out"] for r in runs)
         info["behavior_ok"] = behavior_ok
-        mapping, _ = mapping_to_cir(wrapped["resources"], cir)
+        info["hang"] = hang
+        if not behavior_ok:
+            info["stages"]["execution"] = "timeout" if hang else "execution_failed"
+            info["reasons"].append(info["stages"]["execution"])
+        else:
+            info["stages"]["execution"] = "ok"
+        mapping, provenance = mapping_to_cir(wrapped["resources"], cir)
         mapping_path = out_dir / f"round-{round_no}" / "mapping.json"
-        mapping_path.write_text(json.dumps({"mapping": mapping}, indent=2) + "\n",
-                                encoding="utf-8")
+        mapping_path.write_text(json.dumps({"mapping": mapping, "provenance": provenance},
+                                           indent=2) + "\n", encoding="utf-8")
+        if provenance.get("ambiguous"):
+            info["decision"] = "mapping_ambiguous"
+            info["reasons"].append("mapping_ambiguous")
+            info["ambiguous"] = provenance["ambiguous"]
+            feedback = ("Tool error: resource or thread identity is ambiguous and was "
+                        "not guessed. " + json.dumps(provenance["ambiguous"]))
+            continue
         conform_dir = out_dir / f"round-{round_no}" / "conform-traces"
         monitor_dir = out_dir / f"round-{round_no}" / "monitor-traces"
         wrapper_names = {r["name"] for r in wrapped["resources"]
                          if r.get("kind") == "ChannelWrapper"}
         _rewrite_traces(traces_dir, conform_dir, mapping, _DROP_OPS, wrapper_names)
-        # monitor keeps the runtime resource names and lets --mapping align them
         _rewrite_traces(traces_dir, monitor_dir, {}, set(), wrapper_names)
         conform = _conform_all_op_resource(binary, cir_path, conform_dir)
         info["conform"] = {"conformant": conform["conformant"],
-                           "traces": conform["traces"], "statuses": conform["statuses"]}
+                           "traces": conform["traces"], "statuses": conform["statuses"],
+                           "first_violation": conform["first_violation"]}
+        statuses = conform["statuses"]
+        non_evidence = sum(v for k, v in statuses.items() if k not in {"conformant", "violation"})
+        conform_ok = (conform["traces"] > 0 and non_evidence == 0
+                      and conform["conformant"] == conform["traces"])
+        if not conform_ok:
+            info["stages"]["conformance"] = "conformance_failed"
+            info["reasons"].append("conformance_failed")
+        else:
+            info["stages"]["conformance"] = "ok"
         report = bounded_monitor.run_monitor(
             task.contract_path, monitor_dir,
             resources=inst / "resources.json", mapping=mapping_path, binary=binary)
+        (out_dir / f"round-{round_no}" / "monitor.json").write_text(
+            json.dumps(report) + "\n", encoding="utf-8")
         info["monitor_status"] = report.get("status")
         info["monitor_fail"] = [p["id"] for p in report.get("properties", [])
                                 if p.get("status") == "FAIL"]
-        conform_ok = (conform["traces"] > 0
-                      and conform["conformant"] == conform["traces"])
-        monitor_ok = report.get("status") != "fail"
+        monitor_ok = report.get("status") != "fail" and not info["monitor_fail"]
+        if not monitor_ok:
+            info["stages"]["requirements"] = "requirement_failed"
+            info["reasons"].append("requirement_failed")
+        else:
+            info["stages"]["requirements"] = "ok"
         if conform_ok and monitor_ok and behavior_ok:
             info["decision"] = "accepted"
             record["accepted"] = True
             record["status"] = "accepted"
-            record["accepted_with_proof"] = bool(conform_ok and monitor_ok)
+            record["accepted_with_proof"] = False
+            record["observed_trace_ok"] = True
             record["coverage"] = bounded_monitor.coverage(
                 contract, report, task.requirements, task.unverifiable,
                 behavior_ok=behavior_ok).as_dict()
             record["final_rust"] = str(out_dir / f"round-{round_no}.rs")
             break
-        info["decision"] = "post_verify_fail"
+        info["decision"] = info["reasons"][-1] if info["reasons"] else "post_verify_fail"
         pieces = []
         if not behavior_ok:
-            pieces.append("The program did not terminate on all runs; ensure every "
-                          "thread is joined and main prints the terminal line.")
+            pieces.append("The program did not finish on every run. Join every thread.")
         if not conform_ok and conform["first_violation"]:
             fv = conform["first_violation"]
             kind = _conform_kind(fv)
             info["first_violation"] = fv
             info["conform_kind"] = kind
-            pieces.append(_explain_violation(fv, kind))
+            if fv.get("status") in {"error", "unknown_sid"}:
+                pieces.append("Tool status " + str(fv.get("status")) + " is not a proved mismatch.")
+            else:
+                pieces.append(_explain_violation(fv, kind))
         if not monitor_ok:
-            pieces.append("Requirement checks that failed: "
-                          + ", ".join(info["monitor_fail"]) + ".")
+            pieces.append("Requirement checks that failed: " + ", ".join(info["monitor_fail"]) + ".")
         feedback = " ".join(pieces)
     return record
 

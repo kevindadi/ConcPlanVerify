@@ -127,7 +127,7 @@ def cargo_build(work_dir: Path, *, timeout: float = 600.0,
     argv = ["cargo", "build"] + (["--offline"] if offline else [])
     proc = subprocess.run(argv, cwd=work_dir, capture_output=True, text=True,
                           timeout=timeout)
-    log = (proc.stdout + proc.stderr)[-4000:]
+    log = proc.stdout + proc.stderr
     return proc.returncode == 0, log
 
 
