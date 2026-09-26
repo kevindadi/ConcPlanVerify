@@ -1,0 +1,56 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E921",
+      "severity": "error",
+      "message": "'v1' is not a writable slot (local, param, Var, or Atomic)",
+      "path": "modules[0].functions[2].body[2]",
+      "location": "main::receiver.s3",
+      "fix_hint": "bind dst to a declared local, parameter, Var, or Atomic",
+      "json_path": "modules[0].functions[2].body[2]"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::recv') captures a return into 'v1', but 'main::recv' has no modeled return",
+      "path": "modules[0].functions[2].body[2]",
+      "location": "main::receiver.s3",
+      "fix_hint": "declare a modeled return on the callee, or drop dst",
+      "json_path": "modules[0].functions[2].body[2]"
+    },
+    {
+      "code": "E921",
+      "severity": "error",
+      "message": "'v2' is not a writable slot (local, param, Var, or Atomic)",
+      "path": "modules[0].functions[2].body[5]",
+      "location": "main::receiver.s6",
+      "fix_hint": "bind dst to a declared local, parameter, Var, or Atomic",
+      "json_path": "modules[0].functions[2].body[5]"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::recv') captures a return into 'v2', but 'main::recv' has no modeled return",
+      "path": "modules[0].functions[2].body[5]",
+      "location": "main::receiver.s6",
+      "fix_hint": "declare a modeled return on the callee, or drop dst",
+      "json_path": "modules[0].functions[2].body[5]"
+    }
+  ],
+  "expected_shapes": [
+    "bind dst to a declared local, parameter, Var, or Atomic",
+    "declare a modeled return on the callee, or drop dst"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::sender",
+    "main::receiver",
+    "main::send",
+    "main::recv"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

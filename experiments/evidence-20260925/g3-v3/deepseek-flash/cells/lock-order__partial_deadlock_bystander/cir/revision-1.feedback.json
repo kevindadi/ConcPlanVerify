@@ -1,0 +1,54 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E401",
+      "severity": "warning",
+      "message": "spawn handle 'hby' has no matching join",
+      "path": "modules[0].functions[0].body[2]",
+      "location": "main::main.s3",
+      "fix_hint": "add join on this handle, or use a scope statement (implicit join_all)",
+      "json_path": "modules[0].functions[0].body[2]"
+    },
+    {
+      "code": "E309",
+      "severity": "error",
+      "message": "access to protected Var 'main::flag' without holding lock 'main::a' in function 'b'",
+      "path": "modules[0].functions[2].body[1]",
+      "location": "main::b.s2",
+      "fix_hint": "acquire the lock before accessing this variable",
+      "json_path": "modules[0].functions[2].body[1]"
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::sa' is declared but never used",
+      "location": "main::sa",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::sb' is declared but never used",
+      "location": "main::sb",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "add join on this handle, or use a scope statement (implicit join_all)",
+    "acquire the lock before accessing this variable",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::a",
+    "main::b",
+    "main::bystander"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

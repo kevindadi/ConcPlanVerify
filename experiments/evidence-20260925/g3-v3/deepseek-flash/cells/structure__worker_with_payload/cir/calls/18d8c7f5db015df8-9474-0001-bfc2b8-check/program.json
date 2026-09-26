@@ -1,0 +1,187 @@
+{
+  "program": "two_workers_one_lock",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m",
+          "acc"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2",
+          "compute"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "acc",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [
+        {
+          "var": "acc",
+          "lock": "m"
+        }
+      ],
+      "functions": [
+        {
+          "name": "compute",
+          "kind": "normal",
+          "params": [
+            {
+              "name": "x",
+              "type": "Int",
+              "modeled": true
+            }
+          ],
+          "locals": [
+            {
+              "name": "y",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "y",
+              "expr": "x"
+            },
+            {
+              "sid": "s2",
+              "kind": "return",
+              "value": "y"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "v",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::compute",
+              "args": [
+                "1"
+              ],
+              "dst": "v"
+            },
+            {
+              "sid": "s3",
+              "kind": "write_shared",
+              "resource": "main::acc",
+              "expr": "v"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "v",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::compute",
+              "args": [
+                "1"
+              ],
+              "dst": "v"
+            },
+            {
+              "sid": "s3",
+              "kind": "write_shared",
+              "resource": "main::acc",
+              "expr": "v"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::w1",
+                "main::w2"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ch1' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[1].body[2]",
+      "location": "main::s.s3",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[1].body[2]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ch1' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[2].body[2]",
+      "location": "main::r.s3",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[2].body[2]"
+    },
+    {
+      "code": "E921",
+      "severity": "error",
+      "message": "'v' is not a writable slot (local, param, Var, or Atomic)",
+      "path": "modules[0].functions[2].body[2]",
+      "location": "main::r.s3",
+      "fix_hint": "bind dst to a declared local, parameter, Var, or Atomic",
+      "json_path": "modules[0].functions[2].body[2]"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::recv') captures a return into 'v', but 'main::recv' has no modeled return",
+      "path": "modules[0].functions[2].body[2]",
+      "location": "main::r.s3",
+      "fix_hint": "declare a modeled return on the callee, or drop dst",
+      "json_path": "modules[0].functions[2].body[2]"
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ch1' is declared but never used",
+      "location": "main::ch1",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    },
+    {
+      "code": "W201",
+      "severity": "warning",
+      "message": "resource 'main::ch2' is declared but never used",
+      "location": "main::ch2",
+      "fix_hint": "remove the resource, or use it in a statement/protection",
+      "json_path": null
+    }
+  ],
+  "expected_shapes": [
+    "use a value name of the matching type",
+    "bind dst to a declared local, parameter, Var, or Atomic",
+    "declare a modeled return on the callee, or drop dst",
+    "remove the resource, or use it in a statement/protection"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::s",
+    "main::r",
+    "main::send",
+    "main::recv"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}
