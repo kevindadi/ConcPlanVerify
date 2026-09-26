@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "我先查看当前程序和构建/分析诊断，再按锁顺序与终止要求修正同步。```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::thread;\n\nfn t1(a: Arc<Semaphore>, b: Arc<Semaphore>) {\n    let _pa = a.acquire();\n    let _pb = b.acquire();\n}\n\nfn t2(b: Arc<Semaphore>, c: Arc<Semaphore>) {\n    let _pb = b.acquire();\n    let _pc = c.acquire();\n}\n\nfn t3(a: Arc<Semaphore>, c: Arc<Semaphore>) {\n    let _pa = a.acquire();\n    let _pc = c.acquire();\n}\n\nfn main() {\n    let a = Semaphore::new(1);\n    let b = Semaphore::new(1);\n    let c = Semaphore::new(1);\n\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let h1 = thread::spawn(move || t1(a1, b1));\n\n    let b2 = Arc::clone(&b);\n    let c2 = Arc::clone(&c);\n    let h2 = thread::spawn(move || t2(b2, c2));\n\n    let a3 = Arc::clone(&a);\n    let c3 = Arc::clone(&c);\n    let h3 = thread::spawn(move || t3(a3, c3));\n\n    h1.join().unwrap();\n    h2.join().unwrap();\n    h3.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

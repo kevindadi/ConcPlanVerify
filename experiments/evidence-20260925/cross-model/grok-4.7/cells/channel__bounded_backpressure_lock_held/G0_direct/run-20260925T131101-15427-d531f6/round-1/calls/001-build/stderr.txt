@@ -1,0 +1,26 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260925T131101-15427-d531f6/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0308]: mismatched types
+  --> src/main.rs:37:31
+   |
+26 | fn sender<P: Send>(m: &Mutex<State>, ch: &Chan<P>, slots: &Arc<Semaphore>) {
+   |           - expected this type parameter
+...
+37 |             *guard = Some((v, permit));
+   |                               ^^^^^^ expected type parameter `P`, found `Permit<'_>`
+   |
+   = note: expected type parameter `P`
+                      found struct `Permit<'_>`
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 1 previous error

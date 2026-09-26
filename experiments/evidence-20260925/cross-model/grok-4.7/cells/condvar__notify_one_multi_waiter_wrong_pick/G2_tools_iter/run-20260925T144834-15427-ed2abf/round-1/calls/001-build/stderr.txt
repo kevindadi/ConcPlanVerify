@@ -1,0 +1,126 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260925T144834-15427-ed2abf/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0597]: `g12` does not live long enough
+   --> src/main.rs:20:20
+    |
+ 17 |       let g12 = Semaphore::new(2);
+    |           --- binding `g12` declared here
+...
+ 20 |       let ready_w1 = g12.acquire();
+    |                      ^^^ borrowed value does not live long enough
+...
+ 27 |       let w1 = thread::spawn(move || {
+    |  ______________-
+ 28 | |         let mut guard = m1.lock().unwrap();
+ 29 | |         ready_w1.release();
+ 30 | |         while !guard.go {
+...   |
+ 35 | |         done_w1.release();
+ 36 | |     });
+    | |______- argument requires that `g12` is borrowed for `'static`
+...
+ 77 |   }
+    |   - `g12` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `g12` does not live long enough
+   --> src/main.rs:21:20
+    |
+ 17 |       let g12 = Semaphore::new(2);
+    |           --- binding `g12` declared here
+...
+ 21 |       let ready_w2 = g12.acquire();
+    |                      ^^^ borrowed value does not live long enough
+...
+ 40 |       let w2 = thread::spawn(move || {
+    |  ______________-
+ 41 | |         let mut guard = m2.lock().unwrap();
+ 42 | |         ready_w2.release();
+ 43 | |         while !guard.go {
+...   |
+ 48 | |         done_w2.release();
+ 49 | |     });
+    | |______- argument requires that `g12` is borrowed for `'static`
+...
+ 77 |   }
+    |   - `g12` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `gN` does not live long enough
+   --> src/main.rs:22:19
+    |
+ 18 |       let gN = Semaphore::new(2);
+    |           -- binding `gN` declared here
+...
+ 22 |       let done_w1 = gN.acquire();
+    |                     ^^ borrowed value does not live long enough
+...
+ 27 |       let w1 = thread::spawn(move || {
+    |  ______________-
+ 28 | |         let mut guard = m1.lock().unwrap();
+ 29 | |         ready_w1.release();
+ 30 | |         while !guard.go {
+...   |
+ 35 | |         done_w1.release();
+ 36 | |     });
+    | |______- argument requires that `gN` is borrowed for `'static`
+...
+ 77 |   }
+    |   - `gN` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `gN` does not live long enough
+   --> src/main.rs:23:19
+    |
+ 18 |       let gN = Semaphore::new(2);
+    |           -- binding `gN` declared here
+...
+ 23 |       let done_w2 = gN.acquire();
+    |                     ^^ borrowed value does not live long enough
+...
+ 40 |       let w2 = thread::spawn(move || {
+    |  ______________-
+ 41 | |         let mut guard = m2.lock().unwrap();
+ 42 | |         ready_w2.release();
+ 43 | |         while !guard.go {
+...   |
+ 48 | |         done_w2.release();
+ 49 | |     });
+    | |______- argument requires that `gN` is borrowed for `'static`
+...
+ 77 |   }
+    |   - `gN` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+For more information about this error, try `rustc --explain E0597`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 4 previous errors

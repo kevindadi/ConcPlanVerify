@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "我先看工作区里的源码和已有诊断，确认编译错误和 Miri 报告的具体问题。```rust\nuse concir_sync::Semaphore;\nuse std::sync::Arc;\nuse std::sync::mpsc::sync_channel;\nuse std::thread;\n\nfn main() {\n    let m = Semaphore::new(1);\n    let ch = sync_channel(1);\n    let (tx, rx) = ch;\n\n    let m_sender = Arc::clone(&m);\n    let sender = thread::spawn(move || {\n        for value in [1, 2] {\n            {\n                let _permit = m_sender.acquire();\n            }\n            tx.send(value).unwrap();\n        }\n    });\n\n    let m_receiver = Arc::clone(&m);\n    let receiver = thread::spawn(move || {\n        for _ in 0..2 {\n            let value = rx.recv().unwrap();\n            {\n                let _permit = m_receiver.acquire();\n                let _ = value;\n            }\n        }\n    });\n\n    sender.join().unwrap();\n    receiver.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```"
+}

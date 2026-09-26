@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "我先查看当前目录里的源码和工具诊断，再按规范修正同步问题。```rust\nuse concir_sync::Semaphore;\nuse std::thread;\n\nfn w1(s: &Semaphore) {\n    let permit = s.acquire();\n    drop(permit);\n}\n\nfn w2(s: &Semaphore) {\n    let permit = s.acquire();\n    drop(permit);\n}\n\nfn w3(s: &Semaphore) {\n    let permit = s.acquire();\n    drop(permit);\n}\n\nfn main() {\n    let s = Semaphore::new(1);\n\n    thread::scope(|scope| {\n        let s = &*s;\n        // At most two activations of each role run at once.\n        for _ in 0..2 {\n            scope.spawn(|| w1(s));\n            scope.spawn(|| w2(s));\n            scope.spawn(|| w3(s));\n        }\n    });\n\n    let done = 1;\n    println!(\"DONE done={done}\");\n}\n```"
+}

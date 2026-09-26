@@ -1,0 +1,102 @@
+{
+  "program": "finite_call_loop",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [],
+        "functions": [
+          "main",
+          "helper",
+          "println"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "again",
+              "expr": "1"
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::helper"
+            },
+            {
+              "sid": "s3",
+              "kind": "branch",
+              "cond": "again == 1",
+              "then": "s4",
+              "else": "s6"
+            },
+            {
+              "sid": "s4",
+              "kind": "assign_local",
+              "target": "again",
+              "expr": "0"
+            },
+            {
+              "sid": "s5",
+              "kind": "goto",
+              "target": "s2"
+            },
+            {
+              "sid": "s6",
+              "kind": "call",
+              "func": "main::println",
+              "args": [
+                "\"DONE done=1\""
+              ]
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "again",
+              "type": "Int"
+            }
+          ]
+        },
+        {
+          "name": "helper",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "println",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+     Locking 1 package to latest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling cir_arm_probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/cross-model/grok-4.7/cells/lock-order__cross_module_cycle/G2_tools_iter/run-20260925T164322-15427-09b6d4/round-1/lockbud-probe)
+warning: unused import: `Mutex`
+ --> src/main.rs:1:22
+  |
+1 | use std::sync::{Arc, Mutex};
+  |                      ^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+[2026-09-25T16:46:40Z WARN  lockbud::callbacks] [
+      {
+        "ConflictLock": {
+          "bug_kind": "ConflictLock",
+          "possibility": "Possibly",
+          "diagnosis": [
+            {
+              "first_lock_type": "StdMutex(())",
+              "first_lock_span": "src/main.rs:40:13: 40:15 (#0)",
+              "second_lock_type": "StdMutex(())",
+              "second_lock_span": "src/main.rs:41:13: 41:15 (#0)",
+              "callchains": []
+            },
+            {
+              "first_lock_type": "StdMutex(())",
+              "first_lock_span": "src/main.rs:18:13: 18:15 (#0)",
+              "second_lock_type": "StdMutex(())",
+              "second_lock_span": "src/main.rs:19:13: 19:15 (#0)",
+              "callchains": []
+            }
+          ],
+          "explanation": "Locks mutually wait for each other to form a cycle"
+        }
+      }
+    ]
+[2026-09-25T16:46:40Z WARN  lockbud::callbacks] crate cir_arm_probe contains bugs: { probably: 0, possibly: 0 }, conflictlock: { probably: 0, possibly: 1 }, condvar_deadlock: { probably: 0, possibly: 0 }, atomicity_violation: { possibly: 0 }, invalid_free: { possibly: 0 }, use_after_free: { possibly: 0 }
+warning: `cir_arm_probe` (bin "cir_arm_probe") generated 1 warning (run `cargo fix --bin "cir_arm_probe" -p cir_arm_probe` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.82s

@@ -1,0 +1,7 @@
+{
+  "round": 2,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "诊断显示编译和 Miri 都通过，但 lockbud 报了问题。我先看 lockbud 的具体报告，再据此改同步逻辑。```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nuse concir_sync::Semaphore;\n\nfn main() {\n    let sem = Semaphore::new(1);\n    let permit = sem.acquire();\n    drop(permit);\n\n    let state = Arc::new((Mutex::new(false), Condvar::new()));\n\n    let state_waiter = Arc::clone(&state);\n    let waiter = thread::spawn(move || {\n        let (m, cv) = &*state_waiter;\n        let mut ready = m.lock().unwrap();\n        while !*ready {\n            ready = cv.wait(ready).unwrap();\n        }\n    });\n\n    let state_notifier = Arc::clone(&state);\n    let notifier = thread::spawn(move || {\n        let (m, cv) = &*state_notifier;\n        let mut ready = m.lock().unwrap();\n        *ready = true;\n        cv.notify_one();\n    });\n\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n\n    let (m, _cv) = &*state;\n    let ready = m.lock().unwrap();\n    println!(\"DONE ready={}\", *ready);\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 3,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "诊断显示构建通过，但 Miri 全是 `tool_error`。我先核对证据和这道同步题的约束，再改程序。```rust\nuse concir_sync::Semaphore;\nuse std::sync::{Condvar, Mutex};\nuse std::thread;\n\nfn w1(m1: &Mutex<bool>, cv: &Condvar, announce: impl FnOnce()) {\n    let mut guard = m1.lock().unwrap();\n    announce();\n    while !*guard {\n        guard = cv.wait(guard).unwrap();\n    }\n}\n\nfn w2(m2: &Mutex<bool>, cv: &Condvar, announce: impl FnOnce()) {\n    let mut guard = m2.lock().unwrap();\n    announce();\n    while !*guard {\n        guard = cv.wait(guard).unwrap();\n    }\n}\n\nfn notifier(m1: &Mutex<bool>, m2: &Mutex<bool>, cv: &Condvar, ready: &Semaphore) {\n    let _ann_a = ready.acquire();\n    let _ann_b = ready.acquire();\n    let mut g1 = m1.lock().unwrap();\n    let mut g2 = m2.lock().unwrap();\n    *g1 = true;\n    *g2 = true;\n    cv.notify_all();\n}\n\nfn main() {\n    let m1 = Mutex::new(false);\n    let m2 = Mutex::new(false);\n    let cv = Condvar::new();\n    let ready = Semaphore::new(2);\n    let ann1 = ready.acquire();\n    let ann2 = ready.acquire();\n\n    thread::scope(|scope| {\n        scope.spawn(|| {\n            w1(&m1, &cv, || ann1.release());\n        });\n        scope.spawn(|| {\n            w2(&m2, &cv, || ann2.release());\n        });\n        scope.spawn(|| {\n            notifier(&m1, &m2, &cv, &ready);\n        });\n    });\n\n    println!(\"DONE done=1\");\n}\n```"
+}

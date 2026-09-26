@@ -1,0 +1,179 @@
+{
+  "program": "bounded_backpressure",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m",
+          "ch"
+        ],
+        "functions": [
+          "main",
+          "sender",
+          "receiver",
+          "println"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "ch",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 1
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::sender",
+                "main::receiver"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::println",
+              "args": [
+                "DONE done=1"
+              ]
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "sender",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s3",
+              "kind": "channel_send",
+              "channel": "main::ch",
+              "value": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s6",
+              "kind": "channel_send",
+              "channel": "main::ch",
+              "value": "2"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "receiver",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s3",
+              "kind": "channel_recv",
+              "channel": "main::ch",
+              "dst": "v1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s6",
+              "kind": "channel_recv",
+              "channel": "main::ch",
+              "dst": "v2"
+            },
+            {
+              "sid": "s7",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "v1",
+              "type": "Int"
+            },
+            {
+              "name": "v2",
+              "type": "Int"
+            }
+          ]
+        },
+        {
+          "name": "println",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

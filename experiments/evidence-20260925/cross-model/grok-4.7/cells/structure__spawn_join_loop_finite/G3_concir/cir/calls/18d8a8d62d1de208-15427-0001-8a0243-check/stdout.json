@@ -1,0 +1,21 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E912",
+      "severity": "warning",
+      "message": "'done' in function 'main' is modeled: false; the value is Unknown in the net",
+      "location": "main::main",
+      "path": "modules[0].functions[2]",
+      "fix_hint": "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled"
+    },
+    {
+      "code": "E920",
+      "severity": "error",
+      "message": "call('main::println') expects 0 argument(s) for its modeled parameters, got 1",
+      "location": "main::main.s7",
+      "path": "modules[0].functions[2].body[6]",
+      "fix_hint": "supply one argument per modeled parameter, or mark unused parameters \"modeled\": false"
+    }
+  ]
+}

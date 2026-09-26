@@ -1,0 +1,244 @@
+{
+  "program": "atomic_counter",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "c",
+          "m"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "c",
+          "kind": "var",
+          "type": "Atomic",
+          "base": "Int",
+          "init": 0
+        },
+        {
+          "name": "m",
+          "kind": "sync",
+          "mode": "Sync",
+          "type": "Mutex"
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::w1",
+                "main::w2"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "old"
+            },
+            {
+              "sid": "s3",
+              "kind": "branch",
+              "cond": "old == 0",
+              "then": "s4",
+              "else": "s7"
+            },
+            {
+              "sid": "s4",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "0",
+              "desired": "1",
+              "dst": "ok"
+            },
+            {
+              "sid": "s5",
+              "kind": "branch",
+              "cond": "ok == true",
+              "then": "s11",
+              "else": "s6"
+            },
+            {
+              "sid": "s6",
+              "kind": "goto",
+              "target": "s2"
+            },
+            {
+              "sid": "s7",
+              "kind": "branch",
+              "cond": "old == 1",
+              "then": "s8",
+              "else": "s6"
+            },
+            {
+              "sid": "s8",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "1",
+              "desired": "2",
+              "dst": "ok"
+            },
+            {
+              "sid": "s9",
+              "kind": "branch",
+              "cond": "ok == true",
+              "then": "s11",
+              "else": "s10"
+            },
+            {
+              "sid": "s10",
+              "kind": "goto",
+              "target": "s2"
+            },
+            {
+              "sid": "s11",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s12",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "ok",
+              "type": "Int"
+            },
+            {
+              "name": "old",
+              "type": "Int"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "old"
+            },
+            {
+              "sid": "s3",
+              "kind": "branch",
+              "cond": "old == 0",
+              "then": "s4",
+              "else": "s7"
+            },
+            {
+              "sid": "s4",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "0",
+              "desired": "1",
+              "dst": "ok"
+            },
+            {
+              "sid": "s5",
+              "kind": "branch",
+              "cond": "ok == true",
+              "then": "s11",
+              "else": "s6"
+            },
+            {
+              "sid": "s6",
+              "kind": "goto",
+              "target": "s2"
+            },
+            {
+              "sid": "s7",
+              "kind": "branch",
+              "cond": "old == 1",
+              "then": "s8",
+              "else": "s6"
+            },
+            {
+              "sid": "s8",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "1",
+              "desired": "2",
+              "dst": "ok"
+            },
+            {
+              "sid": "s9",
+              "kind": "branch",
+              "cond": "ok == true",
+              "then": "s11",
+              "else": "s10"
+            },
+            {
+              "sid": "s10",
+              "kind": "goto",
+              "target": "s2"
+            },
+            {
+              "sid": "s11",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s12",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "ok",
+              "type": "Int"
+            },
+            {
+              "name": "old",
+              "type": "Int"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

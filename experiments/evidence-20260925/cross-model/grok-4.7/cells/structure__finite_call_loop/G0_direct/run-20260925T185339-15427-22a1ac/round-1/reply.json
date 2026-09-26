@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "我先查看实验里同类规格和 `concir_sync::Semaphore` 的用法，确保生成的程序与有限调用循环结构一致。```rust\nuse std::thread;\n\n#[allow(unused_imports)]\nuse concir_sync::Semaphore;\n\nfn helper() {}\n\nfn main() {\n    let mut remaining = 2;\n    while remaining > 0 {\n        thread::spawn(helper).join().unwrap();\n        remaining -= 1;\n    }\n    println!(\"DONE done=1\");\n}\n```"
+}

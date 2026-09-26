@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "我先查看当前 Rust 程序和工具诊断，再按规范修正同步问题。```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nuse concir_sync::Semaphore;\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let a_outer = Arc::clone(&a);\n    let b_outer = Arc::clone(&b);\n\n    let outer = thread::spawn(move || {\n        outer(a_outer, b_outer);\n    });\n\n    outer.join().unwrap();\n    println!(\"DONE done=1\");\n}\n\nfn outer(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {\n    let gate = Semaphore::new(2);\n\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let g1 = Arc::clone(&gate);\n\n    let a2 = Arc::clone(&a);\n    let b2 = Arc::clone(&b);\n    let g2 = Arc::clone(&gate);\n\n    let x1 = thread::spawn(move || {\n        x1(g1, a1, b1);\n    });\n    let x2 = thread::spawn(move || {\n        x2(g2, a2, b2);\n    });\n\n    x1.join().unwrap();\n    x2.join().unwrap();\n}\n\nfn x1(gate: Arc<Semaphore>, a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {\n    let _permit = gate.acquire();\n    let _hold_a = a.lock().unwrap();\n    let _hold_b = b.lock().unwrap();\n}\n\nfn x2(gate: Arc<Semaphore>, a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {\n    let _permit = gate.acquire();\n    let _hold_a = a.lock().unwrap();\n    let _hold_b = b.lock().unwrap();\n}\n```"
+}

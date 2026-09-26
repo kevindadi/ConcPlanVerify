@@ -1,0 +1,36 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+use concir_sync::Semaphore;
+
+fn main() {
+    // Declared range is 0..=2; the safety invariant keeps the value at most 1.
+    let m = Arc::new(Mutex::new(0u8));
+    let gate = Semaphore::new(1);
+
+    let c1 = Arc::clone(&m);
+    let g1 = Arc::clone(&gate);
+    let w1 = thread::spawn(move || {
+        let _permit = g1.acquire();
+        let mut c = c1.lock().unwrap();
+        if *c < 1 {
+            *c += 1;
+        }
+    });
+
+    let c2 = Arc::clone(&m);
+    let g2 = Arc::clone(&gate);
+    let w2 = thread::spawn(move || {
+        let _permit = g2.acquire();
+        let mut c = c2.lock().unwrap();
+        if *c < 1 {
+            *c += 1;
+        }
+    });
+
+    w1.join().unwrap();
+    w2.join().unwrap();
+
+    let done = *m.lock().unwrap();
+    println!("DONE done={done}");
+}

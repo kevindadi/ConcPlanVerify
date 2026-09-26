@@ -1,0 +1,7 @@
+{
+  "round": 4,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "诊断显示程序能编译且 Miri 干净，但 lockbud 报了锁问题。我先看 lockbud 的具体报告和 `Semaphore` 的实现，再改同步方式。```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nuse concir_sync::Semaphore;\n\nfn with_slot(gate: &Arc<Semaphore>) {\n    if let Some(permit) = gate.try_acquire() {\n        drop(permit);\n    }\n}\n\nfn bump(m: &Mutex<i32>) {\n    let mut c = m.lock().unwrap();\n    if *c < 1 {\n        *c += 1;\n    }\n}\n\nfn main() {\n    // c 的声明范围是 0..=2，初值为 0。任何可达状态都必须满足 c <= 1。\n    let m = Arc::new(Mutex::new(0i32));\n    let gate = Semaphore::new(1);\n\n    let m1 = Arc::clone(&m);\n    let gate1 = Arc::clone(&gate);\n    let w1 = thread::spawn(move || {\n        with_slot(&gate1);\n        bump(&m1);\n    });\n\n    let m2 = Arc::clone(&m);\n    let gate2 = Arc::clone(&gate);\n    let w2 = thread::spawn(move || {\n        with_slot(&gate2);\n        bump(&m2);\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    let c = *m.lock().unwrap();\n    println!(\"DONE done={c}\");\n}\n```"
+}

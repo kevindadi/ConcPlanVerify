@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "我先查看实验目录和 `concir_sync` 的接口，确认有界计数器与线程同步该怎么建模。```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn w1(m: Arc<Mutex<i32>>) {\n    let mut c = m.lock().unwrap();\n    *c += 1;\n}\n\nfn w2(m: Arc<Mutex<i32>>) {\n    let mut c = m.lock().unwrap();\n    *c += 1;\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(0));\n\n    let m1 = Arc::clone(&m);\n    let m2 = Arc::clone(&m);\n\n    let t1 = thread::spawn(move || w1(m1));\n    let t2 = thread::spawn(move || w2(m2));\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "我先核对 `concir_sync::Semaphore` 的接口和这个实验目录里对输出形式的要求，再给出完整程序。```rust\nuse concir_sync::Semaphore;\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Arc;\nuse std::thread;\n\nfn increment(c: &AtomicUsize) {\n    loop {\n        let observed = c.load(Ordering::Acquire);\n        if c\n            .compare_exchange(observed, observed + 1, Ordering::AcqRel, Ordering::Acquire)\n            .is_ok()\n        {\n            break;\n        }\n    }\n}\n\nfn w1(c: Arc<AtomicUsize>) {\n    increment(&c);\n}\n\nfn w2(c: Arc<AtomicUsize>) {\n    increment(&c);\n}\n\nfn main() {\n    let _permits = Semaphore::new(2);\n    let c = Arc::new(AtomicUsize::new(0));\n\n    let c1 = Arc::clone(&c);\n    let c2 = Arc::clone(&c);\n\n    let t1 = thread::spawn(move || w1(c1));\n    let t2 = thread::spawn(move || w2(c2));\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    assert_eq!(c.load(Ordering::Acquire), 2);\n    println!(\"DONE done=1\");\n}\n```"
+}

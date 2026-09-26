@@ -1,0 +1,95 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260925T133447-15427-b469ef/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0597]: `value_ready` does not live long enough
+   --> src/main.rs:33:23
+    |
+ 32 |     let value_ready = Semaphore::new(1);
+    |         ----------- binding `value_ready` declared here
+ 33 |     let ready_token = value_ready.acquire();
+    |                       ^^^^^^^^^^^ borrowed value does not live long enough
+...
+ 44 |     let s1_task = thread::spawn(move || s1(ch_s, move || ready_token.release()));
+    |                   -------------------------------------------------------------- argument requires that `value_ready` is borrowed for `'static`
+...
+ 53 | }
+    | - `value_ready` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `value_taken` does not live long enough
+   --> src/main.rs:35:23
+    |
+ 34 |     let value_taken = Semaphore::new(1);
+    |         ----------- binding `value_taken` declared here
+ 35 |     let taken_token = value_taken.acquire();
+    |                       ^^^^^^^^^^^ borrowed value does not live long enough
+...
+ 47 |     let r_task = thread::spawn(move || r(ch_r, move || taken_token.release()));
+    |                  ------------------------------------------------------------- argument requires that `value_taken` is borrowed for `'static`
+...
+ 53 | }
+    | - `value_taken` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0505]: cannot move out of `value_ready` because it is borrowed
+   --> src/main.rs:39:9
+    |
+ 32 |     let value_ready = Semaphore::new(1);
+    |         ----------- binding `value_ready` declared here
+ 33 |     let ready_token = value_ready.acquire();
+    |                       ----------- borrow of `value_ready` occurs here
+...
+ 39 |         value_ready,
+    |         ^^^^^^^^^^^ move out of `value_ready` occurs here
+...
+ 44 |     let s1_task = thread::spawn(move || s1(ch_s, move || ready_token.release()));
+    |                   -------------------------------------------------------------- argument requires that `value_ready` is borrowed for `'static`
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0505]: cannot move out of `value_taken` because it is borrowed
+   --> src/main.rs:40:9
+    |
+ 34 |     let value_taken = Semaphore::new(1);
+    |         ----------- binding `value_taken` declared here
+ 35 |     let taken_token = value_taken.acquire();
+    |                       ----------- borrow of `value_taken` occurs here
+...
+ 40 |         value_taken,
+    |         ^^^^^^^^^^^ move out of `value_taken` occurs here
+...
+ 47 |     let r_task = thread::spawn(move || r(ch_r, move || taken_token.release()));
+    |                  ------------------------------------------------------------- argument requires that `value_taken` is borrowed for `'static`
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+Some errors have detailed explanations: E0505, E0597.
+For more information about an error, try `rustc --explain E0505`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 4 previous errors

@@ -1,0 +1,207 @@
+{
+  "program": "atomic_counter",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "c"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "c",
+          "kind": "var",
+          "type": "Atomic",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::w1",
+                "main::w2"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "old"
+            },
+            {
+              "sid": "s2",
+              "kind": "branch",
+              "cond": "old == 0",
+              "then": "s3",
+              "else": "s6"
+            },
+            {
+              "sid": "s3",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "old",
+              "desired": "1",
+              "dst": "prev"
+            },
+            {
+              "sid": "s4",
+              "kind": "branch",
+              "cond": "prev == old",
+              "then": "s9",
+              "else": "s5"
+            },
+            {
+              "sid": "s5",
+              "kind": "goto",
+              "target": "s1"
+            },
+            {
+              "sid": "s6",
+              "kind": "branch",
+              "cond": "old == 1",
+              "then": "s7",
+              "else": "s5"
+            },
+            {
+              "sid": "s7",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "old",
+              "desired": "2",
+              "dst": "prev"
+            },
+            {
+              "sid": "s8",
+              "kind": "branch",
+              "cond": "prev == old",
+              "then": "s9",
+              "else": "s5"
+            },
+            {
+              "sid": "s9",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "old",
+              "type": "Int"
+            },
+            {
+              "name": "prev",
+              "type": "Int"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "old"
+            },
+            {
+              "sid": "s2",
+              "kind": "branch",
+              "cond": "old == 0",
+              "then": "s3",
+              "else": "s6"
+            },
+            {
+              "sid": "s3",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "old",
+              "desired": "1",
+              "dst": "prev"
+            },
+            {
+              "sid": "s4",
+              "kind": "branch",
+              "cond": "prev == old",
+              "then": "s9",
+              "else": "s5"
+            },
+            {
+              "sid": "s5",
+              "kind": "goto",
+              "target": "s1"
+            },
+            {
+              "sid": "s6",
+              "kind": "branch",
+              "cond": "old == 1",
+              "then": "s7",
+              "else": "s5"
+            },
+            {
+              "sid": "s7",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "old",
+              "desired": "2",
+              "dst": "prev"
+            },
+            {
+              "sid": "s8",
+              "kind": "branch",
+              "cond": "prev == old",
+              "then": "s9",
+              "else": "s5"
+            },
+            {
+              "sid": "s9",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "old",
+              "type": "Int"
+            },
+            {
+              "name": "prev",
+              "type": "Int"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

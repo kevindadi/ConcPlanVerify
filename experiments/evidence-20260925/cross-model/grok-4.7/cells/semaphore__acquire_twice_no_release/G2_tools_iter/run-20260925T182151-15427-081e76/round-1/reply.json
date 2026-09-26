@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "我先查看当前程序和工具诊断，再按规范修正同步问题。```rust\nuse concir_sync::Semaphore;\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Arc;\nuse std::thread;\n\nfn main() {\n    let s = Semaphore::new(1);\n    let done = Arc::new(AtomicUsize::new(0));\n\n    let w1 = {\n        let s = Arc::clone(&s);\n        let done = Arc::clone(&done);\n        thread::spawn(move || {\n            {\n                let permit = s.acquire();\n                done.store(1, Ordering::SeqCst);\n                drop(permit);\n            }\n            {\n                let permit = s.acquire();\n                done.store(1, Ordering::SeqCst);\n                drop(permit);\n            }\n        })\n    };\n\n    let w2 = {\n        let s = Arc::clone(&s);\n        let done = Arc::clone(&done);\n        thread::spawn(move || {\n            {\n                let permit = s.acquire();\n                done.store(1, Ordering::SeqCst);\n                drop(permit);\n            }\n            {\n                let permit = s.acquire();\n                done.store(1, Ordering::SeqCst);\n                drop(permit);\n            }\n        })\n    };\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n    println!(\"DONE done={}\", done.load(Ordering::SeqCst));\n}\n```"
+}

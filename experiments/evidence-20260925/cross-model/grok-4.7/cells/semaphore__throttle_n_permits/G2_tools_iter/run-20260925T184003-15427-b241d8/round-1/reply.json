@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "我先查看当前程序和工具诊断，再按信号量规格修正同步问题。```rust\nuse concir_sync::Semaphore;\nuse std::thread;\n\nfn main() {\n    let s = Semaphore::new(2);\n\n    let s1 = s.clone();\n    let w1 = thread::spawn(move || {\n        let permit = s1.acquire();\n        let mut work = 0u32;\n        for i in 0..8u32 {\n            work = work.wrapping_add(i);\n        }\n        let _ = work;\n        permit.release();\n    });\n\n    let s2 = s.clone();\n    let w2 = thread::spawn(move || {\n        let permit = s2.acquire();\n        let mut work = 0u32;\n        for i in 0..8u32 {\n            work = work.wrapping_add(i);\n        }\n        let _ = work;\n        permit.release();\n    });\n\n    let s3 = s.clone();\n    let w3 = thread::spawn(move || {\n        let permit = s3.acquire();\n        let mut work = 0u32;\n        for i in 0..8u32 {\n            work = work.wrapping_add(i);\n        }\n        let _ = work;\n        permit.release();\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n    w3.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

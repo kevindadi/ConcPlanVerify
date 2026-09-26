@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "我先查看工作区里同类规格和 `concir_sync` 的用法，确认通道与共享锁的同步结构后再写程序。```rust\nuse std::sync::{mpsc, Arc, Mutex};\nuse std::thread;\n\nuse concir_sync::Semaphore;\n\nfn s(lock: Arc<Mutex<i32>>, ch1: mpsc::SyncSender<i32>, ch2: mpsc::Receiver<i32>) {\n    let payload = {\n        let mut held = lock.lock().unwrap();\n        *held += 1;\n        1\n    };\n    ch1.send(payload).unwrap();\n    let _reply = ch2.recv().unwrap();\n}\n\nfn r(lock: Arc<Mutex<i32>>, ch1: mpsc::Receiver<i32>, ch2: mpsc::SyncSender<i32>) -> i32 {\n    {\n        let mut held = lock.lock().unwrap();\n        *held += 1;\n    }\n    let value = ch1.recv().unwrap();\n    ch2.send(value).unwrap();\n    value\n}\n\nfn main() {\n    let _sem = Semaphore::new(1);\n    let lock = Arc::new(Mutex::new(0));\n    let ch1 = mpsc::sync_channel(0);\n    let ch2 = mpsc::sync_channel(0);\n    let (ch1_tx, ch1_rx) = ch1;\n    let (ch2_tx, ch2_rx) = ch2;\n\n    let lock_s = Arc::clone(&lock);\n    let s_thread = thread::spawn(move || s(lock_s, ch1_tx, ch2_rx));\n\n    let lock_r = Arc::clone(&lock);\n    let r_thread = thread::spawn(move || r(lock_r, ch1_rx, ch2_tx));\n\n    s_thread.join().unwrap();\n    let done = r_thread.join().unwrap();\n    println!(\"DONE done={done}\");\n}\n```"
+}

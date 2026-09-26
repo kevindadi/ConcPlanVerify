@@ -1,0 +1,170 @@
+{
+  "program": "abba_2lock",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "a",
+          "b",
+          "t1_count",
+          "t2_count"
+        ],
+        "functions": [
+          "main",
+          "t1",
+          "t2"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": [
+          "println"
+        ]
+      },
+      "resources": [
+        {
+          "name": "a",
+          "kind": "sync",
+          "mode": "Sync",
+          "type": "Mutex"
+        },
+        {
+          "name": "b",
+          "kind": "sync",
+          "mode": "Sync",
+          "type": "Mutex"
+        },
+        {
+          "name": "t1_count",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        },
+        {
+          "name": "t2_count",
+          "kind": "var",
+          "type": "Var",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [
+        {
+          "var": "t1_count",
+          "lock": "a"
+        },
+        {
+          "var": "t2_count",
+          "lock": "a"
+        }
+      ],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::t1",
+                "main::t2"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "call",
+              "func": "main::println",
+              "args": [
+                "\"DONE t1=1 t2=1\""
+              ]
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "t1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s3",
+              "kind": "write_shared",
+              "resource": "main::t1_count",
+              "expr": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "t2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_lock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s3",
+              "kind": "write_shared",
+              "resource": "main::t2_count",
+              "expr": "1"
+            },
+            {
+              "sid": "s4",
+              "kind": "mutex_unlock",
+              "resource": "main::b"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::a"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

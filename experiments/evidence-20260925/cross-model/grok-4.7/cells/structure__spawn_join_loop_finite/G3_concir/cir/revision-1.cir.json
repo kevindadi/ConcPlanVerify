@@ -1,0 +1,108 @@
+{
+  "program": "spawn_join_loop_finite",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [],
+        "functions": [
+          "main",
+          "worker",
+          "println"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "worker",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "println",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "assign_local",
+              "target": "done",
+              "expr": "0"
+            },
+            {
+              "sid": "s2",
+              "kind": "branch",
+              "cond": "done == 0",
+              "then": "s3",
+              "else": "s7"
+            },
+            {
+              "sid": "s3",
+              "kind": "spawn",
+              "func": "main::worker",
+              "handle": "h"
+            },
+            {
+              "sid": "s4",
+              "kind": "join",
+              "handle": "h"
+            },
+            {
+              "sid": "s5",
+              "kind": "assign_local",
+              "target": "done",
+              "expr": "1"
+            },
+            {
+              "sid": "s6",
+              "kind": "goto",
+              "target": "s2"
+            },
+            {
+              "sid": "s7",
+              "kind": "call",
+              "func": "main::println",
+              "args": [
+                "\"DONE done=1\""
+              ]
+            },
+            {
+              "sid": "s8",
+              "kind": "return"
+            }
+          ],
+          "locals": [
+            {
+              "name": "done",
+              "type": "Int"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

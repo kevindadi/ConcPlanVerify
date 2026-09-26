@@ -1,0 +1,113 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Barrier, Mutex};
+use std::thread;
+
+use concir_sync::Semaphore;
+
+struct Flag {
+    a: AtomicUsize,
+    b: AtomicUsize,
+}
+
+fn a(
+    a: Arc<Mutex<()>>,
+    b: Arc<Mutex<()>>,
+    sa: Arc<Semaphore>,
+    sb: Arc<Semaphore>,
+    flag: Arc<Flag>,
+    ready: Arc<Barrier>,
+) {
+    // Own sa's token before either side signals, so the later release is the handshake.
+    let permit = sa.acquire();
+    let _ = ready.wait();
+
+    let first = a.lock().unwrap();
+    permit.release();
+    let peer = sb.acquire();
+    drop(peer);
+    drop(first);
+
+    let hold_a = a.lock().unwrap();
+    let hold_b = b.lock().unwrap();
+    flag.a.store(1, Ordering::SeqCst);
+    drop(hold_b);
+    drop(hold_a);
+}
+
+fn b(
+    a: Arc<Mutex<()>>,
+    b: Arc<Mutex<()>>,
+    sa: Arc<Semaphore>,
+    sb: Arc<Semaphore>,
+    flag: Arc<Flag>,
+    ready: Arc<Barrier>,
+) {
+    let permit = sb.acquire();
+    let _ = ready.wait();
+
+    let first = b.lock().unwrap();
+    permit.release();
+    let peer = sa.acquire();
+    drop(peer);
+    drop(first);
+
+    let hold_a = a.lock().unwrap();
+    let hold_b = b.lock().unwrap();
+    flag.b.store(1, Ordering::SeqCst);
+    drop(hold_b);
+    drop(hold_a);
+}
+
+fn bystander(flag: Arc<Flag>) {
+    loop {
+        let _ = flag.a.load(Ordering::Relaxed);
+        let _ = flag.b.load(Ordering::Relaxed);
+        std::hint::spin_loop();
+    }
+}
+
+fn main() {
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+    let sa = Semaphore::new(1);
+    let sb = Semaphore::new(1);
+    let flag = Arc::new(Flag {
+        a: AtomicUsize::new(0),
+        b: AtomicUsize::new(0),
+    });
+    let ready = Arc::new(Barrier::new(2));
+
+    let handle_a = {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        let sa = Arc::clone(&sa);
+        let sb = Arc::clone(&sb);
+        let flag = Arc::clone(&flag);
+        let ready = Arc::clone(&ready);
+        thread::spawn(move || crate::a(a, b, sa, sb, flag, ready))
+    };
+
+    let handle_b = {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        let sa = Arc::clone(&sa);
+        let sb = Arc::clone(&sb);
+        let flag = Arc::clone(&flag);
+        let ready = Arc::clone(&ready);
+        thread::spawn(move || crate::b(a, b, sa, sb, flag, ready))
+    };
+
+    {
+        let flag = Arc::clone(&flag);
+        thread::spawn(move || bystander(flag));
+    }
+
+    handle_a.join().unwrap();
+    handle_b.join().unwrap();
+
+    println!(
+        "DONE a={} b={}",
+        flag.a.load(Ordering::SeqCst),
+        flag.b.load(Ordering::SeqCst)
+    );
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "我先核对实验对条件变量与输出格式的要求，再给出一份可编译的完整程序。```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\n#[allow(unused_imports)]\nuse concir_sync::Semaphore;\n\nfn waiter(m: Arc<Mutex<bool>>, cv: Arc<Condvar>) {\n    let mut ready = m.lock().unwrap();\n    while !*ready {\n        ready = cv.wait(ready).unwrap();\n    }\n}\n\nfn notifier(m: Arc<Mutex<bool>>, cv: Arc<Condvar>) {\n    let mut ready = m.lock().unwrap();\n    *ready = true;\n    cv.notify_one();\n    drop(ready);\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(false));\n    let cv = Arc::new(Condvar::new());\n\n    let m_waiter = Arc::clone(&m);\n    let cv_waiter = Arc::clone(&cv);\n    let waiter = thread::spawn(move || waiter(m_waiter, cv_waiter));\n\n    let m_notifier = Arc::clone(&m);\n    let cv_notifier = Arc::clone(&cv);\n    let notifier = thread::spawn(move || notifier(m_notifier, cv_notifier));\n\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n\n    let ready = *m.lock().unwrap();\n    println!(\"DONE ready={ready}\");\n}\n```"
+}

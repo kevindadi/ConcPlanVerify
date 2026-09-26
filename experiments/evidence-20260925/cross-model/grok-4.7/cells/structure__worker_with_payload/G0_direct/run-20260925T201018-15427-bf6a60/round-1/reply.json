@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "我先对照实验里的规格和已有样例，确认互斥、计数器和输出格式该怎么落成 Rust。```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\n#[allow(unused_imports)]\nuse concir_sync::Semaphore;\n\nstruct Shared {\n    acc: i32,\n}\n\nfn compute() {\n    let mut local = 0u64;\n    let mut i = 0u64;\n    while i < 32 {\n        local = local.wrapping_add(i.wrapping_mul(17).wrapping_add(3));\n        i = i.wrapping_add(1);\n    }\n    std::hint::black_box(local);\n}\n\nfn w1(m: Arc<Mutex<Shared>>) {\n    let mut shared = m.lock().unwrap();\n    compute();\n    shared.acc = 1;\n    drop(shared);\n}\n\nfn w2(m: Arc<Mutex<Shared>>) {\n    let mut shared = m.lock().unwrap();\n    compute();\n    shared.acc = 1;\n    drop(shared);\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(Shared { acc: 0 }));\n    let m1 = Arc::clone(&m);\n    let m2 = Arc::clone(&m);\n    let t1 = thread::spawn(move || w1(m1));\n    let t2 = thread::spawn(move || w2(m2));\n    t1.join().unwrap();\n    t2.join().unwrap();\n    let done = m.lock().unwrap().acc;\n    println!(\"DONE done={done}\");\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "我先查看仓库里同类规格和 `concir_sync::Semaphore` 的用法，以便按规范写出可编译的程序。```rust\n#[allow(unused_imports)]\nuse concir_sync::Semaphore;\n\nfn worker() {}\n\nfn main() {\n    let mut done = 0;\n    while done < 1 {\n        let handle = std::thread::spawn(worker);\n        handle.join().unwrap();\n        done += 1;\n    }\n    println!(\"DONE done={done}\");\n}\n```"
+}

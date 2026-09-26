@@ -1,0 +1,61 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E912",
+      "severity": "warning",
+      "message": "'done' in function 'main' is modeled: false; the value is Unknown in the net",
+      "location": "main::main",
+      "path": "modules[0].functions[0]",
+      "fix_hint": "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled"
+    },
+    {
+      "code": "E912",
+      "severity": "warning",
+      "message": "'delta' in function 'w1' is modeled: false; the value is Unknown in the net",
+      "location": "main::w1",
+      "path": "modules[0].functions[1]",
+      "fix_hint": "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::compute') captures a return into 'delta', but 'main::compute' has no modeled return",
+      "location": "main::w1.s2",
+      "path": "modules[0].functions[1].body[1]",
+      "fix_hint": "declare a modeled return on the callee, or drop dst"
+    },
+    {
+      "code": "E912",
+      "severity": "warning",
+      "message": "'delta' in function 'w2' is modeled: false; the value is Unknown in the net",
+      "location": "main::w2",
+      "path": "modules[0].functions[2]",
+      "fix_hint": "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::compute') captures a return into 'delta', but 'main::compute' has no modeled return",
+      "location": "main::w2.s2",
+      "path": "modules[0].functions[2].body[1]",
+      "fix_hint": "declare a modeled return on the callee, or drop dst"
+    },
+    {
+      "code": "E912",
+      "severity": "warning",
+      "message": "'x' in function 'compute' is modeled: false; the value is Unknown in the net",
+      "location": "main::compute",
+      "path": "modules[0].functions[3]",
+      "fix_hint": "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled"
+    },
+    {
+      "code": "E912",
+      "severity": "warning",
+      "message": "'y' in function 'compute' is modeled: false; the value is Unknown in the net",
+      "location": "main::compute",
+      "path": "modules[0].functions[3]",
+      "fix_hint": "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled"
+    }
+  ]
+}

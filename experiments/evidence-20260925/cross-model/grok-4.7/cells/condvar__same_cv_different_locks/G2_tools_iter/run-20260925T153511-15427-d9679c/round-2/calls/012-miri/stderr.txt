@@ -1,0 +1,63 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...0260925T153511-15427-d9679c/round-2/probe/target/miri/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+
+thread '<unnamed>' (62739) panicked at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/condvar/pthread.rs:39:18:
+attempted to use a condition variable with two mutexes
+stack backtrace:
+   0: std::panicking::panic_handler
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/panicking.rs:676:5
+   1: std::rt::panic_fmt
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:80:14
+   2: std::sys::sync::condvar::pthread::Condvar::verify
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/condvar/pthread.rs:39:18
+   3: std::sys::sync::condvar::pthread::Condvar::wait
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/sync/condvar/pthread.rs:60:9
+   4: std::sync::Condvar::wait::<bool>
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/poison/condvar.rs:128:13
+   5: w2::<{closure@src/main.rs:78:17: 78:19}, {closure@src/main.rs:79:17: 79:19}>
+             at src/main.rs:37:17
+   6: main::{closure#0}::{closure#1}
+             at src/main.rs:74:13
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+thread '<unnamed>' (62740) panicked at src/main.rs:51:35:
+called `Result::unwrap()` on an `Err` value: PoisonError { .. }
+stack backtrace:
+   0: std::panicking::panic_handler
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/panicking.rs:676:5
+   1: std::rt::panic_fmt
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:80:14
+   2: std::result::unwrap_failed
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:1870:5
+   3: std::result::Result::<std::sync::MutexGuard<'_, bool>, std::sync::PoisonError<std::sync::MutexGuard<'_, bool>>>::unwrap
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/result.rs:1232:23
+   4: notifier
+             at src/main.rs:51:25
+   5: main::{closure#0}::{closure#2}
+             at src/main.rs:83:13
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+thread 'main' (62737) panicked at src/main.rs:69:5:
+a scoped thread panicked
+stack backtrace:
+   0: std::panicking::panic_handler
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/panicking.rs:676:5
+   1: std::rt::panic_fmt
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/panicking.rs:80:14
+   2: std::thread::scope::<'_, {closure@src/main.rs:69:19: 69:26}, ()>
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/scoped.rs:170:13
+   3: main
+             at src/main.rs:69:5
+   4: <fn() as std::ops::FnOnce<()>>::call_once - shim(fn())
+             at /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.

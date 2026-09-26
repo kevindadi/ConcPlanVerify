@@ -1,0 +1,48 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20260925T172032-15427-a080f6/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0597]: `sa` does not live long enough
+   --> src/main.rs:73:20
+    |
+ 67 |       let sa = Semaphore::new(1);
+    |           -- binding `sa` declared here
+...
+ 73 |       let permit_a = sa.acquire();
+    |                      ^^ borrowed value does not live long enough
+...
+ 83 | /         crate::a(a_for_a, b_for_a, sb_for_a, flag_for_a, permit_a, |permit| {
+ 84 | |             permit.release();
+ 85 | |         });
+    | |__________- argument requires that `sa` is borrowed for `'static`
+...
+108 |   }
+    |   - `sa` dropped here while still borrowed
+
+error[E0597]: `sb` does not live long enough
+   --> src/main.rs:74:20
+    |
+ 68 |       let sb = Semaphore::new(1);
+    |           -- binding `sb` declared here
+...
+ 74 |       let permit_b = sb.acquire();
+    |                      ^^ borrowed value does not live long enough
+...
+ 93 | /         crate::b(a_for_b, b_for_b, sa_for_b, flag_for_b, permit_b, |permit| {
+ 94 | |             permit.release();
+ 95 | |         });
+    | |__________- argument requires that `sb` is borrowed for `'static`
+...
+108 |   }
+    |   - `sb` dropped here while still borrowed
+
+For more information about this error, try `rustc --explain E0597`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors

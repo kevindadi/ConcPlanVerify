@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_fail",
+  "raw_text": "我先确认 `concir_sync::Semaphore` 的接口和会合通道的同步结构，再按规格写出可编译的单文件程序。```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nuse concir_sync::Semaphore;\n\nstruct Channel {\n    slot: Mutex<Option<u32>>,\n    value_ready: Arc<Semaphore>,\n    value_taken: Arc<Semaphore>,\n}\n\nfn s1(ch: Arc<Channel>, signal_ready: impl FnOnce()) {\n    {\n        let mut slot = ch.slot.lock().unwrap();\n        *slot = Some(1);\n    }\n    signal_ready();\n    let _ack = ch.value_taken.acquire();\n}\n\nfn r(ch: Arc<Channel>, signal_taken: impl FnOnce()) -> u32 {\n    let _go = ch.value_ready.acquire();\n    {\n        let mut slot = ch.slot.lock().unwrap();\n        slot.take().unwrap();\n    }\n    signal_taken();\n    1\n}\n\nfn main() {\n    let value_ready = Semaphore::new(1);\n    let ready_token = value_ready.acquire();\n    let value_taken = Semaphore::new(1);\n    let taken_token = value_taken.acquire();\n\n    let ch = Arc::new(Channel {\n        slot: Mutex::new(None),\n        value_ready,\n        value_taken,\n    });\n\n    let ch_s = Arc::clone(&ch);\n    let s1_task = thread::spawn(move || s1(ch_s, move || ready_token.release()));\n\n    let ch_r = Arc::clone(&ch);\n    let r_task = thread::spawn(move || r(ch_r, move || taken_token.release()));\n\n    s1_task.join().unwrap();\n    let done = r_task.join().unwrap();\n    assert!(ch.slot.lock().unwrap().is_none());\n    println!(\"DONE done={done}\");\n}\n```"
+}

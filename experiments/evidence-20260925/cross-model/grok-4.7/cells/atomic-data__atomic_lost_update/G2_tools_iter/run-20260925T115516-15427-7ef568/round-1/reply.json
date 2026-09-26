@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "我先定位现有源码和诊断输出，确认编译与并发分析具体报了什么。```rust\nuse concir_sync::Semaphore;\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Arc;\nuse std::thread;\n\nfn main() {\n    let c = Arc::new(AtomicUsize::new(0));\n    // Two permits so both workers can run concurrently; the permit is only a\n    // capability, not a lock around the increment.\n    let sem = Semaphore::new(2);\n\n    let c1 = Arc::clone(&c);\n    let sem1 = Arc::clone(&sem);\n    let w1 = thread::spawn(move || {\n        let _permit = sem1.acquire();\n        let mut v = c1.load(Ordering::SeqCst);\n        loop {\n            match c1.compare_exchange(v, v + 1, Ordering::SeqCst, Ordering::SeqCst) {\n                Ok(_) => break,\n                Err(actual) => v = actual,\n            }\n        }\n    });\n\n    let c2 = Arc::clone(&c);\n    let sem2 = Arc::clone(&sem);\n    let w2 = thread::spawn(move || {\n        let _permit = sem2.acquire();\n        let mut v = c2.load(Ordering::SeqCst);\n        loop {\n            match c2.compare_exchange(v, v + 1, Ordering::SeqCst, Ordering::SeqCst) {\n                Ok(_) => break,\n                Err(actual) => v = actual,\n            }\n        }\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    assert_eq!(c.load(Ordering::SeqCst), 2);\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "我先查看当前程序和工具诊断，再按这些报错修正同步，使程序能编译并通过 Miri。```rust\nuse concir_sync::Semaphore;\nuse std::sync::mpsc::sync_channel;\nuse std::sync::Arc;\nuse std::thread;\n\nfn main() {\n    let ch1 = sync_channel::<i32>(0);\n    let ch2 = sync_channel::<i32>(0);\n    let lock = Semaphore::new(1);\n\n    let (ch1_tx, ch1_rx) = ch1;\n    let (ch2_tx, ch2_rx) = ch2;\n    let lock_s = Arc::clone(&lock);\n    let lock_r = Arc::clone(&lock);\n\n    let s = thread::spawn(move || {\n        let permit = lock_s.acquire();\n        permit.release();\n        ch1_tx.send(1).unwrap();\n        ch2_rx.recv().unwrap();\n    });\n\n    let r = thread::spawn(move || {\n        let permit = lock_r.acquire();\n        permit.release();\n        let done = ch1_rx.recv().unwrap();\n        ch2_tx.send(done).unwrap();\n        done\n    });\n\n    s.join().unwrap();\n    let done = r.join().unwrap();\n    println!(\"DONE done={done}\");\n}\n```"
+}

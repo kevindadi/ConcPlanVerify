@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_dirty",
+  "raw_text": "我先查看现有 Rust 源码和工具诊断，再按规范修正同步与计数逻辑。```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nuse concir_sync::Semaphore;\n\nfn main() {\n    // c 的声明范围是 0..=2，初值为 0。任何可达状态都必须满足 c <= 1。\n    let m = Arc::new(Mutex::new(0i32));\n    let gate = Semaphore::new(1);\n\n    let m1 = Arc::clone(&m);\n    let gate1 = Arc::clone(&gate);\n    let w1 = thread::spawn(move || {\n        let permit = gate1.acquire();\n        {\n            let mut c = m1.lock().unwrap();\n            if *c < 1 {\n                *c += 1;\n            }\n        }\n        permit.release();\n    });\n\n    let m2 = Arc::clone(&m);\n    let gate2 = Arc::clone(&gate);\n    let w2 = thread::spawn(move || {\n        let permit = gate2.acquire();\n        {\n            let mut c = m2.lock().unwrap();\n            if *c < 1 {\n                *c += 1;\n            }\n        }\n        permit.release();\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    let c = *m.lock().unwrap();\n    println!(\"DONE done={c}\");\n}\n```"
+}

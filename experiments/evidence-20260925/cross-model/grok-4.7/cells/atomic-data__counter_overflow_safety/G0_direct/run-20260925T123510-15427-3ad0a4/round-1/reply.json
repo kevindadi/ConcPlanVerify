@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "我先看任务目录和相关规格，确认计数器、锁和线程的建模方式，再写出符合要求的 Rust 程序。\n0目录里只有日志，没有现成源码。我再查仓库里同类规格和 `concir_sync` 的用法，确认计数器上界该怎么建模。\n1规格要求计数器声明范围是 0 到 2，但运行时不能超过 1。我再核对同类实验里锁和信号量的写法，避免把临界区写错。\n2同类实验把共享状态放在 `Mutex` 里，并用 `Semaphore` 做同步。我再看溢出安全那类规格怎么限制计数器实际上限。\n3规格和代码模式已经对齐。接下来按实体名 `w1`、`w2`、`m`、`c` 写一个会终止、且计数不超过 1 的程序。\n\n```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nuse concir_sync::Semaphore;\n\nfn main() {\n    // Declared range is 0..=2; the safety invariant keeps the value at most 1.\n    let m = Arc::new(Mutex::new(0u8));\n    let gate = Semaphore::new(1);\n\n    let c1 = Arc::clone(&m);\n    let g1 = Arc::clone(&gate);\n    let w1 = thread::spawn(move || {\n        let _permit = g1.acquire();\n        let mut c = c1.lock().unwrap();\n        if *c < 1 {\n            *c += 1;\n        }\n    });\n\n    let c2 = Arc::clone(&m);\n    let g2 = Arc::clone(&gate);\n    let w2 = thread::spawn(move || {\n        let _permit = g2.acquire();\n        let mut c = c2.lock().unwrap();\n        if *c < 1 {\n            *c += 1;\n        }\n    });\n\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    let done = *m.lock().unwrap();\n    println!(\"DONE done={done}\");\n}\n```"
+}

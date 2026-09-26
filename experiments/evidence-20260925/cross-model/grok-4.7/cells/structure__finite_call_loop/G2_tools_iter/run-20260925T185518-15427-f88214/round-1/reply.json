@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "我先查看当前工作区里的 Rust 程序和工具诊断，再按这些诊断修正同步问题。```rust\nuse std::thread;\nuse concir_sync::Semaphore;\n\nfn helper() {\n    let sem = Semaphore::new(1);\n    let permit = sem.acquire();\n    permit.release();\n}\n\nfn main() {\n    let handle = thread::spawn(helper);\n    handle.join().unwrap();\n\n    let handle = thread::spawn(helper);\n    handle.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

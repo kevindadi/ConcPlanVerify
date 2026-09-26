@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "我先查看工作区里的现有程序和构建诊断，再按规范修正同步逻辑。```rust\nuse concir_sync::Semaphore;\nuse std::sync::{Arc, mpsc::sync_channel};\nuse std::thread;\n\nfn main() {\n    let slots = Semaphore::new(2);\n    let slots_s1 = Arc::clone(&slots);\n    let slots_r = slots;\n\n    let ch = sync_channel::<i32>(0);\n    let (tx, rx) = ch;\n\n    let s1 = thread::spawn(move || {\n        let _permit = slots_s1.acquire();\n        tx.send(1).unwrap();\n    });\n\n    let r = thread::spawn(move || {\n        let _permit = slots_r.acquire();\n        rx.recv().unwrap()\n    });\n\n    s1.join().unwrap();\n    let done = r.join().unwrap();\n    println!(\"DONE done={}\", done);\n}\n```"
+}

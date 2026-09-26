@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "我先看实验目录和 `concir_sync` 的接口，确认两把锁的获取顺序和输出格式该怎么写。```rust\nuse concir_sync::Semaphore;\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Arc;\nuse std::thread;\n\nfn main() {\n    let a = Semaphore::new(1);\n    let b = Semaphore::new(1);\n    let t1_done = Arc::new(AtomicUsize::new(0));\n    let t2_done = Arc::new(AtomicUsize::new(0));\n\n    let a_for_t2 = a.clone();\n    let b_for_t2 = b.clone();\n    let t1_flag = Arc::clone(&t1_done);\n    let t2_flag = Arc::clone(&t2_done);\n\n    let t1 = thread::spawn(move || {\n        let permit_a = a.acquire();\n        let permit_b = b.acquire();\n        t1_flag.store(1, Ordering::SeqCst);\n        drop(permit_b);\n        drop(permit_a);\n    });\n\n    let t2 = thread::spawn(move || {\n        let a = a_for_t2;\n        let b = b_for_t2;\n        let permit_a = a.acquire();\n        let permit_b = b.acquire();\n        t2_flag.store(1, Ordering::SeqCst);\n        drop(permit_b);\n        drop(permit_a);\n    });\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    println!(\n        \"DONE t1={} t2={}\",\n        t1_done.load(Ordering::SeqCst),\n        t2_done.load(Ordering::SeqCst)\n    );\n}\n```"
+}

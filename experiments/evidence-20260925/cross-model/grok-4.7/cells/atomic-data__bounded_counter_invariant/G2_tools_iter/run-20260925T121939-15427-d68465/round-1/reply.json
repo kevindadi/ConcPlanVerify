@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "我先查看当前程序和工具诊断，再按规范修正同步，使计数器在互斥下保持 0 到 2，并且程序能结束并打印 `DONE done=1`。```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\nuse concir_sync::Semaphore;\n\nfn w1(m: Arc<Mutex<i32>>, limit: Arc<Semaphore>) {\n    let _permit = limit.acquire();\n    let mut c = m.lock().unwrap();\n    if *c < 2 {\n        *c += 1;\n    }\n}\n\nfn w2(m: Arc<Mutex<i32>>, limit: Arc<Semaphore>) {\n    let _permit = limit.acquire();\n    let mut c = m.lock().unwrap();\n    if *c < 2 {\n        *c += 1;\n    }\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(0));\n    let limit = Semaphore::new(2);\n\n    let m1 = Arc::clone(&m);\n    let limit1 = Arc::clone(&limit);\n    let t1 = thread::spawn(move || w1(m1, limit1));\n\n    let m2 = Arc::clone(&m);\n    let limit2 = Arc::clone(&limit);\n    let t2 = thread::spawn(move || w2(m2, limit2));\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}
