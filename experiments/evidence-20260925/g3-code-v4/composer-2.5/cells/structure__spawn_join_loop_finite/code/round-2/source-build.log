@@ -1,0 +1,36 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/g3-code-v4/composer-2.5/cells/structure__spawn_join_loop_finite/code/round-2/source-proj)
+error[E0433]: cannot find module or crate `main` in this scope
+ --> src/main.rs:5:37
+  |
+5 |         let h1 = std::thread::spawn(main::worker);
+  |                                     ^^^^ function `main` is not a crate or module
+  |
+help: consider importing this module
+  |
+2 +     use crate::main;
+  |
+
+error[E0433]: cannot find module or crate `main` in this scope
+ --> src/main.rs:8:37
+  |
+8 |         let h2 = std::thread::spawn(main::worker);
+  |                                     ^^^^ function `main` is not a crate or module
+  |
+help: consider importing this module
+  |
+2 +     use crate::main;
+  |
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `probe` (bin "probe") due to 2 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning

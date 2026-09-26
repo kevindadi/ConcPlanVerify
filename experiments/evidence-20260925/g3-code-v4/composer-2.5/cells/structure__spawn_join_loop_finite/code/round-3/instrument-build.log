@@ -1,0 +1,35 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/g3-code-v4/composer-2.5/cells/structure__spawn_join_loop_finite/code/round-3/proj)
+error[E0433]: cannot find module or crate `cir_trace` in this scope
+ --> src/main.rs:6:18
+  |
+6 |         let h1 = cir_trace::spawn("h1", worker);
+  |                  ^^^^^^^^^ use of unresolved module or unlinked crate `cir_trace`
+  |
+help: to make use of source file src/cir_trace.rs, use `mod cir_trace` in this file to declare the module
+  |
+1 + mod cir_trace;
+  |
+help: consider importing this module
+  |
+3 +     use crate::cir_trace;
+  |
+
+error[E0433]: cannot find module or crate `cir_trace` in this scope
+ --> src/main.rs:9:18
+  |
+9 |         let h2 = cir_trace::spawn("h2", worker);
+  |                  ^^^^^^^^^ use of unresolved module or unlinked crate `cir_trace`
+  |
+help: to make use of source file src/cir_trace.rs, use `mod cir_trace` in this file to declare the module
+  |
+1 + mod cir_trace;
+  |
+help: consider importing this module
+  |
+3 +     use crate::cir_trace;
+  |
+
+For more information about this error, try `rustc --explain E0433`.
+error: could not compile `probe` (bin "probe") due to 2 previous errors

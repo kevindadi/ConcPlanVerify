@@ -1,0 +1,46 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/g3-code-v4/composer-2.5/cells/structure__worker_with_payload/code/round-1/source-proj)
+error[E0308]: mismatched types
+  --> src/main.rs:34:39
+   |
+34 |     let h1 = thread::spawn(move || w1(m1, acc1));
+   |                                    -- ^^ expected `Arc<Mutex<i32>>`, found `Arc<Mutex<()>>`
+   |                                    |
+   |                                    arguments to this function are incorrect
+   |
+   = note: expected struct `Arc<Mutex<i32>>`
+              found struct `Arc<Mutex<()>>`
+note: function defined here
+  --> src/main.rs:10:4
+   |
+10 | fn w1(m: Arc<Mutex<i32>>, acc: Arc<Mutex<i32>>) {
+   |    ^^ ------------------
+
+error[E0308]: mismatched types
+  --> src/main.rs:38:39
+   |
+38 |     let h2 = thread::spawn(move || w2(m2, acc2));
+   |                                    -- ^^ expected `Arc<Mutex<i32>>`, found `Arc<Mutex<()>>`
+   |                                    |
+   |                                    arguments to this function are incorrect
+   |
+   = note: expected struct `Arc<Mutex<i32>>`
+              found struct `Arc<Mutex<()>>`
+note: function defined here
+  --> src/main.rs:19:4
+   |
+19 | fn w2(m: Arc<Mutex<i32>>, acc: Arc<Mutex<i32>>) {
+   |    ^^ ------------------
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `probe` (bin "probe") due to 2 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning

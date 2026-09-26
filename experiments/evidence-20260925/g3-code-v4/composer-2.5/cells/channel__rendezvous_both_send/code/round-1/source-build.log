@@ -1,0 +1,31 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/evidence-20260925/g3-code-v4/composer-2.5/cells/channel__rendezvous_both_send/code/round-1/source-proj)
+error[E0425]: cannot find type `SyncReceiver` in module `std::sync::mpsc`
+   --> src/main.rs:8:27
+    |
+  8 | fn r(ch: std::sync::mpsc::SyncReceiver<i32>) {
+    |                           ^^^^^^^^^^^^ not found in `std::sync::mpsc`
+    |
+note: similarly named struct `Receiver` defined here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sync/mpsc.rs:181:1
+    |
+181 | pub struct Receiver<T> {
+    | ^^^^^^^^^^^^^^^^^^^^^^
+help: a struct with a similar name exists
+    |
+  8 - fn r(ch: std::sync::mpsc::SyncReceiver<i32>) {
+  8 + fn r(ch: std::sync::mpsc::Receiver<i32>) {
+    |
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `probe` (bin "probe") due to 1 previous error
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning
