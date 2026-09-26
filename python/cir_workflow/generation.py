@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -178,6 +179,18 @@ def _explore(binary: Path, program: Path, contract: Path) -> dict[str, Any]:
     except json.JSONDecodeError:
         return {"outcome": "PROTOCOL_ERROR", "stderr": proc.stderr[-400:],
                 "properties": []}
+
+
+def _explore_signature(payload: dict[str, Any]) -> str:
+    """A stable signature of an explore failure, for no-progress detection."""
+
+    parts: list[str] = []
+    for d in payload.get("diagnostics") or []:
+        parts.append(str(d.get("property")))
+        parts.extend(str(n) for n in (d.get("counterexample_names") or []))
+        for b in d.get("blocked") or []:
+            parts.append(str(b.get("resource_name") or b.get("resource")))
+    return hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest()
 
 
 def _map_name(value: str, mapping: dict[str, str], module: str) -> str:
@@ -372,14 +385,34 @@ def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
             accepted_path = program_path
             break
         round_info["decision"] = "explore_fail"
+        # No-progress detection: an unchanged program or an identical
+        # counterexample means the model must edit the implicated statements,
+        # not resend the same design.
+        prev = record["rounds"][-2] if len(record["rounds"]) > 1 else None
+        sig = _explore_signature(explore.payload)
+        same_program = bool(prev and prev.get("program_sha256")
+                            == round_info.get("program_sha256"))
+        same_sig = bool(prev and prev.get("explore_signature") == sig)
+        round_info["explore_signature"] = sig
+        round_info["same_program_as_previous"] = same_program
+        round_info["repeated_explore_signature"] = same_sig
+        stagnation = ""
+        if same_program:
+            stagnation = ("Your previous revision was byte-identical to this one, so "
+                          "it cannot resolve the counterexample. Edit the statements "
+                          "named in the counterexample. ")
+        elif same_sig:
+            stagnation = ("The same counterexample persists; the structure it names "
+                          "did not change. Modify those statements directly. ")
         if explore.outcome == "INVALID":
-            feedback = ("The design cannot be evaluated against the contract because "
+            feedback = (stagnation
+                        + "The design cannot be evaluated against the contract because "
                         "it does not use the entity names given in the requirements "
                         "(see the Entities section): every role and shared resource "
                         "must appear with exactly that name in the design. "
                         + render_feedback(build_explore_feedback(explore)))
         else:
-            feedback = render_feedback(build_explore_feedback(explore))
+            feedback = stagnation + render_feedback(build_explore_feedback(explore))
 
     if accepted_path is not None:
         record["cir_path"] = str(accepted_path)
@@ -525,31 +558,87 @@ def _binding_base(name: str) -> str:
     return re.sub(r"_(mutex|condvar|semaphore|channel|atomic|var)\d+$", "", name)
 
 
+_CHANNEL_ENDPOINT = re.compile(r"^(?P<chan>.+?)(?:_?(?:tx|rx|sender|receiver)\d*)$")
+
+
+def _channel_base(name: str) -> str:
+    """`ch1_tx`/`ch1_rx` -> `ch1`; `tx` -> `''` (no channel token)."""
+
+    m = _CHANNEL_ENDPOINT.match(name)
+    return m.group("chan") if m else name
+
+
 def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
                    ) -> tuple[dict[str, str], dict[str, Any]]:
-    """Bind runtime resources to CIR FQNs by short name. Ambiguity is reported."""
+    """Bind runtime resources to CIR FQNs by a layered, explainable rule.
+
+    Rules, in order, each applied only when unambiguous (never "try until it
+    passes"):
+
+    1. ``exact`` — the runtime short name equals the CIR resource name;
+    2. ``channel-name`` — a channel endpoint's channel token equals a CIR
+       channel name (``ch1_tx`` -> ``ch1``);
+    3. ``module-prefix`` — the binding prefix names a CIR module that has
+       exactly one unmapped resource of that kind (``main_mod_mutex0`` ->
+       ``main::a``);
+    4. ``unique-kind`` — exactly one unmapped CIR resource of that kind.
+
+    Anything else is reported as ``ambiguous`` with the candidate list.
+    """
+
     kinds = rust_oracle.reference_kinds(cir)
     by_kind: dict[str, list[str]] = {}
     by_short: dict[tuple[str, str], list[str]] = {}
     for fqn, kind in kinds.items():
         by_kind.setdefault(kind, []).append(fqn)
         by_short.setdefault((fqn.rsplit("::", 1)[-1], kind), []).append(fqn)
+    modules = [m["name"] for m in cir.get("modules", [])]
     mapping: dict[str, str] = {}
+    rules: dict[str, str] = {}
     ambiguous: list[dict[str, Any]] = []
+
+    def unmapped(kind: str) -> list[str]:
+        return [f for f in by_kind.get(kind, []) if f not in mapping.values()]
+
+    channel_resources = [r for r in rust_resources if r.get("kind") == "Channel"]
     for res in rust_resources:
         kind = res.get("kind", "")
         name = res.get("name", "")
         if kind in {"Spawn", "ChannelWrapper"}:
             continue
-        if kind == "Channel" and len(by_kind.get("Channel", [])) == 1:
-            mapping[name] = by_kind["Channel"][0]
-            continue
-        base = _binding_base(name.rsplit("::", 1)[-1])
-        candidates = by_short.get((base, kind), [])
-        if len(candidates) == 1:
-            mapping[name] = candidates[0]
-        else:
-            ambiguous.append({"rust": name, "kind": kind, "candidates": candidates})
+        short = name.rsplit("::", 1)[-1]
+        # 1. exact short-name match
+        cands = [c for c in by_short.get((_binding_base(short), kind), [])
+                 if c not in mapping.values()]
+        if len(cands) == 1:
+            mapping[name] = cands[0]; rules[name] = "exact"; continue
+        # 2. channel endpoint token. A CIR channel has several runtime endpoints
+        #    (sender and receiver), so both may map to the same channel; do not
+        #    exclude an already-mapped channel here.
+        if kind == "Channel":
+            token = _channel_base(short)
+            if token:
+                hits = [f for f in by_kind.get("Channel", [])
+                        if f.rsplit("::", 1)[-1] == token]
+                if len(hits) == 1:
+                    mapping[name] = hits[0]; rules[name] = "channel-name"; continue
+            all_channels = by_kind.get("Channel", [])
+            if len(all_channels) == 1:
+                mapping[name] = all_channels[0]
+                rules[name] = "channel-unique"; continue
+        # 3. module prefix
+        base = _binding_base(short)
+        modhits = [m for m in modules if base.startswith(m) or m.startswith(base)]
+        if len(modhits) == 1:
+            cands = [f for f in unmapped(kind) if f.split("::")[0] == modhits[0]]
+            if len(cands) == 1:
+                mapping[name] = cands[0]; rules[name] = "module-prefix"; continue
+        # 4. unique kind
+        cands = unmapped(kind)
+        if len(cands) == 1:
+            mapping[name] = cands[0]; rules[name] = "unique-kind"; continue
+        ambiguous.append({"rust": name, "kind": kind, "candidates": cands})
+
     spawns = [r["name"] for r in rust_resources if r.get("kind") == "Spawn"]
     workers: list[str] = []
     for mod in cir.get("modules", []):
@@ -561,11 +650,11 @@ def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
     for src in spawns:
         s = src.rsplit("::", 1)[-1]
         if s in short and short[s] not in used:
-            mapping[src] = short[s]
-            used.add(short[s])
+            mapping[src] = short[s]; used.add(short[s])
         else:
             ambiguous.append({"rust": src, "kind": "Spawn", "candidates": workers})
     return mapping, {"by_kind": {k: v for k, v in by_kind.items()},
+                     "rules": rules,
                      "threads": {src: mapping.get(src) for src in spawns},
                      "ambiguous": ambiguous}
 

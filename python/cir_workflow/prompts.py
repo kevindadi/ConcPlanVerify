@@ -54,6 +54,11 @@ def concir_generation_v3_system_prompt() -> str:
     return _read("concir_generation_v3.md")
 
 
+def concir_generation_v4_system_prompt() -> str:
+    """CIR generation prompt with the complete language interface (v4)."""
+    return _read("concir_generation_v4.md")
+
+
 def requirements_only_user_prompt(requirements: str, *,
                                   previous_candidate: str | None = None,
                                   feedback: str | None = None) -> str:
@@ -222,10 +227,14 @@ def build_explore_feedback(result, *, preserved_ids: list[str] | None = None) ->
             "outcome": d.get("outcome"),
             "message": d.get("message"),
             "complete": d.get("complete"),
-            "related_functions": _functions_from_counterexample(d.get("counterexample")),
-            "related_sids": _sids_from_cir_statements(d.get("cir_statements")),
+            # The backend already resolves names; keep them instead of
+            # reconstructing numeric indices ("0::2") or "None" sids.
+            "counterexample_names": d.get("counterexample_names"),
             "counterexample": d.get("counterexample"),
-            "blocked": d.get("blocked"),
+            "cir_statements": _named_cir_statements(d.get("cir_statements")),
+            "blocked": _named_blocked(d.get("blocked")),
+            "doom_state": d.get("doom_state"),
+            "proven_facts": d.get("proven_facts"),
             "boundary_events": payload.get("boundary_events"),
             "repair_hints": d.get("repair_hints"),
         })
@@ -245,28 +254,38 @@ def build_explore_feedback(result, *, preserved_ids: list[str] | None = None) ->
     }
 
 
-def _functions_from_counterexample(counterexample: Any) -> list[str]:
-    funcs: list[str] = []
-    if isinstance(counterexample, list):
-        for step in counterexample:
-            origin = (step or {}).get("origin") if isinstance(step, dict) else None
-            if isinstance(origin, dict):
-                mod = origin.get("module")
-                fun = origin.get("function")
-                token = f"{mod}::{fun}"
-                if token not in funcs:
-                    funcs.append(token)
-    return funcs
+def _named_cir_statements(statements: Any) -> list[dict[str, Any]]:
+    """Keep the backend's named statements; a missing sid is unknown, not None."""
 
-
-def _sids_from_cir_statements(statements: Any) -> list[str]:
-    out: list[str] = []
+    out: list[dict[str, Any]] = []
     if isinstance(statements, list):
         for stmt in statements:
-            if isinstance(stmt, dict):
-                token = f"{stmt.get('module')}::{stmt.get('function')}.{stmt.get('sid')}"
-                if token not in out:
-                    out.append(token)
+            if not isinstance(stmt, dict):
+                continue
+            sid = stmt.get("sid")
+            out.append({
+                "module": stmt.get("module"),
+                "function": stmt.get("function"),
+                "sid": sid if sid not in (None, "") else "<unknown>",
+            })
+    return out
+
+
+def _named_blocked(blocked: Any) -> list[dict[str, Any]]:
+    """Keep the backend's blocked entries with their resolved resource names."""
+
+    out: list[dict[str, Any]] = []
+    if isinstance(blocked, list):
+        for b in blocked:
+            if not isinstance(b, dict):
+                continue
+            out.append({
+                "thread": b.get("thread"),
+                "kind": b.get("kind"),
+                "resource": b.get("resource_name") or b.get("resource"),
+                "detail": b.get("detail"),
+                "waiting_on": b.get("waiting"),
+            })
     return out
 
 
