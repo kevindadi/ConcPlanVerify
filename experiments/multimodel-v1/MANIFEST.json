@@ -1,0 +1,341 @@
+{
+  "manifest_version": "multimodel-v1",
+  "built_at": "2026-09-26T18:03:14",
+  "channels": [
+    {
+      "name": "deepseek-direct",
+      "transport": "direct-api",
+      "provider": "deepseek",
+      "api_key_env": "DEEPSEEK_API_KEY",
+      "base_url": "https://api.deepseek.com",
+      "surface": "chat",
+      "notes": "",
+      "discovered_models": [
+        "deepseek-flash",
+        "deepseek-v4-pro"
+      ]
+    },
+    {
+      "name": "dashscope-direct",
+      "transport": "direct-api",
+      "provider": "qwen",
+      "api_key_env": "DASHSCOPE_API_KEY",
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "surface": "responses",
+      "notes": "",
+      "discovered_models": []
+    },
+    {
+      "name": "cursor",
+      "transport": "cursor",
+      "provider": "cursor",
+      "api_key_env": "CURSOR_API_KEY",
+      "base_url": null,
+      "surface": "cursor-sdk",
+      "notes": "Cursor agent sessions only; Composer only.",
+      "discovered_models": []
+    },
+    {
+      "name": "opencode-go",
+      "transport": "opencode",
+      "provider": "opencode",
+      "api_key_env": "OPENCODE_API_KEY",
+      "base_url": "https://opencode.ai/zen/go/v1",
+      "surface": "chat",
+      "notes": "",
+      "discovered_models": [
+        "deepseek-v4-flash",
+        "deepseek-v4.1-flash",
+        "deepseek-v4-pro",
+        "glm-5.1",
+        "glm-5.2",
+        "glm-5.3",
+        "glm-5.3-flash",
+        "grok-4.6",
+        "grok-4.7",
+        "gpt-5.6-luna",
+        "gpt-6-luna",
+        "kimi-k2.6",
+        "kimi-k2.7-code",
+        "kimi-k3",
+        "mimo-v2.5",
+        "mimo-v2.5-pro",
+        "mimo-v2.6-flash",
+        "mimo-v2.6-pro",
+        "minimax-m2.5",
+        "minimax-m2.7",
+        "minimax-m3",
+        "qwen3.6-plus",
+        "qwen3.7-max",
+        "qwen3.7-plus",
+        "qwen3.8-flash",
+        "qwen3.8-max",
+        "longcat-2.0",
+        "hy3",
+        "hy4-preview",
+        "omen-alpha",
+        "muse-spark-1.2-contributor",
+        "muse-spark-1.3-contributor",
+        "space-bunny-free",
+        "deepseek-v4-flash-vision-exp"
+      ]
+    }
+  ],
+  "models": [
+    {
+      "display_name": "DeepSeek Flash",
+      "model_id": "deepseek-flash",
+      "provider": "deepseek",
+      "channel": "deepseek-direct",
+      "surface": "chat",
+      "role": "main",
+      "status": "available",
+      "blocked_reason": null,
+      "discovered": true,
+      "aliases": []
+    },
+    {
+      "display_name": "Qwen",
+      "model_id": null,
+      "provider": "qwen",
+      "channel": "dashscope-direct",
+      "surface": "chat",
+      "role": "compare",
+      "status": "blocked",
+      "blocked_reason": "DASHSCOPE_API_KEY rejected with HTTP 401 on both dashscope.aliyuncs.com and dashscope-intl",
+      "discovered": false,
+      "aliases": []
+    },
+    {
+      "display_name": "Composer 2.5",
+      "model_id": "composer-2.5",
+      "provider": "cursor",
+      "channel": "cursor",
+      "surface": "chat",
+      "role": "compare",
+      "status": "blocked",
+      "blocked_reason": "cursor_sdk not installed; Cursor agent session transport unavailable",
+      "discovered": false,
+      "aliases": []
+    },
+    {
+      "display_name": "Kimi",
+      "model_id": "kimi-k3",
+      "provider": "moonshot",
+      "channel": "opencode-go",
+      "surface": "chat",
+      "role": "compare",
+      "status": "available",
+      "blocked_reason": null,
+      "discovered": true,
+      "aliases": [
+        "kimi-k2.7-code"
+      ]
+    },
+    {
+      "display_name": "GLM",
+      "model_id": "glm-5.3-flash",
+      "provider": "zhipu",
+      "channel": "opencode-go",
+      "surface": "chat",
+      "role": "compare",
+      "status": "available",
+      "blocked_reason": null,
+      "discovered": true,
+      "aliases": [
+        "glm-5.3"
+      ]
+    },
+    {
+      "display_name": "GPT 6 Luna",
+      "model_id": "gpt-6-luna",
+      "provider": "openai",
+      "channel": "opencode-go",
+      "surface": "responses",
+      "role": "compare",
+      "status": "available",
+      "blocked_reason": null,
+      "discovered": true,
+      "aliases": []
+    },
+    {
+      "display_name": "Grok 4.7",
+      "model_id": "grok-4.7",
+      "provider": "xai",
+      "channel": "opencode-go",
+      "surface": "responses",
+      "role": "compare",
+      "status": "available",
+      "blocked_reason": null,
+      "discovered": true,
+      "aliases": []
+    },
+    {
+      "display_name": "Mimo",
+      "model_id": "mimo-v2.5",
+      "provider": "xiaomi",
+      "channel": "opencode-go",
+      "surface": "chat",
+      "role": "compare",
+      "status": "available",
+      "blocked_reason": null,
+      "discovered": true,
+      "aliases": []
+    }
+  ],
+  "arms": {
+    "generation": [
+      "G0_direct",
+      "G1_self_iter",
+      "G2_tools_iter",
+      "G3_concir",
+      "G3_codegen"
+    ],
+    "repair": [
+      "A0_direct",
+      "A1_self_iter",
+      "A2_tools_iter",
+      "A3_ours_revision",
+      "A3p_ours_patch",
+      "A3_tool_repair",
+      "A3_nodiag",
+      "A3_nopreserved",
+      "A3_nofidelity"
+    ],
+    "note": "arms are read from arms.py / experiments_v2.py, not guessed"
+  },
+  "tasks": [
+    {
+      "id": "atomic-data/atomic_lost_update",
+      "tier": "Medium",
+      "family": "atomic-data"
+    },
+    {
+      "id": "atomic-data/bounded_counter_invariant",
+      "tier": "Simple",
+      "family": "atomic-data"
+    },
+    {
+      "id": "atomic-data/counter_overflow_safety",
+      "tier": "Simple",
+      "family": "atomic-data"
+    },
+    {
+      "id": "channel/bounded_backpressure_lock_held",
+      "tier": "Medium",
+      "family": "channel"
+    },
+    {
+      "id": "channel/rendezvous_both_send",
+      "tier": "Simple",
+      "family": "channel"
+    },
+    {
+      "id": "channel/send_while_holding_mutex",
+      "tier": "Simple",
+      "family": "channel"
+    },
+    {
+      "id": "condvar/bare_wait_no_predicate",
+      "tier": "Complex",
+      "family": "condvar"
+    },
+    {
+      "id": "condvar/lost_wakeup_notify_before_wait",
+      "tier": "Complex",
+      "family": "condvar"
+    },
+    {
+      "id": "condvar/notify_one_multi_waiter_wrong_pick",
+      "tier": "Complex",
+      "family": "condvar"
+    },
+    {
+      "id": "condvar/same_cv_different_locks",
+      "tier": "Complex",
+      "family": "condvar"
+    },
+    {
+      "id": "lock-order/abba_2lock",
+      "tier": "Medium",
+      "family": "lock-order"
+    },
+    {
+      "id": "lock-order/cross_module_cycle",
+      "tier": "Medium",
+      "family": "lock-order"
+    },
+    {
+      "id": "lock-order/cycle_3lock",
+      "tier": "Complex",
+      "family": "lock-order"
+    },
+    {
+      "id": "lock-order/partial_deadlock_bystander",
+      "tier": "Complex",
+      "family": "lock-order"
+    },
+    {
+      "id": "lock-order/two_independent_cycles",
+      "tier": "Complex",
+      "family": "lock-order"
+    },
+    {
+      "id": "semaphore/acquire_twice_no_release",
+      "tier": "Simple",
+      "family": "semaphore"
+    },
+    {
+      "id": "semaphore/permit_leak",
+      "tier": "Simple",
+      "family": "semaphore"
+    },
+    {
+      "id": "semaphore/throttle_n_permits",
+      "tier": "Medium",
+      "family": "semaphore"
+    },
+    {
+      "id": "structure/finite_call_loop",
+      "tier": "Simple",
+      "family": "structure"
+    },
+    {
+      "id": "structure/nested_scope_lock_order",
+      "tier": "Medium",
+      "family": "structure"
+    },
+    {
+      "id": "structure/scope_bound_k_workers",
+      "tier": "Complex",
+      "family": "structure"
+    },
+    {
+      "id": "structure/scope_worker_abba",
+      "tier": "Medium",
+      "family": "structure"
+    },
+    {
+      "id": "structure/spawn_join_loop_finite",
+      "tier": "Simple",
+      "family": "structure"
+    },
+    {
+      "id": "structure/worker_with_payload",
+      "tier": "Medium",
+      "family": "structure"
+    }
+  ],
+  "budgets": {
+    "K_cir": 4,
+    "K_code": 3,
+    "reps_generation_main": 3,
+    "reps_ablation": 1,
+    "first_candidate_round": 1
+  },
+  "acceptance": {
+    "cir": "explore outcome == PASS and complete == True",
+    "code": "builds, operation-bound conform has no violation and at least one conformant trace, monitor has no FAIL",
+    "awp": "model PASS and conform PASS and no monitor FAIL"
+  }
+}

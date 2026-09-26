@@ -1,0 +1,37 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E108",
+      "severity": "error",
+      "message": "cross-module reference 'mod2::t2' is not listed in requires.functions",
+      "path": "modules[0].functions[0].body[0]",
+      "location": "mod1::main.s1",
+      "fix_hint": "add this FQN to the module's requires.functions",
+      "json_path": "modules[0].functions[0].body[0]",
+      "declared_symbols": {
+        "function": "mod1::main",
+        "params": [],
+        "locals": []
+      },
+      "declared_functions": [
+        "mod1::main",
+        "mod1::t1",
+        "mod2::t2"
+      ]
+    }
+  ],
+  "expected_shapes": [
+    "a cross-module function reference must be declared and listed in requires.functions (declared in mod1::main: params [], locals [])",
+    "add this FQN to the module's requires.functions"
+  ],
+  "declared_functions": [
+    "mod1::main",
+    "mod1::t1",
+    "mod2::t2"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

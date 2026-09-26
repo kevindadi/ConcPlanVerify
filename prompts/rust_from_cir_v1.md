@@ -25,7 +25,7 @@ resource, use that name.
 
 ## Library
 
-An external crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.
+The provided crate `concir_sync` is already linked; write `use concir_sync::Semaphore;`. It is part of the harness, not a third-party dependency. Do not declare `mod concir_sync` and do not implement a semaphore yourself. Semaphore API: `Semaphore::new(n)` (returns an `Arc`), `acquire()` (returns a permit whose `Drop` releases), `try_acquire()`, `permit.release()` (consumes the permit to release early). There is no `Semaphore::release`; never release the same permit twice.
 
 ## Entity conventions
 
@@ -46,13 +46,14 @@ An external crate `concir_sync` is already linked; write `use concir_sync::Semap
 ## Rules
 
 - One file, compiled as a binary crate; define `fn main`.
-- Standard library only: `std::thread`, `std::sync::{Mutex, Condvar, Arc,
-  atomic::*}`, `std::sync::mpsc`, `std::time`. No external crates, no `unsafe`,
-  no `#![feature]`.
+- Standard library plus the provided `concir_sync`: `std::thread`,
+  `std::sync::{Mutex, Condvar, Arc, atomic::*}`, `std::sync::mpsc`, `std::time`,
+  `concir_sync::Semaphore`. No other external crates, no `unsafe`, no
+  `#![feature]`.
 - Implement the CIR's mutexes with `Mutex`, condition variables with `Condvar`
-  (wait in a predicate loop guarded by the mutex), semaphores with a
-  counter+`Condvar`, and channels with `mpsc` (use `sync_channel` for a bounded
-  channel; a zero-capacity `sync_channel` is a rendezvous).
+  (wait in a predicate loop guarded by the mutex), semaphores with the provided
+  `concir_sync::Semaphore`, and channels with `mpsc` (use `sync_channel` for a
+  bounded channel; a zero-capacity `sync_channel` is a rendezvous).
 - Preserve the intended contention and synchronization structure. Do not make
   the program sequential and do not remove a critical section.
 - Do not use `sleep`, `yield_now`, timing, or environment-dependent behavior to
