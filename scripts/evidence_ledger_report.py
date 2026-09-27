@@ -25,11 +25,31 @@ def _cell_dir(batch: Path, cell: dict) -> Path:
             / f"rep{cell.get('replicate', 0)}")
 
 
+def _contract(task_id: str) -> dict:
+    return json.loads((REPO / "benchmarks/families" / task_id / "contract.json").read_text())
+
+
+def _behavior_from_common_eval(root: Path | None, model: str, task_id: str,
+                               rep: int) -> bool | None:
+    """Read the accepted-candidate run outcome recorded by common_eval_v2."""
+
+    if root is None:
+        return None
+    p = (root / model / "G3" / task_id.replace("/", "__") / f"rep{rep}"
+         / "accepted" / "eval.json")
+    if not p.is_file():
+        return None
+    return json.loads(p.read_text()).get("behavior_ok")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch", action="append", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--behavior-root", default=None,
+                        help="common_eval_v2 dir providing accepted behavior_ok")
     args = parser.parse_args()
+    behavior_root = Path(args.behavior_root) if args.behavior_root else None
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -48,6 +68,9 @@ def main() -> int:
             cdir = _cell_dir(batch, c)
             row = dict(c)
             row["cell"] = f"{c['model']}/{c['task']}/rep{c.get('replicate',0)}"
+            if row.get("behavior_ok") is None:
+                row["behavior_ok"] = _behavior_from_common_eval(
+                    behavior_root, c["model"], c["task"], c.get("replicate", 0))
             if not (cdir / "code").is_dir():
                 # CIR-only or failed before code: no code evidence.
                 verdict = "cir_only" if c.get("cir_accepted") else "no_cir"
@@ -57,7 +80,7 @@ def main() -> int:
                                       "historical": "accepted", "new": verdict,
                                       "note": "accepted without a code directory"})
                 continue
-            ev = evaluate_cell(cdir, row)
+            ev = evaluate_cell(cdir, row, _contract(c["task"]))
             verdicts[ev.verdict] += 1
             ledger.append({"batch": batch.name, **ev.to_dict()})
             if c.get("accepted"):

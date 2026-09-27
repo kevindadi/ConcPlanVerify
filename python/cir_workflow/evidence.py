@@ -1,17 +1,19 @@
-"""Per-property evidence ledger.
+"""Per-property evidence ledger (strong-link v1).
 
-Separates the claims the historical ``accepted`` flag conflated:
+Each declared contract property gets an independent record. The ledger never
+upgrades a tool limitation into a pass, never falls back to a rejected round as
+if it were accepted, and never lets a model proof stand in for implementation
+evidence that the property's own obligation requires.
 
-- ``cir``  — the property was proved by exhaustive CIR exploration (with the
-  exploration completeness);
-- ``impl`` — the accepted Rust faithfully corresponds to the CIR part that
-  carries the property (operation-bound conformance evidence);
-- ``run``  — the bounded run did not violate it.
+Per property:
 
-``unsupported`` / ``unmapped`` / ``not_observed`` are inconclusive, never PASS.
-``deadlock_free`` reported ``deferred`` is linked to the CIR proof and the
-bounded run. A finite run that observed no relevant events is not evidence that
-the implementation matches the model.
+- ``model_verdict``               CIR exploration outcome (PASS/FAIL/None)
+- ``model_complete``              exploration completeness
+- ``implementation_obligation``   what the Rust must preserve for this property
+- ``implementation_evidence``     op-resource conformance + observed coverage
+- ``observed_trace_result``       raw monitor status (unsupported/unmapped/...)
+- ``independent_requirement_result``  a non-trace check, or ``none``
+- ``final_claim``                 supported | violated | inconclusive | not_applicable
 """
 
 from __future__ import annotations
@@ -29,6 +31,10 @@ OBSERVABLE_KINDS = {
 }
 SPAWN_KINDS = {"spawn", "spawn_async", "scope"}
 
+# Property kinds a finite observed trace can carry.
+TRACE_DECIDABLE = {"safety", "never_holds_all", "unreachable", "reachable",
+                   "holds_all", "always_reachable", "deadlock_free", "reachable_all"}
+
 
 def _sha(path: Path) -> str | None:
     try:
@@ -38,37 +44,65 @@ def _sha(path: Path) -> str | None:
 
 
 def _norm(pid: str) -> str:
-    return pid.replace("preserved: ", "").strip()
+    return (pid or "").replace("preserved: ", "").strip()
+
+
+def contract_properties(contract: dict) -> list[dict]:
+    """Enumerate every declared property from the frozen contract."""
+
+    out: list[dict] = []
+    for p in contract.get("properties", []) or []:
+        out.append({"id": p.get("id"), "kind": p.get("kind"),
+                    "req": p.get("req", []), "source": "properties",
+                    "goal": p.get("goal")})
+    for p in contract.get("preserved", []) or []:
+        out.append({"id": p.get("description") or p.get("id"), "kind": p.get("kind"),
+                    "req": p.get("req", []), "source": "preserved",
+                    "goal": p.get("goal")})
+    return out
+
+
+def obligation_for(kind: str) -> str:
+    if kind == "deadlock_free":
+        return "no reachable deadlock; blocked/enabled relations preserved"
+    if kind in {"safety", "never_holds_all", "unreachable"}:
+        return "the forbidden state is never observed"
+    if kind in {"reachable", "holds_all", "always_reachable", "reachable_all"}:
+        return "the goal state is reached and observed"
+    return "the property holds under the implementation"
 
 
 @dataclass
-class PropertyVerdict:
+class PropertyEvidence:
     property_id: str
     kind: str
     requirements: list[str]
-    monitor_status: str
-    cir_outcome: str | None       # PASS | FAIL | None
-    cir_complete: bool | None
-    impl_correspondence: str      # supported | insufficient | not_applicable
-    verdict: str                  # supported | violated | inconclusive | not_applicable
-    basis: str
+    model_verdict: str | None
+    model_complete: bool | None
+    implementation_obligation: str
+    implementation_evidence: str
+    observed_trace_result: str
+    independent_requirement_result: str
+    final_claim: str
+    reason_and_artifact_refs: str
 
 
 @dataclass
 class CellEvidence:
     cell: str
-    cir_verified: bool
-    cir_complete: bool | None
+    accepted: bool
+    model_verified: bool
+    model_complete: bool | None
+    bounded_trace_pass: bool
+    evidence_sufficient: bool
+    correspondence: str
+    observed_events: int
     observable_ops: int
     spawns: int
-    observed_events: int
-    traces_total: int
-    traces_empty: int
-    correspondence: str
-    properties: list[PropertyVerdict] = field(default_factory=list)
-    verdict: str = "inconclusive"
+    source_sha256: str | None
+    properties: list[PropertyEvidence] = field(default_factory=list)
+    verdict: str = "not_accepted"
     reasons: list[str] = field(default_factory=list)
-    source_sha256: str | None = None
     human_review: str = "pending"
 
     def to_dict(self) -> dict:
@@ -98,21 +132,17 @@ def _accepted_cir(cell_dir: Path) -> Path | None:
     return revs[-1] if revs else None
 
 
-def _accepted_round(cell_dir: Path, hint: int | None) -> Path | None:
-    if hint:
-        cand = cell_dir / "code" / f"round-{hint}"
-        if (cand / "monitor.json").is_file():
-            return cand
-    for r in reversed(sorted(cell_dir.glob("code/round-*"))):
-        if (r / "monitor.json").is_file():
-            return r
-    return None
+def _accepted_round(cell_dir: Path, round_no: int | None) -> Path | None:
+    """The accepted round only; never a fallback to a rejected round."""
+
+    if not round_no:
+        return None
+    cand = cell_dir / "code" / f"round-{round_no}"
+    return cand if (cand / "monitor.json").is_file() else None
 
 
 def load_cir_properties(cell_dir: Path, accepted_cir: Path | None
                         ) -> tuple[dict[str, str], bool | None]:
-    """Find the explore call whose program matches the accepted CIR."""
-
     if accepted_cir is None:
         return {}, None
     target = _sha(accepted_cir)
@@ -124,60 +154,60 @@ def load_cir_properties(cell_dir: Path, accepted_cir: Path | None
             data = json.loads(out.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             continue
-        props = {_norm(p["id"]): p.get("outcome")
-                 for p in data.get("properties", [])}
-        return props, data.get("complete")
+        return ({_norm(p["id"]): p.get("outcome") for p in data.get("properties", [])},
+                data.get("complete"))
     return {}, None
 
 
-def classify_property(prop: dict, *, cir_outcome: str | None, cir_complete: bool | None,
-                      impl: str, behavior_ok: bool | None) -> PropertyVerdict:
-    status = prop.get("status", "not_observed")
-    kind = prop.get("kind", "")
-    pid = prop.get("id", "")
-    reqs = prop.get("req", [])
-    if status == "FAIL":
-        return PropertyVerdict(pid, kind, reqs, status, cir_outcome, cir_complete,
-                               impl, "violated", "monitor reported FAIL")
-    if cir_outcome == "FAIL":
-        return PropertyVerdict(pid, kind, reqs, status, cir_outcome, cir_complete,
-                               impl, "violated", "CIR exploration refuted the property")
-    cir_proved = cir_outcome == "PASS" and cir_complete is True
-    if cir_proved and impl in {"supported", "not_applicable"}:
-        basis = "CIR proved it and the implementation correspondence is evidenced"
-        if impl == "not_applicable":
-            basis = "CIR proved it; no observable operation to contradict it"
-        return PropertyVerdict(pid, kind, reqs, status, cir_outcome, cir_complete,
-                               impl, "supported", basis)
-    if cir_proved and impl == "insufficient":
-        return PropertyVerdict(pid, kind, reqs, status, cir_outcome, cir_complete,
-                               impl, "inconclusive",
-                               "CIR proved it, but implementation correspondence "
-                               "has no observed evidence")
-    if status == "PASS_bounded" and impl != "insufficient":
-        return PropertyVerdict(pid, kind, reqs, status, cir_outcome, cir_complete,
-                               impl, "supported", "observed on every bounded run")
-    if status == "deferred" and kind == "deadlock_free":
-        return PropertyVerdict(pid, kind, reqs, status, cir_outcome, cir_complete,
-                               impl, "inconclusive",
-                               "deferred and no complete CIR proof attached")
-    return PropertyVerdict(pid, kind, reqs, status, cir_outcome, cir_complete,
-                           impl, "inconclusive",
-                           f"monitor status {status}; CIR {cir_outcome or 'absent'}")
+def _claim_for(kind: str, observed: str, model_verdict: str | None,
+               model_complete: bool | None, correspondence: str,
+               behavior_ok: bool | None) -> tuple[str, str]:
+    """Return (final_claim, reason). Conservative by design."""
+
+    if observed == "FAIL":
+        return "violated", "monitor reported FAIL"
+    if model_verdict == "FAIL":
+        return "violated", "CIR exploration refuted the property"
+    cir_proved = model_verdict == "PASS" and model_complete is True
+    if kind == "deadlock_free":
+        if behavior_ok is False:
+            return "violated", "the bounded run did not complete on every run"
+        if cir_proved and behavior_ok is True:
+            return "supported", "CIR proved deadlock-freedom and every run completed"
+        if cir_proved:
+            return "inconclusive", "CIR proved deadlock-freedom but no run outcome is recorded"
+        return "inconclusive", "deferred and no complete CIR proof attached"
+    if observed == "PASS_bounded" and correspondence == "supported":
+        return "supported", "observed on every bounded run and correspondence evidenced"
+    if observed == "PASS_bounded" and correspondence == "not_applicable":
+        return "supported", "observed on every bounded run"
+    if observed in {"unsupported", "unmapped", "not_observed", "deferred"}:
+        if kind not in TRACE_DECIDABLE:
+            return "inconclusive", (f"monitor status {observed}: a trace cannot carry "
+                                    "this property, and a model proof does not replace "
+                                    "implementation evidence")
+        if correspondence == "insufficient":
+            return "inconclusive", (f"monitor status {observed} and implementation "
+                                    "correspondence has no observed evidence")
+        return "inconclusive", f"monitor status {observed}: no decisive evidence"
+    if correspondence == "insufficient":
+        return "inconclusive", "no relevant events observed"
+    return "inconclusive", f"unrecognised monitor status {observed}"
 
 
-def evaluate_cell(cell_dir: Path, cell_row: dict) -> CellEvidence:
+def evaluate_cell(cell_dir: Path, cell_row: dict, contract: dict) -> CellEvidence:
+    accepted = cell_row.get("accepted") is True
     accepted_cir = _accepted_cir(cell_dir)
     ops, spawns = cir_observability(accepted_cir) if accepted_cir else (0, 0)
     cir_props, cir_complete = load_cir_properties(cell_dir, accepted_cir)
-    accepted_round = _accepted_round(cell_dir, cell_row.get("first_code_accept_round"))
-    traces_total = traces_empty = observed = 0
-    if accepted_round and (accepted_round / "conform-traces").is_dir():
-        for f in sorted((accepted_round / "conform-traces").glob("*.jsonl")):
-            traces_total += 1
-            lines = [ln for ln in f.read_text(encoding="utf-8").splitlines() if ln.strip()]
-            traces_empty += (not lines)
-            observed += len(lines)
+    round_no = cell_row.get("first_code_accept_round") if accepted else None
+    rnd = _accepted_round(cell_dir, round_no)
+
+    observed = 0
+    if rnd and (rnd / "conform-traces").is_dir():
+        for f in sorted((rnd / "conform-traces").glob("*.jsonl")):
+            observed += len([ln for ln in f.read_text(encoding="utf-8").splitlines()
+                             if ln.strip()])
     if ops + spawns == 0:
         correspondence = "not_applicable"
     elif observed == 0:
@@ -186,32 +216,65 @@ def evaluate_cell(cell_dir: Path, cell_row: dict) -> CellEvidence:
         correspondence = "supported"
 
     monitor = {}
-    if accepted_round and (accepted_round / "monitor.json").is_file():
-        monitor = json.loads((accepted_round / "monitor.json").read_text(encoding="utf-8"))
+    if rnd and (rnd / "monitor.json").is_file():
+        monitor = json.loads((rnd / "monitor.json").read_text(encoding="utf-8"))
+    status_by_id = {_norm(p.get("id")): p.get("status", "not_observed")
+                    for p in monitor.get("properties", [])}
     behavior_ok = cell_row.get("behavior_ok")
-    props = [classify_property(p, cir_outcome=cir_props.get(_norm(p.get("id", ""))),
-                               cir_complete=cir_complete, impl=correspondence,
-                               behavior_ok=behavior_ok)
-             for p in monitor.get("properties", [])]
+
+    props: list[PropertyEvidence] = []
+    for cp in contract_properties(contract):
+        pid = cp["id"]
+        observed_status = status_by_id.get(_norm(pid), "not_observed")
+        mv = cir_props.get(_norm(pid))
+        claim, reason = _claim_for(cp["kind"], observed_status, mv, cir_complete,
+                                   correspondence, behavior_ok)
+        props.append(PropertyEvidence(
+            property_id=pid, kind=cp["kind"], requirements=cp.get("req", []),
+            model_verdict=mv, model_complete=cir_complete,
+            implementation_obligation=obligation_for(cp["kind"]),
+            implementation_evidence=(f"conform-traces events={observed}; "
+                                     f"correspondence={correspondence}"),
+            observed_trace_result=observed_status,
+            independent_requirement_result="none",
+            final_claim=claim, reason_and_artifact_refs=reason))
+
+    model_verified = bool(cell_row.get("cir_accepted")) and cir_complete is True
+    bounded_trace_pass = bool(monitor) and all(
+        s in {"PASS_bounded", "deferred", "unverifiable", "unsupported", "unmapped",
+              "not_observed"} and s != "FAIL"
+        for s in status_by_id.values()) and not monitor.get("properties", []) == []
 
     reasons: list[str] = []
-    if any(p.verdict == "violated" for p in props):
+    if not accepted:
+        verdict = "not_accepted"
+        reasons.append("no accepted round; the ledger does not fall back to a rejected round")
+    elif behavior_ok is False:
         verdict = "explicit_failure"
+        reasons.append("the bounded run did not complete on every run")
+    elif any(p.final_claim == "violated" for p in props):
+        verdict = "explicit_failure"
+        reasons.append("at least one property is violated")
+    elif not props:
+        verdict = "insufficient"
+        reasons.append("no declared properties to check")
     elif correspondence == "insufficient":
         verdict = "insufficient"
         reasons.append("no relevant events observed though the CIR models observable ops")
-    elif any(p.verdict == "inconclusive" for p in props):
+    elif any(p.final_claim == "inconclusive" for p in props):
         verdict = "insufficient"
         reasons.append("some declared properties lack decisive evidence")
+    elif _sha(cell_dir / f"code/round-{round_no}.rs") is None:
+        verdict = "insufficient"
+        reasons.append("missing accepted source hash")
     else:
         verdict = "sufficient"
 
     return CellEvidence(
         cell=cell_row.get("cell") or f"{cell_row.get('model')}/{cell_row.get('task')}",
-        cir_verified=bool(cell_row.get("cir_accepted")), cir_complete=cir_complete,
-        observable_ops=ops, spawns=spawns, observed_events=observed,
-        traces_total=traces_total, traces_empty=traces_empty,
-        correspondence=correspondence, properties=props, verdict=verdict,
-        reasons=reasons,
-        source_sha256=_sha(cell_dir / f"code/round-{cell_row.get('first_code_accept_round')}.rs")
-        if cell_row.get("first_code_accept_round") else None)
+        accepted=accepted, model_verified=model_verified, model_complete=cir_complete,
+        bounded_trace_pass=bounded_trace_pass, evidence_sufficient=(verdict == "sufficient"),
+        correspondence=correspondence, observed_events=observed, observable_ops=ops,
+        spawns=spawns,
+        source_sha256=_sha(cell_dir / f"code/round-{round_no}.rs") if round_no else None,
+        properties=props, verdict=verdict, reasons=reasons)

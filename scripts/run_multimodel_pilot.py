@@ -203,6 +203,9 @@ def main() -> int:
                             else None,
                         "failure_stage": None if accepted else fail_stage,
                         "failure_detail": None if accepted else fail_detail,
+                        "behavior_ok": next((r.get("behavior_ok") for r in rounds
+                                             if r.get("stage") == "code"
+                                             and r.get("decision") == "accepted"), None),
                         "error": rec.get("error"),
                     })
                 except ChannelUnavailable as exc:
