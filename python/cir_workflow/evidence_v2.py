@@ -71,6 +71,19 @@ def hash_verification(result: dict) -> dict:
 
     roles = {a.get("role") for a in artifacts}
     missing = sorted(REQUIRED_ROLES - roles)
+    # The top-level candidate fields must match the role artifacts, so a swapped
+    # candidate cannot inherit another candidate's evidence.
+    by_role: dict = {}
+    for a in artifacts:
+        by_role.setdefault(a.get("role"), []).append(a)
+    mismatch = []
+    for role, pkey, skey in (("source", "source_path", "source_sha256"),
+                             ("cir", "cir_path", "cir_sha256"),
+                             ("contract", "contract_path", "contract_sha256")):
+        arts = by_role.get(role, [])
+        if not any(a.get("path") == result.get(pkey) and a.get("sha256") == result.get(skey)
+                   for a in arts):
+            mismatch.append(role)
     func = result.get("functional") or {}
     if func.get("status") in {"pass", "fail"} and "functional" not in roles:
         missing.append("functional")
@@ -82,7 +95,8 @@ def hash_verification(result: dict) -> dict:
         detail[a.get("path")] = {"role": a.get("role"),
                                  "recorded": bool(a.get("sha256")), "match": match}
         ok = ok and match
-    return {"verified": ok and not missing, "missing_roles": missing,
+    return {"verified": ok and not missing and not mismatch, "missing_roles": missing,
+            "candidate_mismatch": sorted(mismatch),
             "roles": sorted(r for r in roles if r), "detail": detail}
 
 
@@ -198,9 +212,12 @@ class PropertyLedger:
 def _functional_state(result: dict) -> dict:
     f = result.get("functional") or {}
     status = f.get("status", "not_run")
-    valid = status in {"pass", "fail"} and bool(f.get("evidence"))
+    path = f.get("evidence_path")
+    file_ok = bool(path) and Path(path).is_file()
+    # A functional conclusion needs its own recorded output, not just a string.
+    valid = status in {"pass", "fail"} and bool(f.get("evidence")) and file_ok
     return {"status": status, "valid": valid, "evidence": f.get("evidence"),
-            "detail": f.get("detail")}
+            "evidence_path": path, "detail": f.get("detail")}
 
 
 @dataclass

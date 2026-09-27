@@ -26,6 +26,9 @@ def _files(tmp: Path) -> dict:
              "sha256": hashlib.sha256(p.read_bytes()).hexdigest()}
             for role, p in roles.items()]
     return {"source_path": str(src), "cir_path": str(cir), "contract_path": str(con),
+            "source_sha256": hashlib.sha256(src.read_bytes()).hexdigest(),
+            "cir_sha256": hashlib.sha256(cir.read_bytes()).hexdigest(),
+            "contract_sha256": hashlib.sha256(con.read_bytes()).hexdigest(),
             "artifacts": arts}
 
 
@@ -165,7 +168,9 @@ class StateMachineTests(unittest.TestCase):
 
     def test_functional_fail_is_explicit(self):
         with tempfile.TemporaryDirectory() as td:
-            r = _result(Path(td), functional={"status": "fail", "evidence": "stdout=DONE done=5"})
+            ev = Path(td) / "functional.txt"; ev.write_text("stdout=DONE done=5")
+            r = _result(Path(td), functional={"status": "fail", "evidence": "stdout=DONE done=5",
+                                              "evidence_path": str(ev)})
             led = _ev(r)
         self.assertEqual(led.current_evaluation, "functional_failure")
         self.assertNotIn(led.current_evaluation, {"inconclusive", "satisfied_bounded"})
@@ -173,7 +178,9 @@ class StateMachineTests(unittest.TestCase):
     def test_sync_pass_cannot_override_functional_fail(self):
         with tempfile.TemporaryDirectory() as td:
             # model PASS + sync observed_conformant, but functional fails
-            r = _result(Path(td), functional={"status": "fail", "evidence": "x"})
+            ev = Path(td) / "functional.txt"; ev.write_text("x")
+            r = _result(Path(td), functional={"status": "fail", "evidence": "x",
+                                              "evidence_path": str(ev)})
             led = _ev(r)
         self.assertEqual(led.trace["state"], "observed_conformant")
         self.assertEqual(led.current_evaluation, "functional_failure")
@@ -187,6 +194,26 @@ class StateMachineTests(unittest.TestCase):
         self.assertNotEqual(led.current_evaluation, "requirement_failure")
         self.assertEqual(led.current_evaluation, "inconclusive")
         self.assertIn("evidence_invalid", " ".join(led.reasons))
+
+    def test_swapped_candidate_fields_block(self):
+        # Change the top-level source while keeping the old artifacts.
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td))
+            r["source_sha256"] = "SWAPPED"
+            led = _ev(r)
+        self.assertFalse(led.hashes["verified"])
+        self.assertIn("source", led.hashes.get("candidate_mismatch", []))
+        self.assertNotEqual(led.current_evaluation, "satisfied_bounded")
+
+    def test_functional_with_missing_evidence_file_is_invalid(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), functional={"status": "fail",
+                                              "evidence": "stale",
+                                              "evidence_path": "/nonexistent/f.json"})
+            led = _ev(r)
+        self.assertFalse(led.layers["functional"] == "fail"
+                         and led.current_evaluation == "functional_failure")
+        self.assertNotEqual(led.current_evaluation, "functional_failure")
 
     def test_layers_recorded(self):
         with tempfile.TemporaryDirectory() as td:
