@@ -30,7 +30,8 @@ def _rounds(cell: Path) -> list[Path]:
                   key=lambda p: int(p.name.split("-")[1]))
 
 
-def replay(cell: Path, binary: Path) -> dict:
+def replay(cell: Path, binary: Path, reinstrument: bool = False,
+           instrument_binary: Path | None = None) -> dict:
     cir_path = _accepted_cir(cell)
     if not cir_path:
         return {"cell": cell.name, "error": "no cir"}
@@ -40,6 +41,17 @@ def replay(cell: Path, binary: Path) -> dict:
     rnd = rounds[-1]
     res_path = rnd / "instrument" / "resources.json"
     traces = rnd / "traces"
+    if reinstrument:
+        rust = cell / "code" / f"{rnd.name}.rs"
+        if not rust.is_file() or instrument_binary is None:
+            return {"cell": cell.name, "error": "no source for re-instrument"}
+        out = rnd / "instrument-replay"
+        try:
+            generation.rust_oracle.instrument_wrappers(
+                rust.read_text(encoding="utf-8"), out, binary=instrument_binary)
+        except Exception as exc:  # noqa: BLE001
+            return {"cell": cell.name, "error": f"instrument: {exc}"}
+        res_path = out / "resources.json"
     if not res_path.is_file() or not traces.is_dir():
         return {"cell": cell.name, "error": "no instrument/traces"}
     resources = json.loads(res_path.read_text())["resources"]
@@ -62,17 +74,21 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch", required=True)
     parser.add_argument("--binary", default=str(REPO.parent / "ConcIR/target/release/concir-backend"))
+    parser.add_argument("--instrument", default=str(REPO.parent / "ConcIR/target/release/concir-instrument"))
+    parser.add_argument("--reinstrument", action="store_true")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
     batch = Path(args.batch)
     if not batch.is_absolute():
         batch = REPO / batch
     binary = Path(args.binary)
+    instrument = Path(args.instrument)
     results = []
     for cell in sorted(batch.glob("*/*/rep*")):
         if not (cell / "code").is_dir():
             continue
-        results.append(replay(cell, binary))
+        results.append(replay(cell, binary, reinstrument=args.reinstrument,
+                              instrument_binary=instrument))
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     (out / "MAPPING_REPLAY.json").write_text(
