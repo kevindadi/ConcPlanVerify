@@ -24,7 +24,27 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "python"))
 
+import subprocess  # noqa: E402
+
 from cir_workflow.generation import mapping_to_cir  # noqa: E402
+
+
+def run_rust(resources_path, cir_path, manifest_path=None, binary=None) -> dict | None:
+    """Call the ConcIR ``bind_check`` CLI and return its JSON, or None if absent."""
+
+    binary = Path(binary) if binary else REPO.parent / "ConcIR/target/release/bind_check"
+    if not Path(binary).is_file():
+        return None
+    argv = [str(binary), "--resources", str(resources_path), "--cir", str(cir_path)]
+    if manifest_path:
+        argv += ["--manifest", str(manifest_path)]
+    proc = subprocess.run(argv, capture_output=True, text=True)
+    if proc.returncode != 0:
+        return None
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        return None
 
 
 def check(resources: list[dict], cir: dict, manifest: list[dict] | None) -> dict:

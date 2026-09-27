@@ -63,18 +63,42 @@ def _count_ops(directory: Path, ops: set[str]) -> int:
     return total
 
 
+def _finalize(out: Path, result: dict, contract_path: Path, accepted: bool,
+              cir_props: dict | None, cir_complete: bool | None) -> dict:
+    """Every exit path (success or any failure) writes a result with a ledger."""
+
+    try:
+        contract = json.loads(Path(contract_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        contract = {"properties": [], "preserved": []}
+    ledger = evaluate_reexecution(result, contract, accepted=accepted,
+                                  cir_props=cir_props or {}, cir_complete=cir_complete)
+    result["ledger"] = ledger.to_dict()
+    result["evidence_path"] = str(out / "result.json")
+    (out / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n",
+                                     encoding="utf-8")
+    return result
+
+
 def reexecute(source: str, cir_path: Path, contract_path: Path, out: Path, *,
               binary: Path, instrument: Path, n_runs: int = 32,
               run_timeout: float = 10.0, accepted: bool = True, cell_id: str = '',
               cir_props: dict | None = None,
-              cir_complete: bool | None = None) -> dict:
+              cir_complete: bool | None = None,
+              candidate_kind: str = 'final', round_no: int | None = None) -> dict:
     out.mkdir(parents=True, exist_ok=True)
+    source_path = out / "source.rs"
+    source_path.write_text(source, encoding="utf-8")
     result: dict = {
         "cell": cell_id,
+        "source_path": str(source_path), "cir_path": str(cir_path),
+        "contract_path": str(contract_path),
         "source_sha256": hashlib.sha256(source.encode()).hexdigest(),
         "cir_sha256": _sha(cir_path), "contract_sha256": _sha(contract_path),
         "backend_sha256": _sha(binary), "instrument_sha256": _sha(instrument),
         "n_runs": n_runs, "stages": {}, "limitations": [],
+        "candidate_kind": candidate_kind, "round_no": round_no,
+        "cir_props": cir_props or {}, "cir_complete": cir_complete,
     }
     # 1. source build (original program, before instrumentation)
     src_proj = out / "source-proj"
@@ -85,7 +109,7 @@ def reexecute(source: str, cir_path: Path, contract_path: Path, out: Path, *,
     (out / "source-build.log").write_text(src_log, encoding="utf-8")
     result["stages"]["source_build"] = "ok" if src_ok else "failed"
     if not src_ok:
-        return result
+        return _finalize(out, result, contract_path, accepted, cir_props, cir_complete)
 
     # 2. instrument
     try:
@@ -93,7 +117,7 @@ def reexecute(source: str, cir_path: Path, contract_path: Path, out: Path, *,
                                                   binary=instrument)
     except Exception as exc:  # noqa: BLE001
         result["stages"]["instrument"] = f"error: {exc}"
-        return result
+        return _finalize(out, result, contract_path, accepted, cir_props, cir_complete)
     result["stages"]["instrument"] = "ok"
     result["limitations"] = wrapped["limitations"]
     result["resources"] = wrapped["resources"]
@@ -105,7 +129,7 @@ def reexecute(source: str, cir_path: Path, contract_path: Path, out: Path, *,
     (out / "instrumented-build.log").write_text(build_log, encoding="utf-8")
     result["stages"]["instrumented_build"] = "ok" if built else "failed"
     if not built:
-        return result
+        return _finalize(out, result, contract_path, accepted, cir_props, cir_complete)
 
     # 4. execute; raw traces
     runs = rust_oracle.run_native(proj, out / "traces", n=n_runs, timeout=run_timeout)
@@ -118,14 +142,30 @@ def reexecute(source: str, cir_path: Path, contract_path: Path, out: Path, *,
         "scope": _count_ops(out / "traces", {"scope"}),
     }
 
-    # 5. binding
+    # 5. binding via the ConcIR bind_check CLI (falls back to the Python
+    #    structural mapping only if the Rust binary is unavailable).
     cir = json.loads(cir_path.read_text(encoding="utf-8"))
-    mapping, prov = generation.mapping_to_cir(wrapped["resources"], cir)
+    rb = None
+    try:
+        from scripts.binding_check import run_rust  # type: ignore
+        rb = run_rust(out / "instrument/resources.json", cir_path)
+    except Exception:  # noqa: BLE001
+        rb = None
+    if rb is not None:
+        mapping = {name: v["cir"] for name, v in rb.get("verified", {}).items()}
+        ambiguous = [{"rust": k, **v} for k, v in rb.get("unresolved", {}).items()]
+        result["binding"] = {"mapping": mapping, "rules": {},
+                             "ambiguous": ambiguous,
+                             "violated": list(rb.get("violated", {}).keys()),
+                             "source": "rust-cli"}
+    else:
+        mapping, prov = generation.mapping_to_cir(wrapped["resources"], cir)
+        result["binding"] = {"mapping": mapping, "rules": prov.get("rules", {}),
+                             "ambiguous": prov.get("ambiguous", []),
+                             "source": "python-fallback"}
     (out / "binding.json").write_text(
-        json.dumps({"mapping": mapping, "provenance": prov}, indent=2) + "\n",
+        json.dumps({"mapping": mapping, "provenance": result["binding"]}, indent=2) + "\n",
         encoding="utf-8")
-    result["binding"] = {"mapping": mapping, "rules": prov.get("rules", {}),
-                         "ambiguous": prov.get("ambiguous", [])}
 
     # 6. projected traces for op-resource conformance (spawn/join/scope excluded
     #    from this check; they are a separate thread-lifecycle obligation).
@@ -147,13 +187,7 @@ def reexecute(source: str, cir_path: Path, contract_path: Path, out: Path, *,
     result["monitor"] = {"status": report.get("status"),
                          "properties": [(p.get("id"), p.get("status"))
                                         for p in report.get("properties", [])]}
-    contract = json.loads(contract_path.read_text(encoding="utf-8"))
-    ledger = evaluate_reexecution(result, contract, accepted=accepted,
-                                  cir_props=cir_props or {}, cir_complete=cir_complete)
-    result["ledger"] = ledger.to_dict()
-    (out / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n",
-                                     encoding="utf-8")
-    return result
+    return _finalize(out, result, contract_path, accepted, cir_props, cir_complete)
 
 
 def _last_rust(cell: Path) -> Path | None:
@@ -186,6 +220,8 @@ def main() -> int:
     batch_summary = json.loads((batch / "SUMMARY.json").read_text())["cells"]
     accepted_map = {(c["model"], c["task"], c.get("replicate", 0)): bool(c.get("accepted"))
                     for c in batch_summary}
+    acc_round_map = {(c["model"], c["task"], c.get("replicate", 0)):
+                     c.get("first_code_accept_round") for c in batch_summary}
     summary = []
     for cell in sorted(batch.glob("*/*/rep*")):
         if not (cell / "code").is_dir():
@@ -203,11 +239,23 @@ def main() -> int:
         contract = REPO / "benchmarks/families" / task_id / "contract.json"
         cir_props, cir_complete = load_cir_properties(cell, cir)
         run_dir = out / rel
-        res = reexecute(rust.read_text(encoding="utf-8"), cir, contract, run_dir,
-                        binary=binary, instrument=instrument, n_runs=args.n_runs,
-                        accepted=accepted_map.get((model, task_id, rep), False),
-                        cir_props=cir_props, cir_complete=cir_complete,
-                        cell_id=str(rel))
+        accepted = accepted_map.get((model, task_id, rep), False)
+        acc_round = acc_round_map.get((model, task_id, rep))
+        last_round = int(rust.stem.split("-")[1])
+        kind = "accepted" if (accepted and acc_round == last_round) else "final"
+        try:
+            res = reexecute(rust.read_text(encoding="utf-8"), cir, contract, run_dir,
+                            binary=binary, instrument=instrument, n_runs=args.n_runs,
+                            accepted=accepted, cir_props=cir_props,
+                            cir_complete=cir_complete, cell_id=str(rel),
+                            candidate_kind=kind, round_no=last_round)
+        except Exception as exc:  # noqa: BLE001
+            run_dir.mkdir(parents=True, exist_ok=True)
+            res = {"cell": str(rel), "candidate_kind": kind, "round_no": last_round,
+                   "stages": {"unexpected": f"{type(exc).__name__}: {exc}"},
+                   "evidence_path": str(run_dir / "result.json"),
+                   "ledger": {"current_evaluation": "tool_error"}}
+            (run_dir / "result.json").write_text(json.dumps(res, indent=2) + "\n")
         summary.append(res)
         print(f"  {res['cell'][:60]:60s} stages={res['stages']} "
               f"raw={res.get('raw_events')} proj={res.get('projected_events')} "

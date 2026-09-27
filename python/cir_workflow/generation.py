@@ -608,7 +608,11 @@ def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
         return [f for f in by_kind.get(kind, []) if f not in mapping.values()]
 
     from collections import Counter as _Counter
-    name_counts = _Counter(r.get("name", "") for r in rust_resources)
+    # Match on the display name (field / binding / channel token); the runtime
+    # `name` carries the construction site and is what trace events use.
+    def _display(r):
+        return r.get("display") or r.get("name", "")
+    name_counts = _Counter(_display(r) for r in rust_resources)
     channel_resources = [r for r in rust_resources if r.get("kind") == "Channel"]
     for res in rust_resources:
         kind = res.get("kind", "")
@@ -617,12 +621,12 @@ def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
             continue
         # Two runtime instances with the same name cannot both be one identity,
         # and their trace events are indistinguishable.
-        if name_counts[name] > 1:
+        if name_counts[_display(res)] > 1:
             ambiguous.append({"rust": name, "kind": kind, "candidates": [],
                               "site": res.get("site"),
                               "reason": "duplicate runtime resource name"})
             continue
-        short = name.rsplit("::", 1)[-1]
+        short = _display(res).rsplit("::", 1)[-1]
         # 1. exact short-name match
         cands = [c for c in by_short.get((_binding_base(short), kind), [])
                  if c not in mapping.values()]

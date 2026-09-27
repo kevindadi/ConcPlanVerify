@@ -1,29 +1,128 @@
-"""Evidence ledger v2: built from a real re-execution result.
+"""Evidence state machine (strong-link-v3).
 
-Separate, non-substitutable flags (a strong flag never implies a weaker one):
+One decision entry used by re-execution, summarisation and the pipeline. It
+never collapses layers into a single "sufficient": model evidence, identity
+evidence, trace evidence, run evidence and per-property obligations are kept
+separate and only combined conservatively.
 
-- ``model_verified``                    CIR exploration proved it (and completed)
-- ``observed_trace_conformant``         op-resource conformance passed on a
-                                        *non-empty* projection
-- ``bounded_no_violation``              the bounded monitor saw no FAIL
-- ``property_observation_coverage``     per-property: the property was observed
-- ``implementation_obligations_satisfied``  the property's own obligation is
-                                        met by real evidence (not by absence)
-- ``independent_requirement_result``    the monitor status, verbatim
+Guarantee ranges (see STATE_MACHINE.md):
 
-Rules: an empty projection never supports implementation correspondence; a
-model proof never migrates to arbitrary-Rust guarantees; timeout/crash is not a
-proved deadlock; missing hashes block reuse.
+- model:  the CIR was decided by exhaustive exploration (not arbitrary Rust)
+- identity: construction-site / entry bindings verified, others unresolved
+- trace:  op-resource conformance over a non-empty projection (finite runs)
+- run:    observed execution outcome (timeout != deadlock)
+- property: PASS_bounded supports a bounded observation only
 """
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 from .evidence import contract_properties, obligation_for
 
 TRACE_DECIDABLE = {"safety", "never_holds_all", "unreachable", "reachable",
                    "holds_all", "always_reachable", "deadlock_free", "reachable_all"}
+TOOL_STATUSES = {"error", "unsupported", "unknown_sid", "incomplete", "tool_error"}
+
+
+def _sha(path: str | None) -> str | None:
+    if not path:
+        return None
+    try:
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def hash_verification(result: dict) -> dict:
+    """Re-read the recorded artifacts and compare to the recorded hashes.
+
+    Presence of a field is not verification; the file must exist and match.
+    """
+
+    checks = {
+        "source_sha256": result.get("source_path"),
+        "cir_sha256": result.get("cir_path"),
+        "contract_sha256": result.get("contract_path"),
+    }
+    ok = True
+    detail = {}
+    for key, path in checks.items():
+        recorded = result.get(key)
+        actual = _sha(path) if path else None
+        match = bool(recorded and actual and recorded == actual)
+        detail[key] = {"recorded": bool(recorded), "match": match}
+        ok = ok and match
+    return {"verified": ok, "detail": detail}
+
+
+def _model_state(result: dict, cir_props: dict, cir_complete: bool | None) -> dict:
+    failed = [pid for pid, outcome in cir_props.items() if outcome == "FAIL"]
+    return {
+        "complete": cir_complete,
+        "failed_properties": sorted(failed),
+        "properties_checked": len(cir_props),
+        # complete=true is NOT all-PASS; a FAIL property refutes the model.
+        "verified": bool(cir_props) and cir_complete is True and not failed,
+    }
+
+
+def _identity_state(result: dict) -> dict:
+    b = result.get("binding") or {}
+    verified = b.get("mapping", {}) or {}
+    unresolved = b.get("ambiguous", []) or []
+    violated = b.get("violated", []) or []
+    return {"verified": len(verified), "unresolved": len(unresolved),
+            "violated": len(violated),
+            "relevant_unresolved": len(unresolved) > 0}
+
+
+def _trace_state(result: dict) -> dict:
+    conform = result.get("conform") or {}
+    statuses = conform.get("statuses", {}) or {}
+    traces = int(conform.get("traces", 0) or 0)
+    projected = int(result.get("projected_events") or 0)
+    unresolved_names = {a.get("rust") for a in
+                        (result.get("binding") or {}).get("ambiguous", [])}
+    if traces == 0:
+        state = "incomplete"
+    elif any(k in TOOL_STATUSES for k in statuses):
+        state = "tool_error"
+    elif statuses.get("violation", 0) > 0:
+        # A "no model statement matches <name>" violation on a resource whose
+        # identity was never established is a binding gap, not a proved code
+        # deviation.
+        detail = str((conform.get("first_violation") or {}).get("detail", ""))
+        if any(name and name in detail for name in unresolved_names):
+            state = "binding_unresolved"
+        else:
+            state = "observed_violation"
+    elif projected == 0:
+        state = "empty_projection"
+    elif statuses.get("conformant", 0) == traces:
+        state = "observed_conformant"
+    else:
+        state = "incomplete"
+    return {"state": state, "raw_statuses": statuses, "traces": traces,
+            "projected_events": projected,
+            "first_violation": conform.get("first_violation")}
+
+
+def _run_state(result: dict) -> dict:
+    n = int(result.get("n_runs", 0) or 0)
+    completed = int(result.get("runs_completed", 0) or 0)
+    hang = bool(result.get("hang"))
+    if n == 0:
+        state = "not_run"
+    elif completed == 0:
+        state = "crash" if not hang else "timeout"
+    elif completed < n:
+        state = "partial"
+    else:
+        state = "ok"
+    return {"n_runs": n, "completed": completed, "hang": hang, "state": state}
 
 
 @dataclass
@@ -31,35 +130,28 @@ class PropertyLedger:
     property_id: str
     kind: str
     requirements: list[str]
-    model_verified: bool
-    model_complete: bool | None
+    model_verdict: str | None
     implementation_obligation: str
-    observed_trace_conformant: bool
-    bounded_no_violation: bool
-    property_observation_coverage: str      # observed | not_observed | not_carryable
-    implementation_obligations_satisfied: bool
+    checker_available: bool
+    identity_relevant_verified: bool
+    trace_state: str
     independent_requirement_result: str
-    final_claim: str                        # supported | violated | inconclusive | not_applicable
-    evidence_ref: str
+    obligation_state: str          # satisfied | violated | unresolved | not_applicable
+    guarantee: str                 # model | bounded_observation | none
 
 
 @dataclass
 class ReexecutionLedger:
     cell: str
-    accepted: bool
-    source_build: str
-    instrumented_build: str
-    model_verified: bool
-    observed_trace_conformant: bool
-    bounded_no_violation: bool
-    raw_events: int
-    projected_events: int
-    thread_lifecycle: dict
-    binding_verified: int
-    binding_unresolved: int
-    hashes_present: bool
+    historical_acceptance: bool
+    current_evaluation: str        # explicit_failure | inconclusive | not_accepted
+    model: dict
+    identity: dict
+    trace: dict
+    run: dict
+    hashes: dict
     properties: list[PropertyLedger] = field(default_factory=list)
-    verdict: str = "not_accepted"
+    all_obligations_satisfied: bool = False
     reasons: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -71,102 +163,85 @@ class ReexecutionLedger:
 def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
                          cir_props: dict[str, str] | None = None,
                          cir_complete: bool | None = None) -> ReexecutionLedger:
-    stages = result.get("stages", {})
-    conform = result.get("conform") or {}
-    statuses = conform.get("statuses", {}) or {}
-    projected = int(result.get("projected_events") or 0)
-    raw = int(result.get("raw_events") or 0)
-    conformant_all = (conform.get("traces", 0) > 0
-                      and statuses.get("conformant", 0) == conform.get("traces", 0))
-    observed_trace_conformant = bool(conformant_all and projected > 0)
+    cir_props = cir_props or {}
+    model = _model_state(result, cir_props, cir_complete)
+    identity = _identity_state(result)
+    trace = _trace_state(result)
+    run = _run_state(result)
+    hashes = hash_verification(result)
     monitor = result.get("monitor") or {}
     monitor_props = dict(monitor.get("properties") or [])
-    bounded_no_violation = bool(monitor) and all(
-        s != "FAIL" for s in monitor_props.values())
-    binding = result.get("binding") or {}
-    mapping = binding.get("mapping", {}) or {}
-    ambiguous = binding.get("ambiguous", []) or []
-    hashes_present = all(result.get(k) for k in
-                         ("source_sha256", "cir_sha256", "contract_sha256"))
-    cir_props = cir_props or {}
-
-    def observed_status(pid: str) -> str:
-        return monitor_props.get(pid, "not_observed")
+    contract_props = contract_properties(contract)
 
     props: list[PropertyLedger] = []
-    for cp in contract_properties(contract):
+    for cp in contract_props:
         pid = cp["id"]
         mv = cir_props.get(pid)
-        model_verified = mv == "PASS" and cir_complete is True
-        status = observed_status(pid)
-        if status in {"unsupported", "unmapped", "not_observed", "deferred"}:
-            coverage = "not_carryable" if cp["kind"] not in TRACE_DECIDABLE else "not_observed"
-        else:
-            coverage = "observed"
-        # Implementation obligations are met only by a non-vacuous conformant
-        # projection plus an observed property (trace-decidable kinds).
+        status = monitor_props.get(pid, "not_observed")
+        checker_available = status not in {"not_observed"} and cp["kind"] in TRACE_DECIDABLE
+        relevant_ok = not identity["relevant_unresolved"]
         if status == "FAIL":
-            satisfied, claim = False, "violated"
+            state, guarantee = "violated", "none"
         elif cp["kind"] == "deadlock_free":
-            if result.get("hang"):
-                satisfied, claim = False, "inconclusive"  # not a proved deadlock
-            elif observed_trace_conformant and bounded_no_violation and model_verified:
-                satisfied, claim = True, "supported"
-            else:
-                satisfied, claim = False, "inconclusive"
-        elif status == "PASS_bounded" and observed_trace_conformant:
-            satisfied, claim = True, "supported"
+            # CIR proof + completed runs does not prove the implementation keeps
+            # blocking/enabling relations; bounded observation only.
+            state = "satisfied" if (model["verified"] and run["state"] == "ok"
+                                    and trace["state"] == "observed_conformant"
+                                    and relevant_ok) else "unresolved"
+            guarantee = "bounded_observation" if state == "satisfied" else "none"
+        elif status == "PASS_bounded" and trace["state"] == "observed_conformant" and relevant_ok:
+            state, guarantee = "satisfied", "bounded_observation"
         else:
-            satisfied, claim = False, "inconclusive"
+            state, guarantee = "unresolved", "none"
         props.append(PropertyLedger(
             property_id=pid, kind=cp["kind"], requirements=cp.get("req", []),
-            model_verified=model_verified, model_complete=cir_complete,
-            implementation_obligation=obligation_for(cp["kind"]),
-            observed_trace_conformant=observed_trace_conformant,
-            bounded_no_violation=bounded_no_violation,
-            property_observation_coverage=coverage,
-            implementation_obligations_satisfied=satisfied,
-            independent_requirement_result=status,
-            final_claim=claim,
-            evidence_ref=f"{result.get('cell','')}/result.json#{pid}"))
+            model_verdict=mv, implementation_obligation=obligation_for(cp["kind"]),
+            checker_available=checker_available,
+            identity_relevant_verified=relevant_ok, trace_state=trace["state"],
+            independent_requirement_result=status, obligation_state=state,
+            guarantee=guarantee))
 
-    conform_present = bool(conform and conform.get("traces", 0) > 0)
+    all_satisfied = bool(
+        accepted and contract_props and model["verified"] and hashes["verified"]
+        and trace["state"] == "observed_conformant" and not identity["relevant_unresolved"]
+        and run["state"] == "ok"
+        and all(p.obligation_state == "satisfied" for p in props))
+
     reasons: list[str] = []
-    if not accepted:
+    if all_satisfied:
+        verdict = "satisfied_bounded"
+    elif not accepted:
         verdict = "not_accepted"
         reasons.append("no accepted round")
-    elif stages.get("source_build") == "failed":
+    elif trace["state"] == "observed_violation":
         verdict = "explicit_failure"
-        reasons.append("the source does not compile independently")
-    elif not hashes_present:
-        verdict = "insufficient"
-        reasons.append("missing source/CIR/contract hash binding")
-    elif any(p.final_claim == "violated" for p in props):
+        reasons.append("conformance violation on a non-empty projection")
+    elif run["state"] in {"crash", "timeout", "partial"}:
+        verdict = "explicit_failure"
+        reasons.append(f"run state {run['state']}")
+    elif any(p.obligation_state == "violated" for p in props):
         verdict = "explicit_failure"
         reasons.append("a declared property is violated")
-    elif not conform_present:
-        verdict = "insufficient"
-        reasons.append("no conformance result: absence of a violation is not evidence")
-    elif projected == 0:
-        verdict = "insufficient"
-        reasons.append("empty projection: the language check found no violation "
-                       "but there is no implementation correspondence evidence")
-    elif not observed_trace_conformant:
-        verdict = "explicit_failure"
-        reasons.append("conformance failed on a non-empty projection")
-    elif any(p.final_claim == "inconclusive" for p in props):
-        verdict = "insufficient"
-        reasons.append("some declared properties lack decisive evidence")
     else:
-        verdict = "sufficient"
+        verdict = "inconclusive"
+        if not contract_props:
+            reasons.append("empty contract: nothing to verify")
+        if not model["verified"]:
+            reasons.append("model not fully verified (incomplete or a failed property)")
+        if not hashes["verified"]:
+            reasons.append("artifact hashes do not verify")
+        if trace["state"] in {"empty_projection", "incomplete", "tool_error",
+                              "binding_unresolved"}:
+            reasons.append(f"trace state {trace['state']}")
+        if identity["relevant_unresolved"]:
+            reasons.append("relevant identity bindings unresolved")
+        if run["state"] != "ok":
+            reasons.append(f"run state {run['state']}")
+        if any(p.obligation_state == "unresolved" for p in props):
+            reasons.append("some obligations are unchecked")
 
     return ReexecutionLedger(
-        cell=result.get("cell", ""), accepted=accepted,
-        source_build=stages.get("source_build", "not_run"),
-        instrumented_build=stages.get("instrumented_build", "not_run"),
-        model_verified=bool(cir_props) and cir_complete is True,
-        observed_trace_conformant=observed_trace_conformant,
-        bounded_no_violation=bounded_no_violation, raw_events=raw,
-        projected_events=projected, thread_lifecycle=result.get("thread_lifecycle", {}),
-        binding_verified=len(mapping), binding_unresolved=len(ambiguous),
-        hashes_present=hashes_present, properties=props, verdict=verdict, reasons=reasons)
+        cell=result.get("cell", ""), historical_acceptance=accepted,
+        current_evaluation=verdict, model=model, identity=identity, trace=trace,
+        run=run, hashes=hashes, properties=props,
+        all_obligations_satisfied=all_satisfied, reasons=reasons)

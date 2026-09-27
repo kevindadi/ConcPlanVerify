@@ -1,19 +1,34 @@
-"""Evidence ledger v2: finite evidence never upgrades into whole correspondence."""
+"""Evidence state machine: layered, conservative, no false upgrade."""
 
 from __future__ import annotations
 
+import hashlib
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
-from cir_workflow.evidence_v2 import evaluate_reexecution
+from cir_workflow.evidence_v2 import evaluate_reexecution, hash_verification
 
 CONTRACT = {"properties": [{"id": "p1", "kind": "safety", "req": ["R1"]}]}
-HASHES = {"source_sha256": "a", "cir_sha256": "b", "contract_sha256": "c"}
 
 
-def _result(**over):
+def _files(tmp: Path) -> dict:
+    src = tmp / "s.rs"; cir = tmp / "c.json"; con = tmp / "ct.json"
+    src.write_text("fn main(){}")
+    cir.write_text("{}")
+    con.write_text("{}")
+    return {"source_path": str(src), "cir_path": str(cir), "contract_path": str(con),
+            "source_sha256": hashlib.sha256(src.read_bytes()).hexdigest(),
+            "cir_sha256": hashlib.sha256(cir.read_bytes()).hexdigest(),
+            "contract_sha256": hashlib.sha256(con.read_bytes()).hexdigest()}
+
+
+def _result(tmp: Path, **over) -> dict:
     base = {
-        **HASHES, "cell": "m/t", "stages": {"source_build": "ok",
-                                            "instrumented_build": "ok"},
+        **_files(tmp), "cell": "m/t",
+        "stages": {"source_build": "ok", "instrumented_build": "ok"},
+        "n_runs": 32, "runs_completed": 32, "hang": False,
         "raw_events": 10, "projected_events": 10,
         "conform": {"traces": 1, "statuses": {"conformant": 1}},
         "monitor": {"status": "ok", "properties": [["p1", "PASS_bounded"]]},
@@ -24,58 +39,86 @@ def _result(**over):
     return base
 
 
-class LedgerV2RegressionTests(unittest.TestCase):
-    def test_A_no_conform_result_is_not_sufficient(self):
-        # source + one event + PASS_bounded, but no conform result at all
-        r = _result(conform=None)
-        led = evaluate_reexecution(r, CONTRACT, accepted=True,
-                                   cir_props={"p1": "PASS"}, cir_complete=True)
-        self.assertEqual(led.verdict, "insufficient")
-        self.assertFalse(led.observed_trace_conformant)
+class StateMachineTests(unittest.TestCase):
+    def test_1_binding_unresolved_blocks_obligations(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), binding={"mapping": {}, "ambiguous": [{"rust": "x"}]})
+            led = evaluate_reexecution(r, CONTRACT, accepted=True,
+                                       cir_props={"p1": "PASS"}, cir_complete=True)
+        self.assertFalse(led.all_obligations_satisfied)
+        self.assertTrue(led.identity["relevant_unresolved"])
 
-    def test_B_conform_failure_not_overridden_by_accepted(self):
-        r = _result(conform={"traces": 1, "statuses": {"violation": 1}})
-        led = evaluate_reexecution(r, CONTRACT, accepted=True,
-                                   cir_props={"p1": "PASS"}, cir_complete=True)
-        self.assertEqual(led.verdict, "explicit_failure")
+    def test_2_tool_error_is_not_a_violation(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), conform={"traces": 1, "statuses": {"error": 1}})
+            led = evaluate_reexecution(r, CONTRACT, accepted=True,
+                                       cir_props={"p1": "PASS"}, cir_complete=True)
+        self.assertEqual(led.trace["state"], "tool_error")
+        self.assertEqual(led.current_evaluation, "inconclusive")
 
-    def test_C_deadlock_model_proof_needs_correspondence(self):
-        contract = {"properties": [{"id": "d", "kind": "deadlock_free", "req": ["R1"]}]}
-        r = _result(projected_events=0,
-                    conform={"traces": 32, "statuses": {"conformant": 32}},
-                    monitor={"status": "ok", "properties": [["d", "deferred"]]})
-        led = evaluate_reexecution(r, contract, accepted=True,
-                                   cir_props={"d": "PASS"}, cir_complete=True)
-        self.assertEqual(led.verdict, "insufficient")
-        self.assertEqual(led.properties[0].final_claim, "inconclusive")
+    def test_3_empty_contract_never_passes(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td))
+            led = evaluate_reexecution(r, {"properties": [], "preserved": []},
+                                       accepted=True, cir_props={}, cir_complete=True)
+        self.assertFalse(led.all_obligations_satisfied)
+        self.assertEqual(led.current_evaluation, "inconclusive")
 
-    def test_D_all_unsupported_is_not_sufficient(self):
-        r = _result(monitor={"status": "ok", "properties": [["p1", "unsupported"]]})
-        led = evaluate_reexecution(r, CONTRACT, accepted=True,
-                                   cir_props={"p1": "PASS"}, cir_complete=True)
-        self.assertEqual(led.verdict, "insufficient")
-        self.assertFalse(led.properties[0].implementation_obligations_satisfied)
+    def test_4_model_failed_property_is_not_verified(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td))
+            led = evaluate_reexecution(r, CONTRACT, accepted=True,
+                                       cir_props={"p1": "FAIL"}, cir_complete=True)
+        self.assertFalse(led.model["verified"])
+        self.assertEqual(led.model["failed_properties"], ["p1"])
 
-    def test_E_empty_projection_is_not_correspondence(self):
-        r = _result(projected_events=0, raw_events=64,
-                    conform={"traces": 32, "statuses": {"conformant": 32}})
-        led = evaluate_reexecution(r, CONTRACT, accepted=True,
-                                   cir_props={"p1": "PASS"}, cir_complete=True)
-        self.assertEqual(led.verdict, "insufficient")
-        self.assertIn("empty projection", " ".join(led.reasons))
+    def test_5_hash_mismatch_is_not_verified(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), source_sha256="WRONG_NONEMPTY")
+            led = evaluate_reexecution(r, CONTRACT, accepted=True,
+                                       cir_props={"p1": "PASS"}, cir_complete=True)
+        self.assertFalse(led.hashes["verified"])
+        self.assertFalse(led.all_obligations_satisfied)
 
-    def test_F_missing_hashes_block_reuse(self):
-        r = _result(source_sha256=None)
-        led = evaluate_reexecution(r, CONTRACT, accepted=True,
-                                   cir_props={"p1": "PASS"}, cir_complete=True)
-        self.assertEqual(led.verdict, "insufficient")
+    def test_6_no_completed_runs_is_failure(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), n_runs=32, runs_completed=0, hang=False)
+            led = evaluate_reexecution(r, CONTRACT, accepted=True,
+                                       cir_props={"p1": "PASS"}, cir_complete=True)
+        self.assertEqual(led.run["state"], "crash")
+        self.assertEqual(led.current_evaluation, "explicit_failure")
 
-    def test_happy_path_is_sufficient(self):
-        led = evaluate_reexecution(_result(), CONTRACT, accepted=True,
-                                   cir_props={"p1": "PASS"}, cir_complete=True)
-        self.assertEqual(led.verdict, "sufficient")
-        self.assertTrue(led.observed_trace_conformant)
-        self.assertTrue(led.properties[0].implementation_obligations_satisfied)
+    def test_7_empty_projection_is_inconclusive(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), projected_events=0, raw_events=64)
+            led = evaluate_reexecution(r, CONTRACT, accepted=True,
+                                       cir_props={"p1": "PASS"}, cir_complete=True)
+        self.assertEqual(led.trace["state"], "empty_projection")
+        self.assertFalse(led.all_obligations_satisfied)
+
+    def test_8_historical_accepted_does_not_override_violation(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), conform={"traces": 1, "statuses": {"violation": 1}})
+            led = evaluate_reexecution(r, CONTRACT, accepted=True,
+                                       cir_props={"p1": "PASS"}, cir_complete=True)
+        self.assertTrue(led.historical_acceptance)
+        self.assertEqual(led.current_evaluation, "explicit_failure")
+
+    def test_9_historical_rejection_is_preserved(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), conform={"traces": 1, "statuses": {"violation": 1}})
+            led = evaluate_reexecution(r, CONTRACT, accepted=False,
+                                       cir_props={"p1": "PASS"}, cir_complete=True)
+        self.assertFalse(led.historical_acceptance)
+        self.assertEqual(led.current_evaluation, "not_accepted")
+
+    def test_happy_path_all_obligations_satisfied(self):
+        with tempfile.TemporaryDirectory() as td:
+            led = evaluate_reexecution(_result(Path(td)), CONTRACT, accepted=True,
+                                       cir_props={"p1": "PASS"}, cir_complete=True)
+        self.assertTrue(led.all_obligations_satisfied)
+        self.assertEqual(led.current_evaluation, "satisfied_bounded")
+        self.assertEqual(led.properties[0].guarantee, "bounded_observation")
 
 
 if __name__ == "__main__":
