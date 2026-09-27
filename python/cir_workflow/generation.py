@@ -756,6 +756,56 @@ def _conform_all_op_resource(binary: Path, cir_path: Path, traces_dir: Path) -> 
             "violations": violations}
 
 
+def _stop_round(info: dict, record: dict, status: str, action: str) -> None:
+    """Stop generation retries: record the terminal stage and action."""
+
+    info["decision"] = status
+    record["status"] = status
+    record["action"] = action
+    record["reasons"] = list(info.get("reasons", []))
+
+
+def _ledger_action(ledger, conform: dict, report: dict) -> tuple[str, str, list[str]]:
+    """Classify a rejection into an action and a category.
+
+    - ``repair``/``candidate_error``: a repairable program error (feedback given).
+    - ``stop``/``tool_failure``: a tool/evidence failure (no model retry).
+    - ``stop``/``capability_gap``: checker unsupported or identity unresolved.
+    - ``stop``/``binding_declaration_error``: generation protocol non-compliance.
+    """
+
+    verdict = ledger.current_evaluation
+    if verdict in {"tool_error", "source_build_failed", "instrument_failed",
+                   "instrument_build_failed", "not_run"}:
+        return "stop", "tool_failure", []
+    if ledger.identity.get("declaration_error"):
+        return "stop", "binding_declaration_error", []
+    if ledger.identity.get("relevant_unresolved"):
+        return "stop", "capability_gap", []
+    if ledger.run["state"] in {"timeout", "runtime_crash", "partial"}:
+        return "repair", "candidate_error", [
+            "The program did not finish on every run. Join every thread."]
+    if ledger.trace["state"] == "observed_violation":
+        pieces = []
+        fv = conform.get("first_violation")
+        if fv:
+            kind = _conform_kind(fv)
+            if fv.get("status") in {"error", "unknown_sid"}:
+                return "stop", "capability_gap", []
+            pieces.append(_explain_violation(fv, kind))
+        return "repair", "candidate_error", pieces
+    if verdict == "requirement_failure":
+        failed = [p.get("id") for p in report.get("properties", [])
+                  if p.get("status") == "FAIL"]
+        return "repair", "candidate_error", [
+            "Requirement checks that failed: " + ", ".join(failed) + "."]
+    if verdict == "functional_failure":
+        return "repair", "candidate_error", [
+            "The program's observable output does not meet the requirement."]
+    # Everything else is a capability gap or unresolved evidence: no blind repair.
+    return "stop", "capability_gap", []
+
+
 def _cir_props_for(binary: Path, cir_path: Path, contract_path: Path
                    ) -> tuple[dict[str, str], bool | None]:
     """Run the real CVN explore and normalise property ids (preserved: prefix)."""
@@ -868,9 +918,8 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
             info["decision"] = "instrument_error"
             info["reasons"].append("instrument_error")
             info["instrument_error"] = str(exc)[:500]
-            feedback = ("Tool error from concir-instrument, not a request to change "
-                        f"synchronization structure: {exc}")
-            continue
+            _stop_round(info, record, "instrument_error", "tool_failure")
+            break
         info["stages"]["instrument"] = "ok"
         info["instrument_limit"] = wrapped["limitations"]
         scope_limited = any("thread::scope" in item for item in wrapped["limitations"])
@@ -882,18 +931,14 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
             info["stages"]["instrumented_build"] = "instrumented_build_failed"
             info["decision"] = "instrumented_build_failed"
             info["reasons"].append("instrumented_build_failed")
-            feedback = ("Tool error: the original Rust compiled, and the instrumented "
-                        "program did not. Do not change the synchronization structure "
-                        "to satisfy the instrumenter.\n" + _compiler_errors(build_log))
-            continue
+            _stop_round(info, record, "instrumented_build_failed", "tool_failure")
+            break
         info["stages"]["instrumented_build"] = "ok"
         if scope_limited:
             info["stages"]["execution"] = "not_run"
-            info["decision"] = "instrument_unsupported"
             info["reasons"].append("instrument_unsupported")
-            feedback = ("Tool limitation: thread::scope spawns do not receive stable "
-                        "thread identities. This is not a request to change lock order.")
-            continue
+            _stop_round(info, record, "instrument_unsupported", "capability_gap")
+            break
         traces_dir = out_dir / f"round-{round_no}" / "traces"
         runs = rust_oracle.run_native(project, traces_dir, n=32, timeout=10.0)
         behavior_ok = all(r["completed"] for r in runs) if runs else False
@@ -912,11 +957,9 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
             rb = binding_bind(inst / "resources.json", cir_path)
         except BindingUnavailable as exc:
             info["stages"]["binding"] = f"tool_error: {exc}"
-            info["decision"] = "binding_tool_error"
             info["reasons"].append("binding_tool_error")
-            feedback = ("Tool error: the binding checker is unavailable. This is not a "
-                        "request to change synchronization structure.")
-            continue
+            _stop_round(info, record, "binding_tool_error", "tool_failure")
+            break
         mapping = {name: v["cir"] for name, v in rb.get("verified", {}).items()}
         provenance = {"rules": {},
                       "ambiguous": [{"rust": k, **v}
@@ -927,12 +970,10 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
         mapping_path.write_text(json.dumps({"mapping": mapping, "provenance": provenance},
                                            indent=2) + "\n", encoding="utf-8")
         if provenance.get("ambiguous"):
-            info["decision"] = "mapping_ambiguous"
             info["reasons"].append("mapping_ambiguous")
             info["ambiguous"] = provenance["ambiguous"]
-            feedback = ("Tool error: resource or thread identity is ambiguous and was "
-                        "not guessed. " + json.dumps(provenance["ambiguous"]))
-            continue
+            _stop_round(info, record, "mapping_ambiguous", "capability_gap")
+            break
         conform_dir = out_dir / f"round-{round_no}" / "conform-traces"
         monitor_dir = out_dir / f"round-{round_no}" / "monitor-traces"
         wrapper_names = {r["name"] for r in wrapped["resources"]
@@ -1012,22 +1053,17 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
                 behavior_ok=behavior_ok).as_dict()
             record["final_rust"] = str(out_dir / f"round-{round_no}.rs")
             break
-        info["decision"] = info["reasons"][-1] if info["reasons"] else "post_verify_fail"
-        pieces = []
-        if not behavior_ok:
-            pieces.append("The program did not finish on every run. Join every thread.")
-        if not conform_ok and conform["first_violation"]:
-            fv = conform["first_violation"]
-            kind = _conform_kind(fv)
-            info["first_violation"] = fv
-            info["conform_kind"] = kind
-            if fv.get("status") in {"error", "unknown_sid"}:
-                pieces.append("Tool status " + str(fv.get("status")) + " is not a proved mismatch.")
-            else:
-                pieces.append(_explain_violation(fv, kind))
-        if not monitor_ok:
-            pieces.append("Requirement checks that failed: " + ", ".join(info["monitor_fail"]) + ".")
-        feedback = " ".join(pieces)
+        # The rejection and its feedback come from the shared ledger.
+        action, category, pieces = _ledger_action(ledger, conform, report)
+        if action == "repair":
+            info["decision"] = "candidate_error"
+            record["action"] = "candidate_error"
+            feedback = " ".join(pieces) if pieces else (
+                "The previous candidate was rejected; revise the statements the "
+                "diagnostic names and resend the whole program.")
+            continue
+        _stop_round(info, record, category, category)
+        break
     return record
 
 
