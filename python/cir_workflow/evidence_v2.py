@@ -1,17 +1,22 @@
-"""Evidence state machine (strong-link-v3).
+"""Evidence state machine (strong-link-v4).
 
-One decision entry used by re-execution, summarisation and the pipeline. It
-never collapses layers into a single "sufficient": model evidence, identity
-evidence, trace evidence, run evidence and per-property obligations are kept
-separate and only combined conservatively.
+One decision entry used by re-execution, summarisation and the pipeline. Layers
+are never collapsed into a single "sufficient": model, identity, trace, run,
+hash and per-property evidence are kept separate and combined conservatively.
 
-Guarantee ranges (see STATE_MACHINE.md):
+v4 changes over v3:
 
-- model:  the CIR was decided by exhaustive exploration (not arbitrary Rust)
-- identity: construction-site / entry bindings verified, others unresolved
-- trace:  op-resource conformance over a non-empty projection (finite runs)
-- run:    observed execution outcome (timeout != deadlock)
-- property: PASS_bounded supports a bounded observation only
+- ``model.verified`` requires ``complete=true`` AND every required property
+  explicitly ``PASS`` (UNKNOWN/UNSUPPORTED/missing/unknown all block it).
+- run state distinguishes ``source_build_failed`` / ``instrument_failed`` /
+  ``instrument_build_failed`` / ``not_run`` / ``timeout`` / ``runtime_crash`` /
+  ``partial`` / ``completed``; the planned ``n_runs`` is not the started count.
+- ``current_evaluation`` depends only on current evidence, never on
+  ``historical_acceptance`` (which is recorded separately).
+- trace violations are read from structured ``got`` fields, so a binding gap and
+  an independent violation are both preserved.
+- hash verification re-reads every referenced artifact (source, CIR, contract,
+  binding, monitor, traces) and compares to the recorded hashes.
 """
 
 from __future__ import annotations
@@ -25,6 +30,9 @@ from .evidence import contract_properties, obligation_for
 TRACE_DECIDABLE = {"safety", "never_holds_all", "unreachable", "reachable",
                    "holds_all", "always_reachable", "deadlock_free", "reachable_all"}
 TOOL_STATUSES = {"error", "unsupported", "unknown_sid", "incomplete", "tool_error"}
+RUN_FAILURE_STATES = {"source_build_failed", "instrument_failed",
+                      "instrument_build_failed", "not_run", "timeout",
+                      "runtime_crash", "partial"}
 
 
 def _sha(path: str | None) -> str | None:
@@ -37,35 +45,42 @@ def _sha(path: str | None) -> str | None:
 
 
 def hash_verification(result: dict) -> dict:
-    """Re-read the recorded artifacts and compare to the recorded hashes.
+    """Re-read every recorded artifact and compare to its recorded hash."""
 
-    Presence of a field is not verification; the file must exist and match.
-    """
-
-    checks = {
-        "source_sha256": result.get("source_path"),
-        "cir_sha256": result.get("cir_path"),
-        "contract_sha256": result.get("contract_path"),
-    }
-    ok = True
+    artifacts = result.get("artifacts") or []
     detail = {}
-    for key, path in checks.items():
-        recorded = result.get(key)
-        actual = _sha(path) if path else None
+    ok = True
+    for a in artifacts:
+        path, recorded = a.get("path"), a.get("sha256")
+        actual = _sha(path)
         match = bool(recorded and actual and recorded == actual)
-        detail[key] = {"recorded": bool(recorded), "match": match}
+        detail[path] = {"recorded": bool(recorded), "match": match}
         ok = ok and match
+    # Fall back to the three inputs when no artifact manifest is present.
+    if not artifacts:
+        for key, path in (("source_sha256", result.get("source_path")),
+                          ("cir_sha256", result.get("cir_path")),
+                          ("contract_sha256", result.get("contract_path"))):
+            recorded = result.get(key)
+            actual = _sha(path) if path else None
+            match = bool(recorded and actual and recorded == actual)
+            detail[path or key] = {"recorded": bool(recorded), "match": match}
+            ok = ok and match
     return {"verified": ok, "detail": detail}
 
 
-def _model_state(result: dict, cir_props: dict, cir_complete: bool | None) -> dict:
-    failed = [pid for pid, outcome in cir_props.items() if outcome == "FAIL"]
+def _model_state(cir_props: dict, cir_complete: bool | None,
+                 required: list[str]) -> dict:
+    missing = [pid for pid in required if pid not in cir_props]
+    non_pass = sorted(pid for pid, outcome in cir_props.items() if outcome != "PASS")
     return {
         "complete": cir_complete,
-        "failed_properties": sorted(failed),
-        "properties_checked": len(cir_props),
-        # complete=true is NOT all-PASS; a FAIL property refutes the model.
-        "verified": bool(cir_props) and cir_complete is True and not failed,
+        "required": sorted(required),
+        "missing_properties": sorted(missing),
+        "non_pass_properties": non_pass,
+        # complete=true is NOT all-PASS; every required property must be PASS.
+        "verified": bool(required) and cir_complete is True
+                    and not missing and not non_pass,
     }
 
 
@@ -76,7 +91,8 @@ def _identity_state(result: dict) -> dict:
     violated = b.get("violated", []) or []
     return {"verified": len(verified), "unresolved": len(unresolved),
             "violated": len(violated),
-            "relevant_unresolved": len(unresolved) > 0}
+            "relevant_unresolved": len(unresolved) > 0,
+            "declaration_error": len(violated) > 0}
 
 
 def _trace_state(result: dict) -> dict:
@@ -84,18 +100,30 @@ def _trace_state(result: dict) -> dict:
     statuses = conform.get("statuses", {}) or {}
     traces = int(conform.get("traces", 0) or 0)
     projected = int(result.get("projected_events") or 0)
-    unresolved_names = {a.get("rust") for a in
-                        (result.get("binding") or {}).get("ambiguous", [])}
+    binding = result.get("binding") or {}
+    unresolved_names = {a.get("rust") for a in binding.get("ambiguous", [])}
+    # A violated declaration also leaves the object unbound; its conformance
+    # mismatch is a declaration error, not an independent program violation.
+    violated = binding.get("violated") or {}
+    violated_entries = violated.values() if isinstance(violated, dict) else violated
+    for v in violated_entries:
+        if isinstance(v, dict) and v.get("runtime"):
+            unresolved_names.add(v["runtime"])
+    violations = conform.get("violations") or []
+    violation_resources = [v.get("resource") for v in violations
+                           if v.get("resource") is not None]
+    # Both kinds can coexist across traces; neither may hide the other.
+    binding_gap = any(r in unresolved_names for r in violation_resources)
+    independent = any(r not in unresolved_names for r in violation_resources)
+
     if traces == 0:
         state = "incomplete"
     elif any(k in TOOL_STATUSES for k in statuses):
         state = "tool_error"
-    elif statuses.get("violation", 0) > 0:
-        # A "no model statement matches <name>" violation on a resource whose
-        # identity was never established is a binding gap, not a proved code
-        # deviation.
-        detail = str((conform.get("first_violation") or {}).get("detail", ""))
-        if any(name and name in detail for name in unresolved_names):
+    elif violations:
+        if independent:
+            state = "observed_violation"
+        elif binding_gap:
             state = "binding_unresolved"
         else:
             state = "observed_violation"
@@ -106,23 +134,33 @@ def _trace_state(result: dict) -> dict:
     else:
         state = "incomplete"
     return {"state": state, "raw_statuses": statuses, "traces": traces,
-            "projected_events": projected,
-            "first_violation": conform.get("first_violation")}
+            "projected_events": projected, "binding_gap": binding_gap,
+            "independent_violation": independent, "violations": violations}
 
 
 def _run_state(result: dict) -> dict:
-    n = int(result.get("n_runs", 0) or 0)
+    stages = result.get("stages", {}) or {}
+    started = int(result.get("runs_started", 0) or 0)
     completed = int(result.get("runs_completed", 0) or 0)
     hang = bool(result.get("hang"))
-    if n == 0:
+    if stages.get("source_build") == "failed":
+        state = "source_build_failed"
+    elif str(stages.get("instrument", "")).startswith("error") or \
+            stages.get("instrument") == "failed":
+        state = "instrument_failed"
+    elif stages.get("instrumented_build") == "failed":
+        state = "instrument_build_failed"
+    elif started == 0:
         state = "not_run"
+    elif completed == 0 and hang:
+        state = "timeout"
     elif completed == 0:
-        state = "crash" if not hang else "timeout"
-    elif completed < n:
+        state = "runtime_crash"
+    elif completed < started:
         state = "partial"
     else:
-        state = "ok"
-    return {"n_runs": n, "completed": completed, "hang": hang, "state": state}
+        state = "completed"
+    return {"state": state, "started": started, "completed": completed, "hang": hang}
 
 
 @dataclass
@@ -136,15 +174,15 @@ class PropertyLedger:
     identity_relevant_verified: bool
     trace_state: str
     independent_requirement_result: str
-    obligation_state: str          # satisfied | violated | unresolved | not_applicable
-    guarantee: str                 # model | bounded_observation | none
+    obligation_state: str
+    guarantee: str
 
 
 @dataclass
 class ReexecutionLedger:
     cell: str
     historical_acceptance: bool
-    current_evaluation: str        # explicit_failure | inconclusive | not_accepted
+    current_evaluation: str
     model: dict
     identity: dict
     trace: dict
@@ -164,14 +202,15 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
                          cir_props: dict[str, str] | None = None,
                          cir_complete: bool | None = None) -> ReexecutionLedger:
     cir_props = cir_props or {}
-    model = _model_state(result, cir_props, cir_complete)
+    contract_props = contract_properties(contract)
+    required = [p["id"] for p in contract_props]
+    model = _model_state(cir_props, cir_complete, required)
     identity = _identity_state(result)
     trace = _trace_state(result)
     run = _run_state(result)
     hashes = hash_verification(result)
     monitor = result.get("monitor") or {}
     monitor_props = dict(monitor.get("properties") or [])
-    contract_props = contract_properties(contract)
 
     props: list[PropertyLedger] = []
     for cp in contract_props:
@@ -179,13 +218,11 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
         mv = cir_props.get(pid)
         status = monitor_props.get(pid, "not_observed")
         checker_available = status not in {"not_observed"} and cp["kind"] in TRACE_DECIDABLE
-        relevant_ok = not identity["relevant_unresolved"]
+        relevant_ok = not identity["relevant_unresolved"] and not identity["declaration_error"]
         if status == "FAIL":
             state, guarantee = "violated", "none"
         elif cp["kind"] == "deadlock_free":
-            # CIR proof + completed runs does not prove the implementation keeps
-            # blocking/enabling relations; bounded observation only.
-            state = "satisfied" if (model["verified"] and run["state"] == "ok"
+            state = "satisfied" if (model["verified"] and run["state"] == "completed"
                                     and trace["state"] == "observed_conformant"
                                     and relevant_ok) else "unresolved"
             guarantee = "bounded_observation" if state == "satisfied" else "none"
@@ -202,32 +239,38 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
             guarantee=guarantee))
 
     all_satisfied = bool(
-        accepted and contract_props and model["verified"] and hashes["verified"]
-        and trace["state"] == "observed_conformant" and not identity["relevant_unresolved"]
-        and run["state"] == "ok"
+        contract_props and model["verified"] and hashes["verified"]
+        and trace["state"] == "observed_conformant"
+        and not identity["relevant_unresolved"] and not identity["declaration_error"]
+        and run["state"] == "completed"
         and all(p.obligation_state == "satisfied" for p in props))
 
+    # current_evaluation depends only on current evidence, never on accepted.
     reasons: list[str] = []
-    if all_satisfied:
-        verdict = "satisfied_bounded"
-    elif not accepted:
-        verdict = "not_accepted"
-        reasons.append("no accepted round")
-    elif trace["state"] == "observed_violation":
-        verdict = "explicit_failure"
-        reasons.append("conformance violation on a non-empty projection")
-    elif run["state"] in {"crash", "timeout", "partial"}:
-        verdict = "explicit_failure"
+    if str((result.get("stages") or {}).get("binding", "")).startswith("tool_error"):
+        verdict = "tool_error"
+        reasons.append("binding check unavailable or failed (no fallback used)")
+    elif run["state"] in {"source_build_failed", "instrument_failed", "instrument_build_failed"}:
+        verdict = run["state"]
+        reasons.append(f"tool/stage failure: {run['state']}")
+    elif run["state"] in {"not_run", "timeout", "runtime_crash", "partial"}:
+        verdict = run["state"]
         reasons.append(f"run state {run['state']}")
-    elif any(p.obligation_state == "violated" for p in props):
+    elif trace.get("independent_violation"):
         verdict = "explicit_failure"
-        reasons.append("a declared property is violated")
+        reasons.append("independent conformance violation on a resolved resource")
+    elif identity["declaration_error"]:
+        verdict = "binding_declaration_error"
+        reasons.append("a binding manifest claim disagrees with structure "
+                       "(distinct from a program requirement error)")
+    elif all_satisfied:
+        verdict = "satisfied_bounded"
     else:
         verdict = "inconclusive"
         if not contract_props:
             reasons.append("empty contract: nothing to verify")
         if not model["verified"]:
-            reasons.append("model not fully verified (incomplete or a failed property)")
+            reasons.append("model not verified (incomplete, missing, or non-PASS property)")
         if not hashes["verified"]:
             reasons.append("artifact hashes do not verify")
         if trace["state"] in {"empty_projection", "incomplete", "tool_error",
@@ -235,7 +278,7 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
             reasons.append(f"trace state {trace['state']}")
         if identity["relevant_unresolved"]:
             reasons.append("relevant identity bindings unresolved")
-        if run["state"] != "ok":
+        if run["state"] != "completed":
             reasons.append(f"run state {run['state']}")
         if any(p.obligation_state == "unresolved" for p in props):
             reasons.append("some obligations are unchecked")

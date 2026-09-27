@@ -731,6 +731,7 @@ def _conform_all_op_resource(binary: Path, cir_path: Path, traces_dir: Path) -> 
     from collections import Counter
     statuses = Counter()
     first: dict[str, Any] | None = None
+    violations: list[dict[str, Any]] = []
     traces = sorted(traces_dir.glob("*.jsonl"))
     for trace in traces:
         proc = subprocess.run(
@@ -740,11 +741,19 @@ def _conform_all_op_resource(binary: Path, cir_path: Path, traces_dir: Path) -> 
             result = json.loads(proc.stdout)
         except json.JSONDecodeError:
             result = {"status": "error", "detail": proc.stderr[-200:]}
-        statuses[result.get("status")] += 1
-        if result.get("status") != "conformant" and first is None:
-            first = result
+        status = result.get("status")
+        statuses[status] += 1
+        if status != "conformant":
+            # `got` is "<op>:<resource>"; keep the structured resource.
+            got = str(result.get("got", ""))
+            resource = got.split(":", 1)[1] if ":" in got else None
+            violations.append({"status": status, "got": got, "resource": resource,
+                               "event_index": result.get("event_index")})
+            if first is None:
+                first = result
     return {"traces": len(traces), "statuses": dict(statuses),
-            "conformant": statuses.get("conformant", 0), "first_violation": first}
+            "conformant": statuses.get("conformant", 0), "first_violation": first,
+            "violations": violations}
 
 
 def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path,
@@ -858,7 +867,24 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
             info["reasons"].append(info["stages"]["execution"])
         else:
             info["stages"]["execution"] = "ok"
-        mapping, provenance = mapping_to_cir(wrapped["resources"], cir)
+        # Single binding-check entry (ConcIR CLI); no fallback to a weaker name
+        # mapping. A checker failure is a tool error, not a program deviation.
+        from .binding import BindingUnavailable, bind as binding_bind
+        try:
+            rb = binding_bind(inst / "resources.json", cir_path)
+        except BindingUnavailable as exc:
+            info["stages"]["binding"] = f"tool_error: {exc}"
+            info["decision"] = "binding_tool_error"
+            info["reasons"].append("binding_tool_error")
+            feedback = ("Tool error: the binding checker is unavailable. This is not a "
+                        "request to change synchronization structure.")
+            continue
+        mapping = {name: v["cir"] for name, v in rb.get("verified", {}).items()}
+        provenance = {"rules": {},
+                      "ambiguous": [{"rust": k, **v}
+                                    for k, v in rb.get("unresolved", {}).items()],
+                      "violated": rb.get("violated", {})}
+        info["stages"]["binding"] = "ok"
         mapping_path = out_dir / f"round-{round_no}" / "mapping.json"
         mapping_path.write_text(json.dumps({"mapping": mapping, "provenance": provenance},
                                            indent=2) + "\n", encoding="utf-8")

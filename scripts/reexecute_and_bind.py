@@ -63,6 +63,18 @@ def _count_ops(directory: Path, ops: set[str]) -> int:
     return total
 
 
+def _artifacts(out: Path, result: dict) -> list[dict]:
+    """A verifiable manifest linking each referenced artifact to its hash."""
+
+    paths = [result.get("source_path"), result.get("cir_path"),
+             result.get("contract_path"), str(out / "binding.json"),
+             str(out / "monitor.json")]
+    for d in ("traces", "conform-traces"):
+        if (out / d).is_dir():
+            paths.extend(str(p) for p in sorted((out / d).glob("*.jsonl")))
+    return [{"path": p, "sha256": _sha(Path(p))} for p in paths if p and Path(p).is_file()]
+
+
 def _finalize(out: Path, result: dict, contract_path: Path, accepted: bool,
               cir_props: dict | None, cir_complete: bool | None) -> dict:
     """Every exit path (success or any failure) writes a result with a ledger."""
@@ -71,6 +83,7 @@ def _finalize(out: Path, result: dict, contract_path: Path, accepted: bool,
         contract = json.loads(Path(contract_path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         contract = {"properties": [], "preserved": []}
+    result["artifacts"] = _artifacts(out, result)
     ledger = evaluate_reexecution(result, contract, accepted=accepted,
                                   cir_props=cir_props or {}, cir_complete=cir_complete)
     result["ledger"] = ledger.to_dict()
@@ -85,7 +98,8 @@ def reexecute(source: str, cir_path: Path, contract_path: Path, out: Path, *,
               run_timeout: float = 10.0, accepted: bool = True, cell_id: str = '',
               cir_props: dict | None = None,
               cir_complete: bool | None = None,
-              candidate_kind: str = 'final', round_no: int | None = None) -> dict:
+              candidate_kind: str = 'final', round_no: int | None = None,
+              manifest_path: Path | None = None) -> dict:
     out.mkdir(parents=True, exist_ok=True)
     source_path = out / "source.rs"
     source_path.write_text(source, encoding="utf-8")
@@ -133,6 +147,7 @@ def reexecute(source: str, cir_path: Path, contract_path: Path, out: Path, *,
 
     # 4. execute; raw traces
     runs = rust_oracle.run_native(proj, out / "traces", n=n_runs, timeout=run_timeout)
+    result["runs_started"] = len(runs)
     result["runs_completed"] = sum(1 for r in runs if r["completed"])
     result["hang"] = any(r["timed_out"] for r in runs)
     result["raw_events"] = _count_events(out / "traces")
@@ -145,24 +160,23 @@ def reexecute(source: str, cir_path: Path, contract_path: Path, out: Path, *,
     # 5. binding via the ConcIR bind_check CLI (falls back to the Python
     #    structural mapping only if the Rust binary is unavailable).
     cir = json.loads(cir_path.read_text(encoding="utf-8"))
-    rb = None
+    from cir_workflow.binding import BindingUnavailable, bind as binding_bind
     try:
-        from scripts.binding_check import run_rust  # type: ignore
-        rb = run_rust(out / "instrument/resources.json", cir_path)
-    except Exception:  # noqa: BLE001
-        rb = None
-    if rb is not None:
-        mapping = {name: v["cir"] for name, v in rb.get("verified", {}).items()}
-        ambiguous = [{"rust": k, **v} for k, v in rb.get("unresolved", {}).items()]
-        result["binding"] = {"mapping": mapping, "rules": {},
-                             "ambiguous": ambiguous,
-                             "violated": list(rb.get("violated", {}).keys()),
-                             "source": "rust-cli"}
-    else:
-        mapping, prov = generation.mapping_to_cir(wrapped["resources"], cir)
-        result["binding"] = {"mapping": mapping, "rules": prov.get("rules", {}),
-                             "ambiguous": prov.get("ambiguous", []),
-                             "source": "python-fallback"}
+        rb = binding_bind(out / "instrument/resources.json", cir_path,
+                          manifest_path=manifest_path)
+    except BindingUnavailable as exc:
+        # No silent fallback to a weaker name mapping.
+        result["stages"]["binding"] = f"tool_error: {exc}"
+        result["binding"] = {"mapping": {}, "ambiguous": [], "violated": {},
+                             "source": "rust-cli-unavailable", "error": str(exc)}
+        return _finalize(out, result, contract_path, accepted, cir_props, cir_complete)
+    mapping = {name: v["cir"] for name, v in rb.get("verified", {}).items()}
+    ambiguous = [{"rust": k, **v} for k, v in rb.get("unresolved", {}).items()]
+    result["stages"]["binding"] = "ok"
+    result["binding"] = {"mapping": mapping, "rules": {},
+                         "ambiguous": ambiguous,
+                         "violated": rb.get("violated", {}),
+                         "source": "rust-cli"}
     (out / "binding.json").write_text(
         json.dumps({"mapping": mapping, "provenance": result["binding"]}, indent=2) + "\n",
         encoding="utf-8")

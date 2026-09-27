@@ -87,10 +87,12 @@ def main() -> int:
     parser.add_argument("--cir", required=True)
     parser.add_argument("--manifest", default=None, help="binding manifest JSON (list)")
     args = parser.parse_args()
-    resources = json.loads(Path(args.resources).read_text())["resources"]
-    cir = json.loads(Path(args.cir).read_text())
-    manifest = json.loads(Path(args.manifest).read_text()) if args.manifest else None
-    result = check(resources, cir, manifest)
+    from cir_workflow.binding import BindingUnavailable, bind as binding_bind
+    try:
+        result = binding_bind(args.resources, args.cir, manifest_path=args.manifest)
+    except BindingUnavailable as exc:
+        print(json.dumps({"tool_error": str(exc)}))
+        return 3
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
