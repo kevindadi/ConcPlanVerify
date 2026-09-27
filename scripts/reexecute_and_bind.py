@@ -64,15 +64,29 @@ def _count_ops(directory: Path, ops: set[str]) -> int:
 
 
 def _artifacts(out: Path, result: dict) -> list[dict]:
-    """A verifiable manifest linking each referenced artifact to its hash."""
+    """A role-tagged, verifiable manifest of every referenced artifact."""
 
-    paths = [result.get("source_path"), result.get("cir_path"),
-             result.get("contract_path"), str(out / "binding.json"),
-             str(out / "monitor.json")]
-    for d in ("traces", "conform-traces"):
+    role_paths: list[tuple[str, str | None]] = [
+        ("source", result.get("source_path")),
+        ("cir", result.get("cir_path")),
+        ("contract", result.get("contract_path")),
+        ("model_check", str(out / "model-check.json")),
+        ("binding", str(out / "binding.json")),
+        ("monitor", str(out / "monitor.json")),
+    ]
+    artifacts = []
+    for role, p in role_paths:
+        if p and Path(p).is_file():
+            artifacts.append({"role": role, "path": p, "sha256": _sha(Path(p))})
+    for d, role in (("traces", "execution"), ("conform-traces", "conform")):
         if (out / d).is_dir():
-            paths.extend(str(p) for p in sorted((out / d).glob("*.jsonl")))
-    return [{"path": p, "sha256": _sha(Path(p))} for p in paths if p and Path(p).is_file()]
+            for p in sorted((out / d).glob("*.jsonl")):
+                artifacts.append({"role": role, "path": str(p), "sha256": _sha(p)})
+    f = result.get("functional") or {}
+    if f.get("evidence_path") and Path(f["evidence_path"]).is_file():
+        artifacts.append({"role": "functional", "path": f["evidence_path"],
+                          "sha256": _sha(Path(f["evidence_path"]))})
+    return artifacts
 
 
 def _finalize(out: Path, result: dict, contract_path: Path, accepted: bool,
@@ -99,7 +113,8 @@ def reexecute(source: str, cir_path: Path, contract_path: Path, out: Path, *,
               cir_props: dict | None = None,
               cir_complete: bool | None = None,
               candidate_kind: str = 'final', round_no: int | None = None,
-              manifest_path: Path | None = None) -> dict:
+              manifest_path: Path | None = None,
+              functional: dict | None = None) -> dict:
     out.mkdir(parents=True, exist_ok=True)
     source_path = out / "source.rs"
     source_path.write_text(source, encoding="utf-8")
@@ -113,7 +128,12 @@ def reexecute(source: str, cir_path: Path, contract_path: Path, out: Path, *,
         "n_runs": n_runs, "stages": {}, "limitations": [],
         "candidate_kind": candidate_kind, "round_no": round_no,
         "cir_props": cir_props or {}, "cir_complete": cir_complete,
+        "functional": functional,
     }
+    (out / "model-check.json").write_text(json.dumps(
+        {"cir_props": cir_props or {}, "cir_complete": cir_complete,
+         "cir_path": str(cir_path), "cir_sha256": _sha(cir_path)}, indent=2) + "\n",
+        encoding="utf-8")
     # 1. source build (original program, before instrumentation)
     src_proj = out / "source-proj"
     (src_proj / "src").mkdir(parents=True, exist_ok=True)

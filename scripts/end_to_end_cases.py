@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""End-to-end closed-loop cases (strong-link-v4).
+"""End-to-end closed-loop cases (strong-link-v5), with real assertions.
 
-Each case runs the real production chain on a persisted fixture:
-source build -> instrument -> build -> execute -> binding (Rust CLI) ->
-conform/monitor -> ledger. Group 1 checks an explicit synchronization-order
-deviation; Group 2 checks that identical synchronization with a wrong
-computation is caught only by an independent functional test. Truth is
-established from the source transformation / requirement, never from the
-checker under test.
+Each case runs the production chain on a persisted fixture and asserts the
+expected final evidence, exiting non-zero on mismatch:
+
+- Group 1 (sync order): order_ok model-verified and sync-conformant;
+  order_swap still compiles/runs and its order deviation is located.
+- Group 2 (computation): compute_ok sync-conformant + functional pass;
+  compute_wrong sync-conformant + functional FAIL, final not just "unknown".
+
+Truth comes from the source transformation / requirement, never from the
+checker under test. The CVN explore result is obtained from the real backend,
+not hand-filled.
 """
 
 from __future__ import annotations
@@ -30,29 +34,45 @@ BIN = REPO.parent / "ConcIR/target/release/concir-backend"
 INSTR = REPO.parent / "ConcIR/target/release/concir-instrument"
 
 
-def _run_source(source: str, work: Path, timeout: float = 20.0) -> dict:
-    """Build and run an original program; capture stdout/exit."""
+def _explore(cir: Path, contract: Path) -> tuple[dict, bool]:
+    proc = subprocess.run([str(BIN), "explore", str(cir), str(contract), "petri"],
+                          capture_output=True, text=True, timeout=120)
+    d = json.loads(proc.stdout)
+    props = {str(p["id"]).replace("preserved: ", ""): p.get("outcome")
+             for p in d.get("properties", [])}
+    return props, bool(d.get("complete"))
 
+
+def _functional(source: str, work: Path, expected: str) -> dict:
     work.mkdir(parents=True, exist_ok=True)
     (work / "src").mkdir(exist_ok=True)
     (work / "Cargo.toml").write_text(rust_oracle._container(), encoding="utf-8")
     (work / "src" / "main.rs").write_text(source, encoding="utf-8")
-    built, log = rust_oracle.cargo_build(work)
-    if not built:
-        return {"built": False, "stdout": None, "returncode": None}
-    proc = subprocess.run([str(work / "target/debug/probe")], capture_output=True,
-                          text=True, timeout=timeout)
-    return {"built": True, "stdout": proc.stdout.strip(), "returncode": proc.returncode}
+    built, _ = rust_oracle.cargo_build(work)
+    stdout = None
+    if built:
+        proc = subprocess.run([str(work / "target/debug/probe")], capture_output=True,
+                              text=True, timeout=20)
+        stdout = proc.stdout.strip()
+    ev = work / "functional.txt"
+    ev.write_text(f"expected={expected!r}\nstdout={stdout!r}\n")
+    return {"status": "pass" if stdout == expected else ("fail" if stdout is not None else "not_run"),
+            "evidence": f"stdout={stdout!r} expected={expected!r}",
+            "evidence_path": str(ev)}
 
 
 def _reexec(name: str, source: str, cir: str, contract: str, out: Path,
-            manifest: Path | None = None) -> dict:
-    res = reexecute(source, FIX / cir, FIX / contract, out / name,
-                    binary=BIN, instrument=INSTR, accepted=True, cell_id=name,
-                    manifest_path=manifest)
-    return {"case": name, "ledger": res.get("ledger"), "stages": res.get("stages"),
-            "trace": res.get("ledger", {}).get("trace"),
-            "binding": res.get("binding"), "run": res.get("ledger", {}).get("run")}
+            cir_props: dict, cir_complete: bool, functional: dict | None = None) -> dict:
+    return reexecute(source, FIX / cir, FIX / contract, out / name,
+                     binary=BIN, instrument=INSTR, accepted=True, cell_id=name,
+                     cir_props=cir_props, cir_complete=cir_complete,
+                     functional=functional)
+
+
+def _violation_location(trace: dict) -> str | None:
+    for v in trace.get("violations", []):
+        return f"event_index={v.get('event_index')} got={v.get('got')}"
+    return None
 
 
 def main() -> int:
@@ -60,99 +80,97 @@ def main() -> int:
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
+    checks: list[tuple[str, bool, str]] = []
     results = []
 
-    # ---- Group 1: explicit synchronization-order deviation -----------------
-    order_cir = (FIX / "order.cir.json").read_text()
+    # ---- Group 1 -----------------------------------------------------------
+    o_props, o_complete = _explore(FIX / "order.cir.json", FIX / "order.contract.json")
     ok = (FIX / "order_ok.rs").read_text()
     swap = (FIX / "order_swap.rs").read_text()
-    r_ok = _reexec("order_ok", ok, "order.cir.json", "order.contract.json", out)
-    r_swap = _reexec("order_swap", swap, "order.cir.json", "order.contract.json", out)
-    results.append({
-        "group": 1, "case": "sync_order",
-        "design_deviation": "yes (lock order a->b exchanged to b->a in w; same compile, "
-                            "same events set)",
-        "truth_basis": "source transformation + CIR statement order (a then b)",
-        "order_ok": {"conform": r_ok["trace"], "run": r_ok["run"]},
-        "order_swap": {"conform": r_swap["trace"], "run": r_swap["run"]},
-        "expected": "order_ok observed_conformant; order_swap observed_violation (order)",
-    })
+    r_ok = _reexec("order_ok", ok, "order.cir.json", "order.contract.json", out, o_props, o_complete)
+    r_swap = _reexec("order_swap", swap, "order.cir.json", "order.contract.json", out, o_props, o_complete)
+    checks.append(("g1_order_ok_conformant",
+                   r_ok["ledger"]["trace"]["state"] == "observed_conformant",
+                   r_ok["ledger"]["trace"]["state"]))
+    checks.append(("g1_order_ok_model_verified", r_ok["ledger"]["model"]["verified"],
+                   str(r_ok["ledger"]["model"]["verified"])))
+    checks.append(("g1_order_swap_runs", r_swap["ledger"]["run"]["state"] == "completed",
+                   r_swap["ledger"]["run"]["state"]))
+    checks.append(("g1_order_swap_violation",
+                   r_swap["ledger"]["trace"]["state"] == "observed_violation",
+                   r_swap["ledger"]["trace"]["state"]))
+    results.append({"group": 1, "case": "sync_order",
+                    "model_obligation": "w: lock a then lock b (CIR statement order)",
+                    "design_deviation": "sync order exchanged (b then a) in w",
+                    "order_ok": {"trace": r_ok["ledger"]["trace"]["state"],
+                                 "model_verified": r_ok["ledger"]["model"]["verified"]},
+                    "order_swap": {"run": r_swap["ledger"]["run"]["state"],
+                                   "trace": r_swap["ledger"]["trace"]["state"],
+                                   "violation_location": _violation_location(r_swap["ledger"]["trace"])}})
 
-    # ---- Group 2: identical synchronization, wrong computation -------------
-    comp_cir = "compute.cir.json"
+    # ---- Group 2 -----------------------------------------------------------
+    c_props, c_complete = _explore(FIX / "compute.cir.json", FIX / "compute.contract.json")
     ok_c = (FIX / "compute_ok.rs").read_text()
     wrong_c = (FIX / "compute_wrong.rs").read_text()
-    f_ok = _run_source(ok_c, out / "func-compute_ok")
-    f_wrong = _run_source(wrong_c, out / "func-compute_wrong")
-    r_cok = _reexec("compute_ok", ok_c, comp_cir, "compute.contract.json", out)
-    r_cwrong = _reexec("compute_wrong", wrong_c, comp_cir, "compute.contract.json", out)
-    expected_out = "DONE done=6"
-    results.append({
-        "group": 2, "case": "compute_wrong",
-        "design_deviation": "no (synchronization identical)",
-        "requirement_violation": "yes (writes 5, not 6)",
-        "truth_basis": "independent functional test: run the built program and compare "
-                       "stdout to the requirement's expected line",
-        "compute_ok": {"stdout": f_ok["stdout"], "functional_pass": f_ok["stdout"] == expected_out,
-                       "conform": r_cok["trace"]},
-        "compute_wrong": {"stdout": f_wrong["stdout"],
-                          "functional_pass": f_wrong["stdout"] == expected_out,
-                          "conform": r_cwrong["trace"]},
-        "expected": "both conform observed_conformant; only the functional test "
-                    "distinguishes them (sync-conformant != requirement satisfied)",
-    })
+    f_ok = _functional(ok_c, out / "func-compute_ok", "DONE done=6")
+    f_wrong = _functional(wrong_c, out / "func-compute_wrong", "DONE done=6")
+    r_cok = _reexec("compute_ok", ok_c, "compute.cir.json", "compute.contract.json", out,
+                    c_props, c_complete, functional=f_ok)
+    r_cwrong = _reexec("compute_wrong", wrong_c, "compute.cir.json", "compute.contract.json", out,
+                       c_props, c_complete, functional=f_wrong)
+    checks.append(("g2_compute_ok_sync", r_cok["ledger"]["trace"]["state"] == "observed_conformant",
+                   r_cok["ledger"]["trace"]["state"]))
+    checks.append(("g2_compute_ok_functional_pass", f_ok["status"] == "pass", f_ok["status"]))
+    checks.append(("g2_compute_wrong_sync", r_cwrong["ledger"]["trace"]["state"] == "observed_conformant",
+                   r_cwrong["ledger"]["trace"]["state"]))
+    checks.append(("g2_compute_wrong_functional_fail", f_wrong["status"] == "fail", f_wrong["status"]))
+    checks.append(("g2_compute_wrong_final_explicit",
+                   r_cwrong["ledger"]["current_evaluation"] == "functional_failure",
+                   r_cwrong["ledger"]["current_evaluation"]))
+    results.append({"group": 2, "case": "compute_wrong",
+                    "dimensions": {"sync": "not deviated (same events)",
+                                   "data": "deviated (CIR c:=6, Rust writes 5)",
+                                   "external_functional": "deviated (DONE done=5 != 6)"},
+                    "truth_basis": "independent functional test (run + compare stdout)",
+                    "compute_ok": {"sync": r_cok["ledger"]["trace"]["state"],
+                                   "functional": f_ok["status"],
+                                   "final": r_cok["ledger"]["current_evaluation"]},
+                    "compute_wrong": {"sync": r_cwrong["ledger"]["trace"]["state"],
+                                      "functional": f_wrong["status"],
+                                      "final": r_cwrong["ledger"]["current_evaluation"]}})
 
     # ---- Regressions -------------------------------------------------------
-    # pure local rename: rename a local variable (not a resource binding)
     renamed = ok.replace("let ga = a.lock()", "let g1 = a.lock()").replace(
         "let gb = b.lock()", "let g2 = b.lock()").replace(
         "drop(gb);", "drop(g2);").replace("drop(ga);", "drop(g1);")
-    r_ren = _reexec("order_renamed", renamed, "order.cir.json", "order.contract.json", out)
-    results.append({"group": "reg", "case": "pure_local_rename",
-                    "same_identity": r_ren["binding"].get("mapping") == r_ok["binding"].get("mapping"),
-                    "same_verdict": r_ren["ledger"].get("current_evaluation")
-                    == r_ok["ledger"].get("current_evaluation")})
-
-    # legal clone: order_ok already uses Arc::clone; record its binding
-    results.append({"group": "reg", "case": "legal_clone",
-                    "binding": r_ok["binding"].get("mapping")})
-
-    # wrong manifest
+    r_ren = _reexec("order_renamed", renamed, "order.cir.json", "order.contract.json",
+                    out, o_props, o_complete)
+    checks.append(("reg_rename_same_verdict",
+                   r_ren["ledger"]["current_evaluation"] == r_ok["ledger"]["current_evaluation"],
+                   r_ren["ledger"]["current_evaluation"]))
     man = out / "wrong_manifest.json"
     man.write_text('[{"rust": "a_mutex0", "cir": "main::b"}]')
-    r_bad = _reexec("order_bad_manifest", ok, "order.cir.json",
-                    "order.contract.json", out, manifest=man)
-    results.append({"group": "reg", "case": "wrong_manifest",
-                    "violated": r_bad["binding"].get("violated"),
-                    "verdict": r_bad["ledger"].get("current_evaluation")})
-
-    # two same-field instances
-    two = (FIX / "two_instances.rs").read_text() if (FIX / "two_instances.rs").is_file() else None
-    if two:
-        r_two = _reexec("two_instances", two, "two.cir.json", "order.contract.json", out)
-        results.append({"group": "reg", "case": "two_instances",
-                        "unresolved": r_two["binding"].get("ambiguous"),
-                        "verdict": r_two["ledger"].get("current_evaluation")})
-
-    # empty projection
-    empty = (FIX / "no_sync.rs").read_text() if (FIX / "no_sync.rs").is_file() else None
-    if empty:
-        r_empty = _reexec("no_sync", empty, "order.cir.json", "order.contract.json", out)
-        results.append({"group": "reg", "case": "empty_projection",
-                        "trace": r_empty["trace"], "verdict": r_empty["ledger"].get("current_evaluation")})
-
-    # checker exception: missing resources file
+    r_bad = reexecute(ok, FIX / "order.cir.json", FIX / "order.contract.json",
+                      out / "order_bad_manifest", binary=BIN, instrument=INSTR,
+                      accepted=True, cell_id="order_bad_manifest", cir_props=o_props,
+                      cir_complete=o_complete, manifest_path=man)
+    checks.append(("reg_wrong_manifest_declaration_error",
+                   r_bad["ledger"]["current_evaluation"] == "binding_declaration_error",
+                   r_bad["ledger"]["current_evaluation"]))
     proc = subprocess.run([str(REPO.parent / "ConcIR/target/release/bind_check"),
-                           "--resources", str(out / "missing.json"), "--cir", str(FIX / "order.cir.json")],
-                          capture_output=True, text=True)
-    results.append({"group": "reg", "case": "checker_missing_input",
-                    "exit": proc.returncode, "stderr": proc.stderr.strip()[:120]})
+                           "--resources", str(out / "missing.json"),
+                           "--cir", str(FIX / "order.cir.json")], capture_output=True, text=True)
+    checks.append(("reg_checker_input_error", proc.returncode == 2, str(proc.returncode)))
 
     (out / "CASES.json").write_text(json.dumps(results, ensure_ascii=False, indent=2) + "\n")
-    print(json.dumps([{k: v for k, v in r.items() if k in ("case", "expected", "verdict")}
-                      for r in results], ensure_ascii=False, indent=2))
-    print(f"wrote {out}/CASES.json")
-    return 0
+    (out / "ASSERTIONS.json").write_text(json.dumps(
+        [{"name": n, "pass": p, "detail": d} for n, p, d in checks],
+        ensure_ascii=False, indent=2) + "\n")
+    failed = [n for n, p, _ in checks if not p]
+    for n, p, d in checks:
+        print(f"  [{'PASS' if p else 'FAIL'}] {n}: {d}")
+    print(f"{len(checks) - len(failed)}/{len(checks)} assertions passed")
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

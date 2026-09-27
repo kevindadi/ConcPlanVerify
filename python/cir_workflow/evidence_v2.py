@@ -44,29 +44,46 @@ def _sha(path: str | None) -> str | None:
         return None
 
 
+# Roles a complete evidence chain must reference (per current conclusion).
+REQUIRED_ROLES = {"source", "cir", "contract", "model_check", "binding",
+                  "monitor", "execution", "conform"}
+
+
 def hash_verification(result: dict) -> dict:
-    """Re-read every recorded artifact and compare to its recorded hash."""
+    """Re-read every role-tagged artifact and check the required roles.
+
+    A conclusion is only supported when every required role is present and its
+    file matches the recorded hash. Missing files are not silently skipped.
+    """
 
     artifacts = result.get("artifacts") or []
-    detail = {}
-    ok = True
-    for a in artifacts:
-        path, recorded = a.get("path"), a.get("sha256")
-        actual = _sha(path)
-        match = bool(recorded and actual and recorded == actual)
-        detail[path] = {"recorded": bool(recorded), "match": match}
-        ok = ok and match
-    # Fall back to the three inputs when no artifact manifest is present.
     if not artifacts:
+        # Legacy format: only the three inputs; not a full evidence grade.
+        detail = {}
         for key, path in (("source_sha256", result.get("source_path")),
                           ("cir_sha256", result.get("cir_path")),
                           ("contract_sha256", result.get("contract_path"))):
-            recorded = result.get(key)
             actual = _sha(path) if path else None
-            match = bool(recorded and actual and recorded == actual)
-            detail[path or key] = {"recorded": bool(recorded), "match": match}
-            ok = ok and match
-    return {"verified": ok, "detail": detail}
+            detail[path or key] = {"recorded": bool(result.get(key)),
+                                   "match": bool(result.get(key) and actual == result.get(key))}
+        return {"verified": False, "legacy": True,
+                "missing_roles": sorted(REQUIRED_ROLES), "roles": [], "detail": detail}
+
+    roles = {a.get("role") for a in artifacts}
+    missing = sorted(REQUIRED_ROLES - roles)
+    func = result.get("functional") or {}
+    if func.get("status") in {"pass", "fail"} and "functional" not in roles:
+        missing.append("functional")
+    detail = {}
+    ok = True
+    for a in artifacts:
+        actual = _sha(a.get("path"))
+        match = bool(a.get("sha256") and actual == a["sha256"])
+        detail[a.get("path")] = {"role": a.get("role"),
+                                 "recorded": bool(a.get("sha256")), "match": match}
+        ok = ok and match
+    return {"verified": ok and not missing, "missing_roles": missing,
+            "roles": sorted(r for r in roles if r), "detail": detail}
 
 
 def _model_state(cir_props: dict, cir_complete: bool | None,
@@ -178,6 +195,14 @@ class PropertyLedger:
     guarantee: str
 
 
+def _functional_state(result: dict) -> dict:
+    f = result.get("functional") or {}
+    status = f.get("status", "not_run")
+    valid = status in {"pass", "fail"} and bool(f.get("evidence"))
+    return {"status": status, "valid": valid, "evidence": f.get("evidence"),
+            "detail": f.get("detail")}
+
+
 @dataclass
 class ReexecutionLedger:
     cell: str
@@ -188,6 +213,7 @@ class ReexecutionLedger:
     trace: dict
     run: dict
     hashes: dict
+    layers: dict = field(default_factory=dict)
     properties: list[PropertyLedger] = field(default_factory=list)
     all_obligations_satisfied: bool = False
     reasons: list[str] = field(default_factory=list)
@@ -238,11 +264,32 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
             independent_requirement_result=status, obligation_state=state,
             guarantee=guarantee))
 
+    functional = _functional_state(result)
+    # A valid monitor FAIL or a valid functional FAIL is an explicit violation.
+    requirement_failed = hashes["verified"] and any(
+        p.obligation_state == "violated" for p in props)
+    # A functional test carries its own evidence (its output); it is not gated
+    # by the code-artifact manifest.
+    functional_failed = functional["valid"] and functional["status"] == "fail"
+
+    layers = {
+        "conformance": trace["state"],
+        "requirement": ("violated" if requirement_failed else
+                        ("tool_error" if trace["state"] == "tool_error" else "inconclusive")),
+        "functional": functional["status"],
+        "run": run["state"],
+        "binding": ("violated" if identity["declaration_error"] else
+                    ("unresolved" if identity["relevant_unresolved"] else "verified")),
+        "tool": ("error" if str((result.get("stages") or {}).get("binding", "")).startswith("tool_error")
+                 else "ok"),
+    }
+
     all_satisfied = bool(
         contract_props and model["verified"] and hashes["verified"]
         and trace["state"] == "observed_conformant"
         and not identity["relevant_unresolved"] and not identity["declaration_error"]
-        and run["state"] == "completed"
+        and run["state"] == "completed" and not requirement_failed
+        and functional["status"] != "fail"
         and all(p.obligation_state == "satisfied" for p in props))
 
     # current_evaluation depends only on current evidence, never on accepted.
@@ -256,6 +303,12 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
     elif run["state"] in {"not_run", "timeout", "runtime_crash", "partial"}:
         verdict = run["state"]
         reasons.append(f"run state {run['state']}")
+    elif requirement_failed:
+        verdict = "requirement_failure"
+        reasons.append("a valid monitor check reports a violated property")
+    elif functional_failed:
+        verdict = "functional_failure"
+        reasons.append("an independent functional test fails")
     elif trace.get("independent_violation"):
         verdict = "explicit_failure"
         reasons.append("independent conformance violation on a resolved resource")
@@ -267,12 +320,12 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
         verdict = "satisfied_bounded"
     else:
         verdict = "inconclusive"
+        if not hashes["verified"]:
+            reasons.append("evidence_invalid: artifact hashes do not verify")
         if not contract_props:
             reasons.append("empty contract: nothing to verify")
         if not model["verified"]:
             reasons.append("model not verified (incomplete, missing, or non-PASS property)")
-        if not hashes["verified"]:
-            reasons.append("artifact hashes do not verify")
         if trace["state"] in {"empty_projection", "incomplete", "tool_error",
                               "binding_unresolved"}:
             reasons.append(f"trace state {trace['state']}")
@@ -280,11 +333,13 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
             reasons.append("relevant identity bindings unresolved")
         if run["state"] != "completed":
             reasons.append(f"run state {run['state']}")
+        if functional["status"] == "not_run":
+            reasons.append("no independent functional test available")
         if any(p.obligation_state == "unresolved" for p in props):
             reasons.append("some obligations are unchecked")
 
     return ReexecutionLedger(
         cell=result.get("cell", ""), historical_acceptance=accepted,
         current_evaluation=verdict, model=model, identity=identity, trace=trace,
-        run=run, hashes=hashes, properties=props,
+        run=run, hashes=hashes, layers=layers, properties=props,
         all_obligations_satisfied=all_satisfied, reasons=reasons)

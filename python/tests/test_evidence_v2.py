@@ -17,8 +17,14 @@ def _files(tmp: Path) -> dict:
     src.write_text("fn main(){}")
     cir.write_text("{}")
     con.write_text("{}")
-    arts = [{"path": str(p), "sha256": hashlib.sha256(p.read_bytes()).hexdigest()}
-            for p in (src, cir, con)]
+    roles = {"source": src, "cir": cir, "contract": con}
+    for role in ("model_check", "binding", "monitor", "execution", "conform"):
+        p = tmp / f"{role}.json"
+        p.write_text("{}")
+        roles[role] = p
+    arts = [{"role": role, "path": str(p),
+             "sha256": hashlib.sha256(p.read_bytes()).hexdigest()}
+            for role, p in roles.items()]
     return {"source_path": str(src), "cir_path": str(cir), "contract_path": str(con),
             "artifacts": arts}
 
@@ -147,6 +153,46 @@ class StateMachineTests(unittest.TestCase):
             led = _ev(r)
         self.assertFalse(led.hashes["verified"])
         self.assertFalse(led.all_obligations_satisfied)
+
+    def test_monitor_fail_is_requirement_failure(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), monitor={"status": "fail",
+                                           "properties": [["p1", "FAIL"]]})
+            led = _ev(r)
+        self.assertEqual(led.current_evaluation, "requirement_failure")
+        self.assertEqual(led.properties[0].obligation_state, "violated")
+        self.assertTrue(led.reasons)
+
+    def test_functional_fail_is_explicit(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), functional={"status": "fail", "evidence": "stdout=DONE done=5"})
+            led = _ev(r)
+        self.assertEqual(led.current_evaluation, "functional_failure")
+        self.assertNotIn(led.current_evaluation, {"inconclusive", "satisfied_bounded"})
+
+    def test_sync_pass_cannot_override_functional_fail(self):
+        with tempfile.TemporaryDirectory() as td:
+            # model PASS + sync observed_conformant, but functional fails
+            r = _result(Path(td), functional={"status": "fail", "evidence": "x"})
+            led = _ev(r)
+        self.assertEqual(led.trace["state"], "observed_conformant")
+        self.assertEqual(led.current_evaluation, "functional_failure")
+
+    def test_invalid_evidence_is_not_a_requirement_failure(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), monitor={"status": "fail",
+                                           "properties": [["p1", "FAIL"]]})
+            r["artifacts"][0]["sha256"] = "WRONG"
+            led = _ev(r)
+        self.assertNotEqual(led.current_evaluation, "requirement_failure")
+        self.assertEqual(led.current_evaluation, "inconclusive")
+        self.assertIn("evidence_invalid", " ".join(led.reasons))
+
+    def test_layers_recorded(self):
+        with tempfile.TemporaryDirectory() as td:
+            led = _ev(_result(Path(td)))
+        for key in ("conformance", "requirement", "functional", "run", "binding", "tool"):
+            self.assertIn(key, led.layers)
 
     def test_empty_contract_never_passes(self):
         with tempfile.TemporaryDirectory() as td:

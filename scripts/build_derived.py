@@ -38,6 +38,7 @@ def main() -> int:
             "cell": r.get("cell"), "candidate_kind": r.get("candidate_kind"),
             "round_no": r.get("round_no"),
             "current_evaluation": led.get("current_evaluation"),
+            "historical_acceptance": led.get("historical_acceptance"),
             "trace_state": (led.get("trace") or {}).get("state"),
             "run_state": (led.get("run") or {}).get("state"),
             "model_verified": (led.get("model") or {}).get("verified"),

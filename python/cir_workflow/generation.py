@@ -756,6 +756,44 @@ def _conform_all_op_resource(binary: Path, cir_path: Path, traces_dir: Path) -> 
             "violations": violations}
 
 
+def _cir_props_for(binary: Path, cir_path: Path, contract_path: Path
+                   ) -> tuple[dict[str, str], bool | None]:
+    """Run the real CVN explore and normalise property ids (preserved: prefix)."""
+
+    try:
+        proc = subprocess.run([str(binary), "explore", str(cir_path), str(contract_path),
+                               "petri"], capture_output=True, text=True, timeout=120)
+        payload = json.loads(proc.stdout)
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+        return {}, None
+    props = {str(p["id"]).replace("preserved: ", ""): p.get("outcome")
+             for p in payload.get("properties", [])}
+    return props, payload.get("complete")
+
+
+def _role_artifacts(round_dir: Path, source_path: Path, cir_path: Path,
+                    contract_path: Path) -> list[dict[str, Any]]:
+    """Role-tagged manifest for the online round evidence."""
+
+    def sha(p: Path) -> str | None:
+        try:
+            return hashlib.sha256(p.read_bytes()).hexdigest()
+        except OSError:
+            return None
+
+    entries = [("source", source_path), ("cir", cir_path), ("contract", contract_path),
+               ("model_check", round_dir / "model-check.json"),
+               ("binding", round_dir / "mapping.json"),
+               ("monitor", round_dir / "monitor.json")]
+    out = [{"role": r, "path": str(p), "sha256": sha(p)} for r, p in entries if p.is_file()]
+    for d, role in ((round_dir / "traces", "execution"),
+                    (round_dir / "conform-traces", "conform")):
+        if d.is_dir():
+            for p in sorted(d.glob("*.jsonl")):
+                out.append({"role": role, "path": str(p), "sha256": sha(p)})
+    return out
+
+
 def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path,
                          out_dir: Path, *, k_code: int = 3, instrument_binary=None
                          ) -> dict[str, Any]:
@@ -928,30 +966,47 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
             info["reasons"].append("requirement_failed")
         else:
             info["stages"]["requirements"] = "ok"
-        if conform_ok and monitor_ok and behavior_ok:
+        # Shared interpretation: the same rule as the offline path decides.
+        from . import candidate_eval
+        round_dir = out_dir / f"round-{round_no}"
+        cir_props, cir_complete = _cir_props_for(binary, Path(cir_path), task.contract_path)
+        (round_dir / "model-check.json").write_text(json.dumps(
+            {"cir_props": cir_props, "cir_complete": cir_complete,
+             "cir_path": str(cir_path)}, indent=2) + "\n", encoding="utf-8")
+        bundle = {
+            "cell": f"{task.id}/rep{info.get('round')}",
+            "source_path": str(out_dir / f"round-{round_no}.rs"),
+            "cir_path": str(cir_path), "contract_path": str(task.contract_path),
+            "stages": {"source_build": "ok", "instrument": "ok", "instrumented_build": "ok"},
+            "runs_started": len(runs),
+            "runs_completed": sum(1 for r in runs if r["completed"]),
+            "hang": hang,
+            "raw_events": sum(1 for f in traces_dir.glob("*.jsonl")
+                              for ln in f.read_text(encoding="utf-8").splitlines() if ln.strip()),
+            "projected_events": sum(1 for f in conform_dir.glob("*.jsonl")
+                                    for ln in f.read_text(encoding="utf-8").splitlines() if ln.strip()),
+            "conform": {"traces": conform["traces"], "statuses": conform["statuses"],
+                        "violations": conform.get("violations", []),
+                        "first_violation": conform["first_violation"]},
+            "monitor": {"status": report.get("status"),
+                        "properties": [(p.get("id"), p.get("status"))
+                                       for p in report.get("properties", [])]},
+            "binding": {"mapping": mapping, "ambiguous": provenance.get("ambiguous", []),
+                        "violated": provenance.get("violated", {}), "source": "rust-cli"},
+            "functional": None,
+            "artifacts": _role_artifacts(round_dir, out_dir / f"round-{round_no}.rs",
+                                         Path(cir_path), task.contract_path),
+        }
+        ledger = candidate_eval.interpret(bundle, contract, accepted=False,
+                                          cir_props=cir_props, cir_complete=cir_complete)
+        record["ledger"] = ledger.to_dict()
+        record["acceptance_policy"] = candidate_eval.ACCEPTANCE_POLICY
+        if ledger.all_obligations_satisfied:
             info["decision"] = "accepted"
             record["accepted"] = True
             record["status"] = "accepted"
             record["accepted_with_proof"] = False
             record["observed_trace_ok"] = True
-            # Evidence boundary: a bounded accept is not automatically
-            # "implementation correspondence evidenced". Empty traces with a
-            # CIR that models observable operations are insufficient evidence.
-            from .evidence import cir_observability
-            ops, spawns = cir_observability(Path(cir_path))
-            observed = sum(
-                1 for f in conform_dir.glob("*.jsonl")
-                for line in f.read_text(encoding="utf-8").splitlines() if line.strip())
-            if ops + spawns == 0:
-                correspondence = "not_applicable"
-            elif observed == 0:
-                correspondence = "insufficient"
-            else:
-                correspondence = "supported"
-            record["evidence"] = {"observable_ops": ops, "spawns": spawns,
-                                  "observed_events": observed,
-                                  "correspondence": correspondence}
-            record["evidence_sufficient"] = correspondence != "insufficient"
             record["coverage"] = bounded_monitor.coverage(
                 contract, report, task.requirements, task.unverifiable,
                 behavior_ok=behavior_ok).as_dict()
