@@ -86,10 +86,10 @@ def _evaluate(rust: Path, task, work: Path, binary: Path, instrument: Path) -> d
     cov = result.get("coverage")
     status = result.get("status")
     failure = None
-    if status == "build_failed":
-        failure = "source_build_failed"
-    elif not result.get("built", True):
-        failure = "source_build_failed"
+    if status == "build_failed" or not result.get("built", True):
+        # rust_oracle.evaluate builds *after* instrumentation, so this is an
+        # instrumented-build failure, not proof the source is invalid.
+        failure = "build_failed_after_instrument"
     elif cov is None:
         failure = "not_evaluable"
     return {"status": status, "failure": failure,
@@ -181,12 +181,15 @@ def main() -> int:
                                 if evaluable else None)
             final_rf = sum((rf(r["coverage"]) or 0.0) if r["coverage"] else 0.0
                            for r in fin) / n_tasks
-            missing = [r["task"] for r in acc if not r["coverage"]]
+            # accepted_missing counts only cells that were accepted but lack an
+            # evaluation; cells that were never accepted are not_delivered.
+            missing = [r["task"] for r in accepted_true if not r["coverage"]]
             per[arm] = {"tasks": n_tasks,
                         "delivered_rf_all": round(delivered_rf, 4),
                         "accepted_quality_rf": round(accepted_quality, 4) if accepted_quality is not None else None,
                         "accepted_evaluable": len(evaluable),
                         "accepted_missing": len(missing), "missing_tasks": missing,
+                        "not_delivered": len(not_delivered),
                         "final_candidate_rf_all": round(final_rf, 4)}
         report[model] = per
         p = per

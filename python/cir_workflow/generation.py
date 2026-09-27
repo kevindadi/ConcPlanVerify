@@ -579,18 +579,18 @@ def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
                    ) -> tuple[dict[str, str], dict[str, Any]]:
     """Bind runtime resources to CIR FQNs by a layered, explainable rule.
 
-    Rules, in order, each applied only when unambiguous (never "try until it
-    passes"):
+    Only structural matches are bindings:
 
     1. ``exact`` — the runtime short name equals the CIR resource name;
     2. ``channel-name`` — a channel endpoint's channel token equals a CIR
        channel name (``ch1_tx`` -> ``ch1``);
-    3. ``module-prefix`` — the binding prefix names a CIR module that has
-       exactly one unmapped resource of that kind (``main_mod_mutex0`` ->
-       ``main::a``);
-    4. ``unique-kind`` — exactly one unmapped CIR resource of that kind.
+    3. ``spawn-entry`` — the instrumenter's structural thread entry names a CIR
+       function, and that entry is unambiguous.
 
-    Anything else is reported as ``ambiguous`` with the candidate list.
+    Everything else — module prefix, "only one object remains", handle-name
+    substrings — is a *suggestion*, never a binding. Name collisions (two
+    runtime resources with one CIR target) are unresolved. Anything unresolved
+    is reported with its candidate list and construction site.
     """
 
     kinds = rust_oracle.reference_kinds(cir)
@@ -607,11 +607,20 @@ def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
     def unmapped(kind: str) -> list[str]:
         return [f for f in by_kind.get(kind, []) if f not in mapping.values()]
 
+    from collections import Counter as _Counter
+    name_counts = _Counter(r.get("name", "") for r in rust_resources)
     channel_resources = [r for r in rust_resources if r.get("kind") == "Channel"]
     for res in rust_resources:
         kind = res.get("kind", "")
         name = res.get("name", "")
         if kind in {"Spawn", "ChannelWrapper"}:
+            continue
+        # Two runtime instances with the same name cannot both be one identity,
+        # and their trace events are indistinguishable.
+        if name_counts[name] > 1:
+            ambiguous.append({"rust": name, "kind": kind, "candidates": [],
+                              "site": res.get("site"),
+                              "reason": "duplicate runtime resource name"})
             continue
         short = name.rsplit("::", 1)[-1]
         # 1. exact short-name match
@@ -636,44 +645,60 @@ def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
                               "candidates": all_channels,
                               "suggestion": all_channels[0] if len(all_channels) == 1 else None})
             continue
-        # 3. module prefix
-        base = _binding_base(short)
-        modhits = [m for m in modules if base.startswith(m) or m.startswith(base)]
-        if len(modhits) == 1:
-            cands = [f for f in unmapped(kind) if f.split("::")[0] == modhits[0]]
-            if len(cands) == 1:
-                mapping[name] = cands[0]; rules[name] = "module-prefix"; continue
-        # "Only one object of this kind remains" is NOT a proven identity: the
-        # program may have omitted a modelled resource and added another. Record
-        # it as a suggestion only; never bind on elimination alone.
+        # A binding prefix naming a module, or "only one object remains", is NOT
+        # a proven identity: the program may have omitted a modelled resource
+        # and added another, or renamed it. Suggestion only.
         cands = unmapped(kind)
         ambiguous.append({"rust": name, "kind": kind, "candidates": cands,
+                          "site": res.get("site"),
                           "suggestion": cands[0] if len(cands) == 1 else None})
 
-    spawns = [r["name"] for r in rust_resources if r.get("kind") == "Spawn"]
+    # Spawn identity comes from the instrumenter's structural `entry` (the
+    # function the closure runs), and only when that entry is unambiguous.
     workers: list[str] = []
     for mod in cir.get("modules", []):
         for fn in mod.get("functions", []):
             if fn.get("name") != "main":
                 workers.append(f"{mod['name']}::{fn['name']}")
-    short = {w.rsplit("::", 1)[-1]: w for w in workers}
     used: set[str] = set()
-    for src in spawns:
-        s = src.rsplit("::", 1)[-1]
-        # 1. exact worker name
-        if s in short and short[s] not in used:
-            mapping[src] = short[s]; rules[src] = "spawn-exact"; used.add(short[s]); continue
-        # 2. the handle name contains the worker name (t1_handle -> t1)
-        hits = [w for w in workers if w.rsplit("::", 1)[-1] in s and w not in used]
-        if len(hits) == 1:
-            mapping[src] = hits[0]; rules[src] = "spawn-name"; used.add(hits[0]); continue
-        # Elimination ("only one worker left") is not a proven thread identity.
-        remaining = [w for w in workers if w not in used]
-        ambiguous.append({"rust": src, "kind": "Spawn", "candidates": remaining,
-                          "suggestion": remaining[0] if len(remaining) == 1 else None})
+    for res in rust_resources:
+        if res.get("kind") != "Spawn":
+            continue
+        name = res.get("name", "")
+        entry = res.get("entry")
+        unique = res.get("unique_entry")
+        if unique is True and entry:
+            hits = [w for w in workers if w.rsplit("::", 1)[-1] == entry and w not in used]
+            if len(hits) == 1:
+                mapping[name] = hits[0]; rules[name] = "spawn-entry"; used.add(hits[0])
+                continue
+            ambiguous.append({"rust": name, "kind": "Spawn", "candidates": hits,
+                              "site": res.get("site"), "entry": entry,
+                              "reason": "entry names no unique CIR thread"})
+            continue
+        ambiguous.append({"rust": name, "kind": "Spawn",
+                          "candidates": [w for w in workers if w not in used],
+                          "site": res.get("site"), "entry": entry,
+                          "reason": "thread entry is not unambiguous (closure has "
+                                    "several or no calls)"})
+
+    # Collision: two runtime resources bound to the same CIR FQN is a name
+    # collision, not two identities. Channels are exempt (endpoints share one).
+    targets: dict[str, list[str]] = {}
+    for rust, fqn in mapping.items():
+        targets.setdefault(fqn, []).append(rust)
+    for fqn, rusts in targets.items():
+        if len(rusts) > 1 and kinds.get(fqn) != "Channel":
+            for rust in rusts:
+                mapping.pop(rust, None); rules.pop(rust, None)
+                ambiguous.append({"rust": rust, "kind": kinds.get(fqn),
+                                  "candidates": [fqn],
+                                  "reason": "name collision: another runtime resource "
+                                            "binds the same CIR resource"})
+    spawn_names = [r["name"] for r in rust_resources if r.get("kind") == "Spawn"]
     return mapping, {"by_kind": {k: v for k, v in by_kind.items()},
                      "rules": rules,
-                     "threads": {src: mapping.get(src) for src in spawns},
+                     "threads": {src: mapping.get(src) for src in spawn_names},
                      "ambiguous": ambiguous}
 
 

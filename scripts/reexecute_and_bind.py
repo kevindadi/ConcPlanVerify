@@ -1,0 +1,222 @@
+#!/usr/bin/env python3
+"""Real offline re-execution and identity binding for frozen Rust candidates.
+
+Chain (all outputs in a fresh run directory; source cells are read-only):
+
+    frozen Rust
+      -> source build (original)              [stages.source_build]
+      -> concir-instrument --wrappers         [instrument/]
+      -> instrumented build                   [stages.instrumented_build]
+      -> execute N times, save raw traces     [traces/]
+      -> identity binding                     [binding.json]
+      -> projected traces for op-resource     [conform-traces/]
+      -> conform + monitor
+      -> per-sample result                    [result.json]
+
+The new resources.json is never mixed with old event namespaces: traces come
+from executing the newly built program. Thread lifecycle (spawn/join/scope) is
+recorded separately because op-resource conformance does not cover it.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "python"))
+
+from cir_workflow import bounded_monitor, generation, rust_oracle  # noqa: E402
+from cir_workflow.evidence import load_cir_properties  # noqa: E402
+from cir_workflow.evidence_v2 import evaluate_reexecution  # noqa: E402
+
+
+def _sha(p: Path) -> str | None:
+    try:
+        return hashlib.sha256(p.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def _count_events(directory: Path) -> int:
+    total = 0
+    for f in sorted(directory.glob("*.jsonl")):
+        total += len([ln for ln in f.read_text(encoding="utf-8").splitlines() if ln.strip()])
+    return total
+
+
+def _count_ops(directory: Path, ops: set[str]) -> int:
+    total = 0
+    for f in sorted(directory.glob("*.jsonl")):
+        for ln in f.read_text(encoding="utf-8").splitlines():
+            if not ln.strip():
+                continue
+            try:
+                if json.loads(ln).get("op") in ops:
+                    total += 1
+            except json.JSONDecodeError:
+                pass
+    return total
+
+
+def reexecute(source: str, cir_path: Path, contract_path: Path, out: Path, *,
+              binary: Path, instrument: Path, n_runs: int = 32,
+              run_timeout: float = 10.0, accepted: bool = True, cell_id: str = '',
+              cir_props: dict | None = None,
+              cir_complete: bool | None = None) -> dict:
+    out.mkdir(parents=True, exist_ok=True)
+    result: dict = {
+        "cell": cell_id,
+        "source_sha256": hashlib.sha256(source.encode()).hexdigest(),
+        "cir_sha256": _sha(cir_path), "contract_sha256": _sha(contract_path),
+        "backend_sha256": _sha(binary), "instrument_sha256": _sha(instrument),
+        "n_runs": n_runs, "stages": {}, "limitations": [],
+    }
+    # 1. source build (original program, before instrumentation)
+    src_proj = out / "source-proj"
+    (src_proj / "src").mkdir(parents=True, exist_ok=True)
+    (src_proj / "Cargo.toml").write_text(rust_oracle._container(), encoding="utf-8")
+    (src_proj / "src" / "main.rs").write_text(source, encoding="utf-8")
+    src_ok, src_log = rust_oracle.cargo_build(src_proj)
+    (out / "source-build.log").write_text(src_log, encoding="utf-8")
+    result["stages"]["source_build"] = "ok" if src_ok else "failed"
+    if not src_ok:
+        return result
+
+    # 2. instrument
+    try:
+        wrapped = rust_oracle.instrument_wrappers(source, out / "instrument",
+                                                  binary=instrument)
+    except Exception as exc:  # noqa: BLE001
+        result["stages"]["instrument"] = f"error: {exc}"
+        return result
+    result["stages"]["instrument"] = "ok"
+    result["limitations"] = wrapped["limitations"]
+    result["resources"] = wrapped["resources"]
+
+    # 3. instrumented build
+    proj = out / "proj"
+    rust_oracle.prepare_project(proj, wrapped["annotated"], wrapped["runtime"])
+    built, build_log = rust_oracle.cargo_build(proj)
+    (out / "instrumented-build.log").write_text(build_log, encoding="utf-8")
+    result["stages"]["instrumented_build"] = "ok" if built else "failed"
+    if not built:
+        return result
+
+    # 4. execute; raw traces
+    runs = rust_oracle.run_native(proj, out / "traces", n=n_runs, timeout=run_timeout)
+    result["runs_completed"] = sum(1 for r in runs if r["completed"])
+    result["hang"] = any(r["timed_out"] for r in runs)
+    result["raw_events"] = _count_events(out / "traces")
+    result["thread_lifecycle"] = {
+        "spawn": _count_ops(out / "traces", {"spawn"}),
+        "join": _count_ops(out / "traces", {"join"}),
+        "scope": _count_ops(out / "traces", {"scope"}),
+    }
+
+    # 5. binding
+    cir = json.loads(cir_path.read_text(encoding="utf-8"))
+    mapping, prov = generation.mapping_to_cir(wrapped["resources"], cir)
+    (out / "binding.json").write_text(
+        json.dumps({"mapping": mapping, "provenance": prov}, indent=2) + "\n",
+        encoding="utf-8")
+    result["binding"] = {"mapping": mapping, "rules": prov.get("rules", {}),
+                         "ambiguous": prov.get("ambiguous", [])}
+
+    # 6. projected traces for op-resource conformance (spawn/join/scope excluded
+    #    from this check; they are a separate thread-lifecycle obligation).
+    wrapper_names = {r["name"] for r in wrapped["resources"]
+                     if r.get("kind") == "ChannelWrapper"}
+    generation._rewrite_traces(out / "traces", out / "conform-traces", mapping,
+                               generation._DROP_OPS, wrapper_names)
+    result["projected_events"] = _count_events(out / "conform-traces")
+    conform = generation._conform_all_op_resource(binary, cir_path, out / "conform-traces")
+    result["conform"] = conform
+
+    # 7. monitor on raw (wrapper-filtered) traces with the binding
+    generation._rewrite_traces(out / "traces", out / "monitor-traces", {}, set(),
+                               wrapper_names)
+    report = bounded_monitor.run_monitor(contract_path, out / "monitor-traces",
+                                         resources=out / "instrument/resources.json",
+                                         mapping=out / "binding.json", binary=binary)
+    (out / "monitor.json").write_text(json.dumps(report) + "\n", encoding="utf-8")
+    result["monitor"] = {"status": report.get("status"),
+                         "properties": [(p.get("id"), p.get("status"))
+                                        for p in report.get("properties", [])]}
+    contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    ledger = evaluate_reexecution(result, contract, accepted=accepted,
+                                  cir_props=cir_props or {}, cir_complete=cir_complete)
+    result["ledger"] = ledger.to_dict()
+    (out / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n",
+                                     encoding="utf-8")
+    return result
+
+
+def _last_rust(cell: Path) -> Path | None:
+    rusts = sorted(cell.glob("code/round-*.rs"),
+                   key=lambda p: int(p.stem.split("-")[1]))
+    return rusts[-1] if rusts else None
+
+
+def _accepted_cir(cell: Path) -> Path | None:
+    revs = sorted(cell.glob("cir/revision-*.cir.json"),
+                  key=lambda p: int(p.stem.split("-")[1].split(".")[0]))
+    return revs[-1] if revs else None
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--batch", required=True)
+    parser.add_argument("--out", required=True)
+    parser.add_argument("--task", action="append", default=[],
+                        help="restrict to these task ids")
+    parser.add_argument("--binary", default=str(REPO.parent / "ConcIR/target/release/concir-backend"))
+    parser.add_argument("--instrument", default=str(REPO.parent / "ConcIR/target/release/concir-instrument"))
+    parser.add_argument("--n-runs", type=int, default=32)
+    args = parser.parse_args()
+    batch = Path(args.batch)
+    if not batch.is_absolute():
+        batch = REPO / batch
+    out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
+    binary, instrument = Path(args.binary), Path(args.instrument)
+    batch_summary = json.loads((batch / "SUMMARY.json").read_text())["cells"]
+    accepted_map = {(c["model"], c["task"], c.get("replicate", 0)): bool(c.get("accepted"))
+                    for c in batch_summary}
+    summary = []
+    for cell in sorted(batch.glob("*/*/rep*")):
+        if not (cell / "code").is_dir():
+            continue
+        if args.task and not any(t.replace("/", "__") in str(cell) for t in args.task):
+            continue
+        rust = _last_rust(cell)
+        cir = _accepted_cir(cell)
+        if rust is None or cir is None:
+            continue
+        rel = cell.relative_to(batch)
+        model = rel.parts[0]
+        task_id = rel.parts[1].replace("__", "/")
+        rep = int(rel.parts[2].replace("rep", ""))
+        contract = REPO / "benchmarks/families" / task_id / "contract.json"
+        cir_props, cir_complete = load_cir_properties(cell, cir)
+        run_dir = out / rel
+        res = reexecute(rust.read_text(encoding="utf-8"), cir, contract, run_dir,
+                        binary=binary, instrument=instrument, n_runs=args.n_runs,
+                        accepted=accepted_map.get((model, task_id, rep), False),
+                        cir_props=cir_props, cir_complete=cir_complete,
+                        cell_id=str(rel))
+        summary.append(res)
+        print(f"  {res['cell'][:60]:60s} stages={res['stages']} "
+              f"raw={res.get('raw_events')} proj={res.get('projected_events')} "
+              f"conform={res.get('conform',{}).get('statuses')}")
+    (out / "SUMMARY.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
+                                      encoding="utf-8")
+    print(f"wrote {out} ({len(summary)} samples)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
