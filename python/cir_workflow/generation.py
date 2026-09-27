@@ -629,10 +629,13 @@ def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
                         if f.rsplit("::", 1)[-1] == token]
                 if len(hits) == 1:
                     mapping[name] = hits[0]; rules[name] = "channel-name"; continue
+            # A single CIR channel absorbing every endpoint is elimination, not
+            # identity; leave it unresolved with a suggestion.
             all_channels = by_kind.get("Channel", [])
-            if len(all_channels) == 1:
-                mapping[name] = all_channels[0]
-                rules[name] = "channel-unique"; continue
+            ambiguous.append({"rust": name, "kind": kind,
+                              "candidates": all_channels,
+                              "suggestion": all_channels[0] if len(all_channels) == 1 else None})
+            continue
         # 3. module prefix
         base = _binding_base(short)
         modhits = [m for m in modules if base.startswith(m) or m.startswith(base)]
@@ -640,11 +643,12 @@ def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
             cands = [f for f in unmapped(kind) if f.split("::")[0] == modhits[0]]
             if len(cands) == 1:
                 mapping[name] = cands[0]; rules[name] = "module-prefix"; continue
-        # 4. unique kind
+        # "Only one object of this kind remains" is NOT a proven identity: the
+        # program may have omitted a modelled resource and added another. Record
+        # it as a suggestion only; never bind on elimination alone.
         cands = unmapped(kind)
-        if len(cands) == 1:
-            mapping[name] = cands[0]; rules[name] = "unique-kind"; continue
-        ambiguous.append({"rust": name, "kind": kind, "candidates": cands})
+        ambiguous.append({"rust": name, "kind": kind, "candidates": cands,
+                          "suggestion": cands[0] if len(cands) == 1 else None})
 
     spawns = [r["name"] for r in rust_resources if r.get("kind") == "Spawn"]
     workers: list[str] = []
@@ -656,10 +660,17 @@ def mapping_to_cir(rust_resources: list[dict[str, str]], cir: dict[str, Any]
     used: set[str] = set()
     for src in spawns:
         s = src.rsplit("::", 1)[-1]
+        # 1. exact worker name
         if s in short and short[s] not in used:
-            mapping[src] = short[s]; used.add(short[s])
-        else:
-            ambiguous.append({"rust": src, "kind": "Spawn", "candidates": workers})
+            mapping[src] = short[s]; rules[src] = "spawn-exact"; used.add(short[s]); continue
+        # 2. the handle name contains the worker name (t1_handle -> t1)
+        hits = [w for w in workers if w.rsplit("::", 1)[-1] in s and w not in used]
+        if len(hits) == 1:
+            mapping[src] = hits[0]; rules[src] = "spawn-name"; used.add(hits[0]); continue
+        # Elimination ("only one worker left") is not a proven thread identity.
+        remaining = [w for w in workers if w not in used]
+        ambiguous.append({"rust": src, "kind": "Spawn", "candidates": remaining,
+                          "suggestion": remaining[0] if len(remaining) == 1 else None})
     return mapping, {"by_kind": {k: v for k, v in by_kind.items()},
                      "rules": rules,
                      "threads": {src: mapping.get(src) for src in spawns},
