@@ -9,6 +9,7 @@ from pathlib import Path
 
 QWEN = Path("/Users/kevin/paper-review/papers/ConcPlanVerify/notes/strong-link-v4/reexec-qwen")
 FOUR = Path("/Users/kevin/paper-review/papers/ConcPlanVerify/notes/strong-link-v5")
+FOUR6 = Path("/Users/kevin/paper-review/papers/ConcPlanVerify/notes/strong-link-v6")
 
 
 class DerivedConsistencyTests(unittest.TestCase):
@@ -46,6 +47,31 @@ class FourModelConsistencyTests(unittest.TestCase):
             total += row["candidates"]
         self.assertEqual(combined["total_candidates"], total)
         self.assertEqual(sum(combined["verdicts"].values()), total)
+
+
+class FullMatrixTests(unittest.TestCase):
+    def test_full_matrix_has_96_cells(self):
+        if not (FOUR6 / "FULL_MATRIX.jsonl").is_file():
+            self.skipTest("v6 matrix not present")
+        rows = [json.loads(l) for l in (FOUR6 / "FULL_MATRIX.jsonl").read_text().splitlines() if l.strip()]
+        self.assertEqual(len(rows), 96)
+        results = sorted(FOUR6.glob("reexec-*/**/result.json"))
+        self.assertEqual(len(results), 96)
+        # every matrix row maps to a real result
+        paths = {str(p) for p in results}
+        self.assertTrue(all(r["evidence_path"] in paths for r in rows))
+        # missing-candidate reasons are preserved, not dropped
+        reasons = {r["current_evaluation"] for r in rows}
+        self.assertTrue({"cir_not_accepted", "cir_accepted_no_rust",
+                         "cir_unknown_or_raw_error"} & reasons)
+
+    def test_binding_sufficient_excludes_not_run(self):
+        if not (FOUR6 / "FULL_MATRIX.jsonl").is_file():
+            self.skipTest("v6 matrix not present")
+        rows = [json.loads(l) for l in (FOUR6 / "FULL_MATRIX.jsonl").read_text().splitlines() if l.strip()]
+        for r in rows:
+            if r["binding_sufficient"]:
+                self.assertTrue(r["binding_ran"], "binding sufficient requires the stage to have run")
 
 
 if __name__ == "__main__":

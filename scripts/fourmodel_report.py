@@ -26,16 +26,23 @@ def _model_row(root: Path, name: str) -> dict:
     hist_acc = sum(1 for c in cells if c.get("historical_acceptance"))
     # binding sufficiency: read per-cell ledgers for identity.unresolved
     binding_ok = 0
+    binding_not_run = 0
     for c in cells:
-        led = json.loads(Path(c["evidence_path"]).read_text())["ledger"]
-        if not (led.get("identity") or {}).get("relevant_unresolved"):
+        r = json.loads(Path(c["evidence_path"]).read_text())
+        led = r["ledger"]
+        ident = led.get("identity") or {}
+        ran = (r.get("stages") or {}).get("binding") == "ok" \
+            and (r.get("binding") or {}).get("source") == "rust-cli"
+        if not ran:
+            binding_not_run += 1
+        elif not ident.get("relevant_unresolved") and not ident.get("declaration_error"):
             binding_ok += 1
     return {
         "model": name, "candidates": len(cells), "verdicts": dict(verdicts),
         "trace": dict(trace), "run": dict(run), "candidate_kind": dict(kinds),
         "historical_accepted": hist_acc,
         "executable": run.get("completed", 0),
-        "binding_sufficient": binding_ok,
+        "binding_sufficient": binding_ok, "binding_not_run": binding_not_run,
         "trace_conformant": trace.get("observed_conformant", 0),
     }
 

@@ -257,24 +257,41 @@ def main() -> int:
     acc_round_map = {(c["model"], c["task"], c.get("replicate", 0)):
                      c.get("first_code_accept_round") for c in batch_summary}
     summary = []
-    for cell in sorted(batch.glob("*/*/rep*")):
-        if not (cell / "code").is_dir():
-            continue
-        if args.task and not any(t.replace("/", "__") in str(cell) for t in args.task):
-            continue
+    # Iterate over EVERY expected cell (the full matrix), not only those that
+    # reached the code stage: a missing candidate is a recorded terminal state,
+    # never silently dropped from the denominator.
+    rows = [c for c in batch_summary
+            if not args.task or c["task"] in args.task]
+    for row in rows:
+        model, task_id, rep = row["model"], row["task"], row.get("replicate", 0)
+        rel = Path(model) / task_id.replace("/", "__") / f"rep{rep}"
+        cell = batch / rel
         rust = _last_rust(cell)
         cir = _accepted_cir(cell)
-        if rust is None or cir is None:
-            continue
-        rel = cell.relative_to(batch)
-        model = rel.parts[0]
-        task_id = rel.parts[1].replace("__", "/")
-        rep = int(rel.parts[2].replace("rep", ""))
         contract = REPO / "benchmarks/families" / task_id / "contract.json"
-        cir_props, cir_complete = load_cir_properties(cell, cir)
+        accepted = bool(row.get("accepted"))
+        acc_round = row.get("first_code_accept_round")
         run_dir = out / rel
-        accepted = accepted_map.get((model, task_id, rep), False)
-        acc_round = acc_round_map.get((model, task_id, rep))
+        if rust is None or cir is None:
+            # Classify why no candidate exists.
+            if str(row.get("status", "")).startswith("error"):
+                reason = "cir_unknown_or_raw_error"
+            elif not row.get("cir_accepted"):
+                reason = "cir_not_accepted"
+            else:
+                reason = "cir_accepted_no_rust"
+            run_dir.mkdir(parents=True, exist_ok=True)
+            res = {"cell": str(rel), "candidate_kind": "final", "round_no": None,
+                   "stages": {"pre": reason},
+                   "ledger": {"cell": str(rel), "historical_acceptance": accepted,
+                              "current_evaluation": reason, "run": {"state": "not_run"},
+                              "trace": {"state": "incomplete"}, "reasons": [reason]},
+                   "evidence_path": str(run_dir / "result.json")}
+            (run_dir / "result.json").write_text(json.dumps(res, ensure_ascii=False, indent=2) + "\n")
+            summary.append(res)
+            print(f"  {str(rel)[:60]:60s} {reason}")
+            continue
+        cir_props, cir_complete = load_cir_properties(cell, cir)
         last_round = int(rust.stem.split("-")[1])
         kind = "accepted" if (accepted and acc_round == last_round) else "final"
         try:

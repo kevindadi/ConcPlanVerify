@@ -15,7 +15,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-LEDGER_VERSION = "strong-link-v4"
+LEDGER_VERSION = "strong-link-v6"
 
 
 def _sha(p: Path) -> str:
