@@ -41,6 +41,9 @@ def bind(resources_path: Path | str, cir_path: Path | str, *,
     if proc.returncode != 0:
         raise BindingUnavailable(f"bind_check exit {proc.returncode}: {proc.stderr.strip()[:200]}")
     try:
-        return json.loads(proc.stdout)
+        data = json.loads(proc.stdout)
     except json.JSONDecodeError as exc:
         raise BindingUnavailable(f"bind_check output not JSON: {exc}") from exc
+    if isinstance(data, dict):
+        data["_raw_stdout"] = proc.stdout
+    return data

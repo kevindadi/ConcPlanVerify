@@ -1,55 +1,442 @@
-"""Single candidate-evaluation entry (strong-link-v5).
+"""Shared candidate evaluation (strong-link-v6).
 
-Both the online generation loop and the offline re-execution call this module.
-It separates *how a candidate is produced* (generation) from *how it is
-evaluated* (evidence acquisition + interpretation):
+Online generation and offline re-evaluation both call ``evaluate_candidate``.
+It receives the candidate source, CIR, contract, tool configuration, run budget,
+and an optional functional check. It records build, instrumentation, execution,
+binding, conformance, monitor, and the functional check, including on early
+exits. Interpretation is ``evidence_v2.evaluate_reexecution``.
 
-- ``interpret(result, contract, ...)`` turns a recorded evidence bundle into the
-  layered ledger (``evidence_v2.evaluate_reexecution``) - the single rule.
-- ``evaluate_candidate(...)`` runs the full offline chain and returns that
-  ledger.
+Online code decides whether to ask the model again. Offline code selects frozen
+candidates. Follow-up actions come from the ledger:
 
-Delivery policy and evidence grade are separate: ``historical_acceptance`` is
-the old pipeline's fact; ``current_evaluation`` comes from current evidence; a
-new run's acceptance uses ``ACCEPTANCE_POLICY``.
+- ``repair`` / ``candidate_error``: a confirmed candidate defect, with feedback.
+- ``repair_protocol`` / ``protocol_noncompliance``: a fixable protocol miss.
+- ``stop`` / ``tool_failure``: tool or evidence failure; do not call the model.
+- ``stop`` / ``capability_gap``: the checker cannot decide; do not ask the model
+  to change a correct program.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
+import subprocess
 from pathlib import Path
+from typing import Any
 
-from .evidence_v2 import ReexecutionLedger, evaluate_reexecution
+from .evidence_v2 import (
+    PROTOCOL, ReexecutionLedger, binding_assessment, evaluate_reexecution,
+)
 
-ACCEPTANCE_POLICY = "ledger-v5"  # new-run policy; not applied to history
+ACCEPTANCE_POLICY = "ledger-v6"
 
 
 def interpret(result: dict, contract: dict, *, accepted: bool,
               cir_props: dict[str, str] | None = None,
               cir_complete: bool | None = None) -> ReexecutionLedger:
-    """The single interpretation rule (online and offline both use this)."""
+    """The single interpretation rule."""
 
     return evaluate_reexecution(result, contract, accepted=accepted,
-                                cir_props=cir_props or {}, cir_complete=cir_complete)
+                                cir_props=cir_props, cir_complete=cir_complete)
 
 
-def evaluate_candidate(source: str, cir_path: Path, contract_path: Path, out_dir: Path,
-                       *, binary, instrument, n_runs: int = 32, run_timeout: float = 10.0,
+def _sha_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _sha_file(path: Path | None) -> str | None:
+    if path is None:
+        return None
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def capture_program_stdout(binary: Path) -> str | None:
+    if not Path(binary).is_file():
+        return None
+    proc = subprocess.run([str(binary)], capture_output=True, text=True, timeout=20)
+    return proc.stdout.strip()
+
+
+def run_functional_check(source: str, work: Path, spec: dict | None) -> dict:
+    """Shared functional check. ``spec is None`` records ``not_run``.
+
+    A stdout check supports only the external output it names. It does not
+    prove an internal value property.
+    """
+
+    from . import rust_oracle
+
+    source_sha = hashlib.sha256(source.encode()).hexdigest()
+    if not spec:
+        return {"status": "not_run", "reason": "no_functional_spec",
+                "source_sha256": source_sha, "test_id": None,
+                "expected": None, "raw_stdout": None, "supports": []}
+    work.mkdir(parents=True, exist_ok=True)
+    (work / "src").mkdir(exist_ok=True)
+    (work / "Cargo.toml").write_text(rust_oracle._container(), encoding="utf-8")
+    (work / "src" / "main.rs").write_text(source, encoding="utf-8")
+    built, _log = rust_oracle.cargo_build(work)
+    raw_stdout = capture_program_stdout(work / "target/debug/probe") if built else None
+    expected = spec.get("expected")
+    if raw_stdout is None:
+        status = "not_run"
+        reason = "program_did_not_run"
+    else:
+        status = "pass" if raw_stdout == expected else "fail"
+        reason = None
+    doc = {"status": status, "reason": reason, "source_sha256": source_sha,
+           "test_id": spec.get("test_id") or "stdout_eq",
+           "kind": spec.get("kind", "stdout_eq"),
+           "expected": expected, "raw_stdout": raw_stdout}
+    path = work / "functional.json"
+    path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    evidence = f"stdout={raw_stdout!r} expected={expected!r}"
+    return {**doc, "evidence": evidence, "evidence_path": str(path),
+            "supports": ["external_stdout"] if status == "pass" else []}
+
+
+def run_model_check(binary: Path, cir_path: Path, contract_path: Path, out_dir: Path) -> dict:
+    """Run explore and keep the raw stdout. A rebuilt PASS summary is not evidence."""
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    raw_path = out_dir / "explore.stdout"
+    try:
+        proc = subprocess.run([str(binary), "explore", str(cir_path), str(contract_path), "petri"],
+                              capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raw_path.write_text("", encoding="utf-8")
+        return {"ok": False, "path": str(raw_path), "error": str(exc)}
+    raw_path.write_text(proc.stdout, encoding="utf-8")
+    if proc.returncode != 0 or not proc.stdout.strip():
+        return {"ok": False, "path": str(raw_path), "error": (proc.stderr or "")[-300:]}
+    try:
+        payload = json.loads(proc.stdout)
+    except json.JSONDecodeError as exc:
+        return {"ok": False, "path": str(raw_path), "error": str(exc)}
+    return {"ok": True, "path": str(raw_path), "payload": payload}
+
+
+def _artifact(role: str, path: Path, *, binds: dict) -> dict | None:
+    if not path.is_file():
+        return None
+    return {"role": role, "path": str(path), "sha256": _sha_file(path), "binds": binds}
+
+
+def _acquisition_id(parts: dict) -> str:
+    blob = json.dumps(parts, sort_keys=True, default=str).encode()
+    return hashlib.sha256(blob).hexdigest()
+
+
+def decide_followup(ledger: ReexecutionLedger, result: dict) -> dict[str, Any]:
+    """Map a ledger to the next action. Repair feedback is never empty."""
+
+    verdict = ledger.current_evaluation
+    if verdict == "source_build_failed":
+        log = ""
+        log_path = result.get("source_build_log")
+        if log_path and Path(log_path).is_file():
+            from .generation import _compiler_errors
+            log = _compiler_errors(Path(log_path).read_text(encoding="utf-8"))
+        feedback = "The Rust source did not compile:\n" + (log or "cargo build failed")
+        return _repair("candidate_error", "source_build_failed", feedback)
+    if verdict in {"instrument_failed", "instrument_build_failed", "tool_error"} or \
+            ledger.delivery_status == "withhold_tool":
+        status = "binding_tool_error" if verdict == "tool_error" else (
+            "instrument_error" if verdict == "instrument_failed" else
+            "instrumented_build_failed" if verdict == "instrument_build_failed" else
+            "evidence_invalid")
+        return {"action": "stop", "category": "tool_failure", "status": status,
+                "feedback": "", "semantic_retry": False, "protocol_retry": False}
+    if result.get("instrument_unsupported"):
+        return {"action": "stop", "category": "capability_gap",
+                "status": "instrument_unsupported", "feedback": "",
+                "semantic_retry": False, "protocol_retry": False}
+    if verdict == "functional_failure":
+        feedback = " ".join(ledger.reasons) or "The observable output does not meet the requirement."
+        return _repair("candidate_error", "functional_failure", feedback)
+    if verdict == "explicit_failure":
+        violation = (ledger.trace.get("violations") or [{}])[0]
+        from .generation import _conform_kind, _explain_violation
+        if violation.get("status") in {"error", "unknown_sid"}:
+            return {"action": "stop", "category": "capability_gap", "status": "capability_gap",
+                    "feedback": "", "semantic_retry": False, "protocol_retry": False}
+        feedback = _explain_violation(violation, _conform_kind(violation))
+        if not feedback.strip():
+            return _capability()
+        return _repair("candidate_error", "explicit_failure", feedback)
+    if verdict == "requirement_failure":
+        feedback = " ".join(ledger.reasons) or "A requirement check failed."
+        return _repair("candidate_error", "requirement_failure", feedback)
+    if verdict == "binding_declaration_error":
+        feedback = ("The binding declaration disagrees with the program structure. "
+                    + " ".join(ledger.reasons)
+                    + " Resend the program with declarations that match the CIR resources.")
+        return {"action": "repair_protocol", "category": "protocol_noncompliance",
+                "status": "binding_declaration_error", "feedback": feedback,
+                "semantic_retry": False, "protocol_retry": True}
+    if verdict in {"timeout", "runtime_crash", "partial"}:
+        return _repair("candidate_error", verdict,
+                       "The program did not finish on every run. Join every spawned thread.")
+    if verdict == "satisfied_bounded" and ledger.all_obligations_satisfied \
+            and ledger.delivery_status == "deliver_bounded":
+        return {"action": "accept", "category": "accepted", "status": "accepted",
+                "feedback": "", "semantic_retry": False, "protocol_retry": False}
+    if ledger.delivery_status == "withhold_capability" or any(
+            "unsupported" in reason for reason in ledger.reasons):
+        return _capability()
+    if ledger.delivery_status == "withhold_tool" or \
+            any(reason.startswith("evidence_invalid") for reason in ledger.reasons):
+        return {"action": "stop", "category": "tool_failure", "status": "evidence_invalid",
+                "feedback": "", "semantic_retry": False, "protocol_retry": False}
+    return _capability()
+
+
+def _repair(category: str, status: str, feedback: str) -> dict[str, Any]:
+    if not feedback.strip():
+        return _capability()
+    return {"action": "repair", "category": category, "status": status,
+            "feedback": feedback, "semantic_retry": True, "protocol_retry": False}
+
+
+def _capability() -> dict[str, Any]:
+    return {"action": "stop", "category": "capability_gap", "status": "capability_gap",
+            "feedback": "", "semantic_retry": False, "protocol_retry": False}
+
+
+def protocol_rejection(reason: str, feedback: str) -> dict[str, Any]:
+    """A fixable generation-protocol miss, recorded separately from semantic repair."""
+
+    ledger = {"protocol": PROTOCOL, "historical_acceptance": False,
+              "current_evaluation": "protocol_noncompliance",
+              "evidence_grade": "protocol_noncompliance",
+              "delivery_status": "withhold_protocol",
+              "needs_human_review": False, "needs_extra_check": False,
+              "reasons": [reason], "functional": {"status": "not_run"}}
+    return {"action": "repair_protocol", "category": "protocol_noncompliance",
+            "status": "protocol_noncompliance", "feedback": feedback,
+            "semantic_retry": False, "protocol_retry": True, "ledger": ledger,
+            "stages": {"format": "format_error"}}
+
+
+def _finalize(out: Path, result: dict, contract_path: Path, accepted: bool) -> dict:
+    try:
+        contract = json.loads(Path(contract_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        contract = {"properties": [], "preserved": []}
+    # Properties are read from the raw explore stdout. Pass them only as a
+    # consistency check when that file was parsed.
+    props = result.get("_model_props")
+    complete = result.get("_model_complete")
+    ledger = interpret(result, contract, accepted=accepted,
+                       cir_props=props, cir_complete=complete)
+    result.pop("_model_props", None)
+    result.pop("_model_complete", None)
+    result["ledger"] = ledger.to_dict()
+    result["protocol"] = PROTOCOL
+    result["acceptance_policy"] = ACCEPTANCE_POLICY
+    result["followup"] = decide_followup(ledger, result)
+    result["evidence_path"] = str(out / "result.json")
+    result["binding_assessment"] = binding_assessment(result)
+    (out / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n",
+                                     encoding="utf-8")
+    return result
+
+
+def evaluate_candidate(source: str, cir_path: Path, contract_path: Path, out_dir: Path, *,
+                       binary, instrument=None, n_runs: int = 32, run_timeout: float = 10.0,
                        accepted: bool = False, cir_props: dict | None = None,
                        cir_complete: bool | None = None, functional: dict | None = None,
-                       manifest_path: Path | None = None, cell_id: str = "",
-                       candidate_kind: str = "final",
+                       functional_spec: dict | None = None, manifest_path: Path | None = None,
+                       cell_id: str = "", candidate_kind: str = "final",
                        round_no: int | None = None) -> dict:
-    """Run the full offline chain and return the result (with ``ledger``)."""
+    """Acquire evidence for one candidate and interpret it. Every exit writes a ledger."""
 
-    import sys
+    from . import bounded_monitor, rust_oracle
+    from . import generation
+    from .binding import BindingUnavailable
+    from .binding import bind as binding_bind
 
-    repo = Path(__file__).resolve().parents[2]
-    if str(repo) not in sys.path:
-        sys.path.insert(0, str(repo))
-    from scripts.reexecute_and_bind import reexecute  # type: ignore
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    binary, cir_path, contract_path = Path(binary), Path(cir_path), Path(contract_path)
+    source_path = out / "source.rs"
+    source_path.write_text(source, encoding="utf-8")
+    source_sha = hashlib.sha256(source.encode()).hexdigest()
+    cir_sha, contract_sha = _sha_file(cir_path), _sha_file(contract_path)
+    backend_sha, instrument_sha = _sha_file(binary), _sha_file(Path(instrument)) if instrument else None
+    acquisition = _acquisition_id({
+        "source": source_sha, "cir": cir_sha, "contract": contract_sha,
+        "backend": backend_sha, "instrument": instrument_sha,
+        "n_runs": n_runs, "timeout": run_timeout,
+    })
+    binds_base = {"acquisition_id": acquisition, "source_sha256": source_sha,
+                  "cir_sha256": cir_sha, "contract_sha256": contract_sha,
+                  "backend_sha256": backend_sha}
+    result: dict[str, Any] = {
+        "cell": cell_id, "protocol": PROTOCOL,
+        "source_path": str(source_path), "cir_path": str(cir_path),
+        "contract_path": str(contract_path),
+        "source_sha256": source_sha, "cir_sha256": cir_sha, "contract_sha256": contract_sha,
+        "backend_sha256": backend_sha, "instrument_sha256": instrument_sha,
+        "acquisition_id": acquisition, "n_runs": n_runs, "stages": {},
+        "limitations": [], "candidate_kind": candidate_kind, "round_no": round_no,
+        "functional": None, "artifacts": [],
+    }
+    artifacts: list[dict] = []
+    for role, path in (("source", source_path), ("cir", cir_path), ("contract", contract_path)):
+        art = _artifact(role, path, binds=binds_base)
+        if art:
+            artifacts.append(art)
 
-    return reexecute(source, cir_path, contract_path, out_dir, binary=binary,
-                     instrument=instrument, n_runs=n_runs, run_timeout=run_timeout,
-                     accepted=accepted, cir_props=cir_props, cir_complete=cir_complete,
-                     functional=functional, manifest_path=manifest_path,
-                     cell_id=cell_id, candidate_kind=candidate_kind, round_no=round_no)
+    model = run_model_check(binary, cir_path, contract_path, out)
+    if model.get("ok"):
+        payload = model["payload"]
+        props = {str(p["id"]).replace("preserved: ", ""): p.get("outcome")
+                 for p in payload.get("properties", []) if isinstance(p, dict) and "id" in p}
+        result["_model_props"] = props
+        result["_model_complete"] = payload.get("complete")
+    elif cir_props is not None:
+        # An explicit frozen explore payload may be supplied only together with
+        # a raw file written by the caller. The checker output is not rebuilt here.
+        result["_model_props"] = cir_props
+        result["_model_complete"] = cir_complete
+    model_art = _artifact("model_check", Path(model["path"]), binds=binds_base) if model.get("path") else None
+    if model_art:
+        artifacts.append(model_art)
+
+    src_proj = out / "source-proj"
+    (src_proj / "src").mkdir(parents=True, exist_ok=True)
+    (src_proj / "Cargo.toml").write_text(rust_oracle._container(), encoding="utf-8")
+    (src_proj / "src" / "main.rs").write_text(source, encoding="utf-8")
+    src_ok, src_log = rust_oracle.cargo_build(src_proj)
+    log_path = out / "source-build.log"
+    log_path.write_text(src_log, encoding="utf-8")
+    result["source_build_log"] = str(log_path)
+    result["stages"]["source_build"] = "ok" if src_ok else "failed"
+    if functional is None:
+        functional = run_functional_check(source, out / "functional", functional_spec)
+    result["functional"] = functional
+    if functional.get("evidence_path"):
+        art = _artifact("functional", Path(functional["evidence_path"]), binds=binds_base)
+        if art:
+            artifacts.append(art)
+    result["artifacts"] = artifacts
+    if not src_ok:
+        return _finalize(out, result, contract_path, accepted)
+
+    try:
+        wrapped = rust_oracle.instrument_wrappers(source, out / "instrument", binary=instrument)
+    except Exception as exc:  # noqa: BLE001
+        result["stages"]["instrument"] = f"error: {exc}"
+        result["artifacts"] = artifacts
+        return _finalize(out, result, contract_path, accepted)
+    result["stages"]["instrument"] = "ok"
+    result["limitations"] = wrapped["limitations"]
+    result["resources"] = wrapped["resources"]
+    proj = out / "proj"
+    rust_oracle.prepare_project(proj, wrapped["annotated"], wrapped["runtime"])
+    built, build_log = rust_oracle.cargo_build(proj)
+    (out / "instrumented-build.log").write_text(build_log, encoding="utf-8")
+    result["stages"]["instrumented_build"] = "ok" if built else "failed"
+    if not built:
+        result["artifacts"] = artifacts
+        return _finalize(out, result, contract_path, accepted)
+    if any("thread::scope" in item for item in wrapped["limitations"]):
+        result["instrument_unsupported"] = True
+        result["stages"]["execution"] = "not_run"
+        result["artifacts"] = artifacts
+        return _finalize(out, result, contract_path, accepted)
+
+    runs = rust_oracle.run_native(proj, out / "traces", n=n_runs, timeout=run_timeout)
+    result["runs_started"] = len(runs)
+    result["runs_completed"] = sum(1 for r in runs if r["completed"])
+    result["hang"] = any(r["timed_out"] for r in runs)
+    for trace in sorted((out / "traces").glob("*.jsonl")):
+        art = _artifact("execution", trace, binds=binds_base)
+        if art:
+            artifacts.append(art)
+    result["raw_events"] = _count_lines(out / "traces")
+
+    try:
+        rb = binding_bind(out / "instrument/resources.json", cir_path, manifest_path=manifest_path)
+    except BindingUnavailable as exc:
+        result["stages"]["binding"] = f"tool_error: {exc}"
+        result["binding"] = {"mapping": {}, "ambiguous": [], "violated": {},
+                             "source": "rust-cli-unavailable", "error": str(exc)}
+        result["artifacts"] = artifacts
+        return _finalize(out, result, contract_path, accepted)
+    raw_bind = rb.pop("_raw_stdout", None) if isinstance(rb, dict) else None
+    bind_path = out / "binding-check.stdout"
+    bind_path.write_text(raw_bind if isinstance(raw_bind, str) else json.dumps(rb),
+                         encoding="utf-8")
+    mapping = {name: v["cir"] for name, v in (rb.get("verified") or {}).items()
+               if isinstance(v, dict) and "cir" in v}
+    ambiguous = [{"rust": k, **v} for k, v in (rb.get("unresolved") or {}).items()] \
+        if isinstance(rb.get("unresolved"), dict) else list(rb.get("unresolved") or [])
+    result["stages"]["binding"] = "ok"
+    result["binding"] = {"mapping": mapping, "ambiguous": ambiguous,
+                         "violated": rb.get("violated") or {}, "source": "rust-cli"}
+    art = _artifact("binding_check", bind_path, binds=binds_base)
+    if art:
+        artifacts.append(art)
+    mapping_path = out / "binding.json"
+    mapping_path.write_text(json.dumps({"mapping": mapping, "provenance": result["binding"]},
+                                       indent=2) + "\n", encoding="utf-8")
+
+    wrapper_names = {r["name"] for r in wrapped["resources"] if r.get("kind") == "ChannelWrapper"}
+    generation._rewrite_traces(out / "traces", out / "conform-traces", mapping,
+                               generation._DROP_OPS, wrapper_names)
+    for trace in sorted((out / "conform-traces").glob("*.jsonl")):
+        art = _artifact("projection", trace, binds=binds_base)
+        if art:
+            artifacts.append(art)
+    result["projected_events"] = _count_lines(out / "conform-traces")
+    conform = generation._conform_all_op_resource(binary, cir_path, out / "conform-traces")
+    conform_doc = {"checks": [
+        {"trace_sha256": item.get("trace_sha256"), "stdout": item.get("stdout", "")}
+        for item in conform.get("raw") or []
+    ]}
+    conform_path = out / "conform-check.json"
+    conform_path.write_text(json.dumps(conform_doc) + "\n", encoding="utf-8")
+    result["conform"] = {k: conform[k] for k in ("traces", "statuses", "conformant",
+                                                  "violations", "first_violation") if k in conform}
+    art = _artifact("conform_check", conform_path, binds=binds_base)
+    if art:
+        artifacts.append(art)
+
+    generation._rewrite_traces(out / "traces", out / "monitor-traces", {}, set(), wrapper_names)
+    try:
+        report = bounded_monitor.run_monitor(
+            contract_path, out / "monitor-traces",
+            resources=out / "instrument/resources.json",
+            mapping=mapping_path, binary=binary)
+    except (OSError, RuntimeError, json.JSONDecodeError) as exc:
+        result["stages"]["monitor"] = f"tool_error: {exc}"
+        result["artifacts"] = artifacts
+        return _finalize(out, result, contract_path, accepted)
+    raw_mon = report.pop("_raw_stdout", None)
+    mon_path = out / "monitor.stdout"
+    mon_path.write_text(raw_mon if isinstance(raw_mon, str) else json.dumps(report),
+                        encoding="utf-8")
+    pairs = []
+    for prop in report.get("properties") or []:
+        if isinstance(prop, dict):
+            pairs.append((prop.get("id"), prop.get("status")))
+    result["monitor"] = {"status": report.get("status"), "properties": pairs}
+    art = _artifact("monitor", mon_path, binds=binds_base)
+    if art:
+        artifacts.append(art)
+    result["artifacts"] = artifacts
+    return _finalize(out, result, contract_path, accepted)
+
+
+def _count_lines(directory: Path) -> int:
+    total = 0
+    if not directory.is_dir():
+        return 0
+    for path in directory.glob("*.jsonl"):
+        total += len([ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()])
+    return total

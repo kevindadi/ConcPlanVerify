@@ -26,7 +26,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "python"))
 sys.path.insert(0, str(REPO))
 
-from cir_workflow import rust_oracle  # noqa: E402
+from cir_workflow.candidate_eval import run_functional_check  # noqa: E402
 from scripts.reexecute_and_bind import reexecute  # type: ignore  # noqa: E402
 
 FIX = REPO / "python/tests/fixtures/stronglink"
@@ -44,21 +44,8 @@ def _explore(cir: Path, contract: Path) -> tuple[dict, bool]:
 
 
 def _functional(source: str, work: Path, expected: str) -> dict:
-    work.mkdir(parents=True, exist_ok=True)
-    (work / "src").mkdir(exist_ok=True)
-    (work / "Cargo.toml").write_text(rust_oracle._container(), encoding="utf-8")
-    (work / "src" / "main.rs").write_text(source, encoding="utf-8")
-    built, _ = rust_oracle.cargo_build(work)
-    stdout = None
-    if built:
-        proc = subprocess.run([str(work / "target/debug/probe")], capture_output=True,
-                              text=True, timeout=20)
-        stdout = proc.stdout.strip()
-    ev = work / "functional.txt"
-    ev.write_text(f"expected={expected!r}\nstdout={stdout!r}\n")
-    return {"status": "pass" if stdout == expected else ("fail" if stdout is not None else "not_run"),
-            "evidence": f"stdout={stdout!r} expected={expected!r}",
-            "evidence_path": str(ev)}
+    return run_functional_check(source, work, {
+        "test_id": "stdout_eq", "kind": "stdout_eq", "expected": expected})
 
 
 def _reexec(name: str, source: str, cir: str, contract: str, out: Path,
@@ -121,6 +108,16 @@ def main() -> int:
     checks.append(("g2_compute_ok_sync", r_cok["ledger"]["trace"]["state"] == "observed_conformant",
                    r_cok["ledger"]["trace"]["state"]))
     checks.append(("g2_compute_ok_functional_pass", f_ok["status"] == "pass", f_ok["status"]))
+    internal = [p for p in r_cok["ledger"]["properties"] if p["property_id"] == "c==6"]
+    checks.append(("g2_compute_ok_stdout_does_not_prove_var_eq",
+                   r_cok["ledger"]["functional"]["status"] == "pass"
+                   and internal and internal[0]["obligation_state"] == "unresolved"
+                   and r_cok["ledger"]["current_evaluation"] != "satisfied_bounded",
+                   r_cok["ledger"]["current_evaluation"]))
+    checks.append(("g2_compute_ok_capability_withheld",
+                   r_cok["ledger"]["delivery_status"] == "withhold_capability"
+                   and r_cok["ledger"]["needs_extra_check"] is True,
+                   r_cok["ledger"]["delivery_status"]))
     checks.append(("g2_compute_wrong_sync", r_cwrong["ledger"]["trace"]["state"] == "observed_conformant",
                    r_cwrong["ledger"]["trace"]["state"]))
     checks.append(("g2_compute_wrong_functional_fail", f_wrong["status"] == "fail", f_wrong["status"]))

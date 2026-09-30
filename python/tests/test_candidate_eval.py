@@ -40,11 +40,9 @@ class CandidateEvalEntryTests(unittest.TestCase):
                                          cir_props={"p1": "PASS"}, cir_complete=True)
         self.assertEqual(a.to_dict(), b.to_dict())
 
-    def test_generation_uses_shared_entry(self):
-        # The online decision imports the shared entry, not a private rule.
+    def test_generation_calls_shared_candidate_entry(self):
         src = Path(generation.__file__).read_text()
-        self.assertIn("candidate_eval.interpret", src)
-        self.assertIn("all_obligations_satisfied", src)
+        self.assertIn("candidate_eval.evaluate_candidate", src)
 
 
 if __name__ == "__main__":

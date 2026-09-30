@@ -733,10 +733,14 @@ def _conform_all_op_resource(binary: Path, cir_path: Path, traces_dir: Path) -> 
     first: dict[str, Any] | None = None
     violations: list[dict[str, Any]] = []
     traces = sorted(traces_dir.glob("*.jsonl"))
+    raw: list[dict[str, Any]] = []
     for trace in traces:
         proc = subprocess.run(
             [str(binary), "conform", str(cir_path), str(trace), "--op-resource"],
             capture_output=True, text=True, timeout=120)
+        raw.append({"trace": str(trace),
+                    "trace_sha256": hashlib.sha256(trace.read_bytes()).hexdigest(),
+                    "stdout": proc.stdout})
         try:
             result = json.loads(proc.stdout)
         except json.JSONDecodeError:
@@ -753,57 +757,7 @@ def _conform_all_op_resource(binary: Path, cir_path: Path, traces_dir: Path) -> 
                 first = result
     return {"traces": len(traces), "statuses": dict(statuses),
             "conformant": statuses.get("conformant", 0), "first_violation": first,
-            "violations": violations}
-
-
-def _stop_round(info: dict, record: dict, status: str, action: str) -> None:
-    """Stop generation retries: record the terminal stage and action."""
-
-    info["decision"] = status
-    record["status"] = status
-    record["action"] = action
-    record["reasons"] = list(info.get("reasons", []))
-
-
-def _ledger_action(ledger, conform: dict, report: dict) -> tuple[str, str, list[str]]:
-    """Classify a rejection into an action and a category.
-
-    - ``repair``/``candidate_error``: a repairable program error (feedback given).
-    - ``stop``/``tool_failure``: a tool/evidence failure (no model retry).
-    - ``stop``/``capability_gap``: checker unsupported or identity unresolved.
-    - ``stop``/``binding_declaration_error``: generation protocol non-compliance.
-    """
-
-    verdict = ledger.current_evaluation
-    if verdict in {"tool_error", "source_build_failed", "instrument_failed",
-                   "instrument_build_failed", "not_run"}:
-        return "stop", "tool_failure", []
-    if ledger.identity.get("declaration_error"):
-        return "stop", "binding_declaration_error", []
-    if ledger.identity.get("relevant_unresolved"):
-        return "stop", "capability_gap", []
-    if ledger.run["state"] in {"timeout", "runtime_crash", "partial"}:
-        return "repair", "candidate_error", [
-            "The program did not finish on every run. Join every thread."]
-    if ledger.trace["state"] == "observed_violation":
-        pieces = []
-        fv = conform.get("first_violation")
-        if fv:
-            kind = _conform_kind(fv)
-            if fv.get("status") in {"error", "unknown_sid"}:
-                return "stop", "capability_gap", []
-            pieces.append(_explain_violation(fv, kind))
-        return "repair", "candidate_error", pieces
-    if verdict == "requirement_failure":
-        failed = [p.get("id") for p in report.get("properties", [])
-                  if p.get("status") == "FAIL"]
-        return "repair", "candidate_error", [
-            "Requirement checks that failed: " + ", ".join(failed) + "."]
-    if verdict == "functional_failure":
-        return "repair", "candidate_error", [
-            "The program's observable output does not meet the requirement."]
-    # Everything else is a capability gap or unresolved evidence: no blind repair.
-    return "stop", "capability_gap", []
+            "violations": violations, "raw": raw}
 
 
 def _cir_props_for(binary: Path, cir_path: Path, contract_path: Path
@@ -821,40 +775,20 @@ def _cir_props_for(binary: Path, cir_path: Path, contract_path: Path
     return props, payload.get("complete")
 
 
-def _role_artifacts(round_dir: Path, source_path: Path, cir_path: Path,
-                    contract_path: Path) -> list[dict[str, Any]]:
-    """Role-tagged manifest for the online round evidence."""
-
-    def sha(p: Path) -> str | None:
-        try:
-            return hashlib.sha256(p.read_bytes()).hexdigest()
-        except OSError:
-            return None
-
-    entries = [("source", source_path), ("cir", cir_path), ("contract", contract_path),
-               ("model_check", round_dir / "model-check.json"),
-               ("binding", round_dir / "mapping.json"),
-               ("monitor", round_dir / "monitor.json")]
-    out = [{"role": r, "path": str(p), "sha256": sha(p)} for r, p in entries if p.is_file()]
-    for d, role in ((round_dir / "traces", "execution"),
-                    (round_dir / "conform-traces", "conform")):
-        if d.is_dir():
-            for p in sorted(d.glob("*.jsonl")):
-                out.append({"role": role, "path": str(p), "sha256": sha(p)})
-    return out
-
-
 def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path,
-                         out_dir: Path, *, k_code: int = 3, instrument_binary=None
+                         out_dir: Path, *, k_code: int = 3, instrument_binary=None,
+                         functional_spec: dict | None = None, n_runs: int = 32
                          ) -> dict[str, Any]:
-    """LLM generates Rust from a verified CIR; tools instrument/conform/monitor."""
-    from . import bounded_monitor
-    from .json_utils import extract_json  # noqa: F401 (kept for parity)
-    from .prompts import requirements_only_user_prompt  # noqa: F401
+    """Generate Rust, then evaluate each candidate with the shared core.
+
+    The model is called only to generate or to repair. Tool failures and
+    capability gaps do not request another completion. Every round stores an
+    evaluation record. Semantic repairs and protocol repairs are counted apart
+    from tool failures.
+    """
+    from . import candidate_eval
 
     system = _llmcode_system()
-    cir = json.loads(cir_path.read_text(encoding="utf-8"))
-    contract = task.contract
     out_dir.mkdir(parents=True, exist_ok=True)
     if hasattr(llm_client, "set_stage"):
         llm_client.set_stage("code")
@@ -862,15 +796,16 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
         "arm": "G3_concir_llmcode", "task": task.id, "cir_path": str(cir_path),
         "prompt": "prompts/rust_from_cir_v2.md",
         "rounds": [], "accepted": False, "accepted_with_proof": False,
-        "status": "generation_failed", "instrument_limit": None,
+        "status": "not_started", "instrument_limit": None,
+        "semantic_repairs": 0, "protocol_repairs": 0, "tool_failures": 0,
+        "llm_calls": 0,
         "proof_meaning": "32 observed traces conformed and the bounded monitor did not FAIL; not a proof of every execution",
     }
     feedback: str | None = None
     previous_rust: str | None = None
-    from .project_template import cargo_toml
     for round_no in range(1, k_code + 1):
         info: dict[str, Any] = {"round": round_no, "decision": None, "stages": _stage_row(),
-                                "reasons": []}
+                                "reasons": [], "evaluation": None}
         record["rounds"].append(info)
         user = _llmcode_user(task, cir_path, feedback, previous_rust)
         sent = {"stage": "code", "system_sha256": hashlib.sha256(system.encode()).hexdigest(),
@@ -878,6 +813,7 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
         (out_dir / f"sent-round-{round_no}.json").write_text(
             json.dumps(sent, indent=2) + "\n", encoding="utf-8")
         outcome = llm_client.complete(system, user)
+        record["llm_calls"] += 1
         if getattr(outcome, "sent", None):
             (out_dir / f"sent-round-{round_no}.txt").write_text(
                 outcome.sent.get("message", ""), encoding="utf-8")
@@ -887,182 +823,71 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
         info["message_sha256"] = getattr(outcome, "prompt_sha256", None)
         rust = _extract_rust_body(outcome.text)
         if rust is None:
+            rejection = candidate_eval.protocol_rejection(
+                "format_error",
+                "Reply was not one Rust program in a ```rust fence. Output the complete file.")
             info["stages"]["format"] = "format_error"
-            info["decision"] = "format_error"
+            info["decision"] = "protocol_noncompliance"
             info["reasons"].append("format_error")
-            feedback = ("Reply was not one Rust program in a ```rust fence. "
-                        "Output the complete file.")
+            info["evaluation"] = rejection
+            feedback = rejection["feedback"]
+            record["protocol_repairs"] += 1
+            record["status"] = "protocol_noncompliance"
+            record["action"] = "protocol_noncompliance"
             continue
         info["stages"]["format"] = "ok"
         previous_rust = rust
         (out_dir / f"round-{round_no}.rs").write_text(rust, encoding="utf-8")
-        src_proj = out_dir / f"round-{round_no}" / "source-proj"
-        src_proj.mkdir(parents=True, exist_ok=True)
-        (src_proj / "src").mkdir(exist_ok=True)
-        (src_proj / "Cargo.toml").write_text(cargo_toml("probe"), encoding="utf-8")
-        (src_proj / "src" / "main.rs").write_text(rust, encoding="utf-8")
-        source_ok, source_log = rust_oracle.cargo_build(src_proj)
-        (out_dir / f"round-{round_no}" / "source-build.log").write_text(source_log, encoding="utf-8")
-        if not source_ok:
-            info["stages"]["source_build"] = "source_build_failed"
-            info["decision"] = "source_build_failed"
-            info["reasons"].append("source_build_failed")
-            feedback = "The Rust source did not compile:\n" + _compiler_errors(source_log)
-            continue
-        info["stages"]["source_build"] = "ok"
-        inst = out_dir / f"round-{round_no}" / "instrument"
-        try:
-            wrapped = rust_oracle.instrument_wrappers(rust, inst, binary=instrument_binary)
-        except Exception as exc:  # noqa: BLE001
-            info["stages"]["instrument"] = "instrument_error"
-            info["decision"] = "instrument_error"
-            info["reasons"].append("instrument_error")
-            info["instrument_error"] = str(exc)[:500]
-            _stop_round(info, record, "instrument_error", "tool_failure")
-            break
-        info["stages"]["instrument"] = "ok"
-        info["instrument_limit"] = wrapped["limitations"]
-        scope_limited = any("thread::scope" in item for item in wrapped["limitations"])
-        project = out_dir / f"round-{round_no}" / "proj"
-        rust_oracle.prepare_project(project, wrapped["annotated"], wrapped["runtime"])
-        built, build_log = rust_oracle.cargo_build(project)
-        (out_dir / f"round-{round_no}" / "instrument-build.log").write_text(build_log, encoding="utf-8")
-        if not built:
-            info["stages"]["instrumented_build"] = "instrumented_build_failed"
-            info["decision"] = "instrumented_build_failed"
-            info["reasons"].append("instrumented_build_failed")
-            _stop_round(info, record, "instrumented_build_failed", "tool_failure")
-            break
-        info["stages"]["instrumented_build"] = "ok"
-        if scope_limited:
-            info["stages"]["execution"] = "not_run"
-            info["reasons"].append("instrument_unsupported")
-            _stop_round(info, record, "instrument_unsupported", "capability_gap")
-            break
-        traces_dir = out_dir / f"round-{round_no}" / "traces"
-        runs = rust_oracle.run_native(project, traces_dir, n=32, timeout=10.0)
-        behavior_ok = all(r["completed"] for r in runs) if runs else False
-        hang = any(r["timed_out"] for r in runs)
-        info["behavior_ok"] = behavior_ok
-        info["hang"] = hang
-        if not behavior_ok:
-            info["stages"]["execution"] = "timeout" if hang else "execution_failed"
-            info["reasons"].append(info["stages"]["execution"])
-        else:
-            info["stages"]["execution"] = "ok"
-        # Single binding-check entry (ConcIR CLI); no fallback to a weaker name
-        # mapping. A checker failure is a tool error, not a program deviation.
-        from .binding import BindingUnavailable, bind as binding_bind
-        try:
-            rb = binding_bind(inst / "resources.json", cir_path)
-        except BindingUnavailable as exc:
-            info["stages"]["binding"] = f"tool_error: {exc}"
-            info["reasons"].append("binding_tool_error")
-            _stop_round(info, record, "binding_tool_error", "tool_failure")
-            break
-        mapping = {name: v["cir"] for name, v in rb.get("verified", {}).items()}
-        provenance = {"rules": {},
-                      "ambiguous": [{"rust": k, **v}
-                                    for k, v in rb.get("unresolved", {}).items()],
-                      "violated": rb.get("violated", {})}
-        info["stages"]["binding"] = "ok"
-        mapping_path = out_dir / f"round-{round_no}" / "mapping.json"
-        mapping_path.write_text(json.dumps({"mapping": mapping, "provenance": provenance},
-                                           indent=2) + "\n", encoding="utf-8")
-        if provenance.get("ambiguous"):
-            info["reasons"].append("mapping_ambiguous")
-            info["ambiguous"] = provenance["ambiguous"]
-            _stop_round(info, record, "mapping_ambiguous", "capability_gap")
-            break
-        conform_dir = out_dir / f"round-{round_no}" / "conform-traces"
-        monitor_dir = out_dir / f"round-{round_no}" / "monitor-traces"
-        wrapper_names = {r["name"] for r in wrapped["resources"]
-                         if r.get("kind") == "ChannelWrapper"}
-        _rewrite_traces(traces_dir, conform_dir, mapping, _DROP_OPS, wrapper_names)
-        _rewrite_traces(traces_dir, monitor_dir, {}, set(), wrapper_names)
-        conform = _conform_all_op_resource(binary, cir_path, conform_dir)
-        info["conform"] = {"conformant": conform["conformant"],
-                           "traces": conform["traces"], "statuses": conform["statuses"],
-                           "first_violation": conform["first_violation"]}
-        statuses = conform["statuses"]
-        non_evidence = sum(v for k, v in statuses.items() if k not in {"conformant", "violation"})
-        conform_ok = (conform["traces"] > 0 and non_evidence == 0
-                      and conform["conformant"] == conform["traces"])
-        if not conform_ok:
-            info["stages"]["conformance"] = "conformance_failed"
-            info["reasons"].append("conformance_failed")
-        else:
-            info["stages"]["conformance"] = "ok"
-        report = bounded_monitor.run_monitor(
-            task.contract_path, monitor_dir,
-            resources=inst / "resources.json", mapping=mapping_path, binary=binary)
-        (out_dir / f"round-{round_no}" / "monitor.json").write_text(
-            json.dumps(report) + "\n", encoding="utf-8")
-        info["monitor_status"] = report.get("status")
-        info["monitor_fail"] = [p["id"] for p in report.get("properties", [])
-                                if p.get("status") == "FAIL"]
-        monitor_ok = report.get("status") != "fail" and not info["monitor_fail"]
-        if not monitor_ok:
-            info["stages"]["requirements"] = "requirement_failed"
-            info["reasons"].append("requirement_failed")
-        else:
-            info["stages"]["requirements"] = "ok"
-        # Shared interpretation: the same rule as the offline path decides.
-        from . import candidate_eval
-        round_dir = out_dir / f"round-{round_no}"
-        cir_props, cir_complete = _cir_props_for(binary, Path(cir_path), task.contract_path)
-        (round_dir / "model-check.json").write_text(json.dumps(
-            {"cir_props": cir_props, "cir_complete": cir_complete,
-             "cir_path": str(cir_path)}, indent=2) + "\n", encoding="utf-8")
-        bundle = {
-            "cell": f"{task.id}/rep{info.get('round')}",
-            "source_path": str(out_dir / f"round-{round_no}.rs"),
-            "cir_path": str(cir_path), "contract_path": str(task.contract_path),
-            "stages": {"source_build": "ok", "instrument": "ok", "instrumented_build": "ok"},
-            "runs_started": len(runs),
-            "runs_completed": sum(1 for r in runs if r["completed"]),
-            "hang": hang,
-            "raw_events": sum(1 for f in traces_dir.glob("*.jsonl")
-                              for ln in f.read_text(encoding="utf-8").splitlines() if ln.strip()),
-            "projected_events": sum(1 for f in conform_dir.glob("*.jsonl")
-                                    for ln in f.read_text(encoding="utf-8").splitlines() if ln.strip()),
-            "conform": {"traces": conform["traces"], "statuses": conform["statuses"],
-                        "violations": conform.get("violations", []),
-                        "first_violation": conform["first_violation"]},
-            "monitor": {"status": report.get("status"),
-                        "properties": [(p.get("id"), p.get("status"))
-                                       for p in report.get("properties", [])]},
-            "binding": {"mapping": mapping, "ambiguous": provenance.get("ambiguous", []),
-                        "violated": provenance.get("violated", {}), "source": "rust-cli"},
-            "functional": None,
-            "artifacts": _role_artifacts(round_dir, out_dir / f"round-{round_no}.rs",
-                                         Path(cir_path), task.contract_path),
+        evaluated = candidate_eval.evaluate_candidate(
+            rust, Path(cir_path), task.contract_path, out_dir / f"round-{round_no}",
+            binary=binary, instrument=instrument_binary, n_runs=n_runs,
+            functional_spec=functional_spec, cell_id=task.id, round_no=round_no,
+            candidate_kind="online")
+        follow = evaluated["followup"]
+        info["stages"] = {**info["stages"], **evaluated.get("stages", {})}
+        info["evaluation"] = {
+            "ledger": evaluated.get("ledger"),
+            "action": follow["action"],
+            "category": follow["category"],
+            "feedback": follow.get("feedback") or "",
+            "status": follow["status"],
+            "evidence_path": evaluated.get("evidence_path"),
+            "stages": evaluated.get("stages"),
         }
-        ledger = candidate_eval.interpret(bundle, contract, accepted=False,
-                                          cir_props=cir_props, cir_complete=cir_complete)
-        record["ledger"] = ledger.to_dict()
+        info["reasons"] = list((evaluated.get("ledger") or {}).get("reasons") or [])
+        record["ledger"] = evaluated.get("ledger")
         record["acceptance_policy"] = candidate_eval.ACCEPTANCE_POLICY
-        if ledger.all_obligations_satisfied:
+        if follow["action"] == "accept":
             info["decision"] = "accepted"
             record["accepted"] = True
             record["status"] = "accepted"
-            record["accepted_with_proof"] = False
-            record["observed_trace_ok"] = True
-            record["coverage"] = bounded_monitor.coverage(
-                contract, report, task.requirements, task.unverifiable,
-                behavior_ok=behavior_ok).as_dict()
+            record["action"] = "accepted"
             record["final_rust"] = str(out_dir / f"round-{round_no}.rs")
             break
-        # The rejection and its feedback come from the shared ledger.
-        action, category, pieces = _ledger_action(ledger, conform, report)
-        if action == "repair":
+        if follow["action"] == "repair":
             info["decision"] = "candidate_error"
             record["action"] = "candidate_error"
-            feedback = " ".join(pieces) if pieces else (
-                "The previous candidate was rejected; revise the statements the "
-                "diagnostic names and resend the whole program.")
+            record["status"] = "candidate_error"
+            record["semantic_repairs"] += 1
+            feedback = follow["feedback"]
+            if not feedback.strip():
+                info["decision"] = "capability_gap"
+                record["action"] = "capability_gap"
+                record["status"] = "capability_gap"
+                break
             continue
-        _stop_round(info, record, category, category)
+        if follow["action"] == "repair_protocol":
+            info["decision"] = "protocol_noncompliance"
+            record["action"] = "protocol_noncompliance"
+            record["status"] = "protocol_noncompliance"
+            record["protocol_repairs"] += 1
+            feedback = follow["feedback"]
+            continue
+        info["decision"] = follow["status"]
+        record["status"] = follow["status"]
+        record["action"] = follow["category"]
+        if follow["category"] == "tool_failure":
+            record["tool_failures"] += 1
         break
     return record
 

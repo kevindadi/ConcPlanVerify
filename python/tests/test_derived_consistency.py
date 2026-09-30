@@ -72,6 +72,16 @@ class FullMatrixTests(unittest.TestCase):
         for r in rows:
             if r["binding_sufficient"]:
                 self.assertTrue(r["binding_ran"], "binding sufficient requires the stage to have run")
+                self.assertEqual(r["binding_status"], "sufficient")
+        qwen = [r for r in rows if r["model"] == "qwen"
+                and r["task"] == "condvar/notify_one_multi_waiter_wrong_pick"]
+        self.assertEqual(len(qwen), 1)
+        self.assertFalse(qwen[0]["binding_sufficient"])
+        self.assertEqual(qwen[0]["binding_status"], "not_run")
+        self.assertEqual(sum(1 for r in rows if r["historical_acceptance"]), 73)
+        self.assertEqual(len({r["stage_class"] for r in rows}
+                             & {"cir_not_accepted", "cir_accepted_no_rust",
+                                "cir_unknown_or_raw_error"}), 3)
 
 
 if __name__ == "__main__":

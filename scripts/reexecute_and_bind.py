@@ -30,9 +30,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "python"))
 
-from cir_workflow import bounded_monitor, generation, rust_oracle  # noqa: E402
+from cir_workflow.candidate_eval import evaluate_candidate  # noqa: E402
 from cir_workflow.evidence import load_cir_properties  # noqa: E402
-from cir_workflow.evidence_v2 import evaluate_reexecution  # noqa: E402
 
 
 def _sha(p: Path) -> str | None:
@@ -63,50 +62,6 @@ def _count_ops(directory: Path, ops: set[str]) -> int:
     return total
 
 
-def _artifacts(out: Path, result: dict) -> list[dict]:
-    """A role-tagged, verifiable manifest of every referenced artifact."""
-
-    role_paths: list[tuple[str, str | None]] = [
-        ("source", result.get("source_path")),
-        ("cir", result.get("cir_path")),
-        ("contract", result.get("contract_path")),
-        ("model_check", str(out / "model-check.json")),
-        ("binding", str(out / "binding.json")),
-        ("monitor", str(out / "monitor.json")),
-    ]
-    artifacts = []
-    for role, p in role_paths:
-        if p and Path(p).is_file():
-            artifacts.append({"role": role, "path": p, "sha256": _sha(Path(p))})
-    for d, role in (("traces", "execution"), ("conform-traces", "conform")):
-        if (out / d).is_dir():
-            for p in sorted((out / d).glob("*.jsonl")):
-                artifacts.append({"role": role, "path": str(p), "sha256": _sha(p)})
-    f = result.get("functional") or {}
-    if f.get("evidence_path") and Path(f["evidence_path"]).is_file():
-        artifacts.append({"role": "functional", "path": f["evidence_path"],
-                          "sha256": _sha(Path(f["evidence_path"]))})
-    return artifacts
-
-
-def _finalize(out: Path, result: dict, contract_path: Path, accepted: bool,
-              cir_props: dict | None, cir_complete: bool | None) -> dict:
-    """Every exit path (success or any failure) writes a result with a ledger."""
-
-    try:
-        contract = json.loads(Path(contract_path).read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        contract = {"properties": [], "preserved": []}
-    result["artifacts"] = _artifacts(out, result)
-    ledger = evaluate_reexecution(result, contract, accepted=accepted,
-                                  cir_props=cir_props or {}, cir_complete=cir_complete)
-    result["ledger"] = ledger.to_dict()
-    result["evidence_path"] = str(out / "result.json")
-    (out / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n",
-                                     encoding="utf-8")
-    return result
-
-
 def reexecute(source: str, cir_path: Path, contract_path: Path, out: Path, *,
               binary: Path, instrument: Path, n_runs: int = 32,
               run_timeout: float = 10.0, accepted: bool = True, cell_id: str = '',
@@ -114,120 +69,29 @@ def reexecute(source: str, cir_path: Path, contract_path: Path, out: Path, *,
               cir_complete: bool | None = None,
               candidate_kind: str = 'final', round_no: int | None = None,
               manifest_path: Path | None = None,
-              functional: dict | None = None) -> dict:
-    out.mkdir(parents=True, exist_ok=True)
-    source_path = out / "source.rs"
-    source_path.write_text(source, encoding="utf-8")
-    result: dict = {
-        "cell": cell_id,
-        "source_path": str(source_path), "cir_path": str(cir_path),
-        "contract_path": str(contract_path),
-        "source_sha256": hashlib.sha256(source.encode()).hexdigest(),
-        "cir_sha256": _sha(cir_path), "contract_sha256": _sha(contract_path),
-        "backend_sha256": _sha(binary), "instrument_sha256": _sha(instrument),
-        "n_runs": n_runs, "stages": {}, "limitations": [],
-        "candidate_kind": candidate_kind, "round_no": round_no,
-        "cir_props": cir_props or {}, "cir_complete": cir_complete,
-        "functional": functional,
-    }
-    (out / "model-check.json").write_text(json.dumps(
-        {"cir_props": cir_props or {}, "cir_complete": cir_complete,
-         "cir_path": str(cir_path), "cir_sha256": _sha(cir_path)}, indent=2) + "\n",
-        encoding="utf-8")
-    # 1. source build (original program, before instrumentation)
-    src_proj = out / "source-proj"
-    (src_proj / "src").mkdir(parents=True, exist_ok=True)
-    (src_proj / "Cargo.toml").write_text(rust_oracle._container(), encoding="utf-8")
-    (src_proj / "src" / "main.rs").write_text(source, encoding="utf-8")
-    src_ok, src_log = rust_oracle.cargo_build(src_proj)
-    (out / "source-build.log").write_text(src_log, encoding="utf-8")
-    result["stages"]["source_build"] = "ok" if src_ok else "failed"
-    if not src_ok:
-        return _finalize(out, result, contract_path, accepted, cir_props, cir_complete)
+              functional: dict | None = None,
+              functional_spec: dict | None = None) -> dict:
+    """Offline selection entry. Evidence acquisition is ``evaluate_candidate``."""
 
-    # 2. instrument
-    try:
-        wrapped = rust_oracle.instrument_wrappers(source, out / "instrument",
-                                                  binary=instrument)
-    except Exception as exc:  # noqa: BLE001
-        result["stages"]["instrument"] = f"error: {exc}"
-        return _finalize(out, result, contract_path, accepted, cir_props, cir_complete)
-    result["stages"]["instrument"] = "ok"
-    result["limitations"] = wrapped["limitations"]
-    result["resources"] = wrapped["resources"]
-
-    # 3. instrumented build
-    proj = out / "proj"
-    rust_oracle.prepare_project(proj, wrapped["annotated"], wrapped["runtime"])
-    built, build_log = rust_oracle.cargo_build(proj)
-    (out / "instrumented-build.log").write_text(build_log, encoding="utf-8")
-    result["stages"]["instrumented_build"] = "ok" if built else "failed"
-    if not built:
-        return _finalize(out, result, contract_path, accepted, cir_props, cir_complete)
-
-    # 4. execute; raw traces
-    runs = rust_oracle.run_native(proj, out / "traces", n=n_runs, timeout=run_timeout)
-    result["runs_started"] = len(runs)
-    result["runs_completed"] = sum(1 for r in runs if r["completed"])
-    result["hang"] = any(r["timed_out"] for r in runs)
-    result["raw_events"] = _count_events(out / "traces")
-    result["thread_lifecycle"] = {
-        "spawn": _count_ops(out / "traces", {"spawn"}),
-        "join": _count_ops(out / "traces", {"join"}),
-        "scope": _count_ops(out / "traces", {"scope"}),
-    }
-
-    # 5. binding via the ConcIR bind_check CLI (falls back to the Python
-    #    structural mapping only if the Rust binary is unavailable).
-    cir = json.loads(cir_path.read_text(encoding="utf-8"))
-    from cir_workflow.binding import BindingUnavailable, bind as binding_bind
-    try:
-        rb = binding_bind(out / "instrument/resources.json", cir_path,
-                          manifest_path=manifest_path)
-    except BindingUnavailable as exc:
-        # No silent fallback to a weaker name mapping.
-        result["stages"]["binding"] = f"tool_error: {exc}"
-        result["binding"] = {"mapping": {}, "ambiguous": [], "violated": {},
-                             "source": "rust-cli-unavailable", "error": str(exc)}
-        return _finalize(out, result, contract_path, accepted, cir_props, cir_complete)
-    mapping = {name: v["cir"] for name, v in rb.get("verified", {}).items()}
-    ambiguous = [{"rust": k, **v} for k, v in rb.get("unresolved", {}).items()]
-    result["stages"]["binding"] = "ok"
-    result["binding"] = {"mapping": mapping, "rules": {},
-                         "ambiguous": ambiguous,
-                         "violated": rb.get("violated", {}),
-                         "source": "rust-cli"}
-    (out / "binding.json").write_text(
-        json.dumps({"mapping": mapping, "provenance": result["binding"]}, indent=2) + "\n",
-        encoding="utf-8")
-
-    # 6. projected traces for op-resource conformance (spawn/join/scope excluded
-    #    from this check; they are a separate thread-lifecycle obligation).
-    wrapper_names = {r["name"] for r in wrapped["resources"]
-                     if r.get("kind") == "ChannelWrapper"}
-    generation._rewrite_traces(out / "traces", out / "conform-traces", mapping,
-                               generation._DROP_OPS, wrapper_names)
-    result["projected_events"] = _count_events(out / "conform-traces")
-    conform = generation._conform_all_op_resource(binary, cir_path, out / "conform-traces")
-    result["conform"] = conform
-
-    # 7. monitor on raw (wrapper-filtered) traces with the binding
-    generation._rewrite_traces(out / "traces", out / "monitor-traces", {}, set(),
-                               wrapper_names)
-    report = bounded_monitor.run_monitor(contract_path, out / "monitor-traces",
-                                         resources=out / "instrument/resources.json",
-                                         mapping=out / "binding.json", binary=binary)
-    (out / "monitor.json").write_text(json.dumps(report) + "\n", encoding="utf-8")
-    result["monitor"] = {"status": report.get("status"),
-                         "properties": [(p.get("id"), p.get("status"))
-                                        for p in report.get("properties", [])]}
-    return _finalize(out, result, contract_path, accepted, cir_props, cir_complete)
+    return evaluate_candidate(
+        source, cir_path, contract_path, out, binary=binary, instrument=instrument,
+        n_runs=n_runs, run_timeout=run_timeout, accepted=accepted, cell_id=cell_id,
+        cir_props=cir_props, cir_complete=cir_complete, candidate_kind=candidate_kind,
+        round_no=round_no, manifest_path=manifest_path, functional=functional,
+        functional_spec=functional_spec)
 
 
 def _last_rust(cell: Path) -> Path | None:
     rusts = sorted(cell.glob("code/round-*.rs"),
                    key=lambda p: int(p.stem.split("-")[1]))
     return rusts[-1] if rusts else None
+
+
+def _round_rust(cell: Path, round_no) -> Path | None:
+    if round_no is None:
+        return None
+    path = cell / "code" / f"round-{round_no}.rs"
+    return path if path.is_file() else None
 
 
 def _accepted_cir(cell: Path) -> Path | None:
@@ -266,11 +130,13 @@ def main() -> int:
         model, task_id, rep = row["model"], row["task"], row.get("replicate", 0)
         rel = Path(model) / task_id.replace("/", "__") / f"rep{rep}"
         cell = batch / rel
-        rust = _last_rust(cell)
+        final_rust = _last_rust(cell)
         cir = _accepted_cir(cell)
         contract = REPO / "benchmarks/families" / task_id / "contract.json"
         accepted = bool(row.get("accepted"))
         acc_round = row.get("first_code_accept_round")
+        accepted_rust = _round_rust(cell, acc_round) if accepted else None
+        rust = accepted_rust or final_rust
         run_dir = out / rel
         if rust is None or cir is None:
             # Classify why no candidate exists.
@@ -292,17 +158,38 @@ def main() -> int:
             print(f"  {str(rel)[:60]:60s} {reason}")
             continue
         cir_props, cir_complete = load_cir_properties(cell, cir)
-        last_round = int(rust.stem.split("-")[1])
-        kind = "accepted" if (accepted and acc_round == last_round) else "final"
+        final_round = int(final_rust.stem.split("-")[1]) if final_rust else None
+        eval_round = int(rust.stem.split("-")[1])
+        same = bool(final_rust and rust.resolve() == final_rust.resolve())
+        kind = "accepted" if accepted and accepted_rust is not None else "final"
         try:
             res = reexecute(rust.read_text(encoding="utf-8"), cir, contract, run_dir,
                             binary=binary, instrument=instrument, n_runs=args.n_runs,
                             accepted=accepted, cir_props=cir_props,
                             cir_complete=cir_complete, cell_id=str(rel),
-                            candidate_kind=kind, round_no=last_round)
+                            candidate_kind=kind, round_no=eval_round)
+            res["accepted_round"] = acc_round if accepted else None
+            res["final_round"] = final_round
+            res["same_round"] = same
+            if accepted and accepted_rust and final_rust and not same:
+                final_res = reexecute(final_rust.read_text(encoding="utf-8"), cir, contract,
+                                      run_dir / "final-only", binary=binary,
+                                      instrument=instrument, n_runs=args.n_runs,
+                                      accepted=False, cir_props=cir_props,
+                                      cir_complete=cir_complete, cell_id=str(rel),
+                                      candidate_kind="final", round_no=final_round)
+                res["final_evidence_path"] = final_res["evidence_path"]
+                res["final_evaluation"] = final_res["ledger"]["current_evaluation"]
+            else:
+                res["final_evidence_path"] = res["evidence_path"]
+                res["final_evaluation"] = res["ledger"]["current_evaluation"]
+            (run_dir / "result.json").write_text(
+                json.dumps(res, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         except Exception as exc:  # noqa: BLE001
             run_dir.mkdir(parents=True, exist_ok=True)
-            res = {"cell": str(rel), "candidate_kind": kind, "round_no": last_round,
+            res = {"cell": str(rel), "candidate_kind": kind, "round_no": eval_round,
+                   "accepted_round": acc_round if accepted else None,
+                   "final_round": final_round, "same_round": same,
                    "stages": {"unexpected": f"{type(exc).__name__}: {exc}"},
                    "evidence_path": str(run_dir / "result.json"),
                    "ledger": {"current_evaluation": "tool_error"}}

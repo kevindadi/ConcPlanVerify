@@ -73,6 +73,7 @@ def run_monitor(
         raise RuntimeError(f"monitor produced no output (exit {proc.returncode}): "
                            f"{proc.stderr[-400:]}")
     report = json.loads(proc.stdout)
+    report["_raw_stdout"] = proc.stdout
     report["_exit"] = proc.returncode
     report["_argv"] = argv
     report["_stderr"] = proc.stderr[-2000:]
