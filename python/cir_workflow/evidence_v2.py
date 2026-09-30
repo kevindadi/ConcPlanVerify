@@ -396,6 +396,9 @@ def _functional_state(result: dict) -> dict:
         return {"status": "invalid", "valid": False, "reason": "missing_test_or_raw",
                 "evidence": recorded.get("evidence"), "evidence_path": path, "supports": []}
     derived = "pass" if doc.get("raw_stdout") == doc.get("expected") else "fail"
+    # A matching stdout with a crash or a timeout is not a completed pass.
+    if doc.get("timed_out") or (doc.get("returncode") not in (None, 0)):
+        derived = "fail"
     if doc.get("status") != derived or recorded.get("status") != derived:
         return {"status": "invalid", "valid": False, "reason": "status_disagrees_with_raw",
                 "evidence": recorded.get("evidence"), "evidence_path": path, "supports": []}

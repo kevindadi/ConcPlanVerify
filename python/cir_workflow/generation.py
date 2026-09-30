@@ -892,6 +892,87 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
     return record
 
 
+def code_stage_view(code: dict[str, Any] | None) -> dict[str, Any]:
+    """Read hang, run counts, and coverage from the shared code-stage ledger.
+
+    Hang is only a timeout. Tool failures and capability gaps stay in
+    ``run_state`` / ``failure_stage``. Coverage counts bounded monitor
+    statuses. A model-check PASS is not implementation coverage. When the
+    monitor did not decide any property, coverage is null and ``coverage_reason``
+    says why.
+    """
+
+    code = code or {}
+    ledger = code.get("ledger") or {}
+    run = ledger.get("run") or {}
+    state = run.get("state")
+    if not ledger:
+        return {"hang": None, "run_state": None, "runs_started": None,
+                "runs_completed": None, "failure_stage": code.get("status"),
+                "coverage": None,
+                "coverage_reason": "code stage has no shared evaluation ledger"}
+    hang = bool(state == "timeout" or run.get("hang"))
+    failure = None if code.get("accepted") else (code.get("status") or state)
+    props = ledger.get("properties") or []
+    decidable = [p for p in props
+                 if p.get("independent_requirement_result") in {"PASS_bounded", "FAIL"}]
+    blocked = state in {"not_run", "source_build_failed", "instrument_failed",
+                        "instrument_build_failed", "tool_error"} or ledger.get(
+                            "current_evaluation") in {"tool_error", "instrument_failed",
+                                                      "instrument_build_failed"}
+    requirement_ids = []
+    for prop in props:
+        for req in prop.get("requirements") or []:
+            if req not in requirement_ids:
+                requirement_ids.append(req)
+    if blocked or not props:
+        coverage = None
+        reason = (f"metrics not computed: run state {state or ledger.get('current_evaluation')}"
+                  if blocked else "no monitor properties on the ledger")
+    else:
+        satisfied_props = [p for p in decidable
+                           if p.get("independent_requirement_result") == "PASS_bounded"
+                           and p.get("obligation_state") == "satisfied"]
+        # A requirement is satisfied only when every property that cites it is
+        # satisfied. unsupported, unknown and missing properties are not passes.
+        def req_ok(req: str) -> bool:
+            cited = [p for p in props if req in (p.get("requirements") or [])]
+            return bool(cited) and all(
+                p.get("obligation_state") == "satisfied"
+                and p.get("independent_requirement_result") == "PASS_bounded"
+                for p in cited)
+        satisfied_reqs = [req for req in requirement_ids if req_ok(req)]
+
+        def req_covered(req: str) -> bool:
+            cited = [p for p in props if req in (p.get("requirements") or [])]
+            return bool(cited) and all(p in decidable for p in cited)
+
+        covered_reqs = [req for req in requirement_ids if req_covered(req)]
+        coverage = {
+            "basis": "bounded_monitor_statuses",
+            "property_total": len(props),
+            "property_decidable": len(decidable),
+            "property_satisfied": len(satisfied_props),
+            "property_coverage": (len(decidable) / len(props)) if props else None,
+            "requirement_coverage": (
+                len(covered_reqs) / len(requirement_ids) if requirement_ids else None),
+            "decidable_satisfaction_ratio": (
+                len(satisfied_props) / len(decidable) if decidable else None),
+            "requirement_total": len(requirement_ids),
+            "requirement_satisfied": len(satisfied_reqs),
+            "requirement_satisfaction_rate": (
+                len(satisfied_reqs) / len(requirement_ids) if requirement_ids else None),
+        }
+        reason = None if decidable or requirement_ids else (
+            "monitor did not return PASS_bounded or FAIL; "
+            "a model-check PASS is not implementation coverage")
+        if reason:
+            coverage = None
+    return {"hang": hang, "run_state": state,
+            "runs_started": run.get("started"), "runs_completed": run.get("completed"),
+            "failure_stage": failure, "coverage": coverage, "coverage_reason": reason}
+
+
 def run_g3_v2(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
               k_cir: int = 4, k_code: int = 3, instrument_binary=None) -> dict[str, Any]:
     """§1: verified CIR, then LLM-generated Rust post-verified by tools."""
@@ -919,10 +1000,15 @@ def run_g3_v2(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
     combined["code_stage"] = code
     combined["accepted"] = bool(cir_rec.get("accepted") and code.get("accepted"))
     combined["accepted_with_proof"] = bool(code.get("accepted_with_proof"))
-    combined["coverage"] = code.get("coverage")
+    view = code_stage_view(code)
+    combined["coverage"] = view["coverage"]
+    combined["coverage_reason"] = view["coverage_reason"]
+    combined["oracle"] = {"hang": view["hang"], "run_state": view["run_state"],
+                          "runs_started": view["runs_started"],
+                          "runs_completed": view["runs_completed"],
+                          "failure_stage": view["failure_stage"]}
     last = (code.get("rounds") or [{}])[-1]
     combined["monitor_fail"] = last.get("monitor_fail")
-    combined["oracle"] = {"hang": not last.get("behavior_ok", False)} if code.get("rounds") else {"hang": None}
     combined["status"] = "accepted" if combined["accepted"] else code.get(
         "status", cir_rec.get("status"))
     combined["model"] = cir_rec.get("model")

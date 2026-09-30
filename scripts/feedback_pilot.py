@@ -1,133 +1,147 @@
 #!/usr/bin/env python3
-"""Freeze and dry-run the counterexample-feedback ablation. No model calls."""
+"""Freeze and validate the six-case feedback pilot. This command does not call a model."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "python"))
+
+from cir_workflow.feedback_runner import PROMPT_PATH, validate_config  # noqa: E402
+from cir_workflow.pilot_cases import CASES, FIXTURE_ROOT, evaluate_role, load_case  # noqa: E402
 
 
-def _sha(path: Path) -> str | None:
-    try:
-        return hashlib.sha256(path.read_bytes()).hexdigest()
-    except OSError:
-        return None
+def _sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def freeze_inputs(cfg: dict, manifest_path: Path) -> list[dict]:
-    """Pin round-1 sources. Missing round-1 stays listed and is not replaced."""
-
-    dev = [json.loads(line) for line in manifest_path.read_text(encoding="utf-8").splitlines()
-           if line.strip()]
-    rows = []
-    for cell in dev:
-        task = cell["task"]
-        if cfg["sampling_rule"]["exclude_substring"] in task:
-            continue
-        if task not in cfg["tasks"]:
-            continue
-        source = (REPO / cell["batch"] / cell["model"] / task.replace("/", "__")
-                  / f"rep{cell['rep']}" / "code" / "round-1.rs")
-        rows.append({
-            "model": cell["model"],
-            "task": task,
-            "rep": cell["rep"],
-            "origin_batch": cell["batch"],
-            "initial_round": 1,
-            "initial_source": str(source) if source.is_file() else None,
-            "initial_sha256": _sha(source) if source.is_file() else None,
-            "available": source.is_file(),
-            "unavailable_reason": None if source.is_file() else "round-1 source missing; not replaced",
-            "task_set": "development",
-            "holdout": False,
-        })
-    return rows
+def _ref(path: Path) -> dict:
+    return {"path": str(path), "sha256": _sha(path)}
 
 
-def dry_run(cfg: dict, inputs: list[dict]) -> dict:
-    arms = cfg["arms"]
-    k_code = cfg["k_code"]
-    cells = []
-    for item in inputs:
-        for arm in arms:
-            for rep in range(cfg["reps"]):
-                runnable = bool(item["available"])
-                cells.append({
-                    "model": item["model"], "task": item["task"], "arm": arm,
-                    "rep": rep, "initial_sha256": item["initial_sha256"],
-                    "initial_source": item["initial_source"],
-                    "runnable": runnable,
-                    "k_code": k_code,
-                    "request_upper_bound": k_code if runnable else 0,
-                    "prompt_tokens": None, "completion_tokens": None,
-                    "tool_time_s": None, "model_time_s": None,
-                    "tool_errors": None, "capability_gaps": None,
-                    "first_correct_round": None,
-                })
-    runnable = [c for c in cells if c["runnable"]]
-    return {
-        "config_version": cfg["version"],
-        "question": cfg["question"],
-        "dry_run": True,
-        "llm_calls": 0,
-        "task_set": cfg["task_set_note"],
+def freeze_inputs() -> tuple[dict, list[dict], list[dict]]:
+    backend = REPO.parent / "ConcIR/target/release/concir-backend"
+    instrument = REPO.parent / "ConcIR/target/release/concir-instrument"
+    preflight = FIXTURE_ROOT / "PREFLIGHT.json"
+    oracle_py = REPO / "python/cir_workflow/pilot_oracle.py"
+    cases_py = REPO / "python/cir_workflow/pilot_cases.py"
+    config = {
+        "version": "feedback-pilot-v8",
+        "status": "frozen-dry-run",
+        "question": "实现阶段的 CIR 一致性反馈消融：固定已验证 CIR 与初始 Rust 后，被测工具链的判定和结构化诊断是否改变修复结果。",
+        "not_claimed": "工具诊断不全是 CVN 穷尽反例；独立 oracle 只评分，不进入反馈。",
+        "models": ["DeepSeek Flash", "Qwen", "GPT 6 Luna", "Kimi 2.7 Code"],
+        "model_ids": ["deepseek-flash", "qwen3.8-flash", "gpt-6-luna", "kimi-k2.7-code"],
+        "arms": ["verdict_only", "counterexample"],
+        "max_repairs": 2,
+        "task_set": "development-mechanism-pilot",
         "holdout": False,
-        "arms_differ_only_in": cfg["only_difference"],
-        "controlled": cfg["controlled"],
-        "support_subset": cfg["supported_subset"],
-        "sampling_rule": cfg["sampling_rule"],
-        "truth": cfg["truth"],
-        "metrics": cfg["metrics"],
-        "planned_model_tasks": len(inputs),
-        "unavailable_model_tasks": sum(1 for i in inputs if not i["available"]),
-        "cells": len(cells),
-        "runnable_cells": len(runnable),
-        "requests_upper_bound": sum(c["request_upper_bound"] for c in cells),
-        "unknown_token_policy": "record null, never 0",
-        "future_G2_G3": cfg["future_G2_G3_note"],
-        "matrix_cells": cells,
+        "prompt": str(PROMPT_PATH),
+        "prompt_sha256": _sha(PROMPT_PATH),
+        "tools": {
+            "backend": {"path": str(backend), "sha256": _sha(backend) if backend.is_file() else None},
+            "instrument": {"path": str(instrument),
+                           "sha256": _sha(instrument) if instrument.is_file() else None},
+            "n_runs": 2,
+            "run_timeout_s": 8,
+            "no_join_run_timeout_s": 2,
+        },
+        "preflight": _ref(preflight) if preflight.is_file() else {"path": str(preflight), "sha256": None},
+        "oracle_sha256": _sha(oracle_py),
+        "cases_sha256": _sha(cases_py),
+        "only_difference": "feedback text",
     }
+    rows = []
+    oracle_rows = []
+    for name in CASES:
+        directory = FIXTURE_ROOT / name
+        case = load_case(name)
+        row = {
+            "id": name,
+            "class": case["class"],
+            "origin": case["origin"],
+            "origin_kind": "hand-authored",
+            "defect": _ref(directory / "defect.rs"),
+            "control": _ref(directory / "control.rs"),
+            "cir": _ref(directory / "design.cir.json"),
+            "contract": _ref(directory / "contract.json"),
+            "requirements": _ref(directory / "requirements.md"),
+            "prompt_sha256": config["prompt_sha256"],
+            "oracle_sha256": config["oracle_sha256"],
+            "cases_sha256": config["cases_sha256"],
+            "preflight_sha256": config["preflight"]["sha256"],
+        }
+        rows.append(row)
+    return config, rows, oracle_rows
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     parser.add_argument("--inputs", required=True)
-    parser.add_argument("--dev-manifest",
-                        default="notes-path-unused")
-    parser.add_argument("--freeze-inputs", action="store_true")
-    parser.add_argument("--dev-manifest-file", default=str(
-        Path("/Users/kevin/paper-review/papers/ConcPlanVerify/notes/strong-link-v5/INPUT_MANIFEST.jsonl")))
+    parser.add_argument("--freeze", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--out", default=None)
+    parser.add_argument("--oracle-out", default=None)
+    parser.add_argument("--execute", action="store_true",
+                        help="Future paid entry. Not used in strong-link-v7.")
     args = parser.parse_args()
-    cfg = json.loads(Path(args.config).read_text(encoding="utf-8"))
-    inputs_path = Path(args.inputs)
-    if args.freeze_inputs:
-        inputs = freeze_inputs(cfg, Path(args.dev_manifest_file))
-        inputs_path.parent.mkdir(parents=True, exist_ok=True)
-        inputs_path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in inputs),
+    config_path, inputs_path = Path(args.config), Path(args.inputs)
+    if args.freeze:
+        config, rows, _oracle = freeze_inputs()
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n",
+                               encoding="utf-8")
+        inputs_path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows),
                                encoding="utf-8")
     else:
-        inputs = [json.loads(line) for line in inputs_path.read_text(encoding="utf-8").splitlines()
-                  if line.strip()]
-    if not args.dry_run and not args.freeze_inputs:
-        print("refusing to call a model; pass --dry-run or --freeze-inputs")
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        rows = [json.loads(line) for line in inputs_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()]
+    if args.oracle_out:
+        import tempfile
+        report = []
+        for name in CASES:
+            case = load_case(name)
+            with tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                defect = evaluate_role(case, case["defect"], root / "defect")
+                control = evaluate_role(case, case["control"], root / "control")
+            report.append({
+                "id": name, "class": case["class"], "origin": case["origin"],
+                "defect": {"requirement": defect["requirement"]["status"],
+                           "design": defect["design"]["status"],
+                           "requirement_error": defect["requirement_error"],
+                           "cir_design_deviation": defect["cir_design_deviation"],
+                           "supported": defect["support"]["supported"],
+                           "in_repair_denominator": defect["requirement_error"]
+                           and defect["support"]["supported"]
+                           and not defect["tool_error"]},
+                "control": {"requirement": control["requirement"]["status"],
+                            "design": control["design"]["status"],
+                            "model_requests": 0},
+            })
+        Path(args.oracle_out).write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+                                        encoding="utf-8")
+    if args.execute:
+        print("refusing: this process was not started as the future paid run")
         return 2
-    plan = dry_run(cfg, inputs)
-    text = json.dumps({k: v for k, v in plan.items() if k != "matrix_cells"},
+    if not args.dry_run and not args.freeze:
+        print("refusing to call a model; pass --dry-run")
+        return 2
+    plan = validate_config(config, rows)
+    text = json.dumps({k: v for k, v in plan.items() if k != "matrix"},
                       ensure_ascii=False, indent=2)
     print(text)
-    print(f"DRY RUN: llm_calls=0 runnable_cells={plan['runnable_cells']} "
-          f"requests_upper_bound={plan['requests_upper_bound']}")
     if args.out:
         Path(args.out).write_text(json.dumps(plan, ensure_ascii=False, indent=2) + "\n",
                                   encoding="utf-8")
-    return 0
+    return 0 if plan["ok"] else 2
 
 
 if __name__ == "__main__":

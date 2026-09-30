@@ -37,11 +37,32 @@ class RegistryTests(unittest.TestCase):
 
     def test_opencode_models_are_discovered(self):
         specs = transport.build_registry()
-        for display in ("Kimi", "GLM", "GPT 6 Luna", "Grok 4.7"):
+        for display in ("Kimi 2.7 Code", "GLM", "GPT 6 Luna", "Grok 4.7"):
             spec = transport.resolve_model(specs, display)
             self.assertEqual(spec.channel, "opencode-go")
             self.assertTrue(spec.discovered, display)
             self.assertIn(spec.model_id, transport.DISCOVERED_MODELS["opencode-go"])
+
+    def test_kimi_2_7_code_is_not_k3(self):
+        specs = transport.build_registry()
+        spec = transport.resolve_model(specs, "kimi-k2.7-code")
+        self.assertEqual(spec.display_name, "Kimi 2.7 Code")
+        self.assertEqual(spec.model_id, "kimi-k2.7-code")
+        self.assertEqual(spec.channel, "opencode-go")
+        self.assertNotIn("kimi-k3", spec.aliases)
+        historical = transport.resolve_model(specs, "kimi-k3")
+        self.assertEqual(historical.model_id, "kimi-k3")
+        self.assertEqual(historical.role, "historical")
+        self.assertNotIn(historical, transport.experiment_models(specs))
+
+    def test_historical_k3_is_outside_the_2_7_cohort(self):
+        rows = [{"requested_model": "kimi-k3", "returned_model": "kimi-k3"},
+                {"requested_model": "kimi-k3", "returned_model": None},
+                {"requested_model": "kimi-k2.7-code", "returned_model": "kimi-k3"}]
+        cohorts = [transport.cohort_for(r["requested_model"], r["returned_model"]) for r in rows]
+        self.assertEqual(cohorts[:2], ["historical-k3", "historical-k3"])
+        self.assertEqual(cohorts[2], "rejected-identity")
+        self.assertNotIn("kimi-2.7-code", cohorts)
 
     def test_no_model_routes_deepseek_or_qwen_through_opencode(self):
         for spec in transport.build_registry():
@@ -59,6 +80,8 @@ class IdentityTests(unittest.TestCase):
     def test_mismatch_raises_and_does_not_fall_back(self):
         with self.assertRaises(transport.ModelIdentityError):
             transport.verify_identity("kimi-k3", "glm-5.3")
+        with self.assertRaises(transport.ModelIdentityError):
+            transport.verify_identity("kimi-k2.7-code", "kimi-k3")
 
 
 if __name__ == "__main__":

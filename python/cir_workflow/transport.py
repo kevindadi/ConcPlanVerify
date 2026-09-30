@@ -29,6 +29,14 @@ class ModelIdentityError(TransportError):
     """The response model is not the requested model; the result must not be
     attributed to the requested model."""
 
+    def __init__(self, message: str, *, outcome=None) -> None:
+        super().__init__(message)
+        self.outcome = outcome
+
+
+class ModelUnavailable(TransportError):
+    """The requested model cannot be used. Callers must not substitute another id."""
+
 
 @dataclass(frozen=True)
 class Channel:
@@ -127,8 +135,17 @@ def build_registry() -> list[ModelSpec]:
                                  "tokens/call) and cannot be reduced to a "
                                  "stateless chat call; not comparable to direct APIs",
                   discovered="composer-2.5" in DISCOVERED_MODELS["cursor"]),
-        ModelSpec("Kimi", "moonshot", "opencode-go", "kimi-k3", role="compare",
-                  aliases=("kimi-k2.7-code",),
+        ModelSpec("Kimi 2.7 Code", "moonshot", "opencode-go", "kimi-k2.7-code",
+                  role="compare",
+                  discovered="kimi-k2.7-code" in DISCOVERED_MODELS["opencode-go"],
+                  status=("available" if "kimi-k2.7-code" in DISCOVERED_MODELS["opencode-go"]
+                          else "unavailable"),
+                  blocked_reason=(None if "kimi-k2.7-code" in DISCOVERED_MODELS["opencode-go"]
+                                  else "kimi-k2.7-code is not available; "
+                                       "kimi-k3 and kimi-k2.6 are not substitutes")),
+        ModelSpec("Kimi K3", "moonshot", "opencode-go", "kimi-k3",
+                  role="historical", status="historical",
+                  blocked_reason="historical batch id only; not Kimi 2.7 Code",
                   discovered="kimi-k3" in DISCOVERED_MODELS["opencode-go"]),
         ModelSpec("GLM", "zhipu", "opencode-go", "glm-5.3-flash", role="compare",
                   aliases=("glm-5.3",),
@@ -145,9 +162,56 @@ def build_registry() -> list[ModelSpec]:
     return specs
 
 
+# Subsequent experiments. Registry entries outside this list stay recorded
+# but are not selected by a default run.
+EXPERIMENT_MODEL_IDS: tuple[str, ...] = (
+    "deepseek-flash",
+    "qwen3.8-flash",
+    "gpt-6-luna",
+    "kimi-k2.7-code",
+)
+
+
 def available_models(specs: list[ModelSpec] | None = None) -> list[ModelSpec]:
     specs = specs or build_registry()
     return [s for s in specs if s.status == "available" and s.model_id]
+
+
+def experiment_models(specs: list[ModelSpec] | None = None) -> list[ModelSpec]:
+    """The four-model whitelist. A missing id is an error, not a fallback."""
+
+    specs = specs or build_registry()
+    chosen = []
+    for model_id in EXPERIMENT_MODEL_IDS:
+        spec = resolve_model(specs, model_id)
+        if spec.model_id != model_id or spec.status != "available":
+            raise ModelUnavailable(
+                f"{model_id} is {spec.status}; refusing to substitute {spec.model_id}")
+        chosen.append(spec)
+    return chosen
+
+
+def require_experiment_model(specs: list[ModelSpec], display_or_id: str) -> ModelSpec:
+    spec = resolve_model(specs, display_or_id)
+    if spec.model_id not in EXPERIMENT_MODEL_IDS or spec.status != "available":
+        raise ModelUnavailable(
+            f"{display_or_id} resolves to {spec.model_id} ({spec.status}), "
+            "which is outside the experiment whitelist")
+    return spec
+
+
+def cohort_for(requested: str | None, returned: str | None) -> str:
+    """Group a saved call. Historical K3 never joins the Kimi 2.7 Code cohort."""
+
+    if requested == "kimi-k2.7-code":
+        if returned == "kimi-k2.7-code":
+            return "kimi-2.7-code"
+        if returned is None:
+            return "kimi-2.7-code-unconfirmed"
+        return "rejected-identity"
+    if requested == "kimi-k3" or returned == "kimi-k3":
+        return "historical-k3"
+    return requested or "unknown"
 
 
 def blocked_models(specs: list[ModelSpec] | None = None) -> list[ModelSpec]:

@@ -185,7 +185,10 @@ class OnlineControlTests(unittest.TestCase):
                            side_effect=_model(props)), \
                 mock.patch.object(bounded_monitor, "run_monitor", return_value=monitor), \
                 mock.patch("cir_workflow.candidate_eval.capture_program_stdout",
-                           return_value="DONE done=6"):
+                           return_value={"stdout": "DONE done=6\n", "stderr": "",
+                                         "returncode": 0, "timed_out": False,
+                                         "elapsed_s": 0.01, "error": None,
+                                         "kind": "completed"}):
             record = run_llmcode_from_cir(
                 client, Path("/bin/true"), task, FIX / "compute.cir.json", self.out,
                 k_code=2, functional_spec={"test_id": "stdout_eq", "kind": "stdout_eq",

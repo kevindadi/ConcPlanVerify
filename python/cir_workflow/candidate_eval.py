@@ -53,11 +53,34 @@ def _sha_file(path: Path | None) -> str | None:
         return None
 
 
-def capture_program_stdout(binary: Path) -> str | None:
-    if not Path(binary).is_file():
-        return None
-    proc = subprocess.run([str(binary)], capture_output=True, text=True, timeout=20)
-    return proc.stdout.strip()
+def capture_program_stdout(binary: Path, timeout: float = 20.0) -> dict[str, Any]:
+    """Run one built program and keep the process result.
+
+    A missing binary is tool unavailability. A timeout or nonzero exit is a
+    candidate execution result. TimeoutExpired does not escape.
+    """
+
+    import time
+    path = Path(binary)
+    if not path.is_file():
+        return {"stdout": None, "stderr": "", "returncode": None, "timed_out": False,
+                "elapsed_s": 0.0, "error": "binary_missing", "kind": "tool_unavailable"}
+    started = time.perf_counter()
+    try:
+        proc = subprocess.run([str(path)], capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout if isinstance(exc.stdout, str) else ""
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        return {"stdout": stdout, "stderr": stderr, "returncode": None, "timed_out": True,
+                "elapsed_s": time.perf_counter() - started, "error": "timeout",
+                "kind": "candidate_timeout"}
+    except OSError as exc:
+        return {"stdout": None, "stderr": "", "returncode": None, "timed_out": False,
+                "elapsed_s": time.perf_counter() - started, "error": str(exc),
+                "kind": "tool_unavailable"}
+    return {"stdout": proc.stdout, "stderr": proc.stderr, "returncode": proc.returncode,
+            "timed_out": False, "elapsed_s": time.perf_counter() - started,
+            "error": None, "kind": "completed"}
 
 
 def run_functional_check(source: str, work: Path, spec: dict | None) -> dict:
@@ -78,22 +101,45 @@ def run_functional_check(source: str, work: Path, spec: dict | None) -> dict:
     (work / "src").mkdir(exist_ok=True)
     (work / "Cargo.toml").write_text(rust_oracle._container(), encoding="utf-8")
     (work / "src" / "main.rs").write_text(source, encoding="utf-8")
-    built, _log = rust_oracle.cargo_build(work)
-    raw_stdout = capture_program_stdout(work / "target/debug/probe") if built else None
+    try:
+        built, _log = rust_oracle.cargo_build(work)
+    except (OSError, subprocess.SubprocessError) as exc:
+        doc = {"status": "not_run", "reason": f"tool_error: {exc}", "source_sha256": source_sha,
+               "test_id": spec.get("test_id") or "stdout_eq", "kind": spec.get("kind", "stdout_eq"),
+               "expected": spec.get("expected"), "raw_stdout": None, "returncode": None,
+               "timed_out": False, "execution_kind": "tool_unavailable"}
+        path = work / "functional.json"
+        path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+        return {**doc, "evidence": doc["reason"], "evidence_path": str(path), "supports": []}
+    run = (capture_program_stdout(work / "target/debug/probe") if built else
+           {"stdout": None, "stderr": "", "returncode": None, "timed_out": False,
+            "elapsed_s": 0.0, "error": "build_failed", "kind": "candidate_build_failed"})
     expected = spec.get("expected")
-    if raw_stdout is None:
-        status = "not_run"
-        reason = "program_did_not_run"
+    stdout = run.get("stdout")
+    stripped = stdout.strip() if isinstance(stdout, str) else None
+    if run.get("kind") == "tool_unavailable":
+        status, reason = "not_run", run.get("error") or "tool_unavailable"
+    elif run.get("timed_out"):
+        status, reason = "fail", "timeout"
+    elif run.get("returncode") not in (0, None):
+        status, reason = "fail", "nonzero_exit"
+    elif stripped is None:
+        status, reason = "not_run", run.get("error") or "program_did_not_run"
+    elif stripped == expected and run.get("returncode") == 0:
+        status, reason = "pass", None
     else:
-        status = "pass" if raw_stdout == expected else "fail"
-        reason = None
+        status, reason = "fail", "stdout_mismatch"
     doc = {"status": status, "reason": reason, "source_sha256": source_sha,
            "test_id": spec.get("test_id") or "stdout_eq",
            "kind": spec.get("kind", "stdout_eq"),
-           "expected": expected, "raw_stdout": raw_stdout}
+           "expected": expected, "raw_stdout": stripped,
+           "stderr": run.get("stderr"), "returncode": run.get("returncode"),
+           "timed_out": bool(run.get("timed_out")), "elapsed_s": run.get("elapsed_s"),
+           "execution_kind": run.get("kind")}
     path = work / "functional.json"
     path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
-    evidence = f"stdout={raw_stdout!r} expected={expected!r}"
+    evidence = (f"stdout={stripped!r} returncode={run.get('returncode')} "
+                f"timed_out={bool(run.get('timed_out'))}")
     return {**doc, "evidence": evidence, "evidence_path": str(path),
             "supports": ["external_stdout"] if status == "pass" else []}
 
@@ -317,7 +363,17 @@ def evaluate_candidate(source: str, cir_path: Path, contract_path: Path, out_dir
     result["source_build_log"] = str(log_path)
     result["stages"]["source_build"] = "ok" if src_ok else "failed"
     if functional is None:
-        functional = run_functional_check(source, out / "functional", functional_spec)
+        try:
+            functional = run_functional_check(source, out / "functional", functional_spec)
+        except subprocess.TimeoutExpired as exc:
+            functional = {"status": "fail", "reason": "timeout", "raw_stdout": None,
+                          "timed_out": True, "returncode": None, "evidence": str(exc),
+                          "execution_kind": "candidate_timeout", "supports": []}
+        except OSError as exc:
+            functional = {"status": "not_run", "reason": f"tool_error: {exc}",
+                          "raw_stdout": None, "timed_out": False, "returncode": None,
+                          "evidence": str(exc), "execution_kind": "tool_unavailable",
+                          "supports": []}
     result["functional"] = functional
     if functional.get("evidence_path"):
         art = _artifact("functional", Path(functional["evidence_path"]), binds=binds_base)

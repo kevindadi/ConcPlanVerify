@@ -29,7 +29,9 @@ from cir_workflow.channels import AuditedClient, ChannelUnavailable, build_clien
 from cir_workflow.env import load_dotenv  # noqa: E402
 from cir_workflow.generation import load_gen_tasks, run_g3_v2  # noqa: E402
 from cir_workflow.live import LiveBudget  # noqa: E402
-from cir_workflow.transport import CHANNELS, available_models, resolve_model  # noqa: E402
+from cir_workflow.transport import (  # noqa: E402
+    CHANNELS, build_registry, experiment_models, require_experiment_model,
+)
 
 DEFAULT_TASKS = ["channel/rendezvous_both_send", "lock-order/cross_module_cycle"]
 
@@ -112,9 +114,10 @@ def main() -> int:
         wanted = sorted(tasks)
     else:
         wanted = [t for t in args.tasks.split(",") if t]
-    specs = available_models()
+    specs = experiment_models()
     if args.models:
-        specs = [resolve_model(available_models(), m.strip()) for m in args.models.split(",")]
+        specs = [require_experiment_model(build_registry(), m.strip())
+                 for m in args.models.split(",") if m.strip()]
 
     slug = "-".join(s.display_name.lower().replace(" ", "") for s in specs)[:40]
     out = REPO / args.out
@@ -203,9 +206,13 @@ def main() -> int:
                             else None,
                         "failure_stage": None if accepted else fail_stage,
                         "failure_detail": None if accepted else fail_detail,
-                        "behavior_ok": next((r.get("behavior_ok") for r in rounds
-                                             if r.get("stage") == "code"
-                                             and r.get("decision") == "accepted"), None),
+                        "behavior_ok": (False if (rec.get("oracle") or {}).get("hang")
+                                        else (True if (rec.get("oracle") or {}).get("run_state")
+                                              == "completed" else None)),
+                        "hang": (rec.get("oracle") or {}).get("hang"),
+                        "run_state": (rec.get("oracle") or {}).get("run_state"),
+                        "coverage": rec.get("coverage"),
+                        "coverage_reason": rec.get("coverage_reason"),
                         "error": rec.get("error"),
                     })
                 except ChannelUnavailable as exc:

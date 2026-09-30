@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .audit import AuditLog
-from .transport import CHANNELS, ModelSpec, TransportError, verify_identity
+from .transport import (
+    CHANNELS, ModelIdentityError, ModelSpec, TransportError, verify_identity,
+)
 
 
 _CHANNEL_TIMEOUT = {"dashscope-direct": 300.0, "cursor": 300.0,
@@ -103,20 +105,39 @@ class AuditedClient:
             raise
         ended = time.time()
         returned = getattr(outcome, "response_model", None)
-        confirmed = verify_identity(self.spec.model_id or "", returned)
+        requested = self.spec.model_id or ""
+        try:
+            confirmed = verify_identity(requested, returned)
+        except ModelIdentityError as exc:
+            self.audit.model_call(
+                run_id=self.run_id, cell_id=self.cell_id, model=self.spec.display_name,
+                provider=self.spec.provider, transport=self.spec.channel,
+                arm=self.arm, task_id=self.task_id, replicate=self.replicate,
+                stage=self.stage, requested_model=requested, returned_model=returned,
+                usage_raw=getattr(outcome, "usage", None), started_at=started,
+                ended_at=ended, prompt=prompt, response=getattr(outcome, "text", ""),
+                candidate_round=self.round, attempt_id=f"a{self.round}",
+                request_id=getattr(outcome, "request_id", None),
+                transport_attempt=getattr(outcome, "transport_attempt", 1),
+                cost=getattr(outcome, "cost", None), status="identity_mismatch",
+                error_type=type(exc).__name__, error=str(exc),
+                notes=f"channel={self.spec.channel}; identity rejected")
+            exc.outcome = outcome
+            raise
         usage = getattr(outcome, "usage", None)
         self.audit.model_call(
             run_id=self.run_id, cell_id=self.cell_id, model=self.spec.display_name,
             provider=self.spec.provider, transport=self.spec.channel,
             arm=self.arm, task_id=self.task_id, replicate=self.replicate,
-            stage=self.stage, requested_model=self.spec.model_id or "",
+            stage=self.stage, requested_model=requested,
             returned_model=returned, usage_raw=usage, started_at=started,
             ended_at=ended, prompt=prompt, response=getattr(outcome, "text", ""),
             candidate_round=self.round, attempt_id=f"a{self.round}",
             request_id=getattr(outcome, "request_id", None),
             transport_attempt=getattr(outcome, "transport_attempt", 1),
             cost=getattr(outcome, "cost", None),
-            notes=None if confirmed else "identity unconfirmed (model not reported)")
+            notes=(f"channel={self.spec.channel}" if confirmed
+                   else f"channel={self.spec.channel}; identity unconfirmed (model not reported)"))
         return outcome
 
 
