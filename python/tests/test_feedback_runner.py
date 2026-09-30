@@ -79,7 +79,7 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(client.calls, 2)
         self.assertEqual(result["actual_model_requests_this_run"], 2)
         self.assertIsNone(result["first_requirement_round"])
-        self.assertEqual(result["stop"], "budget_exhausted")
+        self.assertEqual(result["stop"], "cell_repair_budget_exhausted")
         joined = "\n".join(client.prompts)
         self.assertNotIn(self.case["control"], joined)
 
@@ -148,6 +148,47 @@ class RunnerTests(unittest.TestCase):
         rejected = validate_config({**config, "models": ["kimi-k3"]}, rows)
         self.assertFalse(rejected["ok"])
         self.assertTrue(any("kimi-k3" in err for err in rejected["errors"]))
+        swapped = json.loads(json.dumps(rows))
+        swapped[0]["defect"] = dict(swapped[0]["control"])
+        moved = validate_config(config, swapped)
+        self.assertFalse(moved["ok"])
+        self.assertTrue(any("fingerprint" in err for err in moved["errors"]))
+        self.assertEqual(moved["requests_upper_bound"], 0)
+
+    def test_each_preflight_dependency_rejects_the_old_cache(self):
+        import hashlib
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+        from scripts.feedback_pilot import freeze_inputs
+        config, rows, _ignored = freeze_inputs()
+        original = json.loads(Path(config["preflight"]["path"]).read_text(encoding="utf-8"))
+        mutations = [
+            ("control", lambda doc: doc["cases"].__setitem__(
+                0, {**doc["cases"][0], "control_sha256": "0" * 64}) or doc),
+            ("contract", lambda doc: doc["cases"].__setitem__(
+                0, {**doc["cases"][0], "contract_sha256": "1" * 64}) or doc),
+            ("requirements", lambda doc: doc["cases"].__setitem__(
+                0, {**doc["cases"][0], "requirements_sha256": "2" * 64}) or doc),
+            ("functional", lambda doc: doc["cases"].__setitem__(
+                0, {**doc["cases"][0], "functional_spec": {"test_id": "other"}}) or doc),
+            ("oracle", lambda doc: doc.update(oracle_sha256="3" * 64) or doc),
+            ("cases", lambda doc: doc.update(cases_sha256="4" * 64) or doc),
+            ("budget", lambda doc: doc["tool"].update(n_runs=9) or doc),
+            ("backend", lambda doc: doc["tool"].update(backend_sha256="5" * 64) or doc),
+        ]
+        for name, mutate in mutations:
+            doc = json.loads(json.dumps(original))
+            mutate(doc)
+            path = self.out / f"preflight-{name}.json"
+            path.write_text(json.dumps(doc), encoding="utf-8")
+            changed = dict(config)
+            changed["preflight"] = {
+                "path": str(path),
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            }
+            plan = validate_config(changed, rows)
+            self.assertFalse(plan["ok"], name)
+            self.assertEqual(plan["requests_upper_bound"], 0, name)
 
     def test_feedback_comes_from_the_toolchain_not_the_oracle(self):
         from cir_workflow.toolchain_feedback import feedback_from_toolchain
@@ -319,6 +360,163 @@ class RunnerTests(unittest.TestCase):
         state = json.loads((dest / "state.json").read_text())
         self.assertTrue(state["requests"][0]["recovered_from_audit"])
         self.assertIsNone(state.get("pending"))
+
+    def test_outcome_unknown_survives_repeated_restarts(self):
+        dest = self.out / "unknowns"
+        dest.mkdir()
+        (dest / "state.json").write_text(json.dumps({
+            "fingerprint": None, "requests": [],
+            "outcome_unknown": {"round": 1, "reason": "no audit"},
+        }), encoding="utf-8")
+        for _ in range(3):
+            client = _Fake([_fence(self.case["control"])])
+            result = run_arm(self.case, self.spec, "verdict_only", client, dest,
+                             evaluate=_ok_eval, audit_events=[])
+            self.assertEqual(result["stop"], "outcome_unknown")
+            self.assertEqual(client.calls, 0)
+            self.assertEqual(result["actual_model_requests_this_run"], 0)
+
+    def test_same_prompt_recovers_the_matching_round(self):
+        from cir_workflow.audit import AuditLog, read_events
+        from cir_workflow.feedback_runner import (
+            PROMPT_PATH, _fingerprint, _sha_text, render_prompt,
+        )
+        from cir_workflow.toolchain_feedback import feedback_from_toolchain
+        feedback, _items = feedback_from_toolchain("verdict_only", _ok_eval())
+        prompt = render_prompt(self.case["requirements"],
+                               json.dumps(self.case["cir"], sort_keys=True),
+                               self.case["defect"], feedback)
+        system = PROMPT_PATH.read_text(encoding="utf-8").strip()
+        packed = system + "\n\n" + prompt.strip()
+        audit = AuditLog(self.out / "rounds" / "events.jsonl")
+        common = dict(
+            run_id="run-1", cell_id="cell-1", model=self.spec.display_name,
+            provider=self.spec.provider, transport=self.spec.channel,
+            arm="verdict_only", task_id="lock_order", replicate=0, stage="repair",
+            requested_model=self.spec.model_id, returned_model=self.spec.model_id,
+            usage_raw=None, started_at=1.0, ended_at=1.1, prompt=packed, status="ok")
+        audit.model_call(response=_fence(self.case["defect"]), candidate_round=1,
+                         attempt_id="a1", **common)
+        audit.model_call(response=_fence(self.case["control"]), candidate_round=2,
+                         attempt_id="a2", **common)
+        events = read_events(audit.path)
+        dest = self.out / "rounds-run"
+        dest.mkdir()
+        (dest / "state.json").write_text(json.dumps({
+            "fingerprint": _fingerprint(self.spec, "verdict_only", self.case, 2),
+            "requests": [{
+                "round": 1, "arm": "verdict_only", "status": "ok",
+                "prompt_sha256": _sha_text(prompt),
+                "response": _fence(self.case["defect"]),
+                "identity": {"identity_confirmed": True, "requested_model": self.spec.model_id,
+                             "returned_model": self.spec.model_id},
+            }],
+            "pending": {
+                "round": 2, "arm": "verdict_only", "attempt": 2,
+                "run_id": "run-1", "cell_id": "cell-1", "model": self.spec.model_id,
+                "prompt_sha256": _sha_text(prompt),
+                "audit_prompt_sha256": events[0]["prompt_sha256"],
+                "feedback": feedback,
+            },
+        }), encoding="utf-8")
+        client = _Fake([_fence("fn main() {}")])
+        client.run_id = "run-1"
+        client.cell_id = "cell-1"
+        result = run_arm(self.case, self.spec, "verdict_only", client, dest,
+                         evaluate=_ok_eval, audit_events=events)
+        self.assertEqual(client.calls, 0)
+        self.assertEqual(result["first_requirement_round"], 2)
+        state = json.loads((dest / "state.json").read_text())
+        recovered = state["requests"][1]["response"]
+        self.assertIn("let ga = a.lock()", recovered)
+        self.assertLess(recovered.find("let ga"), recovered.find("let gb"))
+
+    def test_wrong_cell_or_tampered_response_is_not_used(self):
+        from cir_workflow.audit import AuditLog, read_events
+        from cir_workflow.feedback_runner import PROMPT_PATH, _fingerprint, _sha_text, render_prompt
+        from cir_workflow.toolchain_feedback import feedback_from_toolchain
+        feedback, _items = feedback_from_toolchain("verdict_only", _ok_eval())
+        prompt = render_prompt(self.case["requirements"],
+                               json.dumps(self.case["cir"], sort_keys=True),
+                               self.case["defect"], feedback)
+        system = PROMPT_PATH.read_text(encoding="utf-8").strip()
+        audit = AuditLog(self.out / "tamper" / "events.jsonl")
+        audit.model_call(
+            run_id="run-1", cell_id="cell-1", model=self.spec.display_name,
+            provider=self.spec.provider, transport=self.spec.channel,
+            arm="verdict_only", task_id="lock_order", replicate=0, stage="repair",
+            requested_model=self.spec.model_id, returned_model=self.spec.model_id,
+            usage_raw=None, started_at=1.0, ended_at=1.1,
+            prompt=system + "\n\n" + prompt.strip(),
+            response=_fence(self.case["control"]), candidate_round=1, attempt_id="a1",
+            status="ok")
+        events = read_events(audit.path)
+        Path(events[0]["response_path"]).write_text(_fence("fn main() { return; }\n"),
+                                                    encoding="utf-8")
+        dest = self.out / "tamper-run"
+        dest.mkdir()
+        (dest / "state.json").write_text(json.dumps({
+            "fingerprint": _fingerprint(self.spec, "verdict_only", self.case, 2),
+            "requests": [],
+            "pending": {
+                "round": 1, "arm": "verdict_only", "attempt": 1,
+                "run_id": "run-1", "cell_id": "other-cell", "model": self.spec.model_id,
+                "prompt_sha256": _sha_text(prompt),
+                "audit_prompt_sha256": events[0]["prompt_sha256"],
+                "feedback": feedback,
+            },
+        }), encoding="utf-8")
+        client = _Fake([_fence(self.case["control"])])
+        result = run_arm(self.case, self.spec, "verdict_only", client, dest,
+                         evaluate=_ok_eval, audit_events=events)
+        self.assertEqual(client.calls, 0)
+        self.assertEqual(result["stop"], "outcome_unknown")
+        again = _Fake([_fence(self.case["control"])])
+        second = run_arm(self.case, self.spec, "verdict_only", again, dest,
+                         evaluate=_ok_eval, audit_events=events)
+        self.assertEqual(again.calls, 0)
+        self.assertEqual(second["stop"], "outcome_unknown")
+
+    def test_tampered_audit_response_is_not_used(self):
+        from cir_workflow.audit import AuditLog, read_events
+        from cir_workflow.feedback_runner import PROMPT_PATH, _fingerprint, _sha_text, render_prompt
+        from cir_workflow.toolchain_feedback import feedback_from_toolchain
+        feedback, _items = feedback_from_toolchain("verdict_only", _ok_eval())
+        prompt = render_prompt(self.case["requirements"],
+                               json.dumps(self.case["cir"], sort_keys=True),
+                               self.case["defect"], feedback)
+        system = PROMPT_PATH.read_text(encoding="utf-8").strip()
+        audit = AuditLog(self.out / "edited" / "events.jsonl")
+        audit.model_call(
+            run_id="run-1", cell_id="cell-1", model=self.spec.display_name,
+            provider=self.spec.provider, transport=self.spec.channel,
+            arm="verdict_only", task_id="lock_order", replicate=0, stage="repair",
+            requested_model="kimi-k3", returned_model="kimi-k3",
+            usage_raw=None, started_at=1.0, ended_at=1.1,
+            prompt=system + "\n\n" + prompt.strip(),
+            response=_fence(self.case["control"]), candidate_round=1, attempt_id="a1",
+            status="ok")
+        events = read_events(audit.path)
+        Path(events[0]["response_path"]).write_text("tampered", encoding="utf-8")
+        events[0]["requested_model"] = self.spec.model_id
+        dest = self.out / "edited-run"
+        dest.mkdir()
+        (dest / "state.json").write_text(json.dumps({
+            "fingerprint": _fingerprint(self.spec, "verdict_only", self.case, 2),
+            "requests": [],
+            "pending": {
+                "round": 1, "arm": "verdict_only", "attempt": 1,
+                "run_id": "run-1", "cell_id": "cell-1", "model": self.spec.model_id,
+                "prompt_sha256": _sha_text(prompt),
+                "audit_prompt_sha256": events[0]["prompt_sha256"],
+                "feedback": feedback,
+            },
+        }), encoding="utf-8")
+        client = _Fake([_fence(self.case["control"])])
+        result = run_arm(self.case, self.spec, "verdict_only", client, dest,
+                         evaluate=_ok_eval, audit_events=events)
+        self.assertEqual(client.calls, 0)
+        self.assertEqual(result["stop"], "outcome_unknown")
 
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@ from typing import Any, Callable
 from .generation import _extract_rust_body
 from .pilot_cases import CASES, evaluate_role, load_case
 from .toolchain_feedback import feedback_from_toolchain, has_defect_signal
+from .live import BudgetExhausted
 from .transport import (
     ModelIdentityError, ModelUnavailable, build_registry, require_experiment_model,
     verify_identity,
@@ -165,27 +166,82 @@ def _audit_response_text(event: dict) -> str | None:
         return None
 
 
-def _recover_pending(state: dict, audit_events: list[dict]) -> str | None:
-    """Match a saved pending call to the audit log. Never send it again."""
+def budget_stop_name(exc: BaseException) -> str:
+    text = str(exc)
+    if "deadline" in text or "wall-clock" in text:
+        return "global_time_budget_exhausted"
+    return "global_request_budget_exhausted"
 
+
+def _persistent_unknown(state: dict) -> bool:
+    if state.get("outcome_unknown"):
+        return True
+    return any(item.get("status") == "outcome_unknown" for item in state.get("requests") or [])
+
+
+def _event_matches_pending(event: dict, pending: dict) -> bool:
+    """Match one request identity. Prompt text alone is not an identity."""
+
+    if event.get("kind") != "model-call":
+        return False
+    if pending.get("run_id") and event.get("run_id") != pending.get("run_id"):
+        return False
+    if pending.get("cell_id") and event.get("cell_id") != pending.get("cell_id"):
+        return False
+    if pending.get("model") and event.get("requested_model") != pending.get("model"):
+        return False
+    if event.get("arm") != pending.get("arm"):
+        return False
+    if event.get("candidate_round") != pending.get("round"):
+        return False
+    attempt = pending.get("attempt")
+    if attempt is not None and event.get("attempt_id") != f"a{attempt}":
+        return False
+    wanted = pending.get("audit_prompt_sha256")
+    if not wanted or event.get("prompt_sha256") != wanted:
+        return False
+    return True
+
+
+def _recover_pending(state: dict, audit_events: list[dict]) -> str | None:
+    """Match a saved pending call to one audit event. Never send it again.
+
+    ``outcome_unknown`` stays on the state across later process starts.
+    """
+
+    if _persistent_unknown(state) and not state.get("pending"):
+        return "outcome_unknown"
     pending = state.get("pending")
     if not pending:
         return None
-    wanted = pending.get("audit_prompt_sha256") or pending.get("prompt_sha256")
-    match = next((event for event in audit_events
-                  if event.get("kind") == "model-call"
-                  and event.get("prompt_sha256") == wanted), None)
-    if match is None:
+    matches = [event for event in audit_events if _event_matches_pending(event, pending)]
+    if len(matches) != 1:
         state["outcome_unknown"] = {
-            "round": pending["round"], "prompt_sha256": pending.get("prompt_sha256"),
-            "reason": "pending request has no matching audit record; not resent",
+            "round": pending.get("round"), "arm": pending.get("arm"),
+            "run_id": pending.get("run_id"), "cell_id": pending.get("cell_id"),
+            "model": pending.get("model"), "attempt": pending.get("attempt"),
+            "prompt_sha256": pending.get("prompt_sha256"),
+            "reason": "pending request has no unique matching audit record; not resent",
         }
         state["pending"] = None
         return "outcome_unknown"
+    match = matches[0]
     response = _audit_response_text(match)
+    response_hash = _sha_text(response) if isinstance(response, str) else None
+    recorded_hash = match.get("response_sha256")
+    if response is None or (recorded_hash and response_hash != recorded_hash):
+        state["outcome_unknown"] = {
+            "round": pending.get("round"), "arm": pending.get("arm"),
+            "run_id": pending.get("run_id"), "cell_id": pending.get("cell_id"),
+            "model": pending.get("model"), "attempt": pending.get("attempt"),
+            "prompt_sha256": pending.get("prompt_sha256"),
+            "reason": "audit response missing or hash mismatch; not resent",
+        }
+        state["pending"] = None
+        return "outcome_unknown"
     status = match.get("status") or "outcome_unknown"
-    confirmed = bool(match.get("identity_confirmed")) and bool(response)
-    if status == "error" or response is None:
+    confirmed = bool(match.get("identity_confirmed"))
+    if status == "error":
         status = "outcome_unknown"
         confirmed = False
     elif status == "identity_mismatch" or (match.get("returned_model") not in
@@ -198,18 +254,23 @@ def _recover_pending(state: dict, audit_events: list[dict]) -> str | None:
     identity = {
         "requested_model": match.get("requested_model"),
         "returned_model": match.get("returned_model"),
-        "identity_confirmed": confirmed,
+        "identity_confirmed": confirmed and status == "ok",
         "error": match.get("error"),
         "recovered_from_audit": True,
     }
     state["requests"].append({
-        "round": pending["round"], "arm": pending["arm"], "recovered_from_audit": True,
-        "response": response or "", "identity": identity, "usage": match.get("usage"),
-        "prompt_sha256": pending.get("prompt_sha256"), "feedback": pending.get("feedback"),
+        "round": pending["round"], "arm": pending["arm"], "attempt": pending.get("attempt"),
+        "recovered_from_audit": True, "response": response, "identity": identity,
+        "usage": match.get("usage"), "prompt_sha256": pending.get("prompt_sha256"),
+        "response_sha256": response_hash, "feedback": pending.get("feedback"),
         "status": status,
     })
     state["pending"] = None
-    if status == "ok" and confirmed:
+    if status == "outcome_unknown":
+        state["outcome_unknown"] = {
+            "round": pending.get("round"), "reason": "audit recorded an unfinished request",
+        }
+    if status == "ok" and identity["identity_confirmed"]:
         return "recovered"
     return status
 
@@ -217,6 +278,7 @@ def _recover_pending(state: dict, audit_events: list[dict]) -> str | None:
 def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
             source: str | None = None, max_repairs: int = 2,
             evaluate: Callable | None = None,
+            score: Callable | None = None,
             halt_after_new_requests: int | None = None,
             audit_events: list[dict] | None = None) -> dict[str, Any]:
     """Run one arm from a frozen candidate. ``source`` defaults to the defect."""
@@ -236,7 +298,8 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
     recovery = _recover_pending(state, audit_events or [])
     _save_state(state_path, state)
     if recovery in {"outcome_unknown", "identity_mismatch", "identity_unconfirmed",
-                    "request_error", "budget_exhausted"}:
+                    "request_error", "global_request_budget_exhausted",
+                    "global_time_budget_exhausted"}:
         return {"case": case["id"], "arm": arm, "model": spec.model_id, "stop": recovery,
                 "actual_model_requests_this_run": 0,
                 "requests_recorded": len(state.get("requests") or []),
@@ -244,6 +307,7 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                 "first_design_round": None, "rounds": [], "usage": [], "identity": [],
                 "feedback_provenance": [], "outcome_unknown": state.get("outcome_unknown")}
     evaluate = evaluate or _default_evaluate
+    score = score or evaluate_role
     current = source if source is not None else case["defect"]
     cir_text = json.dumps(case["cir"], sort_keys=True)
     new_requests = 0
@@ -281,7 +345,7 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
         return False
 
     tool_started = time.perf_counter()
-    initial = evaluate_role(case, current, out_dir / "round-0")
+    initial = score(case, current, out_dir / "round-0")
     initial_eval = evaluate(current, case, out_dir / "eval-0")
     initial_eval["tool_time_s"] = time.perf_counter() - tool_started
     finished = consider(0, current, initial, initial_eval)
@@ -308,15 +372,24 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                 if saved.get("prompt_sha256") not in (None, _sha_text(prompt)):
                     stop = "fingerprint_mismatch"
                     break
-                if saved.get("status") in {"error", "budget_exhausted", "outcome_unknown",
-                                           "identity_mismatch", "identity_unconfirmed"}:
+                if saved.get("status") in {"error", "outcome_unknown", "identity_mismatch",
+                                           "identity_unconfirmed",
+                                           "global_request_budget_exhausted",
+                                           "global_time_budget_exhausted"}:
                     stop = "request_error" if saved.get("status") == "error" else saved["status"]
+                    if stop == "outcome_unknown":
+                        state["outcome_unknown"] = state.get("outcome_unknown") or {
+                            "round": saved.get("round"), "reason": "saved unknown request",
+                        }
                     break
                 response = saved["response"]
                 identity = saved["identity"]
             else:
                 system = PROMPT_PATH.read_text(encoding="utf-8").strip()
-                pending = {"round": repair_round, "arm": arm,
+                pending = {"round": repair_round, "arm": arm, "attempt": repair_round,
+                           "run_id": getattr(client, "run_id", None),
+                           "cell_id": getattr(client, "cell_id", None),
+                           "model": spec.model_id,
                            "prompt_sha256": _sha_text(prompt),
                            "audit_prompt_sha256": _sha_text(system + "\n\n" + prompt.strip()),
                            "feedback": feedback}
@@ -343,22 +416,44 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                     new_requests += 1
                     stop = "identity_mismatch"
                     break
+                except BudgetExhausted as exc:
+                    stop = budget_stop_name(exc)
+                    state["requests"].append({
+                        "round": repair_round, "arm": arm, "attempt": repair_round,
+                        "case": case["id"], "model": spec.model_id,
+                        "prompt_sha256": pending["prompt_sha256"], "feedback": feedback,
+                        "response": "",
+                        "identity": {"requested_model": spec.model_id, "returned_model": None,
+                                     "channel": spec.channel, "identity_confirmed": False,
+                                     "error": str(exc)},
+                        "usage": {"input_tokens": None, "output_tokens": None,
+                                  "cache_read_tokens": None, "cache_write_tokens": None,
+                                  "model_time_ms": None},
+                        "status": stop, "error_type": "BudgetExhausted",
+                    })
+                    state["pending"] = None
+                    _save_state(state_path, state)
+                    new_requests += 1
+                    break
                 except Exception as exc:  # noqa: BLE001
                     kind = type(exc).__name__
                     state["requests"].append({
-                        "round": repair_round, "arm": arm, "case": case["id"],
+                        "round": repair_round, "arm": arm, "attempt": repair_round,
+                        "case": case["id"],
                         "model": spec.model_id, "prompt_sha256": pending["prompt_sha256"],
                         "feedback": feedback, "response": "",
                         "identity": {"requested_model": spec.model_id, "returned_model": None,
                                      "channel": spec.channel, "identity_confirmed": False,
                                      "error": str(exc)},
-                        "status": "budget_exhausted" if kind == "BudgetExhausted" else "error",
-                        "error_type": kind,
+                        "usage": {"input_tokens": None, "output_tokens": None,
+                                  "cache_read_tokens": None, "cache_write_tokens": None,
+                                  "model_time_ms": None},
+                        "status": "error", "error_type": kind,
                     })
                     state["pending"] = None
                     _save_state(state_path, state)
                     new_requests += 1
-                    stop = "budget_exhausted" if kind == "BudgetExhausted" else "request_error"
+                    stop = "request_error"
                     break
                 model_ms = getattr(outcome, "wall_ms", None)
                 if model_ms is None:
@@ -400,7 +495,7 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                 break
             extracted = _extract_rust_body(response)
             if not extracted:
-                current_eval = evaluate_role(case, current, out_dir / f"round-{repair_round}")
+                current_eval = score(case, current, out_dir / f"round-{repair_round}")
                 # Protocol miss: the response is not a program. Count the request,
                 # keep the previous source, and allow another repair if budget remains.
                 rounds.append({"round": repair_round, "protocol_noncompliance": True,
@@ -409,7 +504,7 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                 continue
             current = extracted
             tool_started = time.perf_counter()
-            evaluation = evaluate_role(case, current, out_dir / f"round-{repair_round}")
+            evaluation = score(case, current, out_dir / f"round-{repair_round}")
             delivery = evaluate(current, case, out_dir / f"eval-{repair_round}")
             elapsed = time.perf_counter() - tool_started
             delivery["tool_time_s"] = elapsed
@@ -421,9 +516,9 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
             if consider(repair_round, current, evaluation, delivery):
                 break
         else:
-            stop = stop or "budget_exhausted"
+            stop = stop or "cell_repair_budget_exhausted"
     if stop is None:
-        stop = "budget_exhausted"
+        stop = "cell_repair_budget_exhausted"
     return {
         "case": case["id"], "arm": arm, "model": spec.model_id,
         "display_name": spec.display_name, "channel": spec.channel,
@@ -433,6 +528,7 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
         "in_defect_denominator": in_denominator and source is None,
         "suggested_repairs": max_repairs,
         "actual_model_requests_this_run": new_requests,
+        "semantic_repair_rounds": sum(1 for item in rounds if item.get("round")),
         "requests_recorded": len(state["requests"]),
         "rounds": rounds,
         "usage": [item.get("usage") for item in state["requests"]],
@@ -486,6 +582,13 @@ def validate_config(config: dict, inputs: list[dict]) -> dict[str, Any]:
             errors.append("preflight backend hash does not match the frozen backend")
         if tool.get("instrument_sha256") != (frozen_tools.get("instrument") or {}).get("sha256"):
             errors.append("preflight instrument hash does not match the frozen instrument")
+        for key in ("n_runs", "run_timeout_s", "no_join_run_timeout_s"):
+            if tool.get(key) != frozen_tools.get(key):
+                errors.append(f"preflight budget {key} does not match the frozen config")
+        if preflight_doc.get("oracle_sha256") != config.get("oracle_sha256"):
+            errors.append("preflight oracle implementation does not match the frozen oracle")
+        if preflight_doc.get("cases_sha256") != config.get("cases_sha256"):
+            errors.append("preflight case wiring does not match the frozen wiring")
     oracle_py = Path(__file__).resolve().parent / "pilot_oracle.py"
     cases_py = Path(__file__).resolve().parent / "pilot_cases.py"
     if _sha_file(oracle_py) != config.get("oracle_sha256"):
@@ -520,6 +623,13 @@ def validate_config(config: dict, inputs: list[dict]) -> dict[str, Any]:
             errors.append(f"{row.get('id')} has no matching preflight")
         elif prior.get("cir_sha256") != (row.get("cir") or {}).get("sha256"):
             errors.append(f"{row.get('id')} preflight CIR hash does not match the manifest")
+        elif any(prior.get(f"{role}_sha256") != (row.get(role) or {}).get("sha256")
+                 for role in ("defect", "control", "contract", "requirements")):
+            errors.append(f"{row.get('id')} preflight input fingerprint does not match the manifest")
+        elif prior.get("functional_spec") != (
+                {"test_id": "stdout_eq", "kind": "stdout_eq", "expected": "DONE done=6"}
+                if str(row.get("id") or "").startswith("compute") else None):
+            errors.append(f"{row.get('id')} preflight functional spec does not match")
         elif prior.get("input_protocol_error") or not prior.get("model_verified"):
             errors.append(f"{row.get('id')} preflight failed: CIR is not a verified backend input")
         else:
