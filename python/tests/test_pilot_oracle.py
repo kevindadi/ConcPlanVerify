@@ -62,6 +62,29 @@ fn w(a: std::sync::Arc<std::sync::Mutex<i32>>, b: std::sync::Arc<std::sync::Mute
         self.assertNotEqual(result["requirement"]["status"], "pass")
         self.assertFalse(result["build_ok"])
 
+    def test_unreachable_lock_after_return_is_not_pass(self):
+        case = load_case("lock_order")
+        source = case["control"].replace(
+            "fn w(a: Arc<Mutex<i32>>, b: Arc<Mutex<i32>>) {\n",
+            "fn w(a: Arc<Mutex<i32>>, b: Arc<Mutex<i32>>) {\n    return;\n",
+            1)
+        with tempfile.TemporaryDirectory() as td:
+            result = evaluate_role(case, source, Path(td))
+        self.assertNotEqual(result["requirement"]["status"], "pass")
+        self.assertNotEqual(result["design"]["status"], "pass")
+        self.assertTrue(result["build_ok"])
+
+    def test_conditional_return_before_locks_is_unknown(self):
+        case = load_case("lock_order")
+        source = case["control"].replace(
+            "fn w(a: Arc<Mutex<i32>>, b: Arc<Mutex<i32>>) {\n",
+            "fn w(a: Arc<Mutex<i32>>, b: Arc<Mutex<i32>>) {\n    if true { return; }\n",
+            1)
+        with tempfile.TemporaryDirectory() as td:
+            result = evaluate_role(case, source, Path(td))
+        self.assertEqual(result["requirement"]["status"], "unknown")
+        self.assertNotEqual(result["design"]["status"], "pass")
+
     def test_renamed_handle_still_joins(self):
         case = load_case("lock_order")
         renamed = (case["control"]

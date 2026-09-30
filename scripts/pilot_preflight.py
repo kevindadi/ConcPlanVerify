@@ -33,8 +33,13 @@ def _run(argv: list[str]) -> dict:
 def main() -> int:
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else FIXTURE_ROOT / "preflight"
     out.mkdir(parents=True, exist_ok=True)
+    oracle_py = REPO / "python/cir_workflow/pilot_oracle.py"
+    cases_py = REPO / "python/cir_workflow/pilot_cases.py"
+    oracle_sha = _sha(oracle_py)
+    cases_sha = _sha(cases_py)
     tool = {"backend_sha256": _sha(BIN), "instrument_sha256": _sha(INS),
-            "backend_git": "a35dc86", "backend_path": str(BIN), "instrument_path": str(INS)}
+            "backend_git": "a35dc86", "backend_path": str(BIN), "instrument_path": str(INS),
+            "n_runs": 2, "run_timeout_s": 8, "no_join_run_timeout_s": 2}
     rows = []
     for name in CASES:
         directory = FIXTURE_ROOT / name
@@ -80,10 +85,18 @@ def main() -> int:
                 "input_protocol_error": check["returncode"] != 0 or explore["returncode"] != 0,
             }
             print(name, role, roles[role]["current_evaluation"], roles[role]["requirement"])
+        functional = ({"test_id": "stdout_eq", "kind": "stdout_eq", "expected": "DONE done=6"}
+                      if name.startswith("compute") else None)
         row = {
             "id": name,
+            "defect_sha256": _sha(directory / "defect.rs"),
+            "control_sha256": _sha(directory / "control.rs"),
             "cir_sha256": _sha(directory / "design.cir.json"),
             "contract_sha256": _sha(directory / "contract.json"),
+            "requirements_sha256": _sha(directory / "requirements.md"),
+            "functional_spec": functional,
+            "oracle_sha256": oracle_sha,
+            "cases_sha256": cases_sha,
             "check_returncode": check["returncode"],
             "explore_returncode": explore["returncode"],
             "explore_outcome": parsed.get("outcome"),
@@ -95,10 +108,22 @@ def main() -> int:
             "tool": tool,
         }
         rows.append(row)
-    summary = {"tool": tool, "cases": rows,
+    summary = {"tool": tool, "oracle_sha256": oracle_sha, "cases_sha256": cases_sha,
+               "cases": rows,
                "ok": all(not row["input_protocol_error"] and row["model_verified"] for row in rows)}
     target = out / "SUMMARY.json"
     target.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
+    slim_cases = []
+    for row in rows:
+        slim_cases.append({key: row[key] for key in (
+            "id", "defect_sha256", "control_sha256", "cir_sha256", "contract_sha256",
+            "requirements_sha256", "functional_spec", "oracle_sha256", "cases_sha256",
+            "check_returncode", "explore_returncode", "explore_outcome", "explore_complete",
+            "model_verified", "input_protocol_error", "roles")})
+    slim = {"ok": summary["ok"], "tool": tool, "oracle_sha256": oracle_sha,
+            "cases_sha256": cases_sha, "cases": slim_cases}
+    fixture = FIXTURE_ROOT / "PREFLIGHT.json"
+    fixture.write_text(json.dumps(slim, indent=2) + "\n")
     print("wrote", target, "ok", summary["ok"])
     return 0 if summary["ok"] else 1
 

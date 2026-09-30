@@ -108,7 +108,22 @@ def _split_block(text: str) -> list[tuple[str, str]]:
     return items
 
 
+_CONTROL_FLOW = re.compile(r"\b(if|match|while|for|loop|async|await|unsafe)\b|\?")
+
+
+def _control_flow(stmt: str) -> bool:
+    return _CONTROL_FLOW.search(stmt) is not None
+
+
 def _walk(text: str, guards: dict[str, str], declared: set[str]) -> list[tuple]:
+    """Walk a supported statement subset.
+
+    Statements after an unconditional ``return`` are unreachable and are not
+    evidence. Control flow that can skip or hide later synchronization is
+    unknown, including a branch that does not itself contain ``.lock``.
+    Any other unrecognized statement is unknown rather than ignored.
+    """
+
     events: list[tuple] = []
     for kind, chunk in _split_block(text):
         if kind == "block":
@@ -120,10 +135,12 @@ def _walk(text: str, guards: dict[str, str], declared: set[str]) -> list[tuple]:
         stmt = chunk.strip()
         if not stmt or stmt in {"move ||", "||"}:
             continue
-        if re.search(r"\b(if|match|while|for|loop|async|await|unsafe)\b", stmt):
-            if ".lock" in stmt or "spawn" in stmt or "join" in stmt:
-                raise OracleUnknown(f"unsupported control around synchronization: {stmt[:40]}")
-            continue
+        if re.match(r"return\b", stmt):
+            if _control_flow(stmt) or "{" in stmt:
+                raise OracleUnknown(f"unsupported return: {stmt[:60]}")
+            break
+        if _control_flow(stmt):
+            raise OracleUnknown(f"unsupported control flow: {stmt[:60]}")
         locks = re.findall(r"([A-Za-z_]\w*)\.lock\s*\(", stmt)
         if len(locks) > 1:
             raise OracleUnknown("multiple locks in one statement")
@@ -158,6 +175,13 @@ def _walk(text: str, guards: dict[str, str], declared: set[str]) -> list[tuple]:
         if joined:
             events.append(("join", joined.group(1)))
             continue
+        if re.match(r"let\s+", stmt):
+            continue
+        if re.match(r"\*\s*[A-Za-z_]\w*\s*=", stmt):
+            continue
+        if re.match(r"println!\s*\(", stmt):
+            continue
+        raise OracleUnknown(f"unsupported statement: {stmt[:60]}")
     return events
 
 
@@ -384,8 +408,13 @@ def design_sync_matches_cir(source: str, cir: dict, function: str) -> dict[str, 
 
     locks = design_lock_order(source, cir, function)
     join = design_join(source, cir)
-    ok = locks["status"] == "pass" and join["status"] == "pass"
-    return {"oracle": "design_sync", "status": "pass" if ok else "fail",
+    if locks["status"] == "unknown" or join["status"] == "unknown":
+        status = "unknown"
+    elif locks["status"] == "pass" and join["status"] == "pass":
+        status = "pass"
+    else:
+        status = "fail"
+    return {"oracle": "design_sync", "status": status,
             "observed": {"locks": locks["observed"], "join": join["observed"]},
             "expected": {"locks": locks["expected"], "join": join["expected"]}}
 
