@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 
 from cir_workflow.send_holding_requirements import (
@@ -163,10 +164,10 @@ class RequirementTests(unittest.TestCase):
     def _keep(self, result, expected, source, label):
         if result.get("status") == expected:
             return
-        dest = Path("/Users/kevin/paper-review/papers/ConcPlanVerify/notes/strong-link-v16/failures")
+        dest = Path("/Users/kevin/paper-review/papers/ConcPlanVerify/notes/strong-link-v17/failures") / f"{label}-{uuid.uuid4().hex}"
         dest.mkdir(parents=True, exist_ok=True)
-        (dest / f"{label}.rs").write_text(source, encoding="utf-8")
-        (dest / f"{label}.json").write_text(json.dumps(result, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+        (dest / "source.rs").write_text(source, encoding="utf-8")
+        (dest / "score.json").write_text(json.dumps(result, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
         runs = result.get("runs") or []
         log = "\n".join(
             f"kind={run.get('kind')} rc={run.get('returncode')} timeout={run.get('timed_out')}\n"

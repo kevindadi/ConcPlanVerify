@@ -8,6 +8,7 @@ requirement.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from pathlib import Path
 
@@ -664,7 +665,15 @@ def execute_source(source: str, work: Path, repeats: int = 3, timeout: float = 4
         return [{"kind": "candidate_build_failed", "stdout": None, "returncode": None,
                  "timed_out": False, "log": log[-500:]}] * 1
     binary = work / "target/debug/probe"
-    return [capture_program_stdout(binary, timeout=timeout) for _ in range(repeats)]
+    runs = []
+    for _ in range(repeats):
+        run = capture_program_stdout(binary, timeout=timeout)
+        run["argv"] = [str(binary)]
+        run["timeout_s"] = timeout
+        if binary.is_file():
+            run["binary_sha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
+        runs.append(run)
+    return runs
 
 
 def evaluate_requirements(source: str, work: Path, repeats: int = 3) -> dict:
