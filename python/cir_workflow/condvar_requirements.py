@@ -127,13 +127,58 @@ def _parse_sequence(text: str) -> dict:
         index = end + 1
         if not stmt:
             continue
+        if stmt.startswith("{"):
+            inner, _ignored = _brace_block(stmt, 0)
+            nested = _parse_sequence(inner)
+            if nested["unknown"]:
+                return nested
+            events.extend(nested["events"])
+            continue
+        if re.match(r"^return\b", stmt):
+            if _SYNC_WORD.search(stmt):
+                return {"events": events, "unknown": True, "reason": "return expression contains a sync operation"}
+            events.append({"op": "return"})
+            break
+        if re.match(r"^(break|continue)\b", stmt):
+            return {"events": events, "unknown": True, "reason": "break or continue is outside the supported subset"}
+        if re.search(r"\b[A-Za-z_]\w*!", stmt) and not re.match(
+                r"^(println|eprintln|format|vec|assert|debug_assert)!", stmt):
+            return {"events": events, "unknown": True, "reason": "unrecognized macro"}
         event = _classify_stmt(stmt)
         if event is None:
-            if _SYNC_WORD.search(stmt):
-                return {"events": events, "unknown": True, "reason": f"unrecognized sync statement: {stmt[:80]}"}
+            if _SYNC_WORD.search(stmt) or re.search(r"\b[A-Za-z_]\w*\s*\(", stmt):
+                return {"events": events, "unknown": True,
+                        "reason": f"unrecognized statement: {stmt[:80]}"}
+            continue
+        if event["op"] == "store_flag":
+            events.append(event)
             continue
         events.append(event)
+    events = _apply_constant_whiles(events)
+    if any(event["op"] == "unknown_flag" for event in events):
+        return {"events": [], "unknown": True, "reason": "guard value is not a known constant"}
     return {"events": events, "unknown": False, "reason": None}
+
+
+def _apply_constant_whiles(events: list[dict]) -> list[dict]:
+    """A straight-line ``*guard = true`` makes a later ``while !*guard`` unreachable."""
+
+    flags: dict[str, bool | None] = {}
+    out = []
+    for event in events:
+        if event["op"] == "store_flag":
+            flags[event["guard"]] = event["value"]
+            out.append(event)
+            continue
+        if event["op"] == "while_not":
+            known = flags.get(event["guard"], "absent")
+            if known is True:
+                out.append({"op": "while_false"})
+                continue
+            if known is None:
+                return [{"op": "unknown_flag"}]
+        out.append(event)
+    return out
 
 
 def _brace_block(text: str, open_at: int) -> tuple[str, int | None]:
@@ -264,7 +309,11 @@ def _waiter_wait(body: str, mutex: str, cv: str) -> dict:
         if event["op"] == "lock" and event["mutex"] == mutex and event.get("reachable", True):
             guard = event["guard"]
             break
+    if any(event["op"] == "unknown_flag" for event in parsed.get("events") or []):
+        return _check("unknown", "static_subset", reason="guard value is not a known constant")
     waits = [event for event in parsed["flat"] if event["op"] == "wait" and event.get("reachable", True)]
+    if any(event["op"] == "return" for event in parsed["flat"]) and not waits:
+        return _check("fail", "static_subset", reason="return ends the waiter before a reachable wait")
     if any(event["op"] == "while_false" for event in parsed["flat"]) and not waits:
         return _check("fail", "static_subset", reason="wait is inside a constant-false loop and is not reachable")
     if guard is None or not waits:

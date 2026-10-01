@@ -71,6 +71,17 @@ class CondvarScoreTests(unittest.TestCase):
             self.assertIn(checks["R6"]["status"], {"fail", "unknown"}, name)
         self.assertEqual(structural_checks(unreachable)["R2"]["status"], "fail")
         self.assertEqual(structural_checks(unreachable)["R4"]["status"], "fail")
+        early = HUMAN.replace(
+            "    g12.release_count(1).unwrap();\n",
+            "    g12.release_count(1).unwrap();\n    gN.release_count(1).unwrap();\n    return;\n")
+        early_checks = structural_checks(early)
+        self.assertEqual(early_checks["R2"]["status"], "fail")
+        self.assertEqual(early_checks["R4"]["status"], "fail")
+        self.assertEqual(early_checks["R6"]["status"], "fail")
+        constant = HUMAN.replace(
+            "    while !*proceed {",
+            "    *proceed = true;\n    while !*proceed {")
+        self.assertEqual(structural_checks(constant)["R2"]["status"], "fail")
 
     def test_finite_runs_keep_pass_fail_and_unknown_apart(self):
         with tempfile.TemporaryDirectory() as td:
