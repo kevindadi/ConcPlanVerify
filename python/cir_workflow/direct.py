@@ -63,8 +63,15 @@ class DirectChatClient:
     def complete(self, system_prompt: str, user_prompt: str) -> DirectOutcome:
         messages = [{"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}]
+        from .call_context import note_transport
+        from .live import BudgetExhausted
         prompt_sha = _sha(json.dumps(messages, ensure_ascii=False, sort_keys=True))
-        self.budget.reserve()
+        self.last_transport_log = []
+        try:
+            self.budget.reserve()
+        except BudgetExhausted as exc:
+            exc.physical_attempts = 0
+            raise
         started = time.monotonic()
         kwargs: dict[str, Any] = {"model": self.model, "messages": messages,
                                   "temperature": self.temperature,
@@ -74,11 +81,14 @@ class DirectChatClient:
         try:
             response = self._client.chat.completions.create(**kwargs)
         except Exception as exc:  # noqa: BLE001
+            note_transport(self, index=1, status="error",
+                           error_type=type(exc).__name__, error=str(exc))
             self._record({"status": "error", "model": self.model,
                           "base_url": self.base_url, "messages": messages,
-                          "prompt_sha256": prompt_sha, "error": str(exc),
-                          "error_type": type(exc).__name__,
-                          "wall_ms": int((time.monotonic() - started) * 1000)})
+                          "prompt_sha256": prompt_sha, "transport_index": 1,
+                          "error": str(exc), "error_type": type(exc).__name__,
+                          "wall_ms": int((time.monotonic() - started) * 1000),
+                          **getattr(self, "call_context", {})})
             raise
         wall_ms = int((time.monotonic() - started) * 1000)
         choice = (getattr(response, "choices", None) or [None])[0]
@@ -88,12 +98,16 @@ class DirectChatClient:
             usage = response.usage.model_dump() if hasattr(response.usage, "model_dump") \
                 else dict(response.usage)
         response_model = getattr(response, "model", None)
+        note_transport(self, index=1, status="ok", usage_raw=usage,
+                       request_id=getattr(response, "id", None))
         self._record({"status": "ok", "model": self.model,
                       "base_url": self.base_url, "response_model": response_model,
                       "request_id": getattr(response, "id", None),
                       "messages": messages, "prompt_sha256": prompt_sha,
-                      "usage": usage, "content_sha256": _sha(content),
-                      "content": content, "wall_ms": wall_ms})
+                      "usage": usage, "transport_index": 1,
+                      "content_sha256": _sha(content),
+                      "content": content, "wall_ms": wall_ms,
+                      **getattr(self, "call_context", {})})
         return DirectOutcome(
             text=content, messages=messages, requested_model=self.model,
             response_model=response_model, request_id=getattr(response, "id", None),

@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .audit import AuditLog
+from .call_context import bind_context
+from .live import BudgetExhausted
 from .transport import (
     CHANNELS, ModelIdentityError, ModelSpec, TransportError, verify_identity,
 )
@@ -86,13 +88,37 @@ class AuditedClient:
         self.stage = stage
         self.round = 0
 
-    def complete(self, system: str, user: str):
-        self.round += 1
+    def complete(self, system: str, user: str, *,
+                 candidate_round: int | None = None, attempt: int | None = None):
+        if candidate_round is None:
+            self.round += 1
+            candidate_round = self.round
+        else:
+            self.round = int(candidate_round)
+        attempt_n = int(attempt if attempt is not None else candidate_round)
+        attempt_id = f"a{attempt_n}"
+        bind_context(self.inner, {
+            "run_id": self.run_id, "cell_id": self.cell_id, "arm": self.arm,
+            "model": self.spec.model_id, "candidate_round": candidate_round,
+            "attempt_id": attempt_id,
+        })
         prompt = system.strip() + "\n\n" + user.strip()
         started = time.time()
+
+        def _physical(exc: BaseException | None = None) -> tuple[int, list]:
+            log = list(getattr(self.inner, "last_transport_log", None) or [])
+            if isinstance(exc, BudgetExhausted):
+                return int(getattr(exc, "physical_attempts", len(log)) or 0), log
+            if log:
+                return len(log), log
+            return (0, log) if exc is not None else (1, log)
+
         try:
             outcome = self.inner.complete(system, user)
         except Exception as exc:  # noqa: BLE001 - recorded then re-raised
+            physical, log = _physical(exc)
+            self.last_physical_attempts = physical
+            self.last_transport_log = log
             self.audit.model_call(
                 run_id=self.run_id, cell_id=self.cell_id, model=self.spec.display_name,
                 provider=self.spec.provider, transport=self.spec.channel,
@@ -100,12 +126,18 @@ class AuditedClient:
                 stage=self.stage, requested_model=self.spec.model_id or "",
                 returned_model=None, usage_raw=None, started_at=started,
                 ended_at=time.time(), prompt=prompt, response="",
-                candidate_round=self.round, status="error",
+                candidate_round=candidate_round, attempt_id=attempt_id,
+                transport_attempt=physical, transport_log=log, status="error",
                 error_type=type(exc).__name__, error=str(exc))
             raise
         ended = time.time()
         returned = getattr(outcome, "response_model", None)
         requested = self.spec.model_id or ""
+        physical, log = _physical(None)
+        if getattr(outcome, "transport_attempt", None):
+            physical = int(outcome.transport_attempt)
+        self.last_physical_attempts = physical
+        self.last_transport_log = log
         try:
             confirmed = verify_identity(requested, returned)
         except ModelIdentityError as exc:
@@ -116,9 +148,9 @@ class AuditedClient:
                 stage=self.stage, requested_model=requested, returned_model=returned,
                 usage_raw=getattr(outcome, "usage", None), started_at=started,
                 ended_at=ended, prompt=prompt, response=getattr(outcome, "text", ""),
-                candidate_round=self.round, attempt_id=f"a{self.round}",
+                candidate_round=candidate_round, attempt_id=attempt_id,
                 request_id=getattr(outcome, "request_id", None),
-                transport_attempt=getattr(outcome, "transport_attempt", 1),
+                transport_attempt=physical, transport_log=log,
                 cost=getattr(outcome, "cost", None), status="identity_mismatch",
                 error_type=type(exc).__name__, error=str(exc),
                 notes=f"channel={self.spec.channel}; identity rejected")
@@ -132,9 +164,9 @@ class AuditedClient:
             stage=self.stage, requested_model=requested,
             returned_model=returned, usage_raw=usage, started_at=started,
             ended_at=ended, prompt=prompt, response=getattr(outcome, "text", ""),
-            candidate_round=self.round, attempt_id=f"a{self.round}",
+            candidate_round=candidate_round, attempt_id=attempt_id,
             request_id=getattr(outcome, "request_id", None),
-            transport_attempt=getattr(outcome, "transport_attempt", 1),
+            transport_attempt=physical, transport_log=log,
             cost=getattr(outcome, "cost", None),
             notes=(f"channel={self.spec.channel}" if confirmed
                    else f"channel={self.spec.channel}; identity unconfirmed (model not reported)"))

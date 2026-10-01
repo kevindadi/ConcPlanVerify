@@ -96,6 +96,7 @@ def parse_usage(raw: dict[str, Any] | None, *, source: str = "server",
         ("output_tokens_details", "reasoning_tokens")))
     cache_read = _int_or_none(_nested(
         raw, ("cache_read_input_tokens",),
+        ("prompt_cache_hit_tokens",),
         ("prompt_tokens_details", "cached_tokens"),
         ("input_tokens_details", "cached_tokens")))
     cache_write = _int_or_none(_nested(
@@ -151,6 +152,7 @@ class RequestEvent:
     error_type: str | None = None
     error: str | None = None
     notes: str | None = None
+    transport_log: list | None = None
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
@@ -202,7 +204,8 @@ class AuditLog:
                    sdk_calls_visible: int | None = None,
                    cost: float | None = None, cost_basis: str | None = None,
                    status: str = "ok", error_type: str | None = None,
-                   error: str | None = None, notes: str | None = None) -> RequestEvent:
+                   error: str | None = None, notes: str | None = None,
+                   transport_log: list | None = None) -> RequestEvent:
         usage = parse_usage(usage_raw)
         confirmed = returned_model is not None and returned_model == requested_model
         event = RequestEvent(
@@ -216,7 +219,7 @@ class AuditLog:
             latency_ms=int((ended_at - started_at) * 1000), usage=usage,
             transport_attempt=transport_attempt, sdk_calls_visible=sdk_calls_visible,
             cost=cost, cost_basis=cost_basis, error_type=error_type, error=error,
-            notes=notes)
+            notes=notes, transport_log=transport_log)
         return self.record(event, prompt=prompt, response=response)
 
     def tool_step(self, *, run_id: str, cell_id: str, arm: str, task_id: str,

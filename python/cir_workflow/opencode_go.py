@@ -54,6 +54,7 @@ class OpenCodeGoClient:
 
         self._client = OpenAI(
             api_key=api_key, base_url=OPENCODE_GO_BASE_URL, timeout=timeout,
+            max_retries=0,
             default_headers={"x-opencode-session": str(uuid.uuid4())})
 
     def _record(self, record: dict[str, Any]) -> None:
@@ -62,15 +63,30 @@ class OpenCodeGoClient:
 
     def _create_with_retry(self, kwargs: dict, messages: list, prompt_sha: str,
                            started: float):
+        from .call_context import note_transport
+        from .live import BudgetExhausted
         retryable = ("APIConnectionError", "APITimeoutError", "InternalServerError",
                      "RateLimitError")
         last_exc = None
+        self.last_transport_log = []
         for attempt in range(3):
             try:
-                return self._client.chat.completions.create(**kwargs)
+                self.budget.reserve()
+            except BudgetExhausted as exc:
+                exc.physical_attempts = len(self.last_transport_log)
+                raise
+            try:
+                response = self._client.chat.completions.create(**kwargs)
             except Exception as exc:  # noqa: BLE001
                 last_exc = exc
-                # Some models only accept temperature=1; retry with 1 and record it.
+                note_transport(self, index=attempt + 1, status="error",
+                               error_type=type(exc).__name__, error=str(exc))
+                self._record({"status": "error", "model": self.model,
+                              "messages": messages, "prompt_sha256": prompt_sha,
+                              "transport_index": attempt + 1,
+                              "error": str(exc), "error_type": type(exc).__name__,
+                              "wall_ms": int((time.monotonic() - started) * 1000),
+                              **getattr(self, "call_context", {})})
                 if "temperature" in str(exc).lower() and kwargs["temperature"] != 1:
                     kwargs["temperature"] = 1.0
                     self.temperature = 1.0
@@ -78,18 +94,20 @@ class OpenCodeGoClient:
                 if type(exc).__name__ in retryable and attempt < 2:
                     time.sleep(3 * (attempt + 1))
                     continue
-                self._record({"status": "error", "model": self.model,
-                              "messages": messages, "prompt_sha256": prompt_sha,
-                              "error": str(exc), "error_type": type(exc).__name__,
-                              "wall_ms": int((time.monotonic() - started) * 1000)})
                 raise
+            usage = None
+            if getattr(response, "usage", None) is not None:
+                usage = response.usage.model_dump() if hasattr(response.usage, "model_dump") \
+                    else dict(response.usage)
+            note_transport(self, index=attempt + 1, status="ok", usage_raw=usage,
+                           request_id=getattr(response, "id", None))
+            return response
         raise last_exc if last_exc else RuntimeError("no response")
 
     def complete(self, system_prompt: str, user_prompt: str) -> OpenCodeOutcome:
         messages = [{"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}]
         prompt_sha = _sha(json.dumps(messages, ensure_ascii=False, sort_keys=True))
-        self.budget.reserve()
         started = time.monotonic()
         kwargs: dict[str, Any] = {
             "model": self.model, "messages": messages,
@@ -117,7 +135,8 @@ class OpenCodeGoClient:
             text=content, messages=messages, requested_model=self.model,
             response_model=response_model, request_id=getattr(response, "id", None),
             finish_reason=getattr(choice, "finish_reason", None), usage=usage,
-            wall_ms=wall_ms, transport_attempt=1, prompt_sha256=prompt_sha, cost=cost)
+            wall_ms=wall_ms, transport_attempt=len(getattr(self, "last_transport_log", []) or []) or 1,
+            prompt_sha256=prompt_sha, cost=cost)
 
 
 class OpenCodeGoResponsesClient:
@@ -145,6 +164,7 @@ class OpenCodeGoResponsesClient:
 
         self._client = OpenAI(
             api_key=api_key, base_url=OPENCODE_GO_BASE_URL, timeout=timeout,
+            max_retries=0,
             default_headers={"x-opencode-session": str(uuid.uuid4())})
 
     def _record(self, record: dict[str, Any]) -> None:
@@ -154,8 +174,15 @@ class OpenCodeGoResponsesClient:
     def complete(self, system_prompt: str, user_prompt: str) -> OpenCodeOutcome:
         messages = [{"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}]
+        from .call_context import note_transport
+        from .live import BudgetExhausted
         prompt_sha = _sha(json.dumps(messages, ensure_ascii=False, sort_keys=True))
-        self.budget.reserve()
+        self.last_transport_log = []
+        try:
+            self.budget.reserve()
+        except BudgetExhausted as exc:
+            exc.physical_attempts = 0
+            raise
         started = time.monotonic()
         kwargs: dict[str, Any] = {
             "model": self.model, "instructions": system_prompt,
@@ -164,11 +191,14 @@ class OpenCodeGoResponsesClient:
         try:
             response = self._client.responses.create(**kwargs)
         except Exception as exc:  # noqa: BLE001
+            note_transport(self, index=1, status="error",
+                           error_type=type(exc).__name__, error=str(exc))
             self._record({"status": "error", "model": self.model,
                           "surface": "responses", "messages": messages,
-                          "prompt_sha256": prompt_sha, "error": str(exc),
-                          "error_type": type(exc).__name__,
-                          "wall_ms": int((time.monotonic() - started) * 1000)})
+                          "prompt_sha256": prompt_sha, "transport_index": 1,
+                          "error": str(exc), "error_type": type(exc).__name__,
+                          "wall_ms": int((time.monotonic() - started) * 1000),
+                          **getattr(self, "call_context", {})})
             raise
         wall_ms = int((time.monotonic() - started) * 1000)
         content = getattr(response, "output_text", None) or ""
@@ -177,12 +207,16 @@ class OpenCodeGoResponsesClient:
             usage = response.usage.model_dump() if hasattr(response.usage, "model_dump") \
                 else dict(response.usage)
         response_model = getattr(response, "model", None)
+        note_transport(self, index=1, status="ok", usage_raw=usage,
+                       request_id=getattr(response, "id", None))
         self._record({"status": "ok", "model": self.model, "surface": "responses",
                       "response_model": response_model,
                       "request_id": getattr(response, "id", None),
                       "messages": messages, "prompt_sha256": prompt_sha,
-                      "usage": usage, "content_sha256": _sha(content),
-                      "content": content, "wall_ms": wall_ms})
+                      "usage": usage, "transport_index": 1,
+                      "content_sha256": _sha(content),
+                      "content": content, "wall_ms": wall_ms,
+                      **getattr(self, "call_context", {})})
         return OpenCodeOutcome(
             text=content, messages=messages, requested_model=self.model,
             response_model=response_model, request_id=getattr(response, "id", None),

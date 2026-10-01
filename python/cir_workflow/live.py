@@ -68,6 +68,10 @@ class LiveError(RuntimeError):
 class BudgetExhausted(LiveError):
     """The shared request budget or deadline is used up; stop the batch."""
 
+    def __init__(self, message: str = "", *, physical_attempts: int = 0) -> None:
+        super().__init__(message)
+        self.physical_attempts = physical_attempts
+
 
 class ModelIdentityError(LiveError):
     """The response model is not the requested Flash model; stop the batch."""
@@ -226,15 +230,22 @@ class DeepSeekFlashClient:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
+        from .call_context import note_transport
         prompt_sha = _sha(json.dumps(messages, ensure_ascii=False, sort_keys=True))
         kwargs = self._request_kwargs(messages)
+        self.last_transport_log = []
+        sdk = self._client()
         transport_attempt = 0
         while True:
-            self.budget.reserve()  # raises BudgetExhausted before sending
+            try:
+                self.budget.reserve()  # raises BudgetExhausted before sending
+            except BudgetExhausted as exc:
+                exc.physical_attempts = transport_attempt
+                raise
             transport_attempt += 1
             started = time.monotonic()
             try:
-                response = self._client().chat.completions.create(**kwargs)
+                response = sdk.chat.completions.create(**kwargs)
             except Exception as exc:  # provider SDK exception types vary
                 retryable = _is_retryable(exc)
                 self._record({
@@ -251,7 +262,10 @@ class DeepSeekFlashClient:
                     "error_type": type(exc).__name__,
                     "error": str(exc),
                     "wall_ms": int((time.monotonic() - started) * 1000),
+                    **getattr(self, "call_context", {}),
                 })
+                note_transport(self, index=transport_attempt, status="error",
+                               error_type=type(exc).__name__, error=str(exc))
                 if retryable and transport_attempt <= self.max_transport_retries:
                     continue
                 if retryable:
@@ -281,7 +295,10 @@ class DeepSeekFlashClient:
                 "content": content if isinstance(content, str) else None,
                 "wall_ms": wall_ms,
             }
+            record.update(getattr(self, "call_context", {}))
             self._record(record)
+            note_transport(self, index=transport_attempt, status="ok", usage_raw=usage,
+                           request_id=getattr(response, "id", None))
             if response_model != ALLOWED_MODEL:
                 raise ModelIdentityError(
                     f"response model {response_model!r} is not {ALLOWED_MODEL!r}; stopping batch"
