@@ -53,6 +53,24 @@ class CondvarScoreTests(unittest.TestCase):
         self.assertEqual(structural_checks(_alternate())["R6"]["status"], "pass")
         unknown = HUMAN.replace("let g12 = Semaphore::new(0);", "let n = 0;\n    let g12 = Semaphore::new(n);")
         self.assertEqual(structural_checks(unknown)["R6"]["status"], "unknown")
+        renamed = HUMAN.replace("proceed", "flag")
+        self.assertEqual(structural_checks(renamed)["status"] if "status" in structural_checks(renamed) else structural_checks(renamed)["R6"]["status"], "pass")
+
+    def test_three_reproduced_negatives_do_not_pass(self):
+        raii = HUMAN.replace(
+            "g12.acquire_count(2).unwrap();",
+            "let permit = g12.acquire();\n    permit.release();\n"
+            "    let permit = g12.acquire();\n    permit.release();")
+        supplied = HUMAN.replace(
+            "g12.acquire_count(2).unwrap();",
+            "g12.release_count(2).unwrap();\n    g12.acquire_count(2).unwrap();")
+        unreachable = HUMAN.replace("while !*proceed {", "while false {")
+        for name, source in (("raii", raii), ("supplied", supplied), ("unreachable", unreachable)):
+            checks = structural_checks(source)
+            self.assertNotEqual(checks["R6"]["status"], "pass", name)
+            self.assertIn(checks["R6"]["status"], {"fail", "unknown"}, name)
+        self.assertEqual(structural_checks(unreachable)["R2"]["status"], "fail")
+        self.assertEqual(structural_checks(unreachable)["R4"]["status"], "fail")
 
     def test_finite_runs_keep_pass_fail_and_unknown_apart(self):
         with tempfile.TemporaryDirectory() as td:

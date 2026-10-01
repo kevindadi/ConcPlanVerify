@@ -48,19 +48,136 @@ def _shadowed(body: str, name: str, limit: int) -> bool:
     return re.search(rf"\blet\s+(?:mut\s+)?{re.escape(name)}\s*=", body[:max(limit, 0)]) is not None
 
 
-def _acquire_counts(region: str, name: str) -> list[int]:
-    counts = []
-    pattern = rf"\b{re.escape(name)}\s*\.\s*acquire_count\s*\(\s*(-?\d+)\s*\)"
-    for match in re.finditer(pattern, region):
-        counts.append(int(match.group(1)))
-    plain = rf"\b{re.escape(name)}\s*\.\s*acquire\s*\("
-    counts.extend(1 for _ in re.finditer(plain, region))
-    return counts
+_SYNC_WORD = re.compile(
+    r"\b(?:lock|wait|notify_all|notify_one|acquire_count|release_count|acquire|release|drop)\b")
 
 
-def _release_counts(region: str, name: str) -> list[int]:
-    pattern = rf"\b{re.escape(name)}\s*\.\s*release_count\s*\(\s*(-?\d+)\s*\)"
-    return [int(match.group(1)) for match in re.finditer(pattern, region)]
+def _classify_stmt(stmt: str) -> dict | None:
+    """One supported statement, or None when it does not touch the protocol."""
+
+    patterns = (
+        (r"^let\s+(?:mut\s+)?(\w+)\s*=\s*(\w+)\s*\.\s*lock\s*\(",
+         lambda m: {"op": "lock", "guard": m.group(1), "mutex": m.group(2)}),
+        (r"^(\w+)\s*\.\s*release_count\s*\(\s*(-?\d+)\s*\)",
+         lambda m: {"op": "release_count", "sem": m.group(1), "n": int(m.group(2))}),
+        (r"^(\w+)\s*\.\s*acquire_count\s*\(\s*(-?\d+)\s*\)",
+         lambda m: {"op": "acquire_count", "sem": m.group(1), "n": int(m.group(2))}),
+        (r"^let\s+(?:mut\s+)?(\w+)\s*=\s*(\w+)\s*\.\s*acquire\s*\(",
+         lambda m: {"op": "raii_acquire", "permit": m.group(1), "sem": m.group(2)}),
+        (r"^(\w+)\s*\.\s*release\s*\(",
+         lambda m: {"op": "permit_release", "permit": m.group(1)}),
+        (r"^drop\s*\(\s*(\w+)\s*\)",
+         lambda m: {"op": "drop", "name": m.group(1)}),
+        (r"^\*\s*(\w+)\s*=\s*(true|false)\b",
+         lambda m: {"op": "store_flag", "guard": m.group(1), "value": m.group(2) == "true"}),
+        (r"^(\w+)\s*\.\s*notify_all\s*\(",
+         lambda m: {"op": "notify_all", "cv": m.group(1)}),
+        (r"^(\w+)\s*\.\s*notify_one\s*\(",
+         lambda m: {"op": "notify_one", "cv": m.group(1)}),
+        (r"^(\w+)\s*=\s*(\w+)\s*\.\s*wait\s*\(\s*(\w+)\s*\)",
+         lambda m: {"op": "wait", "guard": m.group(1), "cv": m.group(2), "arg": m.group(3)}),
+    )
+    for pattern, build in patterns:
+        match = re.match(pattern, stmt)
+        if match:
+            return build(match)
+    return None
+
+
+def _parse_sequence(text: str) -> dict:
+    """Straight-line statements plus a supported ``while``.
+
+    ``while false`` is recognized and its body is not reachable. Any other
+    control form, or a sync statement outside this subset, is unknown.
+    """
+
+    if re.search(r"\b(if|match|for|loop|async)\b", text):
+        return {"events": [], "unknown": True, "reason": "unsupported control flow"}
+    events: list[dict] = []
+    index = 0
+    while index < len(text):
+        while index < len(text) and text[index] in " \t\r\n":
+            index += 1
+        if index >= len(text):
+            break
+        if text.startswith("while", index) and (index == 0 or not (text[index - 1].isalnum() or text[index - 1] == "_")):
+            brace = text.find("{", index)
+            if brace < 0:
+                return {"events": events, "unknown": True, "reason": "unclosed while"}
+            condition = text[index + 5:brace].strip()
+            inner, end = _brace_block(text, brace)
+            if end is None:
+                return {"events": events, "unknown": True, "reason": "unclosed while"}
+            if condition == "false":
+                events.append({"op": "while_false"})
+            else:
+                guard = re.fullmatch(r"!\s*\*\s*(\w+)", condition)
+                if not guard:
+                    return {"events": events, "unknown": True, "reason": "while condition is outside the subset"}
+                inner_parsed = _parse_sequence(inner)
+                if inner_parsed["unknown"]:
+                    return inner_parsed
+                events.append({"op": "while_not", "guard": guard.group(1), "body": inner_parsed["events"]})
+            index = end
+            continue
+        end = _statement_end(text, index)
+        if end is None:
+            return {"events": events, "unknown": True, "reason": "unclosed statement"}
+        stmt = text[index:end].strip()
+        index = end + 1
+        if not stmt:
+            continue
+        event = _classify_stmt(stmt)
+        if event is None:
+            if _SYNC_WORD.search(stmt):
+                return {"events": events, "unknown": True, "reason": f"unrecognized sync statement: {stmt[:80]}"}
+            continue
+        events.append(event)
+    return {"events": events, "unknown": False, "reason": None}
+
+
+def _brace_block(text: str, open_at: int) -> tuple[str, int | None]:
+    depth = 0
+    cursor = open_at
+    while cursor < len(text):
+        if text[cursor] == "{":
+            depth += 1
+        elif text[cursor] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[open_at + 1:cursor], cursor + 1
+        cursor += 1
+    return "", None
+
+
+def _statement_end(text: str, start: int) -> int | None:
+    depth = 0
+    for index in range(start, len(text)):
+        char = text[index]
+        if char in "({[":
+            depth += 1
+        elif char in ")}]":
+            if depth == 0:
+                return None
+            depth -= 1
+        elif char == ";" and depth == 0:
+            return index
+    return None
+
+
+def _flatten(events: list[dict], *, reachable: bool = True) -> list[dict]:
+    out = []
+    for event in events:
+        if event["op"] == "while_false":
+            out.append({"op": "while_false", "reachable": False})
+            continue
+        if event["op"] == "while_not":
+            out.append({**event, "reachable": reachable})
+            for inner in event["body"]:
+                out.append({**inner, "reachable": reachable, "in_while": event["guard"]})
+            continue
+        out.append({**event, "reachable": reachable})
+    return out
 
 
 def _shared_roles(main: str) -> tuple[str, list[list[str]] | None]:
@@ -118,108 +235,201 @@ def structural_checks(source: str) -> dict:
     return checks
 
 
+def _role_events(body: str) -> dict:
+    parsed = _parse_sequence(body)
+    if parsed["unknown"]:
+        return parsed
+    return {**parsed, "flat": _flatten(parsed["events"])}
+
+
 def _wait_clause(w1: str, w2: str, params: dict, rows) -> dict:
     if rows is None:
         return _check("unknown", "static_subset", reason="shared roots were not established")
     for body, role in ((w1, "w1"), (w2, "w2")):
-        if _unsupported(body):
-            return _check("unknown", "static_subset", role=role)
         if len(params[role]) < 2:
             return _check("unknown", "static_subset", role=role)
-        cv = params[role][1]
-        if _first(body, rf"\b{re.escape(cv)}\s*\.\s*wait\s*\(") < 0:
-            return _check("fail", "static_subset", role=role, reason="waiter does not wait on the passed condvar")
+        verdict = _waiter_wait(body, params[role][0], params[role][1])
+        if verdict["status"] != "pass":
+            verdict["detail"]["role"] = role
+            return verdict
     return _check("pass", "static_subset")
 
 
+def _waiter_wait(body: str, mutex: str, cv: str) -> dict:
+    parsed = _role_events(body)
+    if parsed.get("unknown"):
+        return _check("unknown", "static_subset", reason=parsed.get("reason"))
+    guard = None
+    for event in parsed["flat"]:
+        if event["op"] == "lock" and event["mutex"] == mutex and event.get("reachable", True):
+            guard = event["guard"]
+            break
+    waits = [event for event in parsed["flat"] if event["op"] == "wait" and event.get("reachable", True)]
+    if any(event["op"] == "while_false" for event in parsed["flat"]) and not waits:
+        return _check("fail", "static_subset", reason="wait is inside a constant-false loop and is not reachable")
+    if guard is None or not waits:
+        return _check("fail", "static_subset", reason="no reachable wait on the lock held by this waiter")
+    for event in waits:
+        if event.get("in_while") == guard and event["cv"] == cv and event["guard"] == guard and event["arg"] == guard:
+            return _check("pass", "static_subset")
+    return _check("fail", "static_subset", reason="reachable wait is not on the shared guard inside while !*guard")
+
+
 def _notify_clause(notifier: str) -> dict:
-    if _unsupported(notifier):
-        return _check("unknown", "static_subset")
-    has_all = _first(notifier, r"\bnotify_all\s*\(") >= 0
-    has_one = _first(notifier, r"\bnotify_one\s*\(") >= 0
+    parsed = _role_events(notifier)
+    if parsed.get("unknown"):
+        return _check("unknown", "static_subset", reason=parsed.get("reason"))
+    reachable = [event for event in parsed["flat"] if event.get("reachable", True)]
+    has_all = any(event["op"] == "notify_all" for event in reachable)
+    has_one = any(event["op"] == "notify_one" for event in reachable)
     if has_all and not has_one:
-        return _check("pass", "static_subset", note="notify_all is present; this is not an all-interleaving proof")
+        return _check("pass", "static_subset", note="reachable notify_all; this is not an all-interleaving proof")
     if has_one and not has_all:
         return _check("fail", "static_subset", reason="notify_one does not wake every blocked waiter")
-    return _check("unknown" if has_all and has_one else "fail", "static_subset")
+    return _check("fail", "static_subset", reason="no reachable notify_all")
 
 
 def _lock_at_wait(w1: str, w2: str, params: dict) -> dict:
     for body, role in ((w1, "w1"), (w2, "w2")):
-        if _unsupported(body):
-            return _check("unknown", "static_subset", role=role)
         if len(params[role]) < 2:
             return _check("unknown", "static_subset", role=role)
-        lock_name, cv = params[role][0], params[role][1]
-        lock_at = _first(body, rf"\b{re.escape(lock_name)}\s*\.\s*lock\s*\(")
-        wait_at = _first(body, rf"\b{re.escape(cv)}\s*\.\s*wait\s*\(")
-        drop_at = _first(body, r"\bdrop\s*\(")
-        if min(lock_at, wait_at, drop_at) < 0:
-            return _check("fail", "static_subset", role=role)
-        if _shadowed(body, lock_name, wait_at) or _shadowed(body, cv, wait_at):
-            return _check("unknown", "static_subset", role=role, reason="lock receiver is rebound")
-        if not (lock_at < wait_at < drop_at):
-            return _check("fail", "static_subset", role=role, reason="wait is not between lock and drop")
+        verdict = _waiter_wait(body, params[role][0], params[role][1])
+        if verdict["status"] != "pass":
+            verdict["detail"]["role"] = role
+            return verdict
+        parsed = _role_events(body)
+        flat = parsed["flat"]
+        mutex, cv = params[role][0], params[role][1]
+        guard = next(event["guard"] for event in flat if event["op"] == "lock" and event["mutex"] == mutex)
+        wait_at = next(i for i, event in enumerate(flat)
+                       if event["op"] == "wait" and event.get("in_while") == guard and event["cv"] == cv)
+        lock_at = next(i for i, event in enumerate(flat) if event["op"] == "lock" and event["guard"] == guard)
+        drop_at = next((i for i, event in enumerate(flat)
+                        if event["op"] == "drop" and event["name"] == guard and i > wait_at), None)
+        if drop_at is None or not (lock_at < wait_at < drop_at):
+            return _check("fail", "static_subset", role=role, reason="the shared guard is not held across the reachable wait")
     return _check("pass", "static_subset")
 
 
 def _notifier_lock(notifier: str, params: dict) -> dict:
-    if _unsupported(notifier):
-        return _check("unknown", "static_subset")
     if len(params["notifier"]) < 2:
         return _check("unknown", "static_subset")
-    lock_name, cv = params["notifier"][0], params["notifier"][1]
-    lock_at = _first(notifier, rf"\b{re.escape(lock_name)}\s*\.\s*lock\s*\(")
-    notify_at = _first(notifier, rf"\b{re.escape(cv)}\s*\.\s*notify_all\s*\(")
-    drop_at = _first(notifier, r"\bdrop\s*\(")
-    if min(lock_at, notify_at, drop_at) < 0:
-        return _check("fail", "static_subset")
-    if _shadowed(notifier, lock_name, notify_at):
-        return _check("unknown", "static_subset", reason="notifier lock is rebound")
-    if not (lock_at < notify_at < drop_at):
-        return _check("fail", "static_subset", reason="notify_all is not between lock and drop")
+    parsed = _role_events(notifier)
+    if parsed.get("unknown"):
+        return _check("unknown", "static_subset", reason=parsed.get("reason"))
+    mutex, cv = params["notifier"][0], params["notifier"][1]
+    flat = [event for event in parsed["flat"] if event.get("reachable", True)]
+    lock_at = next((i for i, event in enumerate(flat) if event["op"] == "lock" and event["mutex"] == mutex), None)
+    notify_at = next((i for i, event in enumerate(flat) if event["op"] == "notify_all" and event["cv"] == cv), None)
+    if lock_at is None or notify_at is None or notify_at < lock_at:
+        return _check("fail", "static_subset", reason="reachable notify_all is not after the shared lock")
+    guard = flat[lock_at]["guard"]
+    drop_at = next((i for i, event in enumerate(flat) if event["op"] == "drop" and event["name"] == guard and i > notify_at), None)
+    if drop_at is None:
+        return _check("fail", "static_subset", reason="the shared guard is not dropped after notify_all")
     return _check("pass", "static_subset")
 
 
+def _permit_effect(events: list[dict], sem: str) -> dict:
+    """Persistent acquire_count versus permits the same role returns before notify."""
+
+    persistent = 0
+    supplied = 0
+    held: dict[str, str] = {}
+    returned = 0
+    for event in events:
+        op = event["op"]
+        if op == "release_count" and event["sem"] == sem:
+            supplied += event["n"]
+        elif op == "acquire_count" and event["sem"] == sem:
+            if event["n"] <= 0:
+                return {"status": "unknown", "reason": "non-positive acquire_count"}
+            persistent += event["n"]
+        elif op == "raii_acquire" and event["sem"] == sem:
+            held[event["permit"]] = sem
+        elif op == "permit_release" and event["permit"] in held:
+            held.pop(event["permit"])
+            returned += 1
+        elif op == "drop" and event["name"] in held:
+            held.pop(event["name"])
+            returned += 1
+        elif op in {"raii_acquire", "acquire_count", "release_count"} and event.get("sem") not in {None, sem}:
+            continue
+    return {"status": "ok", "persistent": persistent, "supplied": supplied,
+            "returned": returned, "held": len(held)}
+
+
 def _readiness(w1: str, w2: str, notifier: str, params: dict, g12_root: str | None) -> dict:
-    bodies = {"w1": w1, "w2": w2, "notifier": notifier}
-    if any(_unsupported(body) for body in bodies.values()):
-        return _check("unknown", "static_subset")
-    if g12_root is None or any(len(params[role]) < 3 for role in bodies):
+    if g12_root is None or any(len(params[role]) < 4 for role in ("w1", "w2", "notifier")):
         return _check("unknown", "static_subset", reason="g12 root was not resolved at the call")
     initial = _sem_initial(g12_root)
     if initial is None:
         return _check("unknown", "static_subset", reason="g12 initial count is not a literal at the used construction")
-    waiter_release = True
-    for role in ("w1", "w2"):
-        body = bodies[role]
-        g12 = params[role][2]
-        cv = params[role][1]
-        wait_at = _first(body, rf"\b{re.escape(cv)}\s*\.\s*wait\s*\(")
-        if wait_at < 0 or _shadowed(body, g12, wait_at):
-            return _check("unknown", "static_subset", role=role)
-        region = body[:wait_at]
-        if _acquire_counts(region, g12) or _release_counts(region, g12) != [1]:
-            waiter_release = False
-    note = params["notifier"][2]
+    waiter_ready = True
+    for role, body in (("w1", w1), ("w2", w2)):
+        parsed = _role_events(body)
+        if parsed.get("unknown"):
+            return _check("unknown", "static_subset", role=role, reason=parsed.get("reason"))
+        verdict = _waiter_wait(body, params[role][0], params[role][1])
+        if verdict["status"] == "unknown":
+            return verdict
+        if verdict["status"] != "pass":
+            return _check("fail", "static_subset", role=role,
+                          reason="the waiter is not reachably waiting, so a permit release is not readiness")
+        sem = params[role][2]
+        before = []
+        for event in parsed["flat"]:
+            if event["op"] == "while_not":
+                break
+            before.append(event)
+        effect = _permit_effect(before, sem)
+        if effect["status"] != "ok":
+            return _check("unknown", "static_subset", role=role, reason=effect["reason"])
+        if effect["supplied"] != 1 or effect["persistent"] or effect["returned"] or effect["held"]:
+            waiter_ready = False
+    note_body = _role_events(notifier)
+    if note_body.get("unknown"):
+        return _check("unknown", "static_subset", reason=note_body.get("reason"))
+    sem = params["notifier"][2]
     cv = params["notifier"][1]
-    notify_at = _first(notifier, rf"\b{re.escape(cv)}\s*\.\s*notify_all\s*\(")
-    if notify_at < 0 or _shadowed(notifier, note, notify_at):
-        return _check("unknown", "static_subset")
-    acquires = _acquire_counts(notifier[:notify_at], note)
-    acquire_at = _first(notifier, rf"\b{re.escape(note)}\s*\.\s*acquire(?:_count)?\s*\(")
-    if acquire_at < 0 or notify_at < acquire_at:
-        return _check("fail", "static_subset", reason="notifier wakes the waiters before the readiness acquire")
-    if initial > 0 and acquires and sum(acquires) <= initial:
-        return _check(
-            "fail", "static_subset",
-            reason="notifier acquires can finish from the initial count, before both waiters release",
-            initial=initial, acquires=acquires)
-    if initial == 0 and waiter_release and sum(acquires) == 2:
-        return _check("pass", "static_subset", initial=0, acquires=acquires,
-                      note="the counting order is visible in the source; R8 and R9 stay uncovered")
-    return _check("unknown", "static_subset", initial=initial, acquires=acquires,
-                  waiter_release=waiter_release)
+    before_notify = []
+    saw_notify = False
+    for event in note_body["flat"]:
+        if event["op"] == "notify_all" and event.get("cv") == cv and event.get("reachable", True):
+            saw_notify = True
+            break
+        if event.get("reachable", True):
+            before_notify.append(event)
+    if not saw_notify:
+        return _check("fail", "static_subset", reason="notifier has no reachable notify_all")
+    effect = _permit_effect(before_notify, sem)
+    if effect["status"] != "ok":
+        return _check("unknown", "static_subset", reason=effect["reason"])
+    detail = {key: value for key, value in effect.items() if key != "status"}
+    if effect["supplied"] > 0:
+        return _check("fail", "static_subset",
+                      reason="the notifier releases permits before notify_all, so the acquire need not wait for the waiters",
+                      **detail)
+    if effect["returned"] and effect["persistent"] != 2:
+        return _check("fail", "static_subset",
+                      reason="RAII acquire/release returns the permit before notify_all; it is not a persistent consume of two waiter permits",
+                      **detail)
+    if effect["held"]:
+        return _check("unknown", "static_subset",
+                      reason="a RAII permit is still held at notify_all; its net effect is not the supported explicit protocol",
+                      **detail)
+    if initial > 0 and effect["persistent"] <= initial:
+        return _check("fail", "static_subset",
+                      reason="the notifier's persistent acquire can finish from the initial count",
+                      initial=initial, **detail)
+    if initial == 0 and waiter_ready and effect["persistent"] == 2 and effect["returned"] == 0:
+        return _check("pass", "static_subset", initial=0, persistent=effect["persistent"],
+                      note="explicit acquire_count only; R8 and R9 stay uncovered")
+    if effect["persistent"] < 2 and effect["held"] == 0:
+        return _check("fail", "static_subset",
+                      reason="notifier reaches notify_all before a persistent acquire of 2 waiter permits",
+                      **detail)
+    return _check("unknown", "static_subset", initial=initial, waiter_ready=waiter_ready, **detail)
 
 
 def execution_checks(runs: list[dict]) -> dict:
