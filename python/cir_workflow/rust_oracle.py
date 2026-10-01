@@ -122,11 +122,24 @@ def prepare_project(work_dir: Path, annotated: str, runtime: str) -> Path:
     return work
 
 
+def _probe_env(**extra: str) -> dict[str, str]:
+    """Build and run probes inside the candidate directory.
+
+    A surrounding ``CARGO_TARGET_DIR`` would put the binary outside ``work/target``
+    and the runner would then treat a successful build as a missing binary.
+    """
+
+    env = dict(os.environ)
+    env.pop("CARGO_TARGET_DIR", None)
+    env.update(extra)
+    return env
+
+
 def cargo_build(work_dir: Path, *, timeout: float = 600.0,
                 offline: bool = True) -> tuple[bool, str]:
     argv = ["cargo", "build"] + (["--offline"] if offline else [])
     proc = subprocess.run(argv, cwd=work_dir, capture_output=True, text=True,
-                          timeout=timeout)
+                          timeout=timeout, env=_probe_env())
     log = proc.stdout + proc.stderr
     return proc.returncode == 0, log
 
@@ -138,7 +151,7 @@ def run_native(work_dir: Path, traces_dir: Path, *, n: int = 32,
     runs: list[dict[str, Any]] = []
     for index in range(n):
         trace = traces_dir / f"native-{index:03d}.jsonl"
-        env = dict(os.environ, CIR_TRACE_OUT=str(trace))
+        env = _probe_env(CIR_TRACE_OUT=str(trace))
         try:
             proc = subprocess.run([str(binary)], cwd=work_dir, env=env,
                                   capture_output=True, text=True, timeout=timeout)
@@ -162,8 +175,8 @@ def run_miri(work_dir: Path, traces_dir: Path, *, seeds: int = 16,
     base = ["cargo"] + ([f"+{toolchain}"] if toolchain else []) + ["miri", "run", "--offline"]
     for seed in range(seeds):
         trace = traces_dir / f"miri-{seed:03d}.jsonl"
-        env = dict(os.environ, CIR_TRACE_OUT=str(trace),
-                   MIRIFLAGS=f"-Zmiri-seed={seed} -Zmiri-disable-isolation")
+        env = _probe_env(CIR_TRACE_OUT=str(trace),
+                         MIRIFLAGS=f"-Zmiri-seed={seed} -Zmiri-disable-isolation")
         try:
             proc = subprocess.run(base, cwd=work_dir, env=env, capture_output=True,
                                   text=True, timeout=timeout)
