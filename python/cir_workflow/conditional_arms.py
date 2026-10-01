@@ -66,6 +66,15 @@ def conformance_feedback(evaluation: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+# Present on every arm. It describes the linked crate, not a CIR or a trace.
+RUNTIME_API = """\
+Linked crate concir_sync::Semaphore:
+- acquire() borrows one permit and returns it when the permit is dropped or permit.release() is called.
+- acquire_count(n) and release_count(n) consume or add n permits in one call. They are not returned on drop.
+- A count of 2 is one call. Two count-1 calls are a different operation.
+"""
+
+
 def render_prompt(*, arm: str, requirements: str, cir_text: str | None, previous: str,
                    feedback: str) -> str:
     parts = [
@@ -74,6 +83,9 @@ def render_prompt(*, arm: str, requirements: str, cir_text: str | None, previous
         "",
         "Requirements:",
         requirements.strip(),
+        "",
+        "Runtime API:",
+        RUNTIME_API.strip(),
         "",
     ]
     if arm in {"B", "C"}:
@@ -148,7 +160,7 @@ def run_repairs(case: dict, arm: str, client, out_dir: Path, *, max_repairs: int
         status = raw["status"]
         mapped = "pass" if status == "bounded_covered_satisfied" else status
         return {"requirement": {"status": mapped, "raw_status": status},
-                "design": {"status": "separate"},
+                "design": {"status": "not_observed", "source": "filled_from_same_round_ledger"},
                 "requirement_error": status == "fail",
                 "tool_error": False, "capability_gap": False,
                 "support": {"supported": status != "unknown"}, "raw": raw}
@@ -186,6 +198,8 @@ def run_repairs(case: dict, arm: str, client, out_dir: Path, *, max_repairs: int
     (out_dir / "result.json").write_text(json.dumps({
         "arm": arm, "stop": result.get("stop"),
         "first_requirement_round": result.get("first_requirement_round"),
+        "first_design_round": result.get("first_design_round"),
+        "first_both_round": result.get("first_both_round"),
         "rounds": result.get("rounds"),
     }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return result

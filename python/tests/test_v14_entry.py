@@ -156,4 +156,4 @@ class EntryTests(unittest.TestCase):
             self.assertEqual((out / name).read_bytes(), data, name)
         self.assertTrue(all(row["status"] == "executed" for row in rows if row["model_id"] == "qwen3.8-flash"))
         events = (out / "REQUEST_EVENTS.jsonl").read_text(encoding="utf-8").strip().splitlines()
-        self.assertEqual(sum(1 for line in events if '"deepseek-flash/' in line), 1)
+        self.assertEqual(sum(1 for line in events if "deepseek-flash" in line), 1)

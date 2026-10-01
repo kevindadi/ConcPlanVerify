@@ -345,6 +345,30 @@ def _cumulative(state: dict) -> dict[str, Any]:
             "physical_attempts_unknown": unknown}
 
 
+def design_round_status(delivery: dict | None) -> str:
+    """Status of the design ledger produced for this same round.
+
+    ``pass`` is a complete design correspondence: identity, attributes, a
+    conformant finite trace, and no uncovered sync. ``deliver_bounded`` with
+    uncovered sync is ``incomplete``, not a pass. ``reject`` is ``fail``.
+    A missing ledger is ``not_observed`` and is neither a pass nor a failure.
+    """
+
+    if not isinstance(delivery, dict):
+        return "not_observed"
+    ledger = delivery.get("ledger")
+    if not isinstance(ledger, dict):
+        return "not_observed"
+    corr = ledger.get("design_correspondence")
+    if not isinstance(corr, dict) or "complete" not in corr:
+        return "not_observed"
+    if corr.get("complete") is True:
+        return "pass"
+    if ledger.get("delivery_status") == "reject":
+        return "fail"
+    return "incomplete"
+
+
 def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
             source: str | None = None, max_repairs: int = 2,
             evaluate: Callable | None = None,
@@ -403,10 +427,12 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
     def consider(round_no: int, text: str, evaluation: dict, delivery: dict) -> bool:
         nonlocal first_requirement, first_design, first_both, stop
         requirement_pass = evaluation["requirement"]["status"] == "pass"
-        design_pass = evaluation["design"]["status"] == "pass"
-        if stop_on_unknown and evaluation["requirement"]["status"] == "unknown":
-            stop = "unknown"
-            return True
+        # Design comes from this round's toolchain ledger. A requirement pass
+        # in another round does not make this candidate a joint pass.
+        design_status = design_round_status(delivery)
+        design_pass = design_status == "pass"
+        evaluation = {**evaluation, "design": {"status": design_status,
+                                               "source": "same_round_ledger"}}
         if requirement_pass and first_requirement is None:
             first_requirement = round_no
         if design_pass and first_design is None:
@@ -416,11 +442,14 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
         action = (delivery.get("followup") or {}).get("action")
         category = (delivery.get("followup") or {}).get("category")
         record = {"round": round_no, "requirement_status": evaluation["requirement"]["status"],
-                  "design_status": evaluation["design"]["status"],
+                  "design_status": design_status,
                   "delivery_status": (delivery.get("ledger") or {}).get("delivery_status"),
                   "stop_action": action, "stop_category": category,
                   "support": evaluation["support"]}
         rounds.append(record)
+        if stop_on_unknown and evaluation["requirement"]["status"] == "unknown":
+            stop = "unknown"
+            return True
         if evaluation["tool_error"] or category == "tool_failure" or action == "stop" and category == "tool_failure":
             stop = "tool_failure"
             return True
