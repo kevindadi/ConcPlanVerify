@@ -48,6 +48,14 @@ def freeze_paths(record: dict) -> dict[str, str]:
         REPO / "python/cir_workflow/send_holding_requirements.py",
         REPO / "python/cir_workflow/evidence_v2.py",
         REPO / "python/cir_workflow/candidate_eval.py",
+        REPO / "python/cir_workflow/feedback_runner.py",
+        REPO / "python/cir_workflow/audit.py",
+        REPO / "python/cir_workflow/live.py",
+        REPO / "python/cir_workflow/channels.py",
+        REPO / "python/cir_workflow/rust_oracle.py",
+        REPO / "scripts/v12_three_arm.py",
+        REPO / "runtime/concir_sync/src/lib.rs",
+        REPO / "runtime/concir_sync/README.md",
         BIN, INS, BIND,
     ]
     out = {}
@@ -83,6 +91,23 @@ def build_protocol(record: dict) -> dict:
         "freeze_files": freeze_paths(record),
         "note": "Sampling parameters are per model. They are the same across arms of that model.",
     }
+
+
+def _reject(out: Path, reason: str, detail: dict) -> None:
+    """Record this launch's refusal without touching frozen history."""
+
+    path = out / "RUN_REJECTION.json"
+    prior = []
+    if path.is_file():
+        prior = json.loads(path.read_text(encoding="utf-8"))
+    prior.append({"reason": reason, **detail})
+    path.write_text(json.dumps(prior, ensure_ascii=False, indent=2) + "\n")
+
+
+def _snapshot(out: Path) -> dict[str, str | None]:
+    names = ("PROTOCOL.json", "RESULTS.json", "SUMMARY.json", "budget.json", "REQUEST_EVENTS.jsonl",
+             "batch_state.json")
+    return {name: _sha(out / name) if (out / name).is_file() else None for name in names}
 
 
 def _write_table(out: Path, results: list, budget: dict | None, audit_count: int) -> None:
@@ -128,27 +153,33 @@ def main() -> int:
         print(f"freeze input missing: {exc}")
         return 2
     orders = expected["arm_order"]
-    results = _plan(record, orders)
+    existing_results = out / "RESULTS.json"
     if not args.confirm_paid_run:
+        if protocol_path.is_file() or existing_results.is_file():
+            stored = json.loads(protocol_path.read_text(encoding="utf-8")) if protocol_path.is_file() else None
+            _reject(out, "dry_run_existing_directory", {
+                "protocol_matches": stored == expected,
+            })
+            print("existing run directory; not rewriting")
+            return 0 if stored == expected else 2
+        results = _plan(record, orders)
         protocol_path.write_text(json.dumps(expected, ensure_ascii=False, indent=2) + "\n")
         _write_table(out, results, None, 0)
         print("frozen; not executing")
         return 0
     if not protocol_path.is_file():
-        for row in results:
-            row["status"] = "not_started"
-            row["stop"] = "missing_freeze"
-        _write_table(out, results, None, 0)
+        _reject(out, "missing_freeze", {})
         print("missing freeze; not executing")
         return 2
     stored = json.loads(protocol_path.read_text(encoding="utf-8"))
     if stored != expected:
-        for row in results:
-            row["status"] = "not_started"
-            row["stop"] = "frozen_protocol_mismatch"
-        _write_table(out, results, None, 0)
+        _reject(out, "frozen_protocol_mismatch", {})
         print("frozen protocol mismatch; not executing")
         return 2
+    if existing_results.is_file():
+        results = json.loads(existing_results.read_text(encoding="utf-8"))
+    else:
+        results = _plan(record, orders)
     load_dotenv(REPO / ".env", override=True)
     audit = AuditLog(out / "REQUEST_EVENTS.jsonl")
     budget = LiveBudget(out / "budget.json", max_requests=int(stored["max_physical"]),
@@ -171,6 +202,8 @@ def main() -> int:
         for arm in orders[spec.model_id]:
             cell = results[index]
             index += 1
+            if cell.get("status") in {"executed", "blocked"}:
+                continue
             if global_stop:
                 cell["status"] = "not_started"
                 cell["stop"] = global_stop
