@@ -1,0 +1,33 @@
+{
+  "fingerprint": "df45432f76605dec1469e6a964b4f252befa11dbf04a01b3502f220768d05c47",
+  "calls": [
+    {
+      "system": "Review your Rust program and repair concurrency defects you can justify.",
+      "user": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.\nR2. Both worker threads share a single atomic counter that starts at zero.\nR3. Each worker adds exactly one to the shared counter, so once both have finished the counter equals two.\nR4. Each worker updates the counter with an atomic read-modify-write retry loop, so a competing update can never be silently lost.\nR5. A failed update attempt must be retried rather than abandoned, so every worker's increment eventually takes effect.\nR6. From every state that can occur, it must remain possible for the counter to still reach two.\nR7. Each increment appears to happen in a single indivisible step, so no partial update is ever observable.\nR8. Every possible schedule and interleaving of the two workers must terminate.\nR9. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2.\n- Shared resources: c (atomic counter).\n\n\nOutput the complete Rust program.",
+      "response": "fn main() {}\n",
+      "response_model": "gpt-6-luna",
+      "snapshot_sha256": "0a15a604c897269dfdd1a463eaeb7d84c4b57448ac92a4df8a30996874695a58"
+    },
+    {
+      "system": "Review your Rust program and repair concurrency defects you can justify.",
+      "user": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.\nR2. Both worker threads share a single atomic counter that starts at zero.\nR3. Each worker adds exactly one to the shared counter, so once both have finished the counter equals two.\nR4. Each worker updates the counter with an atomic read-modify-write retry loop, so a competing update can never be silently lost.\nR5. A failed update attempt must be retried rather than abandoned, so every worker's increment eventually takes effect.\nR6. From every state that can occur, it must remain possible for the counter to still reach two.\nR7. Each increment appears to happen in a single indivisible step, so no partial update is ever observable.\nR8. Every possible schedule and interleaving of the two workers must terminate.\nR9. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2.\n- Shared resources: c (atomic counter).\n\n\nCurrent program:\n```rust\nfn main() {}\n\n```\n\nFix concurrency defects and output the complete program.",
+      "response": "fn main() {}\n",
+      "response_model": "gpt-6-luna",
+      "snapshot_sha256": "541d65110ea543397ecf18be38e6d628f3c7a40bd645be6a12d4739394d0ed72"
+    },
+    {
+      "system": "Review your Rust program and repair concurrency defects you can justify.",
+      "user": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.\nR2. Both worker threads share a single atomic counter that starts at zero.\nR3. Each worker adds exactly one to the shared counter, so once both have finished the counter equals two.\nR4. Each worker updates the counter with an atomic read-modify-write retry loop, so a competing update can never be silently lost.\nR5. A failed update attempt must be retried rather than abandoned, so every worker's increment eventually takes effect.\nR6. From every state that can occur, it must remain possible for the counter to still reach two.\nR7. Each increment appears to happen in a single indivisible step, so no partial update is ever observable.\nR8. Every possible schedule and interleaving of the two workers must terminate.\nR9. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2.\n- Shared resources: c (atomic counter).\n\n\nCurrent program:\n```rust\nfn main() {}\n\n```\n\nFix concurrency defects and output the complete program.",
+      "response": "fn main() {}\n",
+      "response_model": "gpt-6-luna",
+      "snapshot_sha256": "541d65110ea543397ecf18be38e6d628f3c7a40bd645be6a12d4739394d0ed72"
+    },
+    {
+      "system": "Review your Rust program and repair concurrency defects you can justify.",
+      "user": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.\nR2. Both worker threads share a single atomic counter that starts at zero.\nR3. Each worker adds exactly one to the shared counter, so once both have finished the counter equals two.\nR4. Each worker updates the counter with an atomic read-modify-write retry loop, so a competing update can never be silently lost.\nR5. A failed update attempt must be retried rather than abandoned, so every worker's increment eventually takes effect.\nR6. From every state that can occur, it must remain possible for the counter to still reach two.\nR7. Each increment appears to happen in a single indivisible step, so no partial update is ever observable.\nR8. Every possible schedule and interleaving of the two workers must terminate.\nR9. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2.\n- Shared resources: c (atomic counter).\n\n\nCurrent program:\n```rust\nfn main() {}\n\n```\n\nFix concurrency defects and output the complete program.",
+      "response": "fn main() {}\n",
+      "response_model": "gpt-6-luna",
+      "snapshot_sha256": "541d65110ea543397ecf18be38e6d628f3c7a40bd645be6a12d4739394d0ed72"
+    }
+  ]
+}

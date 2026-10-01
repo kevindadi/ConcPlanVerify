@@ -1,0 +1,12 @@
+{
+  "fingerprint": "a2eae9607efdae3ccaa71349bcb59fff7ceab1a7bdf1c5904e0a62901a54283b",
+  "calls": [
+    {
+      "system": "Write one Rust program from the requirements. Do not invent extra requirements.",
+      "user": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.\nR2. Both worker threads share one counting permit pool that begins with exactly one permit.\nR3. A worker must hold a permit while it performs its work, so the two workers never work at the same time.\nR4. Each worker may acquire the permit more than once, and on every path it must release the permit exactly as many times as it acquired it before it finishes.\nR5. While a worker waits for a permit, the worker currently holding it must remain able to release it so the waiting worker can eventually proceed.\nR6. Every possible schedule and interleaving of the two workers must terminate.\nR7. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2.\n- Shared resources: s (semaphore).\n\n\nOutput the complete Rust program.",
+      "response": "fn main() {}\n",
+      "response_model": "deepseek-flash",
+      "snapshot_sha256": "cfa776a022020a2cad4e155d22aedf8b09f54217e32eaf7856dbdee9c1bcf2a2"
+    }
+  ]
+}

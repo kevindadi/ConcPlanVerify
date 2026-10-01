@@ -1,0 +1,12 @@
+{
+  "fingerprint": "3793d1b9d0a595caf2842aba11f93c9017940fa4a74f1e83a11fb81a47f8d1e3",
+  "calls": [
+    {
+      "system": "Revise the Rust program using the tool feedback.",
+      "user": "Specification:\n# Requirements\n\nR1. A main task starts a waiter role and a notifier role that run at the same time.\nR2. The waiter and the notifier share one lock and one condition variable, and the lock guards a boolean flag. [U]\nR3. The notifier sets the shared flag to true while holding the lock, signals the condition variable, and then releases the lock.\nR4. While holding the lock, the waiter checks the flag first, waits on the condition variable only while the flag is false, and re-checks the flag after each wake.\nR5. The waiter must complete even when the notifier signals before the waiter starts waiting.\nR6. The waiter must not wait on the condition variable while the flag is already true, and must not keep the lock while blocked.\nR7. Every schedule and interleaving of the two roles must terminate with both roles finished.\nR8. The shared flag becomes true in every schedule.\nR9. The waiter must not pass its wait until the flag is true.\nR10. The program must print exactly the line `DONE ready=true` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): waiter, notifier.\n- Shared resources: m (lock), cv (condition variable), ready (shared variable).\n\n\nOutput the complete Rust program.",
+      "response": "fn main() {}\n",
+      "response_model": "deepseek-flash",
+      "snapshot_sha256": "fb22fb2457157f9bbba8839a25106050b2817254ce4cfd3243dbb4b678e25b9d"
+    }
+  ]
+}
