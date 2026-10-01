@@ -88,9 +88,15 @@ def build_client(spec: ModelSpec, *, budget: Any, evidence_dir: Path | str,
     if spec.channel == "opencode-go":
         from .opencode_go import OpenCodeGoClient, OpenCodeGoResponsesClient
         cls = OpenCodeGoResponsesClient if spec.surface == "responses" else OpenCodeGoClient
+        extra = {}
+        if spec.model_id == "glm-5.3-flash":
+            # Z.ai documents reasoning_effort low|high|max. OpenCode Go rejects
+            # a thinking field, so it is not sent. low is the documented
+            # lightweight setting and is the same for arms A, B, and C.
+            extra = {"reasoning_effort": "low"}
         return cls(api_key=api_key, budget=budget,
                    evidence_dir=evidence_dir, model=spec.model_id,
-                   timeout=timeout, max_tokens=max_tokens)
+                   timeout=timeout, max_tokens=max_tokens, **extra)
     if spec.channel == "cursor":
         from .cursor_harness import StagedCursorClient
         _require_cursor_model(api_key, server_model_id(spec))
@@ -136,6 +142,9 @@ class AuditedClient:
             "model": self.spec.model_id, "candidate_round": candidate_round,
             "attempt_id": attempt_id,
         })
+        begin = getattr(getattr(self.inner, "budget", None), "begin_logical_call", None)
+        if begin:
+            begin()
         prompt = system.strip() + "\n\n" + user.strip()
         started = time.time()
 
@@ -212,6 +221,11 @@ class AuditedClient:
         attempt as parent_id.
         """
 
+        budget = getattr(self.inner, "budget", None)
+        if budget is not None and hasattr(budget, "reservation_ids"):
+            ids = budget.reservation_ids()
+            if ids:
+                notes = f"{notes}; reservations={ids}"
         rows = list(log or [])
         if len(rows) <= 1:
             self.audit.model_call(

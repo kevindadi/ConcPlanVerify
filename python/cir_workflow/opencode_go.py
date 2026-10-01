@@ -39,7 +39,8 @@ class OpenCodeOutcome:
 class OpenCodeGoClient:
     def __init__(self, *, api_key: str, budget, evidence_dir: Path | str,
                  model: str, timeout: float = 90.0, max_tokens: int = 4096,
-                 temperature: float = 0.0) -> None:
+                 temperature: float = 0.0, reasoning_effort: str | None = None,
+                 extra_body: dict | None = None) -> None:
         from openai import OpenAI
 
         self.model = model
@@ -50,6 +51,8 @@ class OpenCodeGoClient:
         self.timeout = timeout
         self.max_tokens = max_tokens
         self.temperature = temperature
+        self.reasoning_effort = reasoning_effort
+        self.extra_body = extra_body
         import uuid
 
         self._client = OpenAI(
@@ -71,14 +74,18 @@ class OpenCodeGoClient:
         self.last_transport_log = []
         for attempt in range(3):
             try:
-                self.budget.reserve()
+                from .live import reservation_link
+                self.budget.reserve(reservation_link(self, attempt + 1))
             except BudgetExhausted as exc:
                 exc.physical_attempts = len(self.last_transport_log)
                 raise
+            self.budget.mark_attempt("dispatched") if hasattr(self.budget, "mark_attempt") else None
             try:
                 response = self._client.chat.completions.create(**kwargs)
             except Exception as exc:  # noqa: BLE001
                 last_exc = exc
+                if hasattr(self.budget, "mark_attempt"):
+                    self.budget.mark_attempt("awaiting_reconciliation", detail=type(exc).__name__)
                 note_transport(self, index=attempt + 1, status="error",
                                error_type=type(exc).__name__, error=str(exc))
                 self._record({"status": "error", "model": self.model,
@@ -109,6 +116,8 @@ class OpenCodeGoClient:
                     else dict(response.usage)
             note_transport(self, index=attempt + 1, status="ok", usage_raw=usage,
                            request_id=getattr(response, "id", None))
+            if hasattr(self.budget, "mark_attempt"):
+                self.budget.mark_attempt("returned")
             return response
         raise last_exc if last_exc else RuntimeError("no response")
 
@@ -121,6 +130,10 @@ class OpenCodeGoClient:
             "model": self.model, "messages": messages,
             "temperature": self.temperature, "max_tokens": self.max_tokens,
         }
+        if self.reasoning_effort:
+            kwargs["reasoning_effort"] = self.reasoning_effort
+        if self.extra_body:
+            kwargs["extra_body"] = self.extra_body
         response = self._create_with_retry(kwargs, messages, prompt_sha, started)
         wall_ms = int((time.monotonic() - started) * 1000)
         choice = (response.choices or [None])[0]
@@ -133,12 +146,14 @@ class OpenCodeGoClient:
         cost = getattr(response, "cost", None)
         response_model = getattr(response, "model", None)
         record = {"status": "ok", "model": self.model, "temperature": kwargs["temperature"],
+                  "reasoning_effort": self.reasoning_effort, "max_tokens": self.max_tokens,
                   "response_model": response_model,
                   "request_id": getattr(response, "id", None), "messages": messages,
                   "prompt_sha256": prompt_sha, "usage": usage, "cost": cost,
                   "finish_reason": getattr(choice, "finish_reason", None),
                   "content_sha256": _sha(content), "content": content, "wall_ms": wall_ms}
-        self._record(record)
+        from .live import preserve_response_record
+        preserve_response_record(self.budget, self._record, record)
         return OpenCodeOutcome(
             text=content, messages=messages, requested_model=self.model,
             response_model=response_model, request_id=getattr(response, "id", None),
@@ -194,14 +209,19 @@ class OpenCodeGoResponsesClient:
         response = None
         for attempt in range(3):
             try:
-                self.budget.reserve()
+                from .live import reservation_link
+                self.budget.reserve(reservation_link(self, attempt + 1))
             except BudgetExhausted as exc:
                 exc.physical_attempts = len(self.last_transport_log)
                 raise
+            if hasattr(self.budget, "mark_attempt"):
+                self.budget.mark_attempt("dispatched")
             try:
                 response = self._client.responses.create(**kwargs)
                 break
             except Exception as exc:  # noqa: BLE001
+                if hasattr(self.budget, "mark_attempt"):
+                    self.budget.mark_attempt("awaiting_reconciliation", detail=type(exc).__name__)
                 note_transport(self, index=attempt + 1, status="error",
                                error_type=type(exc).__name__, error=str(exc))
                 self._record({"status": "error", "model": self.model,
@@ -221,6 +241,8 @@ class OpenCodeGoResponsesClient:
                     raise BudgetExhausted(self.budget.exhausted() or "request budget reached",
                                           physical_attempts=len(self.last_transport_log))
                 raise
+        if hasattr(self.budget, "mark_attempt"):
+            self.budget.mark_attempt("returned")
         wall_ms = int((time.monotonic() - started) * 1000)
         content = getattr(response, "output_text", None) or ""
         usage = None
@@ -231,7 +253,8 @@ class OpenCodeGoResponsesClient:
         index = len(self.last_transport_log) + 1
         note_transport(self, index=index, status="ok", usage_raw=usage,
                        request_id=getattr(response, "id", None))
-        self._record({"status": "ok", "model": self.model, "surface": "responses",
+        from .live import preserve_response_record
+        preserve_response_record(self.budget, self._record, {"status": "ok", "model": self.model, "surface": "responses",
                       "response_model": response_model,
                       "request_id": getattr(response, "id", None),
                       "messages": messages, "prompt_sha256": prompt_sha,

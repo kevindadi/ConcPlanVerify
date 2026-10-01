@@ -21,10 +21,12 @@ unless the ``live`` command is invoked.
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import sqlite3
 import json
 import os
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -135,6 +137,16 @@ class LiveBudget:
                 "max_seconds REAL NOT NULL,"
                 "deadline_epoch REAL NOT NULL,"
                 "requests_used INTEGER NOT NULL)")
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS attempt ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "reserved_at REAL NOT NULL,"
+                "status TEXT NOT NULL,"
+                "detail TEXT,"
+                "run_id TEXT,"
+                "cell_id TEXT,"
+                "logical_attempt TEXT,"
+                "transport_retry INTEGER)")
             row = conn.execute(
                 "SELECT max_requests, max_seconds, deadline_epoch, requests_used FROM budget WHERE id = 1"
             ).fetchone()
@@ -163,6 +175,9 @@ class LiveBudget:
             conn.commit()
         finally:
             conn.close()
+        self._tls = threading.local()
+        self.mirror_error = None
+        self.lifecycle_error = None
         self._mirror()
 
     def _connect(self) -> sqlite3.Connection:
@@ -171,15 +186,43 @@ class LiveBudget:
         return conn
 
     def _mirror(self) -> None:
-        payload = json.dumps({
-            "max_requests": self.max_requests,
-            "max_seconds": self.max_seconds,
-            "deadline_epoch": self.deadline_epoch,
-            "requests_used": self.requests_used,
-        }, indent=2) + "\n"
-        temporary = self.budget_path.with_name(self.budget_path.name + ".tmp")
-        temporary.write_text(payload, encoding="utf-8")
-        temporary.replace(self.budget_path)
+        """Rewrite the JSON from the committed SQLite row.
+
+        The lock plus a per-writer temp file stops a stale instance from
+        replacing a newer count, and a mirror error does not undo the reserve.
+        """
+
+        lock_path = self.budget_path.with_name(self.budget_path.name + ".lock")
+        try:
+            with lock_path.open("a", encoding="utf-8") as handle:
+                fcntl.flock(handle, fcntl.LOCK_EX)
+                conn = self._connect()
+                try:
+                    row = conn.execute(
+                        "SELECT max_requests, max_seconds, deadline_epoch, requests_used "
+                        "FROM budget WHERE id = 1"
+                    ).fetchone()
+                finally:
+                    conn.close()
+                if row is None:
+                    return
+                self.max_requests = int(row[0])
+                self.max_seconds = float(row[1])
+                self.deadline_epoch = float(row[2])
+                self.requests_used = int(row[3])
+                payload = json.dumps({
+                    "max_requests": self.max_requests,
+                    "max_seconds": self.max_seconds,
+                    "deadline_epoch": self.deadline_epoch,
+                    "requests_used": self.requests_used,
+                }, indent=2) + "\n"
+                temporary = self.budget_path.with_name(
+                    f"{self.budget_path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+                temporary.write_text(payload, encoding="utf-8")
+                os.replace(temporary, self.budget_path)
+            self.mirror_error = None
+        except OSError as exc:
+            self.mirror_error = f"{type(exc).__name__}: {exc}"
 
     def exhausted(self) -> str | None:
         if self.requests_used >= self.max_requests:
@@ -188,13 +231,16 @@ class LiveBudget:
             return "batch wall-clock deadline reached"
         return None
 
-    def reserve(self) -> int:
+    def reserve(self, link: dict | None = None) -> int:
         """Reserve one send. The count is read and updated in one transaction.
 
         A second process or LiveBudget instance sees the committed count.
         A failed send is not refunded, and a restart does not move the deadline.
+        ``link`` stores the run, cell, and logical attempt beside the reservation.
+        Existing databases without those columns are not altered.
         """
 
+        link = link or {}
         conn = self._connect()
         try:
             conn.execute("BEGIN IMMEDIATE")
@@ -214,17 +260,98 @@ class LiveBudget:
                 raise BudgetExhausted("batch wall-clock deadline reached")
             used += 1
             conn.execute("UPDATE budget SET requests_used = ? WHERE id = 1", (used,))
+            columns = {info[1] for info in conn.execute("PRAGMA table_info(attempt)")}
+            if "logical_attempt" in columns:
+                cursor = conn.execute(
+                    "INSERT INTO attempt (reserved_at, status, detail, run_id, cell_id, "
+                    "logical_attempt, transport_retry) VALUES (?, 'reserved', NULL, ?, ?, ?, ?)",
+                    (time.time(), link.get("run_id"), link.get("cell_id"),
+                     link.get("logical_attempt"), link.get("transport_retry")))
+            else:
+                cursor = conn.execute(
+                    "INSERT INTO attempt (reserved_at, status, detail) VALUES (?, 'reserved', NULL)",
+                    (time.time(),))
+            reservation_id = int(cursor.lastrowid)
             conn.commit()
         finally:
             conn.close()
+        self._tls.reservation_id = reservation_id
+        ids = getattr(self._tls, "ids", None)
+        if ids is None:
+            self._tls.ids = ids = []
+        ids.append(reservation_id)
         self.requests_used = used
         self.deadline_epoch = deadline
         self._mirror()
         return used
 
+    def begin_logical_call(self) -> None:
+        """Start a fresh reservation list for one logical model call."""
+
+        self._tls.ids = []
+
+    def reservation_ids(self) -> list[int]:
+        return list(getattr(self._tls, "ids", []) or [])
+
+    def mark_attempt(self, status: str, *, detail: str | None = None) -> None:
+        """Record dispatch or return for the reservation made on this thread.
+
+        A database error after the response exists must not discard that response
+        or cause another paid send.
+        """
+
+        reservation_id = getattr(self._tls, "reservation_id", None)
+        if reservation_id is None:
+            return
+        try:
+            conn = self._connect()
+            try:
+                conn.execute("BEGIN IMMEDIATE")
+                conn.execute(
+                    "UPDATE attempt SET status = ?, detail = ? WHERE id = ?",
+                    (status, detail, reservation_id))
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception as exc:  # noqa: BLE001 - keep the already received response
+            self.lifecycle_error = f"{type(exc).__name__}: {exc}"
+
+    def attempt_rows(self) -> list[dict]:
+        conn = self._connect()
+        try:
+            columns = [info[1] for info in conn.execute("PRAGMA table_info(attempt)")]
+            rows = conn.execute(
+                "SELECT " + ", ".join(columns) + " FROM attempt ORDER BY id"
+            ).fetchall()
+        finally:
+            conn.close()
+        return [dict(zip(columns, row)) for row in rows]
+
     @property
     def remaining(self) -> int:
         return max(0, self.max_requests - self.requests_used)
+
+
+def preserve_response_record(budget: Any, write, record: dict[str, Any]) -> None:
+    """A failed evidence write must not drop a response that already came back."""
+
+    try:
+        write(record)
+    except OSError as exc:
+        if budget is not None and hasattr(budget, "lifecycle_error"):
+            budget.lifecycle_error = f"{type(exc).__name__}: {exc}"
+
+
+def reservation_link(client: Any, transport_retry: int) -> dict[str, Any]:
+    """Identity stored with a budget reservation. Callers pass the client."""
+
+    ctx = getattr(client, "call_context", None) or {}
+    return {
+        "run_id": ctx.get("run_id"),
+        "cell_id": ctx.get("cell_id"),
+        "logical_attempt": ctx.get("attempt_id"),
+        "transport_retry": int(transport_retry),
+    }
 
 
 @dataclass
@@ -306,15 +433,17 @@ class DeepSeekFlashClient:
         transport_attempt = 0
         while True:
             try:
-                self.budget.reserve()  # raises BudgetExhausted before sending
+                self.budget.reserve(reservation_link(self, transport_attempt + 1))
             except BudgetExhausted as exc:
                 exc.physical_attempts = transport_attempt
                 raise
             transport_attempt += 1
+            self.budget.mark_attempt("dispatched")
             started = time.monotonic()
             try:
                 response = sdk.chat.completions.create(**kwargs)
             except Exception as exc:  # provider SDK exception types vary
+                self.budget.mark_attempt("awaiting_reconciliation", detail=type(exc).__name__)
                 retryable = _is_retryable(exc)
                 self._record({
                     "status": "error",
@@ -364,7 +493,8 @@ class DeepSeekFlashClient:
                 "wall_ms": wall_ms,
             }
             record.update(getattr(self, "call_context", {}))
-            self._record(record)
+            self.budget.mark_attempt("returned")
+            preserve_response_record(self.budget, self._record, record)
             note_transport(self, index=transport_attempt, status="ok", usage_raw=usage,
                            request_id=getattr(response, "id", None))
             if response_model != ALLOWED_MODEL:

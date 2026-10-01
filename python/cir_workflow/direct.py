@@ -64,14 +64,16 @@ class DirectChatClient:
         messages = [{"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}]
         from .call_context import note_transport
-        from .live import BudgetExhausted
+        from .live import BudgetExhausted, reservation_link
         prompt_sha = _sha(json.dumps(messages, ensure_ascii=False, sort_keys=True))
         self.last_transport_log = []
         try:
-            self.budget.reserve()
+            self.budget.reserve(reservation_link(self, 1))
         except BudgetExhausted as exc:
             exc.physical_attempts = 0
             raise
+        if hasattr(self.budget, "mark_attempt"):
+            self.budget.mark_attempt("dispatched")
         started = time.monotonic()
         kwargs: dict[str, Any] = {"model": self.model, "messages": messages,
                                   "temperature": self.temperature,
@@ -81,6 +83,8 @@ class DirectChatClient:
         try:
             response = self._client.chat.completions.create(**kwargs)
         except Exception as exc:  # noqa: BLE001
+            if hasattr(self.budget, "mark_attempt"):
+                self.budget.mark_attempt("awaiting_reconciliation", detail=type(exc).__name__)
             note_transport(self, index=1, status="error",
                            error_type=type(exc).__name__, error=str(exc))
             self._record({"status": "error", "model": self.model,
@@ -100,7 +104,10 @@ class DirectChatClient:
         response_model = getattr(response, "model", None)
         note_transport(self, index=1, status="ok", usage_raw=usage,
                        request_id=getattr(response, "id", None))
-        self._record({"status": "ok", "model": self.model,
+        if hasattr(self.budget, "mark_attempt"):
+            self.budget.mark_attempt("returned")
+        from .live import preserve_response_record
+        preserve_response_record(self.budget, self._record, {"status": "ok", "model": self.model,
                       "base_url": self.base_url, "response_model": response_model,
                       "request_id": getattr(response, "id", None),
                       "messages": messages, "prompt_sha256": prompt_sha,
