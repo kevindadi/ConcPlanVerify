@@ -99,6 +99,17 @@ class RequirementTests(unittest.TestCase):
         self.assertNotEqual(result["status"], "bounded_covered_satisfied")
         self.assertEqual(result["checks"]["R5"]["status"], "pass")
 
+    def test_rebound_mutex_name_is_a_different_root(self):
+        src = DERIVED.replace(
+            "    let m_s = Arc::clone(&m);\n    let m_r = Arc::clone(&m);",
+            "    let m_s = Arc::clone(&m);\n    let m = Arc::new(Mutex::new(()));\n    let m_r = Arc::clone(&m);",
+        )
+        with tempfile.TemporaryDirectory() as td:
+            result = evaluate_requirements(src, Path(td) / "rebind-lock")
+        self.assertEqual(result["checks"]["R1"]["status"], "fail")
+        self.assertNotEqual(result["status"], "bounded_covered_satisfied")
+        self.assertTrue(all(run.get("kind") == "completed" for run in result["runs"]))
+
     def test_distinct_mutex_roots_do_not_pass(self):
         src = DERIVED.replace(
             "let m_r = Arc::clone(&m);",

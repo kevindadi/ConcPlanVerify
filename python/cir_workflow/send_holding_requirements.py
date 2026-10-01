@@ -192,25 +192,63 @@ def _params(stripped: str, name: str) -> list[str]:
     return names
 
 
-def _mutex_roots(main: str) -> dict[str, str]:
-    """Map a binding to the Mutex construction it came from.
+def _lookup_root(scopes: list[dict[str, str]], name: str) -> str | None:
+    for scope in reversed(scopes):
+        if name in scope:
+            return scope[name]
+    return None
 
-    Each ``Arc::new(Mutex::new(...))`` is its own root. ``Arc::clone`` copies
-    that root. An unrecognized initializer is unknown, not another root's clone.
+
+def _mutex_roots(main: str) -> dict[str, str] | None:
+    """Visible bindings after straight-line code.
+
+    Each ``Arc::new(Mutex::new)`` gets an identity from its source position.
+    ``Arc::clone`` copies that identity. A new ``let`` always creates a binding
+    in the current block; an unrecognized initializer is unknown and does not
+    keep the outer construction. ``None`` means control flow is unsupported.
     """
 
-    roots: dict[str, str] = {}
-    for match in re.finditer(r"let\s+(?:mut\s+)?(\w+)\s*=\s*([^;]+);", main):
-        name, expr = match.group(1), match.group(2).strip()
-        if re.match(r"Arc::new\s*\(\s*Mutex::new\b", expr):
-            roots[name] = f"root:{name}"
+    if re.search(r"\b(if|match|while|for|loop|async)\b", main):
+        return None
+    scopes: list[dict[str, str]] = [{}]
+    index = 0
+    while index < len(main):
+        char = main[index]
+        if char == "{":
+            scopes.append({})
+            index += 1
             continue
-        clone = re.match(r"Arc::clone\s*\(\s*&(\w+)\s*\)", expr)
-        if clone:
-            source = clone.group(1)
-            roots[name] = roots.get(source, "unknown")
+        if char == "}":
+            if len(scopes) == 1:
+                return None
+            scopes.pop()
+            index += 1
             continue
-    return roots
+        let = re.match(r"let\s+(?:mut\s+)?(\w+)\s*=\s*", main[index:])
+        assign = None if let else re.match(r"(\w+)\s*=\s*", main[index:])
+        if let or (assign and _lookup_root(scopes, assign.group(1)) is not None):
+            match = let or assign
+            name = match.group(1)
+            expr_at = index + match.end()
+            end = main.find(";", expr_at)
+            if end < 0:
+                return None
+            expr = main[expr_at:end].strip()
+            if re.match(r"Arc::new\s*\(\s*Mutex::new\b", expr):
+                scopes[-1][name] = f"site:{expr_at}"
+            elif (clone := re.match(r"Arc::clone\s*\(\s*&(\w+)\s*\)\s*$", expr)):
+                scopes[-1][name] = _lookup_root(scopes, clone.group(1)) or "unknown"
+            elif let:
+                scopes[-1][name] = "unknown"
+            else:
+                scopes[-1][name] = "unknown"
+            index = end + 1
+            continue
+        index += 1
+    flat: dict[str, str] = {}
+    for scope in scopes:
+        flat.update(scope)
+    return flat
 
 
 def _spawn_args(main: str, fname: str) -> list[list[str]] | None:
