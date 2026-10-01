@@ -722,6 +722,7 @@ def _rewrite_traces(src_dir: Path, dst_dir: Path, mapping: dict[str, str],
                     and event.get("r") in wrapper_names):
                 continue
             event["r"] = mapping.get(event.get("r", ""), event.get("r", ""))
+            # `n` and `api` stay on the event. Projection must not drop a count.
             out.append(json.dumps(event))
         (dst_dir / trace.name).write_text("\n".join(out) + ("\n" if out else ""),
                                           encoding="utf-8")
@@ -751,8 +752,12 @@ def _conform_all_op_resource(binary: Path, cir_path: Path, traces_dir: Path) -> 
             # `got` is "<op>:<resource>"; keep the structured resource.
             got = str(result.get("got", ""))
             resource = got.split(":", 1)[1] if ":" in got else None
+            detail = result.get("detail")
+            kind = "count" if str(detail or "").startswith("kind=count") else status
             violations.append({"status": status, "got": got, "resource": resource,
-                               "event_index": result.get("event_index")})
+                               "event_index": result.get("event_index"),
+                               "expected": result.get("expected"), "detail": detail,
+                               "kind": kind})
             if first is None:
                 first = result
     return {"traces": len(traces), "statuses": dict(statuses),

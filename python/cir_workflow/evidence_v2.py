@@ -23,7 +23,7 @@ from .evidence import contract_properties, obligation_for
 
 TRACE_DECIDABLE = {"safety", "never_holds_all", "unreachable", "reachable",
                    "holds_all", "always_reachable", "deadlock_free", "reachable_all"}
-TOOL_STATUSES = {"error", "unsupported", "unknown_sid", "incomplete", "tool_error"}
+TOOL_STATUSES = {"error", "unsupported", "unknown_sid", "incomplete", "tool_error", "invalid"}
 RUN_FAILURE_STATES = {"source_build_failed", "instrument_failed",
                       "instrument_build_failed", "not_run", "timeout",
                       "runtime_crash", "partial"}
@@ -188,10 +188,12 @@ def _load_conform(result: dict) -> dict:
         statuses[status] = statuses.get(status, 0) + 1
         if status != "conformant":
             got = str(raw.get("got", ""))
+            detail = raw.get("detail")
+            kind = "count" if str(detail or "").startswith("kind=count") else status
             item = {"status": status, "got": got,
                     "resource": got.split(":", 1)[1] if ":" in got else None,
                     "event_index": raw.get("event_index"),
-                    "expected": raw.get("expected"), "detail": raw.get("detail")}
+                    "expected": raw.get("expected"), "detail": detail, "kind": kind}
             violations.append(item)
             if first is None:
                 first = raw
