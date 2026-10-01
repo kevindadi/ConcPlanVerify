@@ -1,0 +1,65 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20261001T214925-44098-dc51d5/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0382]: the type `Arc` does not implement `Copy`
+    --> src/main.rs:39:15
+     |
+   8 |     let m: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
+     |         - this move could be avoided by cloning the original `Arc`, which is inexpensive
+...
+  23 |     let receiver = thread::spawn(move || {
+     |                                  ------- value moved into closure here
+  24 |         loop {
+     |         ---- inside of this loop
+...
+  28 |                     let mut cnt = m.lock().unwrap();
+     |                                   - variable moved due to use in closure
+...
+  39 |     let cnt = m.lock().unwrap();
+     |               ^ value borrowed here after move
+     |
+     = note: consider using `Arc::clone`
+     = note: borrow occurs due to deref coercion to `std::sync::Mutex<usize>`
+note: deref defined here
+    --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/sync.rs:2569:5
+     |
+2569 |     type Target = T;
+     |     ^^^^^^^^^^^
+help: consider moving the expression out of the loop so it is only moved once
+     |
+  24 ~         let mut value = m.lock();
+  25 ~         loop {
+  26 |             // R4/R5: wait on the empty channel WITHOUT holding m.
+  27 |             match rx.recv() {
+  28 |                 Ok(_v) => {
+  29 ~                     let mut cnt = value.unwrap();
+     |
+help: consider cloning the value before moving it into the closure
+     |
+  23 ~     let value = m.clone();
+  24 ~     let receiver = thread::spawn(move || {
+  25 |         loop {
+ ...
+  28 |                 Ok(_v) => {
+  29 ~                     let mut cnt = value.lock().unwrap();
+     |
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 1 previous error
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`

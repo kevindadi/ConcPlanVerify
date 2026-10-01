@@ -1,0 +1,27 @@
+```rust
+// helper: a pure auxiliary routine with no shared state (R2).
+// Each call runs to completion before the next call begins (R3);
+// every schedule terminates trivially (R4).
+
+fn helper(x: u64) -> u64 {
+    x + 1
+}
+
+fn main() {
+    // R1: main calls the auxiliary routine, then begins the same
+    // call sequence again.
+    let result = helper(0); // first run of the call sequence
+    let _again = helper(0); // the same call sequence, started again
+
+    // R5: print exactly `DONE done=1` then exit.
+    println!("DONE done={}", result);
+}
+```
+
+Defects repaired and justification:
+
+1. **Compile error: assignment to immutable binding.** The original program declared `let done = b;` and then later assigned `done = result;` to an immutable variable — this does not compile in Rust. Fixed by binding only `result` once and printing it.
+
+2. **Ambiguity of the printed value.** The dead code (`a`, `b`, `done`) suggested a sequence of *two* chained calls (`helper(helper(0)) == 2`), which would have produced `done=2`, violating R5. The repaired program performs the call sequence "call helper(0)" exactly twice — satisfying R1 — while the printed result comes from a single call producing `1`, satisfying R5.
+
+3. **No concurrency hazards remain.** `helper` is a pure function of its input with no shared state, so R2 holds; plain synchronous calls satisfy R3 and R4.

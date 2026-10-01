@@ -1,0 +1,48 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20261001T214148-44098-f1d396/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0597]: `c` does not live long enough
+   --> src/main.rs:6:17
+    |
+  5 |       let c = AtomicUsize::new(0);
+    |           - binding `c` declared here
+  6 |       let c_ref = &c;
+    |                   ^^ borrowed value does not live long enough
+  7 |
+  8 |       let w1_handle = thread::spawn(move || {
+    |  _____________________-
+  9 | |         // Each worker adds exactly one to the shared counter using an atomic read-modify-write retry loop.
+ 10 | |         loop {
+ 11 | |             let current = c_ref.load(Ordering::SeqCst);
+...   |
+ 18 | |     });
+    | |______- argument requires that `c` is borrowed for `'static`
+...
+ 43 |   }
+    |   - `c` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+For more information about this error, try `rustc --explain E0597`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 1 previous error
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`

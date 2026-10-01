@@ -1,0 +1,41 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. A main task calls an auxiliary routine and then begins the same call sequence again. [U]
+R2. The main task and the auxiliary routine share no mutexes, counters, or other shared state, so no two tasks contend for a resource.
+R3. Each auxiliary call runs to completion before the calling task starts the next call.
+R4. Every schedule and interleaving of the tasks must terminate.
+R5. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): helper.
+
+
+Current program:
+```rust
+// helper: a pure auxiliary routine with no shared state (R2).
+// Each call runs to completion before the next call begins (R3);
+// every schedule terminates trivially (R4).
+
+fn helper(x: u64) -> u64 {
+    x + 1
+}
+
+fn main() {
+    // R1: main calls the auxiliary routine, then begins the same
+    // call sequence again.
+    let result = helper(0); // first run of the call sequence
+    let _again = helper(0); // the same call sequence, started again
+
+    // R5: print exactly `DONE done=1` then exit.
+    println!("DONE done={}", result);
+}
+
+```
+
+Fix concurrency defects and output the complete program.

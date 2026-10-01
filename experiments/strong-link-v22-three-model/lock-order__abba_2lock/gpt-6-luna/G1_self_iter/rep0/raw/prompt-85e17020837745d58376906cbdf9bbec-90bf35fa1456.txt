@@ -1,0 +1,67 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. The design contains one main thread and two worker threads.
+R2. Both worker threads share the same two locks, and neither lock may be held by more than one worker at a time.
+R3. Each worker must hold both locks at the same time while it performs its critical work.
+R4. A worker that finds a lock busy must wait for it to become free and then continue.
+R5. It must never be possible for the two workers to leave each other waiting forever, each holding one lock and needing the other.
+R6. The main thread starts both workers and only finishes after both workers have finished.
+R7. Every worker must release each lock it holds before it finishes.
+R8. Every possible schedule or interleaving of the workers must terminate.
+R9. The program must print exactly the line `DONE t1=1 t2=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): t1, t2.
+- Shared resources: a (lock), b (lock).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn t1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) -> u8 {
+    {
+        let _guard_a = a.lock().unwrap();
+        let _guard_b = b.lock().unwrap();
+        // Critical work requiring both a and b.
+    }
+    1
+}
+
+fn t2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) -> u8 {
+    {
+        let _guard_a = a.lock().unwrap();
+        let _guard_b = b.lock().unwrap();
+        // Critical work requiring both a and b.
+    }
+    1
+}
+
+fn main() {
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let handle_t1 = thread::spawn(move || t1(a1, b1));
+
+    let a2 = Arc::clone(&a);
+    let b2 = Arc::clone(&b);
+    let handle_t2 = thread::spawn(move || t2(a2, b2));
+
+    let result_t1 = handle_t1.join().unwrap();
+    let result_t2 = handle_t2.join().unwrap();
+
+    println!("DONE t1={result_t1} t2={result_t2}");
+}
+
+```
+
+Fix concurrency defects and output the complete program.

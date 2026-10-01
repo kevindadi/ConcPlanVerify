@@ -1,0 +1,23 @@
+```rust
+use std::thread;
+
+fn helper() {
+    // Auxiliary routine: does nothing significant, runs to completion
+}
+
+fn main() {
+    // R1: A main task calls an auxiliary routine and then begins the same call sequence again.
+    // R3: Each auxiliary call runs to completion before the calling task starts the next call.
+    
+    // First call to helper
+    let handle = thread::spawn(helper);
+    handle.join().unwrap();
+    
+    // Second call to helper (same call sequence again)
+    let handle2 = thread::spawn(helper);
+    handle2.join().unwrap();
+    
+    // R5: The program must print exactly the line `DONE done=1` and then exit.
+    println!("DONE done=1");
+}
+```

@@ -1,0 +1,11 @@
+fn helper() {}
+
+fn call_sequence() {
+    helper();
+}
+
+fn main() {
+    call_sequence();
+    call_sequence();
+    println!("DONE done=1");
+}

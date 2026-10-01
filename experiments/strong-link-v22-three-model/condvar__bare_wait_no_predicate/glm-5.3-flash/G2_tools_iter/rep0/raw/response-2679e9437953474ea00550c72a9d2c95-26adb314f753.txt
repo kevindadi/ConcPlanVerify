@@ -1,0 +1,44 @@
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+fn main() {
+    let shared = Arc::new((Mutex::new(false), Condvar::new()));
+
+    let waiter = {
+        let shared = Arc::clone(&shared);
+        thread::spawn(move || {
+            let (m, cv) = (&shared.0, &shared.1);
+            // R4/R6: check the flag first; wait only while it is false.
+            let mut ready = m.lock().unwrap();
+            while !*ready {
+                ready = cv.wait(ready).unwrap();
+                // Re-check the flag after each wake (loop condition).
+            }
+            *ready
+        })
+    };
+
+    let notifier = {
+        let shared = Arc::clone(&shared);
+        thread::spawn(move || {
+            let (m, cv) = (&shared.0, &shared.1);
+            // R3: set flag while holding the lock, signal, then release.
+            let mut ready = m.lock().unwrap();
+            *ready = true;
+            cv.notify_one();
+            drop(ready);
+        })
+    };
+
+    let ready = waiter.join().unwrap();
+    notifier.join().unwrap();
+    // R10
+    println!("DONE ready={}", ready);
+}
+```
+
+Changes from the original:
+- Replaced `cv.wait_while(ready, ...)` with an explicit `while !*ready { ready = cv.wait(ready) }` loop. This satisfies R4 (check-before-wait, re-check after each wake), R6 (never waits when the flag is already true, releases the lock while blocked — `wait` atomically unlocks), and R5 (if the notifier signals before the waiter waits, the waiter sees `*ready == true` on its initial check and never waits at all).
+- Removed the unused `let (m, cv)` binding in `main` (it caused shadowing noise/warnings).
+- The waiter returns the observed flag value so `DONE ready=true` (R8, R10) is printed exactly once, after both roles are joined (R7).

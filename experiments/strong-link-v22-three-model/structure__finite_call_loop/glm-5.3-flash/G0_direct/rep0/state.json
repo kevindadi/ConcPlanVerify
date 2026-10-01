@@ -1,0 +1,12 @@
+{
+  "fingerprint": "44359300f2ec6daacbb360593601f6ebbed0db3c8431e40381298c7853e57dba",
+  "calls": [
+    {
+      "system": "Write one Rust program from the requirements. Do not invent extra requirements.",
+      "user": "Specification:\n# Requirements\n\nR1. A main task calls an auxiliary routine and then begins the same call sequence again. [U]\nR2. The main task and the auxiliary routine share no mutexes, counters, or other shared state, so no two tasks contend for a resource.\nR3. Each auxiliary call runs to completion before the calling task starts the next call.\nR4. Every schedule and interleaving of the tasks must terminate.\nR5. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): helper.\n\n\nOutput the complete Rust program.",
+      "response": "```rust\n// Roles: helper (auxiliary routine), called by the main task.\n\nfn helper(n: u32) {\n    // No shared state: nothing here is shared with the main task,\n    // so no two tasks ever contend for a resource. (R2)\n    let _ = n;\n}\n\nfn main() {\n    // R1: main task calls the auxiliary routine, then begins the\n    // same call sequence again.\n    // R3: each call runs to completion before the next call starts\n    // (calls are strictly sequential on the single task).\n    // R4: a single task with a fixed, finite call sequence always\n    // terminates under every schedule.\n    helper(1);\n    helper(1);\n\n    // R5: print exactly this line and exit.\n    println!(\"DONE done=1\");\n}\n```",
+      "response_model": "glm-5.3-flash",
+      "snapshot_sha256": "b89cd0e539b56f83891246db0c08546cf7044a2f0b36280422c1bb1ff4d26264"
+    }
+  ]
+}

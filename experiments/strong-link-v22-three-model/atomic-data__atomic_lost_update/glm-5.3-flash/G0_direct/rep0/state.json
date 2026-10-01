@@ -1,0 +1,12 @@
+{
+  "fingerprint": "2f79d305b6394d42ffcc9bfa5f7cab9b79a5e8030ac1d5443ce5c518ec389f73",
+  "calls": [
+    {
+      "system": "Write one Rust program from the requirements. Do not invent extra requirements.",
+      "user": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.\nR2. Both worker threads share a single atomic counter that starts at zero.\nR3. Each worker adds exactly one to the shared counter, so once both have finished the counter equals two.\nR4. Each worker updates the counter with an atomic read-modify-write retry loop, so a competing update can never be silently lost.\nR5. A failed update attempt must be retried rather than abandoned, so every worker's increment eventually takes effect.\nR6. From every state that can occur, it must remain possible for the counter to still reach two.\nR7. Each increment appears to happen in a single indivisible step, so no partial update is ever observable.\nR8. Every possible schedule and interleaving of the two workers must terminate.\nR9. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2.\n- Shared resources: c (atomic counter).\n\n\nOutput the complete Rust program.",
+      "response": "```rust\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Arc;\n\nstatic c: AtomicUsize = AtomicUsize::new(0);\n\nfn worker() {\n    loop {\n        let cur = c.load(Ordering::SeqCst);\n        match c.compare_exchange_weak(\n            cur,\n            cur + 1,\n            Ordering::SeqCst,\n            Ordering::SeqCst,\n        ) {\n            Ok(_) => break,\n            Err(_) => continue,\n        }\n    }\n}\n\nfn w1() {\n    worker();\n}\n\nfn w2() {\n    worker();\n}\n\nfn main() {\n    let h1 = std::thread::spawn(w1);\n    let h2 = std::thread::spawn(w2);\n    h1.join().unwrap();\n    h2.join().unwrap();\n    assert_eq!(c.load(Ordering::SeqCst), 2);\n    println!(\"DONE done=1\");\n}\n```",
+      "response_model": "glm-5.3-flash",
+      "snapshot_sha256": "6bd62bfb82f7838a5996101c9eae567c7ef90ee85352b407d32cfb1a28f4cf07"
+    }
+  ]
+}

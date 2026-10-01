@@ -1,0 +1,73 @@
+Revise the Rust program using the tool feedback.
+
+Specification:
+# Requirements
+
+R1. A main task starts a sender role and a receiver role that run at the same time.
+R2. The two roles communicate through a channel that can hold at most one value, and both roles occasionally need one shared lock. [U]
+R3. The sender passes two values in order and the receiver takes two values, so both roles can finish.
+R4. When the channel is full the sender waits before it sends again, and when the channel is empty the receiver waits before it takes.
+R5. No role may wait on the channel while holding the shared lock that the other role needs.
+R6. Every schedule and interleaving must terminate with the sender and the receiver both finished.
+R7. The sender must not pass its second value before the receiver has taken the first, because the channel holds only one value.
+R8. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): sender, receiver.
+- Shared resources: m (lock), ch (channel).
+
+
+Current program:
+```rust
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
+
+fn main() {
+    // ch: a channel that holds at most one value (capacity 1).
+    let (tx, rx) = mpsc::sync_channel::<i32>(1);
+    // m: shared lock both roles occasionally need.
+    let m: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
+
+    let sender = {
+        let m = m.clone();
+        thread::spawn(move || {
+            for v in 1..=2 {
+                // R4/R5: wait on the full channel WITHOUT holding m,
+                // so the receiver is never blocked by the sender's lock.
+                tx.send(v).expect("receiver alive");
+                let mut cnt = m.lock().unwrap();
+                *cnt += 1;
+            }
+        })
+    };
+
+    let receiver = thread::spawn(move || {
+        loop {
+            // R4/R5: wait on the empty channel WITHOUT holding m.
+            match rx.recv() {
+                Ok(_v) => {
+                    let mut cnt = m.lock().unwrap();
+                    *cnt += 1;
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
+    sender.join().expect("sender thread");
+    receiver.join().expect("receiver thread");
+
+    let cnt = m.lock().unwrap();
+    let _ = *cnt; // both roles can finish once two values passed (R3)
+    println!("DONE done=1");
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": null, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v22-three-model/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261001T214925-44098-dc51d5/round-1/calls/001-build", "exit_code": 101, "extra": {"argv_sha256": "b3a91163d47990f31181f4225a41bf3dbd99d86f63fab1c7f6372313976d0978", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v22-three-model/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261001T214925-44098-dc51d5/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v22-three-model/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261001T214925-44098-dc51d5/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v22-three-model/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261001T214925-44098-dc51d5/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v22-three-model/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261001T214925-44098-dc51d5/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v22-three-model/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261001T214925-44098-dc51d5/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v22-three-model/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261001T214925-44098-dc51d5/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "978a262d477638cb8a0457e54292509c482c1fc4354068c02bce7cd7a3a42ce3", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 176}, "build_ok": false, "lockbud_detected": false, "lockbud_status": "lockbud_unavailable", "miri_detected": false, "miri_statuses": []}
+
+Output the complete corrected Rust program.

@@ -1,0 +1,36 @@
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+fn waiter(shared: &Arc<(Mutex<bool>, Condvar)>) {
+    let (m, cv) = &*shared;
+    let mut ready = m.lock().unwrap();
+    while !*ready {
+        ready = cv.wait(ready).unwrap();
+    }
+}
+
+fn notifier(shared: &Arc<(Mutex<bool>, Condvar)>) {
+    let (m, cv) = &*shared;
+    let mut ready = m.lock().unwrap();
+    *ready = true;
+    cv.notify_all();
+    drop(ready);
+}
+
+fn main() {
+    let shared = Arc::new((Mutex::new(false), Condvar::new()));
+    let s2 = Arc::clone(&shared);
+    let s3 = Arc::clone(&shared);
+
+    let w = thread::spawn(move || waiter(&s2));
+    let n = thread::spawn(move || notifier(&s3));
+    w.join().unwrap();
+    n.join().unwrap();
+
+    let ready = *shared.0.lock().unwrap();
+    println!("DONE ready={}", ready);
+}
+```
+
+The predicate loop (`while !*ready`) guarantees the waiter never waits when the flag is already true, fixing the lost-wakeup defect (R5, R9). Using `notify_all` ensures termination under every interleaving. Released lock during wait satisfies R6.

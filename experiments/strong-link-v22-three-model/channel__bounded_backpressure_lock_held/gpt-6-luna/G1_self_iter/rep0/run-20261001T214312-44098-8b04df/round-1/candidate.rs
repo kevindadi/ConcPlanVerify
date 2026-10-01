@@ -1,0 +1,46 @@
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
+
+fn sender(ch: mpsc::SyncSender<u8>, m: Arc<Mutex<usize>>) {
+    {
+        let mut shared = m.lock().unwrap();
+        *shared += 1;
+    }
+    ch.send(1).unwrap();
+
+    {
+        let mut shared = m.lock().unwrap();
+        *shared += 1;
+    }
+    ch.send(2).unwrap();
+}
+
+fn receiver(ch: mpsc::Receiver<u8>, m: Arc<Mutex<usize>>) {
+    {
+        let mut shared = m.lock().unwrap();
+        *shared += 1;
+    }
+    let _first = ch.recv().unwrap();
+
+    {
+        let mut shared = m.lock().unwrap();
+        *shared += 1;
+    }
+    let _second = ch.recv().unwrap();
+}
+
+fn main() {
+    let (tx, rx) = mpsc::sync_channel(1);
+    let m = Arc::new(Mutex::new(0));
+
+    let sender_m = Arc::clone(&m);
+    let sender_thread = thread::spawn(move || sender(tx, sender_m));
+
+    let receiver_m = Arc::clone(&m);
+    let receiver_thread = thread::spawn(move || receiver(rx, receiver_m));
+
+    sender_thread.join().unwrap();
+    receiver_thread.join().unwrap();
+
+    println!("DONE done=1");
+}

@@ -1,0 +1,37 @@
+```rust
+use std::sync::{Arc, Mutex};
+
+fn main() {
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let t1 = std::thread::spawn(move || {
+        let _a = a1.lock().unwrap();
+        let _b = b1.lock().unwrap();
+        // critical work with both locks held
+        // always acquire a then b, release automatically in reverse order
+    });
+
+    let a2 = Arc::clone(&a);
+    let b2 = Arc::clone(&b);
+    let t2 = std::thread::spawn(move || {
+        let _a = a2.lock().unwrap();
+        let _b = b2.lock().unwrap();
+        // same lock order a then b; no deadlock possible
+    });
+
+    t1.join().unwrap();
+    t2.join().unwrap();
+
+    println!("DONE t1=1 t2=1");
+}
+```
+
+Repair justification (defects fixed vs. naive version):
+
+- **Deadlock (R5/R8):** In the original buggy program, t1 locked `a` then `b`, while t2 locked `b` then `a`. Opposite acquisition order allows a circular wait: t1 holds `a` and waits for `b`, t2 holds `b` and waits for `a`. Fixed by enforcing a single global lock order — both workers acquire `a` before `b`. Bounded waiting (R4) holds since a lock holder always eventually releases both.
+- **Guards held via `let _x`:** Guards are deliberately bound with `let _a` (definite binding), keeping mutexes locked until end of scope. `let _ = lock()` would drop the guard immediately and violate R3.
+- **Shared locks (R2):** `Arc<Mutex<()>>` clones share the same underlying mutexes for both workers; no worker ever holds both simultaneously.
+- **Join before output (R6, R9):** Main calls `join` on both handles, so `DONE t1=1 t2=1` prints only after both workers finish, exactly once, guaranteeing R7 (guards auto-releasing) and R8 (all interleavings terminate).

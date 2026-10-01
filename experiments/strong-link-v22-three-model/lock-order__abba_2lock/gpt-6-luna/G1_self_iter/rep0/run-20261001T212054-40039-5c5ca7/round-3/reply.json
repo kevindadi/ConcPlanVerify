@@ -1,0 +1,7 @@
+{
+  "round": 3,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "Both workers already acquire the locks in the same order (`a` then `b`), which prevents a circular wait. This version makes that ordering explicit; the program prints exactly the required line.\n\n```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn t1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) -> u8 {\n    // Acquire shared locks in the same order in both workers.\n    let _guard_a = a.lock().unwrap();\n    let _guard_b = b.lock().unwrap();\n\n    // Critical work requiring both a and b.\n    1\n}\n\nfn t2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) -> u8 {\n    // Acquire shared locks in the same order in both workers.\n    let _guard_a = a.lock().unwrap();\n    let _guard_b = b.lock().unwrap();\n\n    // Critical work requiring both a and b.\n    1\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let handle_t1 = thread::spawn(move || t1(a1, b1));\n\n    let a2 = Arc::clone(&a);\n    let b2 = Arc::clone(&b);\n    let handle_t2 = thread::spawn(move || t2(a2, b2));\n\n    let result_t1 = handle_t1.join().unwrap();\n    let result_t2 = handle_t2.join().unwrap();\n\n    println!(\"DONE t1={result_t1} t2={result_t2}\");\n}\n```"
+}

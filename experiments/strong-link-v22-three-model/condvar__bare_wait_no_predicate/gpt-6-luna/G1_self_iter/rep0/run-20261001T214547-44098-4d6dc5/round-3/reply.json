@@ -1,0 +1,7 @@
+{
+  "round": 3,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "The program already satisfies the stated concurrency requirements; no repair is needed. Here is the complete program:\n\n```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct State {\n    ready: bool,\n}\n\nfn waiter(m: Arc<Mutex<State>>, cv: Arc<Condvar>) {\n    let mut state = m.lock().unwrap();\n\n    while !state.ready {\n        state = cv.wait(state).unwrap();\n    }\n}\n\nfn notifier(m: Arc<Mutex<State>>, cv: Arc<Condvar>) {\n    let mut state = m.lock().unwrap();\n    state.ready = true;\n    cv.notify_one();\n    drop(state);\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(State { ready: false }));\n    let cv = Arc::new(Condvar::new());\n\n    let waiter_m = Arc::clone(&m);\n    let waiter_cv = Arc::clone(&cv);\n    let waiter_handle = thread::spawn(move || waiter(waiter_m, waiter_cv));\n\n    let notifier_m = Arc::clone(&m);\n    let notifier_cv = Arc::clone(&cv);\n    let notifier_handle = thread::spawn(move || notifier(notifier_m, notifier_cv));\n\n    waiter_handle.join().unwrap();\n    notifier_handle.join().unwrap();\n\n    let state = m.lock().unwrap();\n    println!(\"DONE ready={}\", state.ready);\n}\n```"
+}

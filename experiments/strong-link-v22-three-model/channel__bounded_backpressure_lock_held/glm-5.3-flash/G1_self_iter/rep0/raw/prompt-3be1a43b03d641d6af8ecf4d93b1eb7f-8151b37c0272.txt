@@ -1,0 +1,94 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. A main task starts a sender role and a receiver role that run at the same time.
+R2. The two roles communicate through a channel that can hold at most one value, and both roles occasionally need one shared lock. [U]
+R3. The sender passes two values in order and the receiver takes two values, so both roles can finish.
+R4. When the channel is full the sender waits before it sends again, and when the channel is empty the receiver waits before it takes.
+R5. No role may wait on the channel while holding the shared lock that the other role needs.
+R6. Every schedule and interleaving must terminate with the sender and the receiver both finished.
+R7. The sender must not pass its second value before the receiver has taken the first, because the channel holds only one value.
+R8. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): sender, receiver.
+- Shared resources: m (lock), ch (channel).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+fn main() {
+    // ch: bounded channel of capacity 1 (R2, R4, R7)
+    let ch = Arc::new((Mutex::<Option<i32>>::new(None), Condvar::new()));
+    // m: the shared lock used occasionally by both roles (R2, R5)
+    let m = Arc::new(Mutex::new(()));
+
+    let (ch_s, m_s) = (Arc::clone(&ch), Arc::clone(&m));
+    let sender = thread::spawn(move || {
+        for v in 1..=2 {
+            let (lock, cv) = &*ch_s;
+            // Wait for free slot WITHOUT touching m (R5)
+            // R7: with capacity 1, sending v=2 can only proceed after the
+            // receiver has taken v=1 and freed the slot via notify_all.
+            let mut slot = lock
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            while slot.is_some() {
+                slot = cv
+                    .wait(slot)
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+            }
+            // Brief use of m after releasing any wait; not held while waiting (R5)
+            {
+                let _g = m_s.lock().unwrap();
+            }
+            *slot = Some(v);
+            cv.notify_all();
+        }
+    });
+
+    let (ch_r, m_r) = (Arc::clone(&ch), Arc::clone(&m));
+    let receiver = thread::spawn(move || {
+        let mut got = 0;
+        for _ in 0..2 {
+            let (lock, cv) = &*ch_r;
+            // Wait for value WITHOUT touching m (R5)
+            let mut slot = lock
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            while slot.is_none() {
+                slot = cv
+                    .wait(slot)
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+            }
+            {
+                let _g = m_r.lock().unwrap();
+            }
+            if slot.take().is_some() {
+                got += 1;
+            }
+            cv.notify_all();
+        }
+        got
+    });
+
+    sender.join().unwrap();
+    let got = receiver.join().unwrap();
+
+    // done is a completion flag, not the raw receive count:
+    // both values received (got == 2) means done == 1 (R3, R8).
+    let done = (got == 2) as i32;
+    println!("DONE done={}", done); // R8: exactly "DONE done=1"
+}
+
+```
+
+Fix concurrency defects and output the complete program.

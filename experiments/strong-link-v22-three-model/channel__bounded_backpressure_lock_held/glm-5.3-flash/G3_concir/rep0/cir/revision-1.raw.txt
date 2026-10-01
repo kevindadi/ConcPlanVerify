@@ -1,0 +1,57 @@
+```json
+{
+  "program": "one_slot_channel_pingpong",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {"resources": ["m", "ch", "notfull", "notempty", "tokens"], "functions": ["main", "sender", "receiver"]},
+      "requires": {"resources": [], "functions": []},
+      "resources": [
+        {"name": "m", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+        {"name": "ch", "kind": "sync", "type": "Channel", "mode": "Sync", "base": "Int", "capacity": 1},
+        {"name": "notfull", "kind": "sync", "type": "Condvar", "mode": "Sync"},
+        {"name": "notempty", "kind": "sync", "type": "Condvar", "mode": "Sync"},
+        {"name": "tokens", "kind": "var", "type": "Var", "base": "Int", "init": 0}
+      ],
+      "protection": [{"var": "tokens", "lock": "m"}],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "scope", "funcs": ["main::sender", "main::receiver"]},
+            {"sid": "s2", "kind": "return"}
+          ]
+        },
+        {
+          "name": "sender",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "write_shared", "resource": "main::ch", "expr": "1"},
+            {"sid": "s2", "kind": "condvar_notify", "condvar": "main::notempty"},
+            {"sid": "s3", "kind": "condvar_wait", "condvar": "main::notfull", "lock": "main::m"},
+            {"sid": "s4", "kind": "write_shared", "resource": "main::ch", "expr": "2"},
+            {"sid": "s5", "kind": "condvar_notify", "condvar": "main::notempty"},
+            {"sid": "s6", "kind": "return"}
+          ]
+        },
+        {
+          "name": "receiver",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "condvar_wait", "condvar": "main::notempty", "lock": "main::m"},
+            {"sid": "s2", "kind": "condvar_notify", "condvar": "main::notfull"},
+            {"sid": "s3", "kind": "condvar_wait", "condvar": "main::notempty", "lock": "main::m"},
+            {"sid": "s4", "kind": "condvar_notify", "condvar": "main::notfull"},
+            {"sid": "s5", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```

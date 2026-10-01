@@ -1,0 +1,12 @@
+{
+  "fingerprint": "1c8a54fc2b449b07c7415e2124393de40e6509e985fb9af4ac71cde8c762ab22",
+  "calls": [
+    {
+      "system": "Write one Rust program from the requirements. Do not invent extra requirements.",
+      "user": "Specification:\n# Requirements\n\nR1. The design contains one main thread and two worker threads.\nR2. Both worker threads share the same two locks, and neither lock may be held by more than one worker at a time.\nR3. Each worker must hold both locks at the same time while it performs its critical work.\nR4. A worker that finds a lock busy must wait for it to become free and then continue.\nR5. It must never be possible for the two workers to leave each other waiting forever, each holding one lock and needing the other.\nR6. The main thread starts both workers and only finishes after both workers have finished.\nR7. Every worker must release each lock it holds before it finishes.\nR8. Every possible schedule or interleaving of the workers must terminate.\nR9. The program must print exactly the line `DONE t1=1 t2=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): t1, t2.\n- Shared resources: a (lock), b (lock).\n\n\nOutput the complete Rust program.",
+      "response": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let t1_handle = thread::spawn(move || {\n        // Worker t1: acquire locks in consistent order (a then b) to prevent deadlock\n        let _lock_a = a1.lock().unwrap();\n        let _lock_b = b1.lock().unwrap();\n        // Critical work happens while holding both locks\n        drop(_lock_b);\n        drop(_lock_a);\n    });\n\n    let a2 = Arc::clone(&a);\n    let b2 = Arc::clone(&b);\n    let t2_handle = thread::spawn(move || {\n        // Worker t2: acquire locks in same consistent order (a then b) to prevent deadlock\n        let _lock_a = a2.lock().unwrap();\n        let _lock_b = b2.lock().unwrap();\n        // Critical work happens while holding both locks\n        drop(_lock_b);\n        drop(_lock_a);\n    });\n\n    // Main thread waits for both workers to finish\n    t1_handle.join().unwrap();\n    t2_handle.join().unwrap();\n\n    println!(\"DONE t1=1 t2=1\");\n}\n```",
+      "response_model": "qwen3.8-flash",
+      "snapshot_sha256": "9f7d2093e3dc16ebfcf2491861e443af0e9855023cd539c8ce2d34ed51615c06"
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    // Shared lock m (Mutex) - used occasionally by both roles
+    let m = Arc::new(Mutex::new(()));
+
+    // Channel ch that can hold at most one value.
+    // We implement this with a shared state: Option<i32> protected by the same mutex or a separate mechanism.
+    // However, requirement R5 says: No role may wait on the channel while holding the shared lock that the other role needs.
+    // So we need to be careful about locking order and waiting.
+
+    // Let's design the channel as a struct with its own internal synchronization, but the spec says "shared resources: m (lock), ch (channel)".
+    // The channel itself needs to support blocking send/recv semantics with capacity 1.
+    // We can use a Condvar + Mutex for the channel, but the spec mentions a shared lock m that both roles occasionally need.
+    // Perhaps m is a separate lock for some critical section, and ch has its own internal sync.
+
+    // But looking at requirements more carefully:
+    // R2: communicate through a channel that can hold at most one value, and both roles occasionally need one shared lock.
+    // R5: No role may wait on the channel while holding the shared lock.
+
+    // So let's have:
+    // - m: a shared Mutex (the "occasionally needed" lock)
+    // - ch: a channel with capacity 1, implemented with its own Mutex + Condvar pair (or using crossbeam/channel, but let's do it manually)
+
+    // Actually, since we need precise control over blocking behavior, let's implement ch manually.
+
+    struct Channel {
+        inner: Mutex<Option<i32>>,
+        not_full: std::sync::Condvar,
+        not_empty: std::sync::Condvar,
+    }
+
+    impl Channel {
+        fn new() -> Self {
+            Channel {
+                inner: Mutex::new(None),
+                not_full: std::sync::Condvar::new(),
+                not_empty: std::sync::Condvar::new(),
+            }
+        }
+
+        fn send(&self, val: i32) {
+            let mut guard = self.inner.lock().unwrap();
+            while guard.is_some() {
+                guard = self.not_full.wait(guard).unwrap();
+            }
+            *guard = Some(val);
+            self.not_empty.notify_one();
+        }
+
+        fn recv(&self) -> i32 {
+            let mut guard = self.inner.lock().unwrap();
+            while guard.is_none() {
+                guard = self.not_empty.wait(guard).unwrap();
+            }
+            let val = guard.take().unwrap();
+            self.not_full.notify_one();
+            val
+        }
+    }
+
+    let ch = Arc::new(Channel::new());
+
+    let sender_m = Arc::clone(&m);
+    let sender_ch = Arc::clone(&ch);
+    let receiver_m = Arc::clone(&m);
+    let receiver_ch = Arc::clone(&ch);
+
+    let sender_handle = thread::spawn(move || {
+        // Sender passes two values in order
+        // Occasionally needs the shared lock m
+        // Must not pass second value before receiver takes first (R7) — this is enforced by channel capacity 1
+        
+        // First value
+        // Maybe do something with the lock occasionally? Let's say we acquire lock briefly before sending
+        {
+            let _guard = sender_m.lock().unwrap();
+            // Do nothing special, just demonstrate occasional lock usage
+        }
+        sender_ch.send(1);
+
+        // Second value
+        {
+            let _guard = sender_m.lock().unwrap();
+            // Do nothing special
+        }
+        sender_ch.send(2);
+
+        println!("sender done");
+    });
+
+    let receiver_handle = thread::spawn(move || {
+        // Receiver takes two values
+        // Occasionally needs the shared lock m
+        
+        // First value
+        let v1 = receiver_ch.recv();
+        {
+            let _guard = receiver_m.lock().unwrap();
+            // Process first value
+        }
+        assert_eq!(v1, 1);
+
+        // Second value
+        let v2 = receiver_ch.recv();
+        {
+            let _guard = receiver_m.lock().unwrap();
+            // Process second value
+        }
+        assert_eq!(v2, 2);
+
+        println!("receiver done");
+    });
+
+    sender_handle.join().unwrap();
+    receiver_handle.join().unwrap();
+
+    println!("DONE done=1");
+}

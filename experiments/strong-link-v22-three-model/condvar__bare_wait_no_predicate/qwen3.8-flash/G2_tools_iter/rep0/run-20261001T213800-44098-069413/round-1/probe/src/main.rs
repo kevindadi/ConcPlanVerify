@@ -1,0 +1,41 @@
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+fn main() {
+    // Shared state: a boolean flag guarded by a mutex, and a condition variable
+    let ready = Arc::new((Mutex::new(false), Condvar::new()));
+
+    // Clone the shared state for each thread
+    let ready_waiter = Arc::clone(&ready);
+    let ready_notifier = Arc::clone(&ready);
+
+    // Spawn the waiter thread
+    let waiter_handle = thread::spawn(move || {
+        let (lock, cvar) = &*ready_waiter;
+        let mut guard = lock.lock().unwrap();
+        // While holding the lock, check the flag first.
+        // Wait on the condition variable only while the flag is false.
+        // Re-check the flag after each wake.
+        while !*guard {
+            guard = cvar.wait(guard).unwrap();
+        }
+        // The waiter must not pass its wait until the flag is true.
+        // At this point, *guard == true
+        println!("DONE ready=true");
+    });
+
+    // Spawn the notifier thread
+    let notifier_handle = thread::spawn(move || {
+        let (lock, cvar) = &*ready_notifier;
+        let mut guard = lock.lock().unwrap();
+        // Set the shared flag to true while holding the lock
+        *guard = true;
+        // Signal the condition variable
+        cvar.notify_all();
+        // Release the lock (automatically when guard goes out of scope)
+    });
+
+    // Wait for both threads to finish
+    waiter_handle.join().unwrap();
+    notifier_handle.join().unwrap();
+}

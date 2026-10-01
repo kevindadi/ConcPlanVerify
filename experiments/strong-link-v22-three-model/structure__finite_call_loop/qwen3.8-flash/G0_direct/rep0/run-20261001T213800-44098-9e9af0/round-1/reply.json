@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::thread;\n\nfn helper() {\n    // Auxiliary routine: does some work and returns.\n    // No shared state, no contention.\n}\n\nfn main() {\n    // R1: A main task calls an auxiliary routine and then begins the same call sequence again.\n    // This means we call helper(), then call helper() again (same call sequence).\n    \n    // R3: Each auxiliary call runs to completion before the calling task starts the next call.\n    // Since helper is a synchronous function, this is naturally satisfied.\n    \n    // R2: The main task and the auxiliary routine share no mutexes, counters, or other shared state.\n    // Helper takes no arguments and accesses no shared state.\n    \n    // R4: Every schedule and interleaving terminates.\n    // There's only one thread doing sequential calls, so it always terminates.\n    \n    // R5: Print exactly `DONE done=1` and exit.\n    \n    // Call helper twice (the \"same call sequence\" repeated)\n    helper();\n    helper();\n    \n    println!(\"DONE done=1\");\n}\n```"
+}

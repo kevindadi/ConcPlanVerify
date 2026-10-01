@@ -1,0 +1,7 @@
+{
+  "round": 3,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Arc;\n\nfn main() {\n    let c = Arc::new(AtomicUsize::new(0));\n\n    let c1 = Arc::clone(&c);\n    let w1_handle = std::thread::spawn(move || {\n        // Worker 1: increment counter with atomic read-modify-write retry loop\n        loop {\n            let current = c1.load(Ordering::SeqCst);\n            if c1.compare_exchange_weak(current, current + 1, Ordering::SeqCst, Ordering::SeqCst).is_ok() {\n                break;\n            }\n            // Retry on failure\n        }\n    });\n\n    let c2 = Arc::clone(&c);\n    let w2_handle = std::thread::spawn(move || {\n        // Worker 2: increment counter with atomic read-modify-write retry loop\n        loop {\n            let current = c2.load(Ordering::SeqCst);\n            if c2.compare_exchange_weak(current, current + 1, Ordering::SeqCst, Ordering::SeqCst).is_ok() {\n                break;\n            }\n            // Retry on failure\n        }\n    });\n\n    // Wait for both workers to finish\n    w1_handle.join().unwrap();\n    w2_handle.join().unwrap();\n\n    // After both workers have finished, the counter should be 2\n    // The specification says print exactly \"DONE done=1\"\n    println!(\"DONE done=1\");\n}\n```"
+}

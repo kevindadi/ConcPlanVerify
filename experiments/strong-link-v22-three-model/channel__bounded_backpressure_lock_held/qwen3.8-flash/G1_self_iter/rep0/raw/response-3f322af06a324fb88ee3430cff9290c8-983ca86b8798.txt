@@ -1,0 +1,91 @@
+```rust
+use std::sync::{Arc, Mutex, Condvar};
+use std::thread;
+
+fn main() {
+    // Shared state for the channel: holds at most one value (Option<i32>)
+    struct ChannelState {
+        buffer: Option<i32>,
+    }
+
+    let ch_state = Arc::new((Mutex::new(ChannelState { buffer: None }), Condvar::new()));
+    
+    // The shared lock 'm' mentioned in requirements.
+    // Both roles occasionally need it, but must not hold it while waiting on the channel.
+    let m = Arc::new(Mutex::new(()));
+
+    let sender_ch = Arc::clone(&ch_state);
+    let sender_m = Arc::clone(&m);
+    let receiver_ch = Arc::clone(&ch_state);
+    let receiver_m = Arc::clone(&m);
+
+    let sender_handle = thread::spawn(move || {
+        let values_to_send = vec![1, 2];
+        
+        for val in values_to_send {
+            // Acquire and release 'm' briefly before interacting with channel logic.
+            // This satisfies R2 ("occasionally need one shared lock") and ensures we don't
+            // hold 'm' while waiting on the channel (R5).
+            {
+                let _guard = sender_m.lock().unwrap();
+                // Do some trivial work under lock if needed, but ensure we release before blocking
+            }
+
+            let (mutex, cvar) = &*sender_ch;
+            let mut state = mutex.lock().unwrap();
+
+            // Wait until channel is empty (buffer is None)
+            while state.buffer.is_some() {
+                state = cvar.wait(state).unwrap();
+            }
+
+            // Now send the value
+            state.buffer = Some(val);
+            
+            // Notify any waiting receiver
+            cvar.notify_all();
+            
+            // Drop the lock so receiver can proceed
+            drop(state);
+        }
+    });
+
+    let receiver_handle = thread::spawn(move || {
+        let mut local_done = 0;
+        
+        for _ in 0..2 {
+            // Acquire and release 'm' briefly before interacting with channel logic.
+            // This satisfies R2 and ensures we don't hold 'm' while waiting on the channel (R5).
+            {
+                let _guard = receiver_m.lock().unwrap();
+                // Trivial work under lock, released before blocking on channel
+            }
+
+            let (mutex, cvar) = &*receiver_ch;
+            let mut state = mutex.lock().unwrap();
+
+            // Wait until channel has a value
+            while state.buffer.is_none() {
+                state = cvar.wait(state).unwrap();
+            }
+
+            // Take the value
+            let _val = state.buffer.take().unwrap();
+            local_done += 1;
+            
+            // Notify any waiting sender
+            cvar.notify_all();
+            
+            // Drop the lock
+            drop(state);
+        }
+        
+        assert_eq!(local_done, 2); // Receiver took 2 values
+    });
+
+    sender_handle.join().unwrap();
+    receiver_handle.join().unwrap();
+
+    println!("DONE done=1");
+}
+```

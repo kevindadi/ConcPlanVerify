@@ -1,0 +1,45 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::ch'",
+      "location": "main::sender.s1",
+      "path": "modules[0].functions[1].body[0]",
+      "fix_hint": "use a Var-typed resource"
+    },
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::ch'",
+      "location": "main::sender.s4",
+      "path": "modules[0].functions[1].body[3]",
+      "fix_hint": "use a Var-typed resource"
+    },
+    {
+      "code": "E512",
+      "severity": "error",
+      "message": "condvar_wait in function 'sender' requires lock 'main::m' to be held",
+      "location": "main::sender.s3",
+      "path": "modules[0].functions[1].body[2]",
+      "fix_hint": "acquire the paired lock before waiting on the condvar"
+    },
+    {
+      "code": "E512",
+      "severity": "error",
+      "message": "condvar_wait in function 'receiver' requires lock 'main::m' to be held",
+      "location": "main::receiver.s1",
+      "path": "modules[0].functions[2].body[0]",
+      "fix_hint": "acquire the paired lock before waiting on the condvar"
+    },
+    {
+      "code": "E512",
+      "severity": "error",
+      "message": "condvar_wait in function 'receiver' requires lock 'main::m' to be held",
+      "location": "main::receiver.s3",
+      "path": "modules[0].functions[2].body[2]",
+      "fix_hint": "acquire the paired lock before waiting on the condvar"
+    }
+  ]
+}

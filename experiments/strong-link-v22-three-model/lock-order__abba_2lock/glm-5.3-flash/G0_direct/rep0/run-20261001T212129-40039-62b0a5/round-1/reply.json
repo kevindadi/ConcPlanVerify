@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let t1 = {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        thread::spawn(move || {\n            let _a = a.lock().unwrap();\n            let _b = b.lock().unwrap();\n            // critical work holding both locks\n        })\n    };\n\n    let t2 = {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        thread::spawn(move || {\n            let _a = a.lock().unwrap();\n            let _b = b.lock().unwrap();\n            // critical work holding both locks\n        })\n    };\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    println!(\"DONE t1=1 t2=1\");\n}\n```\n\nBoth workers acquire locks `a` and `b` in the same order (a then b), so no circular wait is possible (R5/R8). Locks are acquired with blocking `lock()` calls (R4), held simultaneously during the critical work (R3), and released via RAII guard drops before the worker finishes (R7). The main thread joins both workers before printing and exiting (R6, R9)."
+}

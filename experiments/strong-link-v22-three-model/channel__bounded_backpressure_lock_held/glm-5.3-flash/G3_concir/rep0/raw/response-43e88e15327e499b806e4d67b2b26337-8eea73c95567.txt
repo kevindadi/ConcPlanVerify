@@ -1,0 +1,272 @@
+```json
+{
+  "program": "one_slot_channel_pingpong",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {"resources": ["m", "ch", "sent1", "sent2", "took1", "took2"], "functions": ["main", "sender", "receiver"]},
+      "requires": {"resources": [], "functions": []},
+      "resources": [
+        {"name": "m", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+        {"name": "ch", "kind": "var", "type": "Var", "base": "Int", "init": 0},
+        {"name": "sent1", "kind": "sync", "type": "Semaphore", "mode": "Sync", "count": 0},
+        {"name": "sent2", "kind": "sync", "type": "Semaphore", "mode": "Sync", "count": 0},
+        {"name": "took1", "kind": "sync", "type": "Semaphore", "mode": "Sync", "count": 0},
+        {"name": "took2", "kind": "sync", "type": "Semaphore", "mode": "Sync", "count": 0}
+      ],
+      "protection": [{"var": "ch", "lock": "m"}],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "scope", "funcs": ["main::sender", "main::receiver"]},
+            {"sid": "s2", "kind": "return"}
+          ]
+        },
+        {
+          "name": "sender",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s2", "kind": "write_shared", "resource": "main::ch", "expr": "1"},
+            {"sid": "s3", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s4", "kind": "call", "func": "semaphore_post", "args": ["main::sent1"]},
+            {"sid": "s5", "kind": "call", "func": "semaphore_wait", "args": ["main::took1"]},
+            {"sid": "s6", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s7", "kind": "write_shared", "resource": "main::ch", "expr": "2"},
+            {"sid": "s8", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s9", "kind": "call", "func": "semaphore_post", "args": ["main::sent2"]},
+            {"sid": "s10", "kind": "call", "func": "semaphore_wait", "args": ["main::took2"]},
+            {"sid": "s11", "kind": "return"}
+          ]
+        },
+        {
+          "name": "receiver",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {"name": "v1", "type": "Int", "modeled": true, "init": 0},
+            {"name": "v2", "type": "Int", "modeled": true, "init": 0}
+          ],
+          "body": [
+            {"sid": "s1", "kind": "call", "func": "semaphore_wait", "args": ["main::sent1"]},
+            {"sid": "s2", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s3", "kind": "assign_local", "target": "v1", "expr": "ch"},
+            {"sid": "s4", "kind": "write_shared", "resource": "main::ch", "expr": "0"},
+            {"sid": "s5", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s6", "kind": "call", "func": "semaphore_post", "args": ["main::took1"]},
+            {"sid": "s7", "kind": "call", "func": "semaphore_wait", "args": ["main::sent2"]},
+            {"sid": "s8", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s9", "kind": "assign_local", "target": "v2", "expr": "ch"},
+            {"sid": "s10", "kind": "write_shared", "resource": "main::ch", "expr": "0"},
+            {"sid": "s11", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s12", "kind": "call", "func": "semaphore_post", "args": ["main::took2"]},
+            {"sid": "s13", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Wait — I used `semaphore_post`/`semaphore_wait` as builtin calls, but the spec says calling an undefined function is a static error, and semaphore semantics should come from the resource itself. Here I cannot emit undefined `call`s. Let me instead define those helper functions as no-ops? No — semaphore blocking is the core mechanism. The correct approach in this CIR dialect: use condvars but write the waits without lost wakeups by ensuring the *predicate is set before any notify can be consumed*, i.e. make the receiver check-and-wait under the same lock the sender notifies under, which was the original failure due to notify-before-wait scheduling.
+
+Correct design with condvars only, avoiding lost wakeups: every condvar_wait is preceded by the partner *holding the lock the waiter currently holds*... that's impossible without a scheduler guarantee.
+
+Given the dialect, I cannot define semaphore blocking semantics myself. The viable condvar-based fix is to restructure so no thread ever waits on a not-yet-notified condvar, and instead each wait is matched by a notify that is guaranteed to come later because the notifying thread is *blocked first* and released by an earlier signal, forming a chain with no cycles except through scopes. A chain cannot close a circle, so instead: avoid waiting in the sender entirely — R4 says sender waits when the channel is full, i.e. whenever the receiver has not yet taken v1. That wait must exist.
+
+Given the constraint conflict (my semaphore calls are undefined), I will revise: replace the semaphore helper calls in the program above with **condvar waits performed while holding no lock** is impossible; so use condvar_wait/free wait as the primitive replacement:
+
+The revision I emit:
+
+```json
+```
+
+```json
+{
+  "program": "one_slot_channel_pingpong",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {"resources": ["m", "ch", "e1", "e2", "ack1", "ack2"], "functions": ["main", "sender", "receiver"]},
+      "requires": {"resources": [], "functions": []},
+      "resources": [
+        {"name": "m", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+        {"name": "ch", "kind": "var", "type": "Var", "base": "Int", "init": 0},
+        {"name": "e1", "kind": "sync", "type": "Condvar", "mode": "Sync"},
+        {"name": "e2", "kind": "sync", "type": "Condvar", "mode": "Sync"}
+      ],
+      "protection": [{"var": "ch", "lock": "m"}],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "scope", "funcs": ["main::sender", "main::receiver"]},
+            {"sid": "s2", "kind": "return"}
+          ]
+        },
+        {
+          "name": "sender",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "call", "func": "main::put1"},
+            {"sid": "s2", "kind": "call", "func": "main::get1"},
+            {"sid": "s3", "kind": "call", "func": "main::put2"},
+            {"sid": "s4", "kind": "return"}
+          ]
+        },
+        {
+          "name": "receiver",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "call", "func": "main::take1"},
+            {"sid": "s2", "kind": "call", "func": "main::take2"},
+            {"sid": "s3", "kind": "return"}
+          ]
+        },
+        {
+          "name": "put1",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s2", "kind": "write_shared", "resource": "main::ch", "expr": "1"},
+            {"sid": "s3", "kind": "condvar_notify", "condvar": "main::e1"},
+            {"sid": "s4", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s5", "kind": "condvar_wait", "condvar": "main::e1", "lock": "main::m"},
+            {"sid": "s6", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s7", "kind": "return"}
+          ]
+        },
+        {
+          "name": "take1",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s2", "kind": "assign_local", "target": "v1", "expr": "ch"},
+            {"sid": "s3", "kind": "write_shared", "resource": "main::ch", "expr": "0"},
+            {"sid": "s4", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s5", "kind": "return"}
+          ]
+        },
+        {
+          "name": "get1",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "assign_local", "target": "tmp", "expr": "v1"},
+            {"sid": "s2", "kind": "return"}
+          ]
+        },
+        {
+          "name": "put2",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s2", "kind": "write_shared", "resource": "main::ch", "expr": "2"},
+            {"sid": "s3", "kind": "condvar_notify", "condvar": "main::e2"},
+            {"sid": "s4", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s5", "kind": "return"}
+          ]
+        },
+        {
+          "name": "take2",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s2", "kind": "assign_local", "target": "v2", "expr": "ch"},
+            {"sid": "s3", "kind": "write_shared", "resource": "main::ch", "expr": "0"},
+            {"sid": "s4", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s5", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+No — I am producing multiple drafts. The checker expects ONE final JSON. The prior failure was: receiver waited on `e1` before sender notified the condvar (lost wakeup). The key remedy: **swap the roles of wait/notify** so the receiver's take happens *without waiting* on a possibly-already-notified condvar: the receiver's first action is to lock and read `ch` after the sender signals, using the condvar in the direction where notify occurs before the waiter arrives is fine only if "wait after notify" does not stall — but in this checker, a condvar wait is a stall.
+
+Therefore, the only scheme with zero potential lost wakeups is: **each wait must be preceded by a notify that is itself guaranteed to occur only after the waiter starts waiting**. Achieve this by ordering: receiver first signals "ready" on a condvar the sender waits on BEFORE sender writes the value; then sender notifies arrival; receiver at that moment is already waiting. Both sides pre-signal readiness, then notify arrives, then no further waits are needed.
+
+Final program:
+
+```json
+{
+  "program": "one_slot_channel_pingpong",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {"resources": ["m", "ch", "rdy", "full", "full2"], "functions": ["main", "sender", "receiver"]},
+      "requires": {"resources": [], "functions": []},
+      "resources": [
+        {"name": "m", "kind": "sync", "type": "Mutex", "mode": "Sync"},
+        {"name": "ch", "kind": "var", "type": "Var", "base": "Int", "init": 0},
+        {"name": "rdy", "kind": "sync", "type": "Condvar", "mode": "Sync"},
+        {"name": "full", "kind": "sync", "type": "Condvar", "mode": "Sync"},
+        {"name": "full2", "kind": "sync", "type": "Condvar", "mode": "Sync"}
+      ],
+      "protection": [{"var": "ch", "lock": "m"}],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "scope", "funcs": ["main::sender", "main::receiver"]},
+            {"sid": "s2", "kind": "return"}
+          ]
+        },
+        {
+          "name": "sender",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s2", "kind": "condvar_notify", "condvar": "main::rdy"},
+            {"sid": "s3", "kind": "condvar_wait", "condvar": "main::rdy", "lock": "main::m"},
+            {"sid": "s4", "kind": "write_shared", "resource": "main::ch", "expr": "1"},
+            {"sid": "s5", "kind": "condvar_notify", "condvar": "main::full"},
+            {"sid": "s6", "kind": "condvar_wait", "condvar": "main::full", "lock": "main::m"},
+            {"sid": "s7", "kind": "write_shared", "resource": "main::ch", "expr": "2"},
+            {"sid": "s8", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s9", "kind": "return"}
+          ]
+        },
+        {
+          "name": "receiver",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {"name": "v1", "type": "Int", "modeled": true, "init": 0},
+            {"name": "v2", "type": "Int", "modeled": true, "init": 0}
+          ],
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s2", "kind": "condvar_notify", "condvar": "main::rdy"},
+            {"sid": "s3", "kind": "condvar_wait", "condvar": "main::full", "lock": "main::m"},
+            {"sid": "s4", "kind": "assign_local", "target": "v1", "expr": "ch"},
+            {"sid": "s5", "kind": "write_shared", "resource": "main::ch", "expr": "0"},
+            {"sid": "s6", "kind": "condvar_notify", "condvar": "main::full"},
+            {"sid": "s7", "kind": "condvar_wait", "condvar": "main::full2", "lock": "main::m"},
+            {"sid": "s8", "kind": "assign_local", "target": "v2", "expr": "ch"},
+            {"sid": "s9", "kind": "write_shared", "resource": "main::ch", "expr": "0"},
+            {"sid": "s10", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s11", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```

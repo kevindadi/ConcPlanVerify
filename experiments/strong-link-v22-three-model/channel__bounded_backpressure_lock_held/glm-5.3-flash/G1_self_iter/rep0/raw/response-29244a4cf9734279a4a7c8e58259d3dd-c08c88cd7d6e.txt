@@ -1,0 +1,82 @@
+## Review
+
+Walking through the invariants:
+
+- **R3/R4/R7**: capacity-1 `Option` slot; sender waits while `slot.is_some()`, receiver waits while `slot.is_none()`. `v=2` can only be placed after `v=1` is taken, and the wake-up chain (receiver `take()` → `notify_all` → sender rechecks) is sound, including against spurious wakeups thanks to the `while` loops.
+- **R5**: neither role touches `m` while blocked on the condvar; `m` is acquired only after the wait completes and is dropped immediately. No lock-ordering cycle is possible because `ch` and `m` are only ever held together transiently and `m` never wraps a channel wait.
+- **R6**: there is no interleaving where both parties hold a resource the other needs — `ch` is exclusive (one lock), `m` is leaf-held, no waiting while held. All schedules terminate.
+- **R8**: `got` is accumulated by the receiver and `done` is derived after both threads are joined, so the count cannot be racy.
+
+One genuine robustness fix I did make: `lock.unwrap()`/`wait.unwrap()` will panic if a lock is ever poisoned by a panic in the peer; using `unwrap_or_else(|e| e.into_inner())` keeps the pipeline correct even in that edge case instead of aborting the join with a poisoned-lock error. That's the only defect-level change justified; the core synchronization was already correct.
+
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+fn main() {
+    // ch: bounded channel of capacity 1 (R2, R4, R7)
+    let ch = Arc::new((Mutex::<Option<i32>>::new(None), Condvar::new()));
+    // m: the shared lock used occasionally by both roles (R2, R5)
+    let m = Arc::new(Mutex::new(()));
+
+    let (ch_s, m_s) = (Arc::clone(&ch), Arc::clone(&m));
+    let sender = thread::spawn(move || {
+        for v in 1..=2 {
+            let (lock, cv) = &*ch_s;
+            // Wait for free slot WITHOUT touching m (R5)
+            // R7: with capacity 1, sending v=2 can only proceed after the
+            // receiver has taken v=1 and freed the slot via notify_all.
+            let mut slot = lock
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            while slot.is_some() {
+                slot = cv
+                    .wait(slot)
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+            }
+            // Brief use of m after releasing any wait; not held while waiting (R5)
+            {
+                let _g = m_s.lock().unwrap();
+            }
+            *slot = Some(v);
+            cv.notify_all();
+        }
+    });
+
+    let (ch_r, m_r) = (Arc::clone(&ch), Arc::clone(&m));
+    let receiver = thread::spawn(move || {
+        let mut got = 0;
+        for _ in 0..2 {
+            let (lock, cv) = &*ch_r;
+            // Wait for value WITHOUT touching m (R5)
+            let mut slot = lock
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            while slot.is_none() {
+                slot = cv
+                    .wait(slot)
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+            }
+            {
+                let _g = m_r.lock().unwrap();
+            }
+            if slot.take().is_some() {
+                got += 1;
+            }
+            cv.notify_all();
+        }
+        got
+    });
+
+    sender.join().unwrap();
+    let got = receiver.join().unwrap();
+
+    // done is a completion flag, not the raw receive count:
+    // both values received (got == 2) means done == 1 (R3, R8).
+    let done = (got == 2) as i32;
+    println!("DONE done={}", done); // R8: exactly "DONE done=1"
+}
+```
+
+Summary of justified changes:
+1. **Poison-resilient lock acquisition** on `ch` (both roles): lock poisoning from a panicking peer would otherwise turn a recoverable state into a panic cascade; recovering the inner guard preserves every requirement with no behavior change in the happy path. All other facets (wait loops, notify placement, `m` never held across a channel wait, join-before-print) already satisfy R1–R8 and were left intact.

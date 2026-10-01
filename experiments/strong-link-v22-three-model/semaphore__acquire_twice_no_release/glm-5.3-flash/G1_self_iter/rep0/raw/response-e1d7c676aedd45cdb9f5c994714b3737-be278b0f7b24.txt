@@ -1,0 +1,72 @@
+Reviewing against the spec: the semaphore's `acquire` uses `Condvar::wait` (releasing the mutex while parked, so R5 holds), each acquire is unconditionally paired with a release (R4), workers never hold work concurrently (R3), the pool starts at one permit (R2), both threads are joined by the supervisor (R1), the work region contains no blocking operations so all interleavings terminate (R6), and exactly one line is printed after both joins (R7). No defects found — the program is already correct:
+
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+// Shared resource: s (semaphore) — a counting semaphore initialized with exactly one permit.
+struct Semaphore {
+    count: Mutex<i64>,
+    available: Condvar,
+}
+
+impl Semaphore {
+    fn new(n: i64) -> Self {
+        Semaphore { count: Mutex::new(n), available: Condvar::new() }
+    }
+
+    // Blocking acquire. Condvar::wait releases the mutex while parked, so a
+    // worker holding the permit is never blocked by a waiter (R5).
+    fn acquire(&self) {
+        let mut count = self.count.lock().unwrap();
+        while *count <= 0 {
+            count = self.available.wait(count).unwrap();
+        }
+        *count -= 1;
+    }
+
+    fn release(&self) {
+        let mut count = self.count.lock().unwrap();
+        *count += 1;
+        self.available.notify_one();
+    }
+}
+
+// Role: w1 / w2 — straight-line acquire/work/release pairs; each acquire is
+// unconditionally paired with a release, so acquire count == release count
+// on every path (R3, R4).
+fn worker(name: &'static str, s: Arc<Semaphore>) {
+    for round in 0..2 {
+        s.acquire();
+        let _ = (name, round); // work under the permit; nothing blocking here (R5, R6)
+        s.release();
+    }
+}
+
+// Role: supervising task — launches both workers and joins them (R1).
+fn main() {
+    // The pool begins with exactly one permit (R2).
+    let s = Arc::new(Semaphore::new(1));
+
+    let s_for_w1 = Arc::clone(&s);
+    let w1 = thread::spawn(move || worker("w1", s_for_w1));
+
+    let s_for_w2 = Arc::clone(&s);
+    let w2 = thread::spawn(move || worker("w2", s_for_w2));
+
+    w1.join().expect("w1 panicked");
+    w2.join().expect("w2 panicked");
+
+    // All interleavings terminate (R6); exactly one output line (R7).
+    println!("DONE done=1");
+}
+```
+
+Justification for keeping the design as-is:
+
+- **R1**: `main` acts as the supervising task, spawning both workers and `join`ing each.
+- **R2**: `Semaphore::new(1)` gives exactly one permit, shared via `Arc`.
+- **R3**: work is done strictly between `acquire` and `release`, so mutual exclusion is guaranteed by the mutex-protected count.
+- **R4**: the loop body is straight-line — every successful `acquire` is followed unconditionally by `release`; there are no early returns or panics between them above the `release` call.
+- **R5/R6**: the only lock in the critical section is the semaphore's own mutex, and `Condvar::wait` releases it while parked, so the permit holder can always release; nothing else blocks, so every schedule terminates.
+- **R7**: the single `println!` runs only after both threads finish, producing exactly `DONE done=1`.

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex, Condvar};\nuse std::thread;\n\nfn main() {\n    let ready = Arc::new((Mutex::new(false), Condvar::new()));\n\n    let ready_clone1 = Arc::clone(&ready);\n    let notifier_handle = thread::spawn(move || {\n        let (lock, cvar) = &*ready_clone1;\n        let mut flag = lock.lock().unwrap();\n        *flag = true;\n        cvar.notify_all();\n        // Lock is released when `flag` goes out of scope\n    });\n\n    let ready_clone2 = Arc::clone(&ready);\n    let waiter_handle = thread::spawn(move || {\n        let (lock, cvar) = &*ready_clone2;\n        let mut flag = lock.lock().unwrap();\n        while !*flag {\n            flag = cvar.wait(flag).unwrap();\n        }\n        // Lock is released when `flag` goes out of scope\n    });\n\n    notifier_handle.join().unwrap();\n    waiter_handle.join().unwrap();\n\n    println!(\"DONE ready=true\");\n}\n```"
+}
