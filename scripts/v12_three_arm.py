@@ -19,7 +19,7 @@ from cir_workflow.channels import AuditedClient, build_client, key_for  # noqa: 
 from cir_workflow.conditional_arms import arm_order, plan_row, run_repairs  # noqa: E402
 from cir_workflow.env import load_dotenv  # noqa: E402
 from cir_workflow.live import LiveBudget  # noqa: E402
-from cir_workflow.send_holding_requirements import evaluate_requirements  # noqa: E402
+from cir_workflow.task_score import score_for_task  # noqa: E402
 from cir_workflow.transport import CHANNELS, build_registry, require_experiment_model  # noqa: E402
 
 BIN = REPO.parent / "ConcIR/target/release/concir-backend"
@@ -46,6 +46,8 @@ def freeze_paths(record: dict) -> dict[str, str]:
         Path(record["contract_path"]),
         REPO / "python/cir_workflow/conditional_arms.py",
         REPO / "python/cir_workflow/send_holding_requirements.py",
+        REPO / "python/cir_workflow/condvar_requirements.py",
+        REPO / "python/cir_workflow/task_score.py",
         REPO / "python/cir_workflow/evidence_v2.py",
         REPO / "python/cir_workflow/candidate_eval.py",
         REPO / "python/cir_workflow/feedback_runner.py",
@@ -225,7 +227,8 @@ def main() -> int:
                 client = AuditedClient(inner, audit=audit, run_id=out.name, cell_id=f"{spec.model_id}/{arm}",
                                        spec=spec, arm=arm, task_id=case["task"], replicate=0, stage="repair")
                 result = run_repairs(
-                    case, arm, client, dest, evaluate_candidate=_eval, score=evaluate_requirements,
+                    case, arm, client, dest, evaluate_candidate=_eval,
+                    score=lambda source, work, task=case["task"]: score_for_task(task, source, work),
                     freeze_files=stored["freeze_files"])
                 result.update({"model_id": spec.model_id, "case": case["task"], "arm": arm, "status": "executed"})
             except Exception as exc:  # noqa: BLE001

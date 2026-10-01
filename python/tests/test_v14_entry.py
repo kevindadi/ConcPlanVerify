@@ -26,11 +26,14 @@ def _load_entry():
     return entry
 
 
-def _score(source, _work):
+def _score(task, source, _work):
+    if task != "channel/send_while_holding_mutex":
+        return {"status": "unknown", "runs": [], "task_id": task}
     if "sync_channel" in source:
-        return {"status": "bounded_covered_satisfied", "runs": []}
+        return {"status": "bounded_covered_satisfied", "runs": [], "task_id": task}
     return {"status": "fail", "runs": [{"kind": "completed", "returncode": 0,
-                                        "stdout": "DONE done=1\n", "timed_out": False}]}
+                                        "stdout": "DONE done=1\n", "timed_out": False}],
+            "task_id": task}
 
 
 class EntryTests(unittest.TestCase):
@@ -86,7 +89,7 @@ class EntryTests(unittest.TestCase):
             patch.object(entry, "key_for", return_value="fake-no-secret"), \
             patch.object(entry, "build_client", side_effect=build_client), \
             patch.object(entry, "_eval", return_value={}), \
-            patch.object(entry, "evaluate_requirements", side_effect=_score), \
+            patch.object(entry, "score_for_task", side_effect=_score), \
             patch.object(entry, "run_repairs", side_effect=runner)
 
     def _run(self, out: Path, confirm: bool) -> int:
