@@ -87,11 +87,19 @@ class OpenCodeGoClient:
                               "error": str(exc), "error_type": type(exc).__name__,
                               "wall_ms": int((time.monotonic() - started) * 1000),
                               **getattr(self, "call_context", {})})
-                if "temperature" in str(exc).lower() and kwargs["temperature"] != 1:
+                status_code = getattr(exc, "status_code", None)
+                retryable_status = status_code in {408, 429, 500, 502, 503, 504}
+                wants_retry = (type(exc).__name__ in retryable or retryable_status) and attempt < 2
+                if "temperature" in str(exc).lower() and kwargs.get("temperature") not in (None, 1, 1.0):
                     kwargs["temperature"] = 1.0
                     self.temperature = 1.0
-                    continue
-                if type(exc).__name__ in retryable and attempt < 2:
+                    wants_retry = attempt < 2
+                if wants_retry:
+                    if self.budget.exhausted():
+                        from .live import BudgetExhausted
+                        raise BudgetExhausted(
+                            self.budget.exhausted() or "request budget reached",
+                            physical_attempts=len(self.last_transport_log))
                     time.sleep(3 * (attempt + 1))
                     continue
                 raise
@@ -178,28 +186,41 @@ class OpenCodeGoResponsesClient:
         from .live import BudgetExhausted
         prompt_sha = _sha(json.dumps(messages, ensure_ascii=False, sort_keys=True))
         self.last_transport_log = []
-        try:
-            self.budget.reserve()
-        except BudgetExhausted as exc:
-            exc.physical_attempts = 0
-            raise
         started = time.monotonic()
         kwargs: dict[str, Any] = {
             "model": self.model, "instructions": system_prompt,
             "input": user_prompt, "max_output_tokens": self.max_tokens,
         }
-        try:
-            response = self._client.responses.create(**kwargs)
-        except Exception as exc:  # noqa: BLE001
-            note_transport(self, index=1, status="error",
-                           error_type=type(exc).__name__, error=str(exc))
-            self._record({"status": "error", "model": self.model,
-                          "surface": "responses", "messages": messages,
-                          "prompt_sha256": prompt_sha, "transport_index": 1,
-                          "error": str(exc), "error_type": type(exc).__name__,
-                          "wall_ms": int((time.monotonic() - started) * 1000),
-                          **getattr(self, "call_context", {})})
-            raise
+        response = None
+        for attempt in range(3):
+            try:
+                self.budget.reserve()
+            except BudgetExhausted as exc:
+                exc.physical_attempts = len(self.last_transport_log)
+                raise
+            try:
+                response = self._client.responses.create(**kwargs)
+                break
+            except Exception as exc:  # noqa: BLE001
+                note_transport(self, index=attempt + 1, status="error",
+                               error_type=type(exc).__name__, error=str(exc))
+                self._record({"status": "error", "model": self.model,
+                              "surface": "responses", "messages": messages,
+                              "prompt_sha256": prompt_sha, "transport_index": attempt + 1,
+                              "error": str(exc), "error_type": type(exc).__name__,
+                              "wall_ms": int((time.monotonic() - started) * 1000),
+                              **getattr(self, "call_context", {})})
+                status_code = getattr(exc, "status_code", None)
+                retryable = type(exc).__name__ in {
+                    "APIConnectionError", "APITimeoutError", "InternalServerError", "RateLimitError",
+                } or status_code in {408, 429, 500, 502, 503, 504}
+                if retryable and attempt < 2 and not self.budget.exhausted():
+                    time.sleep(3 * (attempt + 1))
+                    continue
+                if retryable and attempt < 2 and self.budget.exhausted():
+                    raise BudgetExhausted(self.budget.exhausted() or "request budget reached",
+                                          physical_attempts=len(self.last_transport_log))
+                raise
         wall_ms = int((time.monotonic() - started) * 1000)
         content = getattr(response, "output_text", None) or ""
         usage = None
@@ -207,13 +228,14 @@ class OpenCodeGoResponsesClient:
             usage = response.usage.model_dump() if hasattr(response.usage, "model_dump") \
                 else dict(response.usage)
         response_model = getattr(response, "model", None)
-        note_transport(self, index=1, status="ok", usage_raw=usage,
+        index = len(self.last_transport_log) + 1
+        note_transport(self, index=index, status="ok", usage_raw=usage,
                        request_id=getattr(response, "id", None))
         self._record({"status": "ok", "model": self.model, "surface": "responses",
                       "response_model": response_model,
                       "request_id": getattr(response, "id", None),
                       "messages": messages, "prompt_sha256": prompt_sha,
-                      "usage": usage, "transport_index": 1,
+                      "usage": usage, "transport_index": index,
                       "content_sha256": _sha(content),
                       "content": content, "wall_ms": wall_ms,
                       **getattr(self, "call_context", {})})
@@ -221,7 +243,7 @@ class OpenCodeGoResponsesClient:
             text=content, messages=messages, requested_model=self.model,
             response_model=response_model, request_id=getattr(response, "id", None),
             finish_reason=None, usage=usage, wall_ms=wall_ms,
-            transport_attempt=1, prompt_sha256=prompt_sha, cost=None)
+            transport_attempt=len(self.last_transport_log), prompt_sha256=prompt_sha, cost=None)
 
 
 def list_models(api_key: str, timeout: float = 30.0) -> dict[str, Any]:
