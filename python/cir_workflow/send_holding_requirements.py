@@ -118,6 +118,147 @@ def _guard_blocks(body: str) -> str:
     return "pass" if saw else "fail"
 
 
+def _reachable(body: str) -> tuple[str, str]:
+    """Return the straight-line prefix and ``ok`` or ``unknown``.
+
+    A ``return`` ends the prefix. ``if`` / loops make control flow unknown.
+    Statements after ``return`` are not evidence.
+    """
+
+    if re.search(r"\b(if|match|while|for|loop|async)\b", body):
+        return body, "unknown"
+    depth_brace = 0
+    depth_paren = 0
+    index = 0
+    while index < len(body):
+        char = body[index]
+        if char == "{":
+            depth_brace += 1
+        elif char == "}":
+            depth_brace = max(0, depth_brace - 1)
+        elif char == "(":
+            depth_paren += 1
+        elif char == ")":
+            depth_paren = max(0, depth_paren - 1)
+        elif body.startswith("return", index) and depth_brace == 0 and depth_paren == 0:
+            before = body[index - 1] if index else " "
+            after = body[index + 6] if index + 6 < len(body) else " "
+            if (not before.isalnum() and before != "_") and (not after.isalnum() and after != "_"):
+                return body[:index], "ok"
+        index += 1
+    return body, "ok"
+
+
+def _split_params(blob: str) -> list[str]:
+    parts: list[str] = []
+    buf: list[str] = []
+    depth = 0
+    for char in blob:
+        if char in "<(":
+            depth += 1
+            buf.append(char)
+        elif char in ">)":
+            depth = max(0, depth - 1)
+            buf.append(char)
+        elif char == "," and depth == 0:
+            parts.append("".join(buf))
+            buf = []
+        else:
+            buf.append(char)
+    if "".join(buf).strip():
+        parts.append("".join(buf))
+    return parts
+
+
+def _params(stripped: str, name: str) -> list[str]:
+    match = re.search(rf"fn\s+{re.escape(name)}\b\s*(?:<[^>]*>)?\s*\(", stripped)
+    if not match:
+        return []
+    index = match.end()
+    depth = 1
+    while index < len(stripped) and depth:
+        if stripped[index] == "(":
+            depth += 1
+        elif stripped[index] == ")":
+            depth -= 1
+        index += 1
+    names = []
+    for part in _split_params(stripped[match.end():index - 1]):
+        ident = part.split(":")[0].strip()
+        if ident.startswith("mut "):
+            ident = ident[4:].strip()
+        if re.fullmatch(r"[A-Za-z_]\w*", ident):
+            names.append(ident)
+    return names
+
+
+def _mutex_family(main: str) -> set[str]:
+    names = set(re.findall(r"let\s+(\w+)\s*=\s*Arc::new\s*\(\s*Mutex::new", main))
+    changed = True
+    while changed:
+        changed = False
+        for clone, source in re.findall(r"let\s+(\w+)\s*=\s*Arc::clone\s*\(\s*&(\w+)\s*\)", main):
+            if source in names and clone not in names:
+                names.add(clone)
+                changed = True
+    return names
+
+
+def _spawn_args(main: str, fname: str) -> list[list[str]] | None:
+    calls = []
+    for match in re.finditer(rf"\b{re.escape(fname)}\s*\(([^)]*)\)", main):
+        args = [item.strip() for item in match.group(1).split(",") if item.strip()]
+        idents = []
+        for arg in args:
+            if re.fullmatch(r"[A-Za-z_]\w*", arg):
+                idents.append(arg)
+            else:
+                return None
+        calls.append(idents)
+    return calls
+
+
+def _lock_receivers(body: str) -> list[str]:
+    return re.findall(r"\b([A-Za-z_]\w*)\s*\.\s*lock\s*\(", body)
+
+
+def _locks_use_shared(locks: list[str], params: list[str], args: list[str], family: set[str]) -> str:
+    if not locks:
+        return "fail"
+    if len(params) != len(args):
+        return "unknown"
+    passed = dict(zip(params, args))
+    for receiver in locks:
+        if receiver not in passed:
+            return "fail"
+        if passed[receiver] not in family:
+            return "fail"
+    return "pass"
+
+
+def _shared_lock(main: str, sender: str, receiver: str, stripped: str) -> str:
+    s_locks = _lock_receivers(sender)
+    r_locks = _lock_receivers(receiver)
+    if not s_locks or not r_locks:
+        return "fail"
+    family = _mutex_family(main)
+    if not family:
+        return "unknown"
+    s_args = _spawn_args(main, "s")
+    r_args = _spawn_args(main, "r")
+    if s_args is None or r_args is None:
+        return "unknown"
+    if len(s_args) != 1 or len(r_args) != 1:
+        return "unknown" if s_args or r_args else "fail"
+    s_status = _locks_use_shared(s_locks, _params(stripped, "s"), s_args[0], family)
+    r_status = _locks_use_shared(r_locks, _params(stripped, "r"), r_args[0], family)
+    if "unknown" in (s_status, r_status):
+        return "unknown"
+    if "fail" in (s_status, r_status):
+        return "fail"
+    return "pass"
+
+
 def structural_checks(source: str) -> dict:
     try:
         strip_rust(source)
@@ -132,32 +273,49 @@ def structural_checks(source: str) -> dict:
                 "R3": {"status": "unknown", "reason": exc.reason},
             }
         return {clause: {"status": "unknown", "reason": exc.reason} for clause in ("R1", "R2", "R3")}
-    spawns = re.findall(r"thread::spawn\s*\([^;]*\)", main, flags=re.S)
+    stripped = strip_rust(source)
+    main_r, main_flow = _reachable(main)
+    sender_r, sender_flow = _reachable(sender)
+    receiver_r, receiver_flow = _reachable(receiver)
+    flow_unknown = "unknown" in (main_flow, sender_flow, receiver_flow)
+    spawns = re.findall(r"thread::spawn\s*\([^;]*\)", main_r, flags=re.S)
     calls_s = any(re.search(r"\bs\s*\(", item) for item in spawns)
     calls_r = any(re.search(r"\br\s*\(", item) for item in spawns)
-    joins = len(re.findall(r"\.join\s*\(", main))
-    r1 = "pass" if calls_s and calls_r and joins >= 2 else "fail"
-    kinds = _channel_kinds(main)
-    if not kinds or "unknown" in kinds:
+    joins = len(re.findall(r"\.join\s*\(", main_r))
+    if flow_unknown:
+        r1 = "unknown"
+    elif not (calls_s and calls_r and joins >= 2):
+        r1 = "fail"
+    else:
+        r1 = _shared_lock(main_r, sender_r, receiver_r, stripped)
+    kinds = _channel_kinds(main_r)
+    if flow_unknown:
         r2 = "unknown"
+    elif not kinds or "unknown" in kinds:
+        r2 = "unknown" if kinds else "fail"
     elif any(kind == "unbounded" for kind in kinds) or not all(kind == "rendezvous" for kind in kinds):
         r2 = "fail"
-    elif not (re.search(r"\.send\s*\(", sender) and re.search(r"\.recv\s*\(", sender)
-              and re.search(r"\.send\s*\(", receiver) and re.search(r"\.recv\s*\(", receiver)):
+    elif not (re.search(r"\.send\s*\(", sender_r) and re.search(r"\.recv\s*\(", sender_r)
+              and re.search(r"\.send\s*\(", receiver_r) and re.search(r"\.recv\s*\(", receiver_r)):
         r2 = "fail"
     else:
         r2 = "pass"
-    g1, g2 = _guard_blocks(sender), _guard_blocks(receiver)
-    if "unknown" in (g1, g2):
+    if flow_unknown or not (calls_s and calls_r):
+        g1 = g2 = "unknown"
         r3 = "unknown"
-    elif "fail" in (g1, g2):
-        r3 = "fail"
-    elif g1 == "pass" and g2 == "pass":
-        r3 = "pass"
     else:
-        r3 = "fail"
+        g1, g2 = _guard_blocks(sender_r), _guard_blocks(receiver_r)
+        if "unknown" in (g1, g2):
+            r3 = "unknown"
+        elif "fail" in (g1, g2):
+            r3 = "fail"
+        elif g1 == "pass" and g2 == "pass":
+            r3 = "pass"
+        else:
+            r3 = "fail"
     return {
-        "R1": {"status": r1, "detail": {"spawns_s": calls_s, "spawns_r": calls_r, "joins": joins}},
+        "R1": {"status": r1, "detail": {"spawns_s": calls_s, "spawns_r": calls_r, "joins": joins,
+                                       "reachable": not flow_unknown}},
         "R2": {"status": r2, "detail": {"channels": kinds}},
         "R3": {"status": r3, "detail": {"s": g1, "r": g2}},
     }

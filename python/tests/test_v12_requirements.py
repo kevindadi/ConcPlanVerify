@@ -77,6 +77,28 @@ class RequirementTests(unittest.TestCase):
         result = combine(structural_checks(DERIVED), execution)
         self.assertEqual(result["status"], "fail")
 
+    def test_removed_shared_lock_does_not_pass(self):
+        block = "    {\n        let _guard = m.lock().unwrap();\n    }\n"
+        src = DERIVED.replace(block, "")
+        with tempfile.TemporaryDirectory() as td:
+            result = evaluate_requirements(src, Path(td) / "nolock")
+        self.assertEqual(result["checks"]["R1"]["status"], "fail")
+        self.assertNotEqual(result["status"], "bounded_covered_satisfied")
+        self.assertTrue(result["runs"])
+        self.assertTrue(all(run.get("kind") == "completed" for run in result["runs"]))
+
+    def test_unreachable_workers_do_not_pass(self):
+        src = DERIVED.replace(
+            "fn main() {",
+            'fn main() {\n    println!("DONE done=1");\n    return;',
+            1)
+        with tempfile.TemporaryDirectory() as td:
+            result = evaluate_requirements(src, Path(td) / "dead")
+        self.assertEqual(result["checks"]["R1"]["status"], "fail")
+        self.assertEqual(result["checks"]["R2"]["status"], "fail")
+        self.assertNotEqual(result["status"], "bounded_covered_satisfied")
+        self.assertEqual(result["checks"]["R5"]["status"], "pass")
+
     def test_derived_control_passes_covered_checks(self):
         with tempfile.TemporaryDirectory() as td:
             result = evaluate_requirements(DERIVED, Path(td))
