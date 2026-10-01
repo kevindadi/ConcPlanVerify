@@ -48,7 +48,9 @@ def execute_batch(config: dict, rows: list[dict], out: Path, *,
                   client_factory: Callable, evaluate: Callable | None = None,
                   score: Callable | None = None,
                   audit_events: list[dict] | None = None,
-                  max_repairs: int = 2) -> dict[str, Any]:
+                  max_repairs: int = 2,
+                  execution_mode: str = "fake",
+                  budget_path: Path | None = None) -> dict[str, Any]:
     """Run the frozen matrix. Always returns one row per planned cell."""
 
     plan = validate_config(config, rows)
@@ -86,18 +88,32 @@ def execute_batch(config: dict, rows: list[dict], out: Path, *,
             result = _blank(cell, "cell_error", "executed")
             result["error"] = f"{type(exc).__name__}: {exc}"
         results.append(result)
+        print(f"{result.get('model_id')} {result.get('case')} {result.get('arm')} "
+              f"{result.get('status')} {result.get('stop')} "
+              f"phys={result.get('physical_attempts_this_run')}", flush=True)
         stop = result.get("stop")
         if stop in GLOBAL_STOPS:
             global_reason = stop
         elif stop in STOP_MODEL:
             stopped[spec.model_id] = stop
+    physical = sum(int(item.get("physical_attempts_this_run") or 0) for item in results)
+    logical = sum(int(item.get("logical_calls_this_run")
+                      or item.get("actual_model_requests_this_run") or 0) for item in results)
+    budget_used = None
+    if budget_path and Path(budget_path).is_file():
+        budget_used = json.loads(Path(budget_path).read_text(encoding="utf-8")).get("requests_used")
     payload = {
         "ok": True, "planned_cells": len(plan["matrix"]), "results": results,
-        "llm_calls": 0,
-        "http_attempts": sum(int(item.get("actual_model_requests_this_run") or 0)
-                             for item in results),
+        "execution_mode": execution_mode,
+        "llm_calls": physical if execution_mode == "live" else 0,
+        "physical_attempts": physical,
+        "logical_calls": logical,
+        "http_attempts": physical,
+        "physical_attempts_unknown": sum(int(item.get("physical_attempts_unknown") or 0)
+                                         for item in results),
         "semantic_repair_rounds": sum(int(item.get("semantic_repair_rounds") or 0)
                                       for item in results),
+        "budget_requests_used": budget_used,
         "global_budget_stop": global_reason,
     }
     (out / "RESULTS.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
@@ -135,13 +151,17 @@ def main() -> int:
     def factory(spec, cell_id, arm, case_id):
         channel = CHANNELS[spec.channel]
         api_key = key_for(spec, dict(os.environ), channel.api_key_env)
-        inner = build_client(spec, budget=budget, evidence_dir=out / "llm",
+        inner = build_client(spec, budget=budget,
+                             evidence_dir=out / "llm" / cell_id.replace("/", "__"),
                              api_key=api_key, timeout=120.0, max_tokens=4096)
         return AuditedClient(inner, audit=audit, run_id=out.name, cell_id=cell_id,
                              spec=spec, arm=arm, task_id=case_id, replicate=0, stage="repair")
 
-    payload = execute_batch(config, rows, out, client_factory=factory, audit_events=events)
-    print(f"planned_cells={payload['planned_cells']} http_attempts={payload['http_attempts']}")
+    mode = os.environ.get("CPV_EXECUTION_MODE", "live")
+    payload = execute_batch(config, rows, out, client_factory=factory, audit_events=events,
+                            execution_mode=mode, budget_path=out / "budget.json")
+    print(f"planned_cells={payload['planned_cells']} execution_mode={payload['execution_mode']} "
+          f"physical_attempts={payload['physical_attempts']} llm_calls={payload['llm_calls']}")
     return 0
 
 

@@ -31,7 +31,7 @@ def freeze_inputs() -> tuple[dict, list[dict], list[dict]]:
     oracle_py = REPO / "python/cir_workflow/pilot_oracle.py"
     cases_py = REPO / "python/cir_workflow/pilot_cases.py"
     config = {
-        "version": "feedback-pilot-v9",
+        "version": "feedback-pilot-v10",
         "status": "frozen-dry-run",
         "question": "实现阶段的 CIR 一致性反馈消融：固定已验证 CIR 与初始 Rust 后，被测工具链的判定和结构化诊断是否改变修复结果。",
         "not_claimed": "工具诊断不全是 CVN 穷尽反例；独立 oracle 只评分，不进入反馈。",

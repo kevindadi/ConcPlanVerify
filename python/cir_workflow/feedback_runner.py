@@ -8,6 +8,7 @@ oracle. Tool failures and capability gaps do not schedule another call.
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import time
 from pathlib import Path
@@ -47,21 +48,20 @@ def render_prompt(requirements: str, cir_text: str, previous: str, feedback: str
 
 
 def _usage(outcome) -> dict[str, Any]:
-    raw = getattr(outcome, "usage", None) or {}
+    """Normalize provider usage. A reported 0 stays 0; a missing field stays null."""
+
+    from .audit import parse_usage
+    raw = getattr(outcome, "usage", None)
     if not isinstance(raw, dict):
-        raw = {}
-
-    def pick(*keys):
-        for key in keys:
-            if raw.get(key) is not None:
-                return raw.get(key)
-        return None
-
+        raw = None
+    parsed = parse_usage(raw)
     return {
-        "input_tokens": pick("prompt_tokens", "input_tokens"),
-        "output_tokens": pick("completion_tokens", "output_tokens"),
-        "cache_read_tokens": pick("cache_read_input_tokens", "cached_tokens"),
-        "cache_write_tokens": pick("cache_creation_input_tokens"),
+        "input_tokens": parsed.input_tokens,
+        "output_tokens": parsed.output_tokens,
+        "cache_read_tokens": parsed.cache_read_tokens,
+        "cache_write_tokens": parsed.cache_write_tokens,
+        "reasoning_tokens": parsed.reasoning_tokens,
+        "total_tokens": parsed.total_tokens,
         "model_time_ms": getattr(outcome, "wall_ms", None),
     }
 
@@ -166,6 +166,33 @@ def _audit_response_text(event: dict) -> str | None:
         return None
 
 
+def _invoke_complete(client, system: str, user: str, *, candidate_round: int, attempt: int):
+    """Pass the persisted repair identity when the client accepts it."""
+
+    fn = client.complete
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        params = {}
+    accepts = "candidate_round" in params or any(
+        param.kind == inspect.Parameter.VAR_KEYWORD for param in params.values())
+    if accepts:
+        return fn(system, user, candidate_round=candidate_round, attempt=attempt)
+    return fn(system, user)
+
+
+def _physical_of(outcome=None, exc: BaseException | None = None, client=None) -> int:
+    if isinstance(exc, BudgetExhausted):
+        return int(getattr(exc, "physical_attempts", 0) or 0)
+    logged = getattr(client, "last_physical_attempts", None)
+    if isinstance(logged, int):
+        return logged
+    reported = getattr(outcome, "transport_attempt", None)
+    if isinstance(reported, int) and reported > 0:
+        return reported
+    return 1 if outcome is not None else 0
+
+
 def budget_stop_name(exc: BaseException) -> str:
     text = str(exc)
     if "deadline" in text or "wall-clock" in text:
@@ -264,6 +291,10 @@ def _recover_pending(state: dict, audit_events: list[dict]) -> str | None:
         "usage": match.get("usage"), "prompt_sha256": pending.get("prompt_sha256"),
         "response_sha256": response_hash, "feedback": pending.get("feedback"),
         "status": status,
+        "physical_attempts": match.get("transport_attempt") if match.get("transport_attempt") is not None else 1,
+        "logical_call": True,
+        "send_status": "sent",
+        "usage_raw": (match.get("usage") or {}).get("raw") if isinstance(match.get("usage"), dict) else None,
     })
     state["pending"] = None
     if status == "outcome_unknown":
@@ -273,6 +304,24 @@ def _recover_pending(state: dict, audit_events: list[dict]) -> str | None:
     if status == "ok" and identity["identity_confirmed"]:
         return "recovered"
     return status
+
+
+def _cumulative(state: dict) -> dict[str, Any]:
+    physical = 0
+    logical = 0
+    unknown = 0
+    for item in state.get("requests") or []:
+        if item.get("send_status") == "unknown":
+            unknown += 1
+            continue
+        sent = item.get("physical_attempts")
+        if isinstance(sent, int):
+            physical += sent
+        if item.get("logical_call"):
+            logical += 1
+    return {"physical_attempts_cumulative": physical,
+            "logical_calls_cumulative": logical,
+            "physical_attempts_unknown": unknown}
 
 
 def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
@@ -290,10 +339,11 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
     fingerprint = _fingerprint(spec, arm, case, max_repairs)
     if state.get("fingerprint") and state["fingerprint"] != fingerprint:
         return {"case": case["id"], "arm": arm, "model": spec.model_id, "stop": "fingerprint_mismatch",
-                "actual_model_requests_this_run": 0, "requests_recorded": len(state.get("requests") or []),
+                "actual_model_requests_this_run": 0, "physical_attempts_this_run": 0,
+                "logical_calls_this_run": 0, "requests_recorded": len(state.get("requests") or []),
                 "in_defect_denominator": False, "first_requirement_round": None,
-                "first_design_round": None, "rounds": [], "usage": [], "identity": [],
-                "feedback_provenance": []}
+                "first_design_round": None, "first_both_round": None, "rounds": [],
+                "usage": [], "identity": [], "feedback_provenance": [], **_cumulative(state)}
     state["fingerprint"] = fingerprint
     recovery = _recover_pending(state, audit_events or [])
     _save_state(state_path, state)
@@ -301,30 +351,37 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                     "request_error", "global_request_budget_exhausted",
                     "global_time_budget_exhausted"}:
         return {"case": case["id"], "arm": arm, "model": spec.model_id, "stop": recovery,
-                "actual_model_requests_this_run": 0,
+                "actual_model_requests_this_run": 0, "physical_attempts_this_run": 0,
+                "logical_calls_this_run": 0,
                 "requests_recorded": len(state.get("requests") or []),
                 "in_defect_denominator": False, "first_requirement_round": None,
-                "first_design_round": None, "rounds": [], "usage": [], "identity": [],
-                "feedback_provenance": [], "outcome_unknown": state.get("outcome_unknown")}
+                "first_design_round": None, "first_both_round": None, "rounds": [],
+                "usage": [item.get("usage") for item in state.get("requests") or []],
+                "identity": [], "feedback_provenance": [],
+                "outcome_unknown": state.get("outcome_unknown"), **_cumulative(state)}
     evaluate = evaluate or _default_evaluate
     score = score or evaluate_role
     current = source if source is not None else case["defect"]
     cir_text = json.dumps(case["cir"], sort_keys=True)
     new_requests = 0
+    physical_this = 0
     rounds = []
     provenance: list[dict] = []
     first_requirement = None
     first_design = None
+    first_both = None
     stop = None
 
     def consider(round_no: int, text: str, evaluation: dict, delivery: dict) -> bool:
-        nonlocal first_requirement, first_design, stop
+        nonlocal first_requirement, first_design, first_both, stop
         requirement_pass = evaluation["requirement"]["status"] == "pass"
         design_pass = evaluation["design"]["status"] == "pass"
         if requirement_pass and first_requirement is None:
             first_requirement = round_no
         if design_pass and first_design is None:
             first_design = round_no
+        if requirement_pass and design_pass and first_both is None:
+            first_both = round_no
         action = (delivery.get("followup") or {}).get("action")
         category = (delivery.get("followup") or {}).get("category")
         record = {"round": round_no, "requirement_status": evaluation["requirement"]["status"],
@@ -397,27 +454,45 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                 _save_state(state_path, state)
                 started = time.perf_counter()
                 try:
-                    outcome = client.complete(PROMPT_PATH.read_text(encoding="utf-8"), prompt)
+                    outcome = _invoke_complete(
+                        client, PROMPT_PATH.read_text(encoding="utf-8"), prompt,
+                        candidate_round=repair_round, attempt=repair_round)
                 except ModelIdentityError as exc:
                     outcome = exc.outcome
                     returned = getattr(outcome, "response_model", None) if outcome else None
-                    identity = {"requested_model": spec.model_id, "returned_model": returned,
-                                "channel": spec.channel, "display_name": spec.display_name,
-                                "identity_confirmed": False, "error": str(exc)}
-                    state["requests"].append({
-                        "round": repair_round, "arm": arm, "case": case["id"],
-                        "model": spec.model_id, "prompt_sha256": pending["prompt_sha256"],
-                        "feedback": feedback, "response": getattr(outcome, "text", "") if outcome else "",
-                        "identity": identity, "usage": _usage(outcome) if outcome else {},
+                    sent = _physical_of(outcome, client=client)
+                    raw_usage = getattr(outcome, "usage", None) if outcome else None
+                    record = {
+                        "round": repair_round, "arm": arm, "attempt": repair_round,
+                        "case": case["id"], "model": spec.model_id,
+                        "prompt_sha256": pending["prompt_sha256"], "feedback": feedback,
+                        "response": getattr(outcome, "text", "") if outcome else "",
+                        "identity": {"requested_model": spec.model_id, "returned_model": returned,
+                                     "channel": spec.channel, "display_name": spec.display_name,
+                                     "identity_confirmed": False, "error": str(exc)},
+                        "usage": _usage(outcome) if outcome else {
+                            "input_tokens": None, "output_tokens": None,
+                            "cache_read_tokens": None, "cache_write_tokens": None,
+                            "model_time_ms": None},
+                        "usage_raw": raw_usage if isinstance(raw_usage, dict) else None,
+                        "physical_attempts": sent, "logical_call": bool(sent),
+                        "send_status": "sent" if sent else "unknown",
+                        "transport_log": list(getattr(client, "last_transport_log", None) or []),
                         "status": "identity_mismatch",
-                    })
+                    }
+                    state["requests"].append(record)
                     state["pending"] = None
-                    _save_state(state_path, state)
+                    physical_this += sent
                     new_requests += 1
+                    _save_state(state_path, state)
                     stop = "identity_mismatch"
                     break
                 except BudgetExhausted as exc:
                     stop = budget_stop_name(exc)
+                    sent = _physical_of(exc=exc, client=client)
+                    physical_this += sent
+                    if sent:
+                        new_requests += 1
                     state["requests"].append({
                         "round": repair_round, "arm": arm, "attempt": repair_round,
                         "case": case["id"], "model": spec.model_id,
@@ -429,30 +504,49 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                         "usage": {"input_tokens": None, "output_tokens": None,
                                   "cache_read_tokens": None, "cache_write_tokens": None,
                                   "model_time_ms": None},
+                        "usage_raw": None,
+                        "physical_attempts": sent,
+                        "logical_call": bool(sent),
+                        "send_status": "sent" if sent else "not_sent",
                         "status": stop, "error_type": "BudgetExhausted",
                     })
                     state["pending"] = None
                     _save_state(state_path, state)
-                    new_requests += 1
                     break
                 except Exception as exc:  # noqa: BLE001
                     kind = type(exc).__name__
-                    state["requests"].append({
+                    sent = _physical_of(exc=exc, client=client)
+                    log = list(getattr(client, "last_transport_log", None) or [])
+                    if sent and log:
+                        send_status = "sent"
+                    elif sent:
+                        send_status = "sent"
+                    elif isinstance(exc, BudgetExhausted):
+                        send_status = "not_sent"
+                    else:
+                        send_status = "unknown"
+                    record = {
                         "round": repair_round, "arm": arm, "attempt": repair_round,
-                        "case": case["id"],
-                        "model": spec.model_id, "prompt_sha256": pending["prompt_sha256"],
-                        "feedback": feedback, "response": "",
+                        "case": case["id"], "model": spec.model_id,
+                        "prompt_sha256": pending["prompt_sha256"], "feedback": feedback,
+                        "response": "",
                         "identity": {"requested_model": spec.model_id, "returned_model": None,
                                      "channel": spec.channel, "identity_confirmed": False,
                                      "error": str(exc)},
                         "usage": {"input_tokens": None, "output_tokens": None,
                                   "cache_read_tokens": None, "cache_write_tokens": None,
                                   "model_time_ms": None},
+                        "usage_raw": None,
+                        "physical_attempts": sent, "logical_call": bool(sent),
+                        "send_status": send_status, "transport_log": log,
                         "status": "error", "error_type": kind,
-                    })
+                    }
+                    state["requests"].append(record)
                     state["pending"] = None
+                    physical_this += sent
+                    if sent:
+                        new_requests += 1
                     _save_state(state_path, state)
-                    new_requests += 1
                     stop = "request_error"
                     break
                 model_ms = getattr(outcome, "wall_ms", None)
@@ -471,11 +565,18 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                             "identity_confirmed": bool(confirmed), "error": identity_error}
                 usage = _usage(outcome)
                 usage["model_time_ms"] = model_ms
+                sent = _physical_of(outcome, client=client)
+                physical_this += sent
+                raw_usage = getattr(outcome, "usage", None)
                 state["requests"].append({
-                    "round": repair_round, "arm": arm, "case": case["id"],
+                    "round": repair_round, "arm": arm, "attempt": repair_round,
+                    "case": case["id"],
                     "model": spec.model_id, "prompt_sha256": pending["prompt_sha256"],
                     "feedback": feedback, "response": getattr(outcome, "text", ""),
                     "identity": identity, "usage": usage,
+                    "usage_raw": raw_usage if isinstance(raw_usage, dict) else None,
+                    "physical_attempts": sent, "logical_call": True, "send_status": "sent",
+                    "transport_log": list(getattr(client, "last_transport_log", None) or []),
                     "tool_time_s": None, "status": "ok" if confirmed else "identity_unconfirmed",
                 })
                 state["pending"] = None
@@ -528,6 +629,9 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
         "in_defect_denominator": in_denominator and source is None,
         "suggested_repairs": max_repairs,
         "actual_model_requests_this_run": new_requests,
+        "logical_calls_this_run": new_requests,
+        "physical_attempts_this_run": physical_this,
+        "first_both_round": first_both,
         "semantic_repair_rounds": sum(1 for item in rounds if item.get("round")),
         "requests_recorded": len(state["requests"]),
         "rounds": rounds,
@@ -535,6 +639,7 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
         "identity": [item.get("identity") for item in state["requests"]],
         "feedback_provenance": provenance,
         "tool_time_s": initial_eval.get("tool_time_s"),
+        **_cumulative(state),
     }
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -131,6 +132,7 @@ class BatchEntryTests(unittest.TestCase):
         self._old_env = batch.load_dotenv
         self._old_score = feedback_runner.evaluate_role
         self._old_eval = feedback_runner._default_evaluate
+        os.environ["CPV_EXECUTION_MODE"] = "fake"
         batch.key_for = lambda *args, **kwargs: "test-key"
         batch.load_dotenv = lambda *args, **kwargs: None
         _Passing.qwen_calls = 0
@@ -145,6 +147,7 @@ class BatchEntryTests(unittest.TestCase):
         batch.load_dotenv = self._old_env
         feedback_runner.evaluate_role = self._old_score
         feedback_runner._default_evaluate = self._old_eval
+        os.environ.pop("CPV_EXECUTION_MODE", None)
         self.tmp.cleanup()
 
     def _run(self, out: Path) -> dict:
@@ -177,6 +180,10 @@ class BatchEntryTests(unittest.TestCase):
         self.assertEqual(second["stop"], "requirement_pass")
         self.assertEqual(second["case"], first["case"])
         self.assertTrue(all(row["status"] == "executed" for row in payload["results"]))
+        self.assertEqual(payload["execution_mode"], "fake")
+        self.assertEqual(payload["llm_calls"], 0)
+        self.assertEqual(payload["physical_attempts"], 72)
+        self.assertEqual(payload["logical_calls"], 72)
         self.assertEqual({row["case"] for row in payload["results"]},
                          {row["id"] for row in self.rows})
 
@@ -190,7 +197,8 @@ class BatchEntryTests(unittest.TestCase):
         self.assertEqual(payload["results"][0]["stop"], "global_request_budget_exhausted")
         self.assertEqual(payload["results"][0]["status"], "executed")
         self.assertTrue(all(row["status"] == "not_started" for row in payload["results"][1:]))
-        self.assertEqual(payload["http_attempts"], 1)
+        self.assertEqual(payload["http_attempts"], 0)
+        self.assertEqual(payload["physical_attempts"], 0)
         self.assertEqual(len(self._keys(payload)), 48)
 
     def test_identity_failure_blocks_only_that_model(self):
