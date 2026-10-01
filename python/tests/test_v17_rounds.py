@@ -14,6 +14,7 @@ from unittest.mock import patch
 from cir_workflow.conditional_arms import run_repairs
 from cir_workflow.feedback_runner import design_round_status
 from cir_workflow.live import BudgetExhausted
+from cir_workflow.transport import server_model_id
 
 REPO = Path("/Users/kevin/local-repos/ConcPlanVerify")
 NOTES = Path("/Users/kevin/paper-review/papers/ConcPlanVerify/notes")
@@ -158,18 +159,32 @@ def _entry_patches(entry, models, complete, score, reserves=1):
     def build_client(spec, *, budget, **kwargs):
         class Fake:
             def complete(self, system, user):
-                for _ in range(reserves):
+                self.last_transport_log = []
+                for index in range(reserves):
                     budget.reserve()
+                    failed = index + 1 < reserves
+                    self.last_transport_log.append({
+                        "index": index + 1,
+                        "status": "error" if failed else "ok",
+                        "error_type": "RetryableStatus" if failed else None,
+                        "error": "retryable" if failed else None,
+                    })
                 text = complete(spec)
-                model = None if spec.model_id == "deepseek-flash" and getattr(Fake, "hide_identity", False) else spec.model_id
-                return _outcome(text, model or "missing")
+                model = None if spec.model_id == "deepseek-flash" and getattr(Fake, "hide_identity", False) else server_model_id(spec)
+                outcome = _outcome(text, model or "missing")
+                outcome.transport_attempt = reserves
+                return outcome
 
         Fake.hide_identity = getattr(build_client, "hide_identity", False)
         if Fake.hide_identity and spec.model_id == "deepseek-flash":
             def complete_hidden(self, system, user):
-                for _ in range(reserves):
+                self.last_transport_log = []
+                for index in range(reserves):
                     budget.reserve()
-                return _outcome(complete(spec), None)
+                    self.last_transport_log.append({"index": index + 1, "status": "ok"})
+                outcome = _outcome(complete(spec), None)
+                outcome.transport_attempt = reserves
+                return outcome
             Fake.complete = complete_hidden
         return Fake()
 
@@ -196,6 +211,21 @@ class EntryTests(unittest.TestCase):
         with patch.object(sys, "argv", argv):
             return entry.main()
 
+    def test_toolchain_eval_uses_the_arm_case_id(self):
+        entry = _load_entry()
+        seen = {}
+
+        def fake(_source, _cir, _contract, _work, **kwargs):
+            seen["cell"] = kwargs.get("cell_id")
+            return {"ledger": {}}
+
+        with patch.object(entry, "evaluate_candidate", fake):
+            entry._eval("fn main() {}", {
+                "id": "channel/send_while_holding_mutex",
+                "cir_path": "/tmp/cir.json", "contract_path": "/tmp/contract.json",
+            }, "/tmp/work")
+        self.assertEqual(seen["cell"], "channel/send_while_holding_mutex")
+
     def test_dry_run_plans_24_cells_and_does_not_rewrite(self):
         entry = _load_entry()
         with tempfile.TemporaryDirectory() as td:
@@ -217,7 +247,7 @@ class EntryTests(unittest.TestCase):
 
     def test_fake_entry_runs_all_24_and_restart_sends_nothing(self):
         entry = _load_entry()
-        models = ["DeepSeek Flash", "Qwen", "GPT 6 Luna", "Kimi 2.7 Code"]
+        models = ["DeepSeek Flash", "Qwen", "GPT 6 Luna", "GLM 5.3 Flash"]
 
         def complete(_spec):
             return "fn main() { /* repaired */ }"
@@ -254,10 +284,11 @@ class EntryTests(unittest.TestCase):
                 self.assertEqual(self._run(entry, selected, out, True), 0)
             self.assertEqual((out / "RESULTS.json").read_bytes(), saved)
             self.assertEqual(json.loads((out / "budget.json").read_text())["requests_used"], 24)
+            self.assertLessEqual(json.loads((out / "batch_state.json").read_text())["concurrency_peak"], 3)
 
     def test_identity_block_and_budget_cap_are_shared(self):
         entry = _load_entry()
-        models = ["DeepSeek Flash", "Qwen", "GPT 6 Luna", "Kimi 2.7 Code"]
+        models = ["DeepSeek Flash", "Qwen", "GPT 6 Luna", "GLM 5.3 Flash"]
 
         def evaluate(source, _case, _work):
             return _ledger(False, reject=True)
@@ -279,8 +310,106 @@ class EntryTests(unittest.TestCase):
             self.assertEqual(budget["max_requests"], 48)
             rows = json.loads((out / "RESULTS.json").read_text())
             self.assertTrue(any(row["status"] == "not_started" for row in rows))
-            self.assertEqual(json.loads((out / "batch_state.json").read_text())["global_stop"],
-                             "global_request_budget_exhausted")
+            state = json.loads((out / "batch_state.json").read_text())
+            self.assertEqual(state["global_stop"], "global_request_budget_exhausted")
+            self.assertLessEqual(state["concurrency_peak"], 3)
+            events = [json.loads(line) for line in (out / "REQUEST_EVENTS.jsonl").read_text().splitlines() if line.strip()]
+            retries = [event for event in events if event.get("parent_id")]
+            self.assertGreaterEqual(len(retries), 1)
+            self.assertTrue(all(event["attempt_id"] != event["parent_id"] for event in retries))
+            self.assertEqual(sum(1 for event in events if event.get("status") == "ok"), 24)
+
+
+class BudgetTests(unittest.TestCase):
+    def test_two_instances_share_one_atomic_counter(self):
+        from cir_workflow.live import BudgetExhausted, LiveBudget
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "budget.json"
+            first = LiveBudget(path, max_requests=1, max_seconds=60)
+            second = LiveBudget(path, max_requests=1, max_seconds=60)
+            self.assertEqual(first.reserve(), 1)
+            with self.assertRaises(BudgetExhausted):
+                second.reserve()
+            saved = json.loads(path.read_text())
+            self.assertEqual(saved["requests_used"], 1)
+            deadline = saved["deadline_epoch"]
+            restarted = LiveBudget(path, max_requests=99, max_seconds=1)
+            self.assertEqual(restarted.requests_used, 1)
+            self.assertEqual(restarted.deadline_epoch, deadline)
+            self.assertEqual(restarted.max_requests, 1)
+
+    def test_cross_process_cap_allows_one_reserve(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "budget.json"
+            script = (
+                "import sys\n"
+                "from pathlib import Path\n"
+                "from cir_workflow.live import BudgetExhausted, LiveBudget\n"
+                "budget = LiveBudget(Path(sys.argv[1]), max_requests=1, max_seconds=30)\n"
+                "try:\n"
+                "    print(budget.reserve())\n"
+                "except BudgetExhausted:\n"
+                "    print('exhausted')\n"
+            )
+            env = __import__("os").environ.copy()
+            env["PYTHONPATH"] = "python"
+            procs = [
+                subprocess.Popen(
+                    [sys.executable, "-c", script, str(path)],
+                    cwd=str(REPO), env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                )
+                for _ in range(2)
+            ]
+            finished = [proc.communicate() for proc in procs]
+            texts = sorted(out.strip() for out, _err in finished)
+            self.assertEqual(texts, ["1", "exhausted"])
+            self.assertEqual(json.loads(path.read_text())["requests_used"], 1)
+
+    def test_deepseek_retry_reserves_and_audits_each_attempt(self):
+        from cir_workflow.audit import AuditLog
+        from cir_workflow.channels import AuditedClient
+        from cir_workflow.live import ALLOWED_MODEL, DeepSeekFlashClient, LiveBudget
+        from cir_workflow.transport import require_experiment_model, build_registry
+
+        class Retryable(Exception):
+            status_code = 503
+
+        class SDK:
+            def __init__(self):
+                self.calls = 0
+                self.chat = self
+                self.completions = self
+
+            def create(self, **kwargs):
+                self.calls += 1
+                if self.calls == 1:
+                    raise Retryable("503")
+                return SimpleNamespace(
+                    id="req-2", model=ALLOWED_MODEL,
+                    usage=SimpleNamespace(prompt_tokens=2, completion_tokens=1, total_tokens=3),
+                    choices=[SimpleNamespace(finish_reason="stop",
+                                             message=SimpleNamespace(content="fn main() {}"))])
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            budget = LiveBudget(root / "budget.json", max_requests=4, max_seconds=30)
+            inner = DeepSeekFlashClient(api_key="test-key", budget=budget,
+                                        evidence_dir=root / "llm", sdk_client=SDK(),
+                                        max_transport_retries=1)
+            audit = AuditLog(root / "REQUEST_EVENTS.jsonl")
+            spec = require_experiment_model(build_registry(), "DeepSeek Flash")
+            client = AuditedClient(inner, audit=audit, run_id="retry", cell_id="task/deepseek-flash/A",
+                                   spec=spec, arm="A", task_id="task", replicate=0)
+            outcome = client.complete("system", "user")
+            self.assertEqual(outcome.transport_attempt, 2)
+            self.assertEqual(budget.requests_used, 2)
+            events = [json.loads(line) for line in (root / "REQUEST_EVENTS.jsonl").read_text().splitlines()]
+            self.assertEqual(len(events), 2)
+            self.assertEqual(events[0]["status"], "error")
+            self.assertEqual(events[1]["status"], "ok")
+            self.assertEqual(events[1]["parent_id"], events[0]["attempt_id"])
+            self.assertEqual(events[1]["attempt_id"], "task/deepseek-flash/A-r1-a1")
 
 
 if __name__ == "__main__":

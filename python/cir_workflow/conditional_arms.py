@@ -130,7 +130,8 @@ def plan_row(cell: dict, *, global_stop: str | None, model_stop: str | None,
 
 def run_repairs(case: dict, arm: str, client, out_dir: Path, *, max_repairs: int = 2,
                 evaluate_candidate=None, score=None, audit_events=None,
-                freeze_files: dict[str, str] | None = None) -> dict[str, Any]:
+                freeze_files: dict[str, str] | None = None,
+                stop_after_round: int | None = None) -> dict[str, Any]:
     """One cell on the shared repair state machine.
 
     Prompt and feedback differ by arm. Request identity, recovery, and budget
@@ -189,7 +190,8 @@ def run_repairs(case: dict, arm: str, client, out_dir: Path, *, max_repairs: int
         evaluate=toolchain, score=adapted, audit_events=audit_events,
         prompt_renderer=render_prompt, feedback_builder=builder,
         stop_on_unknown=True, require_defect_signal=False,
-        freeze_files=freeze_files, classify_responses=True, system_prompt=SYSTEM)
+        freeze_files=freeze_files, classify_responses=True, system_prompt=SYSTEM,
+        stop_after_round=stop_after_round)
     if result.get("stop") == "requirement_pass":
         result["stop"] = "bounded_covered_satisfied"
     if result.get("stop") in {"global_request_budget_exhausted", "global_time_budget_exhausted"}:
