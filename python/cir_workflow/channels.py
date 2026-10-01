@@ -105,6 +105,50 @@ def build_client(spec: ModelSpec, *, budget: Any, evidence_dir: Path | str,
     raise ChannelUnavailable(f"no client for channel {spec.channel!r}")
 
 
+def _scalar_tree(value: Any) -> Any:
+    """JSON-stable scalars. Objects and secrets are omitted."""
+
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, dict):
+        kept = {}
+        for key in sorted(value):
+            if key in {"api_key", "authorization", "token"}:
+                continue
+            child = _scalar_tree(value[key])
+            if child is not _OMIT:
+                kept[str(key)] = child
+        return kept
+    if isinstance(value, (list, tuple)):
+        kept = []
+        for item in value:
+            child = _scalar_tree(item)
+            if child is not _OMIT:
+                kept.append(child)
+        return kept
+    return _OMIT
+
+
+_OMIT = object()
+
+
+def _public_send_record(client: Any, *, channel: str, surface: str,
+                        endpoint: str | None) -> dict[str, Any]:
+    record: dict[str, Any] = {"channel": channel, "surface": surface, "endpoint": endpoint}
+    for key in ("temperature", "max_tokens", "reasoning_effort", "base_url", "model"):
+        if not hasattr(client, key):
+            continue
+        value = getattr(client, key)
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            record[key] = value
+    extra = getattr(client, "extra_body", None)
+    if extra is not None:
+        tree = _scalar_tree(extra)
+        if tree is not _OMIT:
+            record["extra_body"] = tree
+    return record
+
+
 class AuditedClient:
     """Wrap an inner client and emit one :class:`RequestEvent` per call."""
 
@@ -121,6 +165,13 @@ class AuditedClient:
         self.replicate = replicate
         self.stage = stage
         self.round = 0
+
+    def protocol_record(self) -> dict[str, Any]:
+        """Resolved send parameters. The fingerprint reads this, not the wrapper."""
+
+        endpoint = CHANNELS[self.spec.channel].base_url
+        return _public_send_record(self.inner, channel=self.spec.channel,
+                                   surface=self.spec.surface, endpoint=endpoint)
 
     def set_stage(self, stage: str) -> None:
         """Match the inner clients' stage-switch hook (cir vs code)."""
