@@ -203,6 +203,9 @@ def decide_followup(ledger: ReexecutionLedger, result: dict) -> dict[str, Any]:
     if verdict == "functional_failure":
         feedback = " ".join(ledger.reasons) or "The observable output does not meet the requirement."
         return _repair("candidate_error", "functional_failure", feedback)
+    if verdict == "attribute_conflict":
+        feedback = " ".join(ledger.reasons) or "A channel capacity attribute conflicts with the CIR."
+        return _repair("candidate_error", "attribute_conflict", feedback)
     if verdict == "explicit_failure":
         violation = (ledger.trace.get("violations") or [{}])[0]
         from .generation import _conform_kind, _explain_violation
@@ -434,7 +437,9 @@ def evaluate_candidate(source: str, cir_path: Path, contract_path: Path, out_dir
         if isinstance(rb.get("unresolved"), dict) else list(rb.get("unresolved") or [])
     result["stages"]["binding"] = "ok"
     result["binding"] = {"mapping": mapping, "ambiguous": ambiguous,
-                         "violated": rb.get("violated") or {}, "source": "rust-cli"}
+                         "violated": rb.get("violated") or {}, "source": "rust-cli",
+                         "attributes": rb.get("attributes"),
+                         "uncovered_sync": rb.get("uncovered_sync") or []}
     art = _artifact("binding_check", bind_path, binds=binds_base)
     if art:
         artifacts.append(art)

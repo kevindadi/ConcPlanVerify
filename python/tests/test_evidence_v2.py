@@ -56,14 +56,21 @@ def _materialize(r: dict, props: dict, complete) -> None:
     violated = binding.get("violated") or {}
     if isinstance(violated, list):
         violated = {"declared": violated} if violated else {}
-    bind_path = tmp / "binding-check.stdout"
-    bind_path.write_text(json.dumps({
+    bind_doc = {
         "verified": {k: {"cir": v} for k, v in (binding.get("mapping") or {}).items()},
-        "unresolved": unresolved, "violated": violated}))
+        "unresolved": unresolved, "violated": violated}
+    if binding.get("attributes") is not None:
+        bind_doc["attributes"] = binding["attributes"]
+    if binding.get("uncovered_sync") is not None:
+        bind_doc["uncovered_sync"] = binding["uncovered_sync"]
+    bind_path = tmp / "binding-check.stdout"
+    bind_path.write_text(json.dumps(bind_doc))
     # Keep the in-memory summary consistent with the raw binding file.
     r["binding"] = {"mapping": binding.get("mapping") or {},
                     "ambiguous": binding.get("ambiguous") or [],
-                    "violated": violated, "source": "rust-cli"}
+                    "violated": violated, "source": "rust-cli",
+                    "attributes": binding.get("attributes"),
+                    "uncovered_sync": binding.get("uncovered_sync") or []}
     statuses = (r.get("conform") or {}).get("statuses") or {"conformant": 1}
     violations = list((r.get("conform") or {}).get("violations") or [])
     checks = []
@@ -141,6 +148,51 @@ class StateMachineTests(unittest.TestCase):
             led = _ev(_result(Path(td)))
         self.assertEqual(led.current_evaluation, "satisfied_bounded")
         self.assertTrue(led.all_obligations_satisfied)
+
+    def test_capacity_conflict_blocks_delivery_when_the_trace_conforms(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), binding={
+                "mapping": {"m": "main::m", "ch1": "main::ch1"},
+                "ambiguous": [], "violated": [],
+                "attributes": [{
+                    "resource_id": "main::ch1", "status": "mismatch",
+                    "expected": "rendezvous", "observed": "unbounded",
+                    "construction_site": "10", "evidence": "param_from_call",
+                    "reason": "unbounded versus capacity 0",
+                }],
+            })
+            led = _ev(r)
+        self.assertEqual(led.trace["state"], "observed_conformant")
+        self.assertEqual(led.current_evaluation, "attribute_conflict")
+        self.assertEqual(led.delivery_status, "reject")
+        self.assertFalse(led.design_correspondence["complete"])
+
+    def test_unknown_capacity_is_not_a_bounded_delivery(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), binding={
+                "mapping": {"m": "main::m", "ch1": "main::ch1"},
+                "ambiguous": [], "violated": [],
+                "attributes": [{"resource_id": "main::ch1", "status": "unknown",
+                                "reason": "capacity expression is not a literal"}],
+            })
+            led = _ev(r)
+        self.assertEqual(led.trace["state"], "observed_conformant")
+        self.assertNotEqual(led.current_evaluation, "satisfied_bounded")
+        self.assertNotEqual(led.delivery_status, "deliver_bounded")
+
+    def test_uncovered_barrier_blocks_complete_design_not_the_requirement_layer(self):
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), binding={
+                "mapping": {"m": "main::m"},
+                "ambiguous": [], "violated": [],
+                "attributes": [],
+                "uncovered_sync": [{"kind": "Barrier", "form": "Barrier::new", "site": "1"}],
+            })
+            led = _ev(r)
+        self.assertEqual(led.current_evaluation, "satisfied_bounded")
+        self.assertEqual(led.delivery_status, "deliver_bounded")
+        self.assertFalse(led.design_correspondence["complete"])
+        self.assertTrue(led.needs_extra_check)
 
     def test_binding_violated_blocks_obligations(self):
         with tempfile.TemporaryDirectory() as td:

@@ -144,7 +144,8 @@ def _load_binding(result: dict) -> dict:
     else:
         ambiguous = []
     binding = {"mapping": mapping, "ambiguous": ambiguous, "violated": violated,
-               "source": "rust-cli"}
+               "source": "rust-cli", "attributes": data.get("attributes"),
+               "uncovered_sync": data.get("uncovered_sync") or []}
     claimed = result.get("binding") or {}
     if claimed.get("mapping") is not None and claimed.get("mapping") != mapping:
         return {"ok": False, "binding": binding, "reason": "summary_disagrees"}
@@ -285,6 +286,45 @@ def _model_state(cir_props: dict, cir_complete: bool | None, required: list[str]
         "evidence_ok": evidence_ok,
         "verified": bool(evidence_ok and required and cir_complete is True
                          and not missing and not non_pass),
+    }
+
+
+def attribute_summary(binding: dict) -> str:
+    """Capacity attributes are separate from identity and from the finite trace.
+
+    A missing key means this binding file predates the check (not applicable).
+    An empty list means the check ran and no channel attribute was in scope.
+    Unknown is not a match.
+    """
+
+    if "attributes" not in binding or binding.get("attributes") is None:
+        return "not_applicable"
+    attrs = binding.get("attributes")
+    if not isinstance(attrs, list):
+        return "unknown"
+    if not attrs:
+        return "not_applicable"
+    statuses = [item.get("status") for item in attrs if isinstance(item, dict)]
+    if any(status == "mismatch" for status in statuses):
+        return "mismatch"
+    if any(status != "match" for status in statuses):
+        return "unknown"
+    return "match"
+
+
+def design_correspondence(binding: dict, trace_state: str, identity: dict) -> dict:
+    attributes = attribute_summary(binding)
+    uncovered = list(binding.get("uncovered_sync") or [])
+    identity_ok = not identity.get("relevant_unresolved") and not identity.get("declaration_error")
+    attributes_ok = attributes in {"match", "not_applicable"}
+    trace_ok = trace_state == "observed_conformant"
+    return {
+        "identity": "established" if identity_ok else "unresolved",
+        "attributes": attributes,
+        "trace": trace_state,
+        "uncovered_sync": uncovered,
+        "modeled_projection_conformant": trace_ok,
+        "complete": bool(identity_ok and attributes_ok and trace_ok and not uncovered),
     }
 
 
@@ -444,6 +484,7 @@ class ReexecutionLedger:
     needs_human_review: bool = False
     needs_extra_check: bool = False
     functional: dict = field(default_factory=dict)
+    design_correspondence: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         data = asdict(self)
@@ -459,7 +500,8 @@ def _delivery(*, verdict: str, functional: dict, properties: list[PropertyLedger
                    if p.independent_requirement_result in {"unsupported", "unmapped"}]
     unresolved = [p.property_id for p in properties if p.obligation_state == "unresolved"]
     if verdict in {"explicit_failure", "functional_failure", "requirement_failure",
-                   "source_build_failed", "timeout", "runtime_crash", "partial"}:
+                   "attribute_conflict", "source_build_failed", "timeout",
+                   "runtime_crash", "partial"}:
         grade = "refuted" if verdict in {"explicit_failure", "functional_failure",
                                          "requirement_failure"} else "candidate_defect"
         return {"evidence_grade": grade, "delivery_status": "reject",
@@ -597,11 +639,18 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
                  else "ok"),
         "model": "verified" if model["verified"] else "invalid",
     }
+    attributes = attribute_summary(binding)
+    uncovered_sync = list(binding.get("uncovered_sync") or [])
+    design = design_correspondence(binding, trace["state"], identity)
+    attributes_ok = attributes in {"match", "not_applicable"}
+    layers["attributes"] = attributes
+    layers["design_correspondence"] = "complete" if design["complete"] else "incomplete"
     all_satisfied = bool(
         contract_props and model["verified"] and hashes["verified"]
         and conform_ev["ok"] and binding_ev["ok"] and monitor_ev["ok"]
         and trace["state"] == "observed_conformant"
         and not identity["relevant_unresolved"] and not identity["declaration_error"]
+        and attributes_ok
         and run["state"] == "completed" and not requirement_failed
         and functional["status"] != "fail" and not functional_claim_invalid
         and all(p.obligation_state == "satisfied" for p in props))
@@ -621,6 +670,10 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
     elif identity_link["ok"] and conform_ev["ok"] and trace.get("independent_violation"):
         verdict = "explicit_failure"
         reasons.append("independent conformance violation on a resolved resource")
+    elif binding_ev["ok"] and attributes == "mismatch":
+        verdict = "attribute_conflict"
+        reasons.append("channel capacity conflicts with the CIR resource; "
+                       "a conforming finite trace does not override it")
     elif requirement_failed:
         verdict = "requirement_failure"
         failed_ids = [p.property_id for p in props if p.obligation_state == "violated"]
@@ -650,6 +703,8 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
             reasons.append(f"binding evidence {binding_ev['reason']}")
         elif identity["relevant_unresolved"]:
             reasons.append("relevant identity bindings unresolved")
+        if attributes == "unknown":
+            reasons.append("channel capacity is unknown; it is not treated as a match")
         if not monitor_ev["ok"]:
             reasons.append(f"monitor evidence {monitor_ev['reason']}")
         if functional_claim_invalid:
@@ -675,5 +730,7 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
         evidence_grade=delivered["evidence_grade"],
         delivery_status=delivered["delivery_status"],
         needs_human_review=delivered["needs_human_review"],
-        needs_extra_check=delivered["needs_extra_check"],
-        functional=functional)
+        needs_extra_check=delivered["needs_extra_check"] or bool(
+            uncovered_sync and delivered["delivery_status"] == "deliver_bounded"),
+        functional=functional,
+        design_correspondence=design)
