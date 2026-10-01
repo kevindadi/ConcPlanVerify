@@ -82,6 +82,30 @@ class CondvarScoreTests(unittest.TestCase):
             "    while !*proceed {",
             "    *proceed = true;\n    while !*proceed {")
         self.assertEqual(structural_checks(constant)["R2"]["status"], "fail")
+        nested = HUMAN.replace(
+            "    g12.release_count(1).unwrap();\n",
+            "    g12.release_count(1).unwrap();\n    { return; };\n")
+        nested_checks = structural_checks(nested)
+        self.assertEqual(nested_checks["R2"]["status"], "fail")
+        self.assertEqual(nested_checks["R4"]["status"], "fail")
+        self.assertEqual(nested_checks["R6"]["status"], "fail")
+        bound = HUMAN.replace(
+            "g12.acquire_count(2).unwrap();",
+            "let _permits = g12.acquire_count(2);")
+        self.assertEqual(structural_checks(bound)["R6"]["status"], "pass")
+        live = HUMAN.replace(
+            "g12.acquire_count(2).unwrap();",
+            "let _p1 = g12.acquire();\n    let _p2 = g12.acquire();")
+        self.assertEqual(structural_checks(live)["R6"]["status"], "fail")
+        typed = HUMAN.replace(
+            "let g12 = Semaphore::new(0);",
+            "let g12: Arc<Semaphore> = Semaphore::new(0);")
+        self.assertEqual(structural_checks(typed)["R6"]["status"], "pass")
+        self.assertEqual(structural_checks(typed)["R1"]["status"], "pass")
+        cast = HUMAN.replace(
+            "let g12 = Semaphore::new(0);",
+            "let g12: Arc<Semaphore> = Semaphore::new(0) as Arc<Semaphore>;")
+        self.assertEqual(structural_checks(cast)["R6"]["status"], "unknown")
 
     def test_finite_runs_keep_pass_fail_and_unknown_apart(self):
         with tempfile.TemporaryDirectory() as td:

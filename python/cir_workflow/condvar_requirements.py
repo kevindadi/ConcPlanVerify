@@ -60,6 +60,8 @@ def _classify_stmt(stmt: str) -> dict | None:
          lambda m: {"op": "lock", "guard": m.group(1), "mutex": m.group(2)}),
         (r"^(\w+)\s*\.\s*release_count\s*\(\s*(-?\d+)\s*\)",
          lambda m: {"op": "release_count", "sem": m.group(1), "n": int(m.group(2))}),
+        (r"^let\s+(?:mut\s+)?\w+\s*=\s*(\w+)\s*\.\s*acquire_count\s*\(\s*(-?\d+)\s*\)",
+         lambda m: {"op": "acquire_count", "sem": m.group(1), "n": int(m.group(2))}),
         (r"^(\w+)\s*\.\s*acquire_count\s*\(\s*(-?\d+)\s*\)",
          lambda m: {"op": "acquire_count", "sem": m.group(1), "n": int(m.group(2))}),
         (r"^let\s+(?:mut\s+)?(\w+)\s*=\s*(\w+)\s*\.\s*acquire\s*\(",
@@ -133,6 +135,8 @@ def _parse_sequence(text: str) -> dict:
             if nested["unknown"]:
                 return nested
             events.extend(nested["events"])
+            if nested.get("terminated"):
+                break
             continue
         if re.match(r"^return\b", stmt):
             if _SYNC_WORD.search(stmt):
@@ -156,8 +160,10 @@ def _parse_sequence(text: str) -> dict:
         events.append(event)
     events = _apply_constant_whiles(events)
     if any(event["op"] == "unknown_flag" for event in events):
-        return {"events": [], "unknown": True, "reason": "guard value is not a known constant"}
-    return {"events": events, "unknown": False, "reason": None}
+        return {"events": [], "unknown": True, "reason": "guard value is not a known constant",
+                "terminated": False}
+    terminated = any(event.get("op") == "return" for event in events)
+    return {"events": events, "unknown": False, "reason": None, "terminated": terminated}
 
 
 def _apply_constant_whiles(events: list[dict]) -> list[dict]:
@@ -211,17 +217,23 @@ def _statement_end(text: str, start: int) -> int | None:
 
 
 def _flatten(events: list[dict], *, reachable: bool = True) -> list[dict]:
+    """A return ends that straight-line path. Later siblings are not evidence."""
+
     out = []
+    stopped = False
     for event in events:
+        here = reachable and not stopped
         if event["op"] == "while_false":
             out.append({"op": "while_false", "reachable": False})
             continue
         if event["op"] == "while_not":
-            out.append({**event, "reachable": reachable})
+            out.append({**event, "reachable": here})
             for inner in event["body"]:
-                out.append({**inner, "reachable": reachable, "in_while": event["guard"]})
+                out.append({**inner, "reachable": here, "in_while": event["guard"]})
             continue
-        out.append({**event, "reachable": reachable})
+        out.append({**event, "reachable": here})
+        if event["op"] == "return" and here:
+            stopped = True
     return out
 
 
@@ -464,8 +476,8 @@ def _readiness(w1: str, w2: str, notifier: str, params: dict, g12_root: str | No
                       reason="RAII acquire/release returns the permit before notify_all; it is not a persistent consume of two waiter permits",
                       **detail)
     if effect["held"]:
-        return _check("unknown", "static_subset",
-                      reason="a RAII permit is still held at notify_all; its net effect is not the supported explicit protocol",
+        return _check("fail", "static_subset",
+                      reason="RAII permits are still live at notify_all; Drop returns them, so they are not a persistent acquire_count",
                       **detail)
     if initial > 0 and effect["persistent"] <= initial:
         return _check("fail", "static_subset",

@@ -330,7 +330,10 @@ def _leading_root(expr: str, scopes: list[dict[str, str]], origin: int, space: s
         return f"mutex:{site}"
     if re.match(r"Arc::new\s*\(\s*Condvar::new\b", stripped):
         return f"condvar:{site}"
-    sem = re.match(r"Semaphore::new\s*\(\s*(-?\d+)\s*\)", stripped)
+    wrapped = re.match(r"Arc::new\s*\(\s*Semaphore::new\s*\(\s*(-?\d+)\s*\)\s*\)\s*$", stripped)
+    if wrapped:
+        return f"sem:{wrapped.group(1)}:{site}"
+    sem = re.match(r"Semaphore::new\s*\(\s*(-?\d+)\s*\)\s*$", stripped)
     if sem:
         return f"sem:{sem.group(1)}:{site}"
     clone = re.match(r"Arc::clone\s*\(\s*&([A-Za-z_]\w*)\s*\)\s*$", stripped)
@@ -468,7 +471,12 @@ def _scan_statements(text: str, scopes: list[dict[str, str]], calls: dict[str, l
                     scopes[-1][name] = "unknown"
             index += destructure.end()
             continue
-        let = re.match(r"let\s+(?:mut\s+)?(\w+)\s*=\s*", text[index:])
+        # A type ascription does not change the value. ``let g: Arc<Semaphore> =
+        # Semaphore::new(0)`` is the same root as the untyped binding. A type
+        # that itself contains ``=`` is outside this subset and stays unknown.
+        let = re.match(
+            r"let\s+(?:mut\s+)?(\w+)(?:\s*:\s*[A-Za-z_][\w:\s<>,]*)?\s*=\s*",
+            text[index:])
         assign = None if let else re.match(r"(\w+)\s*=\s*", text[index:])
         if assign and _lookup_root(scopes, assign.group(1)) is None:
             assign = None
