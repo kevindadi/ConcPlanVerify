@@ -20,7 +20,7 @@ from .toolchain_feedback import feedback_from_toolchain, has_defect_signal
 from .live import BudgetExhausted
 from .transport import (
     ModelIdentityError, ModelUnavailable, build_registry, require_experiment_model,
-    verify_identity,
+    server_model_id, verify_identity,
 )
 
 PROMPT_PATH = Path(__file__).resolve().parents[2] / "prompts" / "feedback_repair_v1.md"
@@ -63,6 +63,8 @@ def _usage(outcome) -> dict[str, Any]:
         "reasoning_tokens": parsed.reasoning_tokens,
         "total_tokens": parsed.total_tokens,
         "model_time_ms": getattr(outcome, "wall_ms", None),
+        "usage_reason": None if isinstance(raw, dict) else (
+            getattr(outcome, "usage_reason", None) or "provider did not report usage"),
     }
 
 
@@ -222,7 +224,10 @@ def _event_matches_pending(event: dict, pending: dict) -> bool:
     if event.get("candidate_round") != pending.get("round"):
         return False
     attempt = pending.get("attempt")
-    if attempt is not None and event.get("attempt_id") != f"a{attempt}":
+    expected_attempt = pending.get("attempt_id")
+    if expected_attempt is None and attempt is not None:
+        expected_attempt = f"a{attempt}"
+    if expected_attempt is not None and event.get("attempt_id") not in {expected_attempt, f"a{attempt}"}:
         return False
     wanted = pending.get("audit_prompt_sha256")
     if not wanted or event.get("prompt_sha256") != wanted:
@@ -381,7 +386,8 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
             require_defect_signal: bool = True,
             freeze_files: dict[str, str] | None = None,
             classify_responses: bool = False,
-            system_prompt: str | None = None) -> dict[str, Any]:
+            system_prompt: str | None = None,
+            stop_after_round: int | None = None) -> dict[str, Any]:
     """Run one arm from a frozen candidate. ``source`` defaults to the defect."""
 
     out_dir = Path(out_dir)
@@ -479,6 +485,9 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                       and stop not in {"tool_failure", "capability_gap"})
     if not finished:
         for repair_round in range(1, max_repairs + 1):
+            if stop_after_round is not None and repair_round > stop_after_round:
+                stop = "phase_complete"
+                break
             saved = next((item for item in state["requests"] if item.get("round") == repair_round
                           and item.get("arm") == arm), None)
             if feedback_builder is not None:
@@ -513,7 +522,9 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                 response = saved["response"]
                 identity = saved["identity"]
             else:
+                cell_key = getattr(client, "cell_id", None) or arm
                 pending = {"round": repair_round, "arm": arm, "attempt": repair_round,
+                           "attempt_id": f"{cell_key}-r{repair_round}-a{repair_round}",
                            "run_id": getattr(client, "run_id", None),
                            "cell_id": getattr(client, "cell_id", None),
                            "model": spec.model_id,
@@ -631,7 +642,7 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                 if model_ms is None:
                     model_ms = int((time.perf_counter() - started) * 1000)
                 returned = getattr(outcome, "response_model", None)
-                requested = spec.model_id
+                requested = server_model_id(spec)
                 try:
                     confirmed = verify_identity(requested, returned)
                     identity_error = None
@@ -639,9 +650,18 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                     confirmed = False
                     identity_error = str(exc)
                 identity = {"requested_model": requested, "returned_model": returned,
+                            "internal_model_id": spec.model_id,
                             "channel": spec.channel, "display_name": spec.display_name,
+                            "agent_mode": getattr(outcome, "agent_mode", None),
                             "identity_confirmed": bool(confirmed), "error": identity_error,
-                            "finish_reason": getattr(outcome, "finish_reason", None)}
+                            "finish_reason": getattr(outcome, "finish_reason", None),
+                            "hidden_calls_observable": getattr(outcome, "hidden_calls_observable", None),
+                            "external_dispatches": getattr(outcome, "external_dispatches", None),
+                            "visible_model_attempts": getattr(outcome, "visible_model_attempts", None),
+                            "tools_disabled": getattr(outcome, "tools_disabled", None),
+                            "max_run_s": getattr(outcome, "max_run_s", None),
+                            "usage_reason": getattr(outcome, "usage_reason", None),
+                            "tool_steps": getattr(outcome, "tool_steps", None)}
                 usage = _usage(outcome)
                 usage["model_time_ms"] = model_ms
                 sent = _physical_of(outcome, client=client)
@@ -705,6 +725,9 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                 _save_state(state_path, state)
             _save_state(state_path, state)
             if consider(repair_round, current, evaluation, delivery):
+                break
+            if stop_after_round is not None and repair_round >= stop_after_round:
+                stop = "phase_complete"
                 break
         else:
             stop = stop or "cell_repair_budget_exhausted"

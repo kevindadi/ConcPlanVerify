@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 from cir_workflow.feedback_runner import run_arm, validate_config
 from cir_workflow.pilot_cases import load_case
-from cir_workflow.transport import build_registry, require_experiment_model
+from cir_workflow.transport import build_registry, require_experiment_model, resolve_model
 
 
 def _ok_eval(*args, **kwargs):
@@ -66,7 +66,8 @@ class RunnerTests(unittest.TestCase):
                          evaluate=_ok_eval)
         self.assertEqual(client.calls, 1)
         self.assertEqual(result["first_requirement_round"], 1)
-        self.assertEqual(result["first_design_round"], 1)
+        self.assertIsNone(result["first_design_round"])
+        self.assertIsNone(result["first_both_round"])
         self.assertEqual(result["stop"], "requirement_pass")
         self.assertTrue(result["in_defect_denominator"])
         self.assertLess(result["actual_model_requests_this_run"], result["suggested_repairs"])
@@ -100,7 +101,7 @@ class RunnerTests(unittest.TestCase):
         self.assertFalse(result["in_defect_denominator"])
 
     def test_kimi_k3_return_is_rejected(self):
-        spec = require_experiment_model(build_registry(), "Kimi 2.7 Code")
+        spec = resolve_model(build_registry(), "Kimi 2.7 Code")
         client = _Fake([_fence(self.case["control"])], model_id="kimi-k3")
         result = run_arm(self.case, spec, "counterexample", client, self.out,
                          evaluate=_ok_eval)
@@ -246,7 +247,7 @@ class RunnerTests(unittest.TestCase):
     def test_audited_client_k3_saves_state(self):
         from cir_workflow.audit import AuditLog
         from cir_workflow.channels import AuditedClient
-        spec = require_experiment_model(build_registry(), "Kimi 2.7 Code")
+        spec = resolve_model(build_registry(), "Kimi 2.7 Code")
         inner = _Fake([_fence(self.case["control"])], model_id="kimi-k3")
         audit = AuditLog(self.out / "events.jsonl")
         client = AuditedClient(inner, audit=audit, run_id="drill", cell_id="c",
@@ -286,7 +287,7 @@ class RunnerTests(unittest.TestCase):
         return client, audit
 
     def test_audited_client_missing_model_id_saves_state(self):
-        spec = require_experiment_model(build_registry(), "Kimi 2.7 Code")
+        spec = resolve_model(build_registry(), "Kimi 2.7 Code")
         inner = _Fake([_fence(self.case["control"])], model_id=None)
         client, _audit = self._audited(inner, "missing", spec)
         result = run_arm(self.case, spec, "verdict_only", client, self.out / "missing-run",

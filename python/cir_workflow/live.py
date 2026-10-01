@@ -22,6 +22,7 @@ unless the ``live`` command is invoked.
 from __future__ import annotations
 
 import hashlib
+import sqlite3
 import json
 import os
 import time
@@ -123,21 +124,62 @@ class LiveBudget:
 
     def __post_init__(self) -> None:
         self.budget_path.parent.mkdir(parents=True, exist_ok=True)
-        if self.budget_path.exists():
-            state = json.loads(self.budget_path.read_text(encoding="utf-8"))
-            self.requests_used = int(state.get("requests_used", 0))
-            self.deadline_epoch = float(state.get("deadline_epoch", 0.0))
-        if self.deadline_epoch <= 0:
-            self.deadline_epoch = time.time() + self.max_seconds
-        self._save()
+        self._db_path = self.budget_path.with_suffix(".sqlite")
+        conn = self._connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS budget ("
+                "id INTEGER PRIMARY KEY CHECK (id = 1),"
+                "max_requests INTEGER NOT NULL,"
+                "max_seconds REAL NOT NULL,"
+                "deadline_epoch REAL NOT NULL,"
+                "requests_used INTEGER NOT NULL)")
+            row = conn.execute(
+                "SELECT max_requests, max_seconds, deadline_epoch, requests_used FROM budget WHERE id = 1"
+            ).fetchone()
+            if row is None and self.budget_path.exists():
+                prior = json.loads(self.budget_path.read_text(encoding="utf-8"))
+                used = int(prior.get("requests_used", 0))
+                deadline = float(prior.get("deadline_epoch", 0.0))
+                if deadline <= 0:
+                    deadline = time.time() + self.max_seconds
+                conn.execute(
+                    "INSERT INTO budget (id, max_requests, max_seconds, deadline_epoch, requests_used) "
+                    "VALUES (1, ?, ?, ?, ?)",
+                    (self.max_requests, self.max_seconds, deadline, used))
+                row = (self.max_requests, self.max_seconds, deadline, used)
+            elif row is None:
+                deadline = self.deadline_epoch if self.deadline_epoch > 0 else time.time() + self.max_seconds
+                conn.execute(
+                    "INSERT INTO budget (id, max_requests, max_seconds, deadline_epoch, requests_used) "
+                    "VALUES (1, ?, ?, ?, ?)",
+                    (self.max_requests, self.max_seconds, deadline, 0))
+                row = (self.max_requests, self.max_seconds, deadline, 0)
+            self.max_requests = int(row[0])
+            self.max_seconds = float(row[1])
+            self.deadline_epoch = float(row[2])
+            self.requests_used = int(row[3])
+            conn.commit()
+        finally:
+            conn.close()
+        self._mirror()
 
-    def _save(self) -> None:
-        self.budget_path.write_text(json.dumps({
+    def _connect(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self._db_path, timeout=30, isolation_level=None)
+        conn.execute("PRAGMA busy_timeout=30000")
+        return conn
+
+    def _mirror(self) -> None:
+        payload = json.dumps({
             "max_requests": self.max_requests,
             "max_seconds": self.max_seconds,
             "deadline_epoch": self.deadline_epoch,
             "requests_used": self.requests_used,
-        }, indent=2) + "\n", encoding="utf-8")
+        }, indent=2) + "\n"
+        temporary = self.budget_path.with_name(self.budget_path.name + ".tmp")
+        temporary.write_text(payload, encoding="utf-8")
+        temporary.replace(self.budget_path)
 
     def exhausted(self) -> str | None:
         if self.requests_used >= self.max_requests:
@@ -147,12 +189,38 @@ class LiveBudget:
         return None
 
     def reserve(self) -> int:
-        reason = self.exhausted()
-        if reason:
-            raise BudgetExhausted(reason)
-        self.requests_used += 1
-        self._save()
-        return self.requests_used
+        """Reserve one send. The count is read and updated in one transaction.
+
+        A second process or LiveBudget instance sees the committed count.
+        A failed send is not refunded, and a restart does not move the deadline.
+        """
+
+        conn = self._connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                "SELECT max_requests, deadline_epoch, requests_used FROM budget WHERE id = 1"
+            ).fetchone()
+            used = int(row[2])
+            deadline = float(row[1])
+            limit = int(row[0])
+            if used >= limit:
+                conn.rollback()
+                self.requests_used = used
+                raise BudgetExhausted(f"request budget reached ({used}/{limit})")
+            if time.time() >= deadline:
+                conn.rollback()
+                self.deadline_epoch = deadline
+                raise BudgetExhausted("batch wall-clock deadline reached")
+            used += 1
+            conn.execute("UPDATE budget SET requests_used = ? WHERE id = 1", (used,))
+            conn.commit()
+        finally:
+            conn.close()
+        self.requests_used = used
+        self.deadline_epoch = deadline
+        self._mirror()
+        return used
 
     @property
     def remaining(self) -> int:

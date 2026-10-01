@@ -62,6 +62,7 @@ class ModelSpec:
     status: str = "available"        # available | blocked | unknown
     blocked_reason: str | None = None
     discovered: bool = False         # model_id observed in a live model list
+    identity_model: str | None = None  # server-reported id; not the internal stable id
 
 
 # Channels are keyed by name; the API key env var is a *name* only. The value
@@ -130,10 +131,14 @@ def build_registry() -> list[ModelSpec]:
                   discovered="qwen3.8-flash" in DISCOVERED_MODELS["dashscope-direct"]),
         ModelSpec("Composer 2.5", "cursor", "cursor", "composer-2.5",
                   role="diagnostic", status="blocked",
-                  blocked_reason="Cursor agent accumulates large, partly "
-                                 "unobservable context (150-180k input "
-                                 "tokens/call) and cannot be reduced to a "
-                                 "stateless chat call; not comparable to direct APIs",
+                  blocked_reason="historical Cursor diagnostic id; this repair pilot "
+                                 "does not call Composer",
+                  discovered="composer-2.5" in DISCOVERED_MODELS["cursor"]),
+        ModelSpec("Cursor Agent", "cursor", "cursor", "cursor-agent",
+                  role="historical", surface="cursor-sdk", status="historical",
+                  identity_model="composer-2.5",
+                  blocked_reason="not in this repair pilot; GLM 5.3 Flash on OpenCode "
+                                 "is a different system",
                   discovered="composer-2.5" in DISCOVERED_MODELS["cursor"]),
         ModelSpec("Kimi 2.7 Code", "moonshot", "opencode-go", "kimi-k2.7-code",
                   role="compare",
@@ -147,8 +152,8 @@ def build_registry() -> list[ModelSpec]:
                   role="historical", status="historical",
                   blocked_reason="historical batch id only; not Kimi 2.7 Code",
                   discovered="kimi-k3" in DISCOVERED_MODELS["opencode-go"]),
-        ModelSpec("GLM", "zhipu", "opencode-go", "glm-5.3-flash", role="compare",
-                  aliases=("glm-5.3",),
+        ModelSpec("GLM 5.3 Flash", "zhipu", "opencode-go", "glm-5.3-flash",
+                  role="compare", surface="chat", aliases=("GLM",),
                   discovered="glm-5.3-flash" in DISCOVERED_MODELS["opencode-go"]),
         ModelSpec("GPT 6 Luna", "openai", "opencode-go", "gpt-6-luna",
                   role="compare", surface="responses",
@@ -168,8 +173,14 @@ EXPERIMENT_MODEL_IDS: tuple[str, ...] = (
     "deepseek-flash",
     "qwen3.8-flash",
     "gpt-6-luna",
-    "kimi-k2.7-code",
+    "glm-5.3-flash",
 )
+
+
+def server_model_id(spec: ModelSpec) -> str:
+    """The id a provider must return. The internal id is not that value."""
+
+    return spec.identity_model or spec.model_id or ""
 
 
 def available_models(specs: list[ModelSpec] | None = None) -> list[ModelSpec]:

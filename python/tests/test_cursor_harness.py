@@ -49,9 +49,11 @@ class _Factory:
     def __init__(self):
         self.created = 0
         self.sink = []
+        self.options = []
 
-    def create(self, _options):
+    def create(self, options):
         self.created += 1
+        self.options.append(options)
         return _Agent(self.sink)
 
 
@@ -78,6 +80,10 @@ class PayloadTests(unittest.TestCase):
         client.set_stage("cir")
         client.complete("CIR RULES v3", "requirements only")
         self.assertEqual(factory.created, 1)
+        options = factory.options[0]
+        self.assertEqual(options.kwargs["model"], "composer-2.5")
+        self.assertEqual(options.kwargs["mode"], "agent")
+        self.assertEqual(options.kwargs["tools"], [])
         self.assertIn("CIR RULES v3", factory.sink[0])
         self.assertIn("requirements only", factory.sink[0])
 

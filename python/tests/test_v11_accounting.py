@@ -15,7 +15,7 @@ from cir_workflow.feedback_runner import _usage, run_arm
 from cir_workflow.live import LiveBudget
 from cir_workflow.opencode_go import OpenCodeGoClient, OpenCodeGoResponsesClient
 from cir_workflow.pilot_cases import load_case
-from cir_workflow.transport import build_registry, require_experiment_model
+from cir_workflow.transport import build_registry, require_experiment_model, resolve_model
 from tests.test_feedback_runner import _Fake, _fence, _ok_eval
 
 
@@ -92,7 +92,7 @@ class UsageAndPersistenceTests(unittest.TestCase):
 
     def test_failed_request_fields_survive_restart(self):
         case = load_case("lock_order")
-        spec = require_experiment_model(build_registry(), "Kimi 2.7 Code")
+        spec = resolve_model(build_registry(), "Kimi 2.7 Code")
         for name, inner in (
             ("identity", _Fake([_fence(case["control"])], model_id="kimi-k3")),
             ("error", _Boom()),

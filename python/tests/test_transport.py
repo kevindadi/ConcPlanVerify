@@ -37,11 +37,22 @@ class RegistryTests(unittest.TestCase):
 
     def test_opencode_models_are_discovered(self):
         specs = transport.build_registry()
-        for display in ("Kimi 2.7 Code", "GLM", "GPT 6 Luna", "Grok 4.7"):
+        for display in ("Kimi 2.7 Code", "GLM 5.3 Flash", "GPT 6 Luna", "Grok 4.7"):
             spec = transport.resolve_model(specs, display)
             self.assertEqual(spec.channel, "opencode-go")
             self.assertTrue(spec.discovered, display)
             self.assertIn(spec.model_id, transport.DISCOVERED_MODELS["opencode-go"])
+        glm = transport.resolve_model(specs, "GLM 5.3 Flash")
+        self.assertEqual(glm.model_id, "glm-5.3-flash")
+        self.assertEqual(glm.channel, "opencode-go")
+        self.assertEqual(glm.surface, "chat")
+        self.assertNotIn("glm-5.3", glm.aliases)
+        self.assertEqual(transport.resolve_model(specs, "GLM").model_id, "glm-5.3-flash")
+        with self.assertRaises(KeyError):
+            transport.resolve_model(specs, "glm-5.3")
+        experiment = [spec.model_id for spec in transport.experiment_models(specs)]
+        self.assertEqual(experiment[-1], "glm-5.3-flash")
+        self.assertNotIn("cursor-agent", experiment)
 
     def test_kimi_2_7_code_is_not_k3(self):
         specs = transport.build_registry()

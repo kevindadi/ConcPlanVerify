@@ -16,9 +16,12 @@ happened so the cell-level summary can.
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
+import os
 import time
+import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -95,12 +98,12 @@ def parse_usage(raw: dict[str, Any] | None, *, source: str = "server",
         ("completion_tokens_details", "reasoning_tokens"),
         ("output_tokens_details", "reasoning_tokens")))
     cache_read = _int_or_none(_nested(
-        raw, ("cache_read_input_tokens",),
+        raw, ("cache_read_tokens",), ("cache_read_input_tokens",),
         ("prompt_cache_hit_tokens",),
         ("prompt_tokens_details", "cached_tokens"),
         ("input_tokens_details", "cached_tokens")))
     cache_write = _int_or_none(_nested(
-        raw, ("cache_creation_input_tokens",),
+        raw, ("cache_write_tokens",), ("cache_creation_input_tokens",),
         ("prompt_tokens_details", "cache_creation_tokens"),
         ("input_tokens_details", "cache_write_tokens")))
     complete = input_tokens is not None and output_tokens is not None
@@ -168,14 +171,14 @@ class AuditLog:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.raw_dir = Path(raw_dir) if raw_dir else self.path.parent / "raw"
         self.raw_dir.mkdir(parents=True, exist_ok=True)
-        self._seq = 0
 
     def _write_raw(self, prefix: str, text: str) -> tuple[str, str]:
-        self._seq += 1
         digest = sha256_text(text)
-        name = f"{prefix}-{self._seq:04d}-{digest[:12]}.txt"
+        name = f"{prefix}-{uuid.uuid4().hex}-{digest[:12]}.txt"
         target = self.raw_dir / name
-        target.write_text(text, encoding="utf-8")
+        temporary = target.with_name(name + ".tmp")
+        temporary.write_text(text, encoding="utf-8")
+        os.replace(temporary, target)
         return digest, str(target)
 
     def record(self, event: RequestEvent, *, prompt: str | None = None,
@@ -188,9 +191,12 @@ class AuditLog:
             digest, path = self._write_raw("response", response)
             event.response_sha256 = digest
             event.response_path = path
+        line = json.dumps(event.to_dict(), ensure_ascii=False, sort_keys=True) + "\n"
         with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(event.to_dict(), ensure_ascii=False,
-                                    sort_keys=True) + "\n")
+            fcntl.flock(handle, fcntl.LOCK_EX)
+            handle.write(line)
+            handle.flush()
+            os.fsync(handle.fileno())
         return event
 
     def model_call(self, *, run_id: str, cell_id: str, model: str, provider: str,
