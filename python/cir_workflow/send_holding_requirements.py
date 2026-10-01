@@ -199,111 +199,348 @@ def _lookup_root(scopes: list[dict[str, str]], name: str) -> str | None:
     return None
 
 
-def _mutex_roots(main: str) -> dict[str, str] | None:
-    """Visible bindings after straight-line code.
+def _skip_gap(text: str, index: int) -> int:
+    while index < len(text):
+        if text.startswith("//", index):
+            newline = text.find("\n", index)
+            index = len(text) if newline < 0 else newline + 1
+            continue
+        if text.startswith("/*", index):
+            end = text.find("*/", index + 2)
+            index = len(text) if end < 0 else end + 2
+            continue
+        if text[index] in " \t\r\n":
+            index += 1
+            continue
+        break
+    return index
 
-    Each ``Arc::new(Mutex::new)`` gets an identity from its source position.
-    ``Arc::clone`` copies that identity. A new ``let`` always creates a binding
-    in the current block; an unrecognized initializer is unknown and does not
-    keep the outer construction. ``None`` means control flow is unsupported.
-    """
 
-    if re.search(r"\b(if|match|while|for|loop|async)\b", main):
+def _skip_string(text: str, index: int) -> int | None:
+    if index >= len(text) or text[index] != '"':
         return None
-    scopes: list[dict[str, str]] = [{}]
+    index += 1
+    while index < len(text):
+        if text[index] == "\\":
+            index += 2
+            continue
+        if text[index] == '"':
+            return index + 1
+        index += 1
+    return None
+
+
+def _ident_boundary(text: str, index: int) -> bool:
+    if index <= 0:
+        return True
+    prev = text[index - 1]
+    return not (prev.isalnum() or prev == "_")
+
+
+def _keyword(text: str, index: int) -> bool:
+    for word in ("if", "match", "while", "for", "loop", "async"):
+        if text.startswith(word, index) and _ident_boundary(text, index):
+            after = index + len(word)
+            if after >= len(text) or not (text[after].isalnum() or text[after] == "_"):
+                return True
+    return False
+
+
+def _matching_brace(text: str, index: int) -> tuple[str, int] | None:
+    if index >= len(text) or text[index] != "{":
+        return None
+    depth = 0
+    cursor = index
+    while cursor < len(text):
+        if text.startswith("//", cursor) or text.startswith("/*", cursor):
+            cursor = _skip_gap(text, cursor)
+            continue
+        skipped = _skip_string(text, cursor)
+        if skipped is not None:
+            cursor = skipped
+            continue
+        if text[cursor] == "{":
+            depth += 1
+        elif text[cursor] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[index + 1:cursor], cursor + 1
+        cursor += 1
+    return None
+
+
+def _expr_until_semi(text: str, index: int) -> tuple[str, int] | None:
+    depth = 0
+    cursor = index
+    while cursor < len(text):
+        if text.startswith("//", cursor) or text.startswith("/*", cursor):
+            cursor = _skip_gap(text, cursor)
+            continue
+        skipped = _skip_string(text, cursor)
+        if skipped is not None:
+            cursor = skipped
+            continue
+        char = text[cursor]
+        if char in "({[":
+            depth += 1
+        elif char in ")}]":
+            depth -= 1
+        elif char == ";" and depth == 0:
+            return text[index:cursor], cursor + 1
+        cursor += 1
+    return None
+
+
+def _arg_root(arg: str, scopes: list[dict[str, str]]) -> str:
+    arg = arg.strip()
+    if re.fullmatch(r"[A-Za-z_]\w*", arg):
+        return _lookup_root(scopes, arg) or "absent"
+    clone = re.fullmatch(r"Arc::clone\s*\(\s*&([A-Za-z_]\w*)\s*\)", arg)
+    if clone:
+        return _lookup_root(scopes, clone.group(1)) or "unknown"
+    return "unknown"
+
+
+def _split_args(blob: str) -> list[str] | None:
+    parts: list[str] = []
+    buf: list[str] = []
+    depth = 0
+    for char in blob:
+        if char in "({[<":
+            depth += 1
+            buf.append(char)
+        elif char in ")}]>":
+            depth = max(0, depth - 1)
+            buf.append(char)
+        elif char == "," and depth == 0:
+            parts.append("".join(buf).strip())
+            buf = []
+        else:
+            buf.append(char)
+    if "".join(buf).strip():
+        parts.append("".join(buf).strip())
+    return parts
+
+
+def _leading_root(expr: str, scopes: list[dict[str, str]], origin: int, space: str) -> str:
+    stripped = expr.lstrip()
+    site = f"{space}:{origin + (len(expr) - len(stripped))}"
+    if re.match(r"Arc::new\s*\(\s*Mutex::new\b", stripped):
+        return f"mutex:{site}"
+    if re.match(r"Arc::new\s*\(\s*Condvar::new\b", stripped):
+        return f"condvar:{site}"
+    sem = re.match(r"Semaphore::new\s*\(\s*(-?\d+)\s*\)", stripped)
+    if sem:
+        return f"sem:{sem.group(1)}:{site}"
+    clone = re.match(r"Arc::clone\s*\(\s*&([A-Za-z_]\w*)\s*\)\s*$", stripped)
+    if clone:
+        return _lookup_root(scopes, clone.group(1)) or "unknown"
+    if re.fullmatch(r"[A-Za-z_]\w*", stripped):
+        found = _lookup_root(scopes, stripped)
+        return found if found is not None else "unknown"
+    return "unknown"
+
+
+def _scan_expr(expr: str, scopes: list[dict[str, str]], calls: dict[str, list[list[str]]],
+               interest: set[str], locks: list[str], origin: int, space: str) -> tuple[bool, str]:
+    """Walk one expression. A call records the roots visible at that call."""
+
+    stripped = expr.lstrip()
+    pad = len(expr) - len(stripped)
+    if stripped.startswith("{"):
+        found = _matching_brace(expr, pad)
+        if found is None:
+            return False, "unknown"
+        inner, end = found
+        if expr[end:].strip():
+            return False, "unknown"
+        scopes.append({})
+        ok, root = _scan_statements(inner, scopes, calls, interest, locks, origin + pad + 1, space)
+        scopes.pop()
+        return ok, root
+    if _keyword(stripped, 0):
+        return False, "unknown"
+    root = _leading_root(expr, scopes, origin, space)
     index = 0
-    while index < len(main):
-        char = main[index]
-        if char == "{":
+    while index < len(expr):
+        if expr.startswith("//", index) or expr.startswith("/*", index):
+            index = _skip_gap(expr, index)
+            continue
+        skipped = _skip_string(expr, index)
+        if skipped is not None:
+            index = skipped
+            continue
+        if expr[index] == "{":
+            found = _matching_brace(expr, index)
+            if found is None:
+                return False, "unknown"
+            inner, end = found
             scopes.append({})
-            index += 1
-            continue
-        if char == "}":
-            if len(scopes) == 1:
-                return None
+            ok, _inner_root = _scan_statements(inner, scopes, calls, interest, locks, origin + index + 1, space)
             scopes.pop()
+            if not ok:
+                return False, "unknown"
+            index = end
+            continue
+        if _keyword(expr, index):
+            return False, "unknown"
+        call = re.match(r"([A-Za-z_]\w*)\s*\(", expr[index:])
+        if call and _ident_boundary(expr, index) and expr[index - 1:index] != ".":
+            name = call.group(1)
+            open_at = index + call.end() - 1
+            depth = 0
+            cursor = open_at
+            while cursor < len(expr):
+                if expr[cursor] == "(":
+                    depth += 1
+                elif expr[cursor] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                cursor += 1
+            else:
+                return False, "unknown"
+            if name in interest:
+                args = _split_args(expr[open_at + 1:cursor])
+                if args is None:
+                    return False, "unknown"
+                calls.setdefault(name, []).append([_arg_root(arg, scopes) for arg in args])
+            lock = re.match(r"([A-Za-z_]\w*)\s*\.\s*lock\s*\(", expr[index:])
+            if lock and _ident_boundary(expr, index):
+                locks.append(_lookup_root(scopes, lock.group(1)) or "unknown")
             index += 1
             continue
-        let = re.match(r"let\s+(?:mut\s+)?(\w+)\s*=\s*", main[index:])
-        assign = None if let else re.match(r"(\w+)\s*=\s*", main[index:])
-        if let or (assign and _lookup_root(scopes, assign.group(1)) is not None):
-            match = let or assign
-            name = match.group(1)
-            expr_at = index + match.end()
-            end = main.find(";", expr_at)
-            if end < 0:
-                return None
-            expr = main[expr_at:end].strip()
-            if re.match(r"Arc::new\s*\(\s*Mutex::new\b", expr):
-                scopes[-1][name] = f"site:{expr_at}"
-            elif (clone := re.match(r"Arc::clone\s*\(\s*&(\w+)\s*\)\s*$", expr)):
-                scopes[-1][name] = _lookup_root(scopes, clone.group(1)) or "unknown"
-            elif let:
-                scopes[-1][name] = "unknown"
-            else:
-                scopes[-1][name] = "unknown"
-            index = end + 1
+        lock = re.match(r"([A-Za-z_]\w*)\s*\.\s*lock\s*\(", expr[index:])
+        if lock and _ident_boundary(expr, index):
+            locks.append(_lookup_root(scopes, lock.group(1)) or "unknown")
+            index += lock.end()
             continue
         index += 1
-    flat: dict[str, str] = {}
-    for scope in scopes:
-        flat.update(scope)
-    return flat
+    return True, root
 
 
-def _spawn_args(main: str, fname: str) -> list[list[str]] | None:
-    calls = []
-    for match in re.finditer(rf"\b{re.escape(fname)}\s*\(([^)]*)\)", main):
-        args = [item.strip() for item in match.group(1).split(",") if item.strip()]
-        idents = []
-        for arg in args:
-            if re.fullmatch(r"[A-Za-z_]\w*", arg):
-                idents.append(arg)
+def _scan_statements(text: str, scopes: list[dict[str, str]], calls: dict[str, list[list[str]]],
+                     interest: set[str], locks: list[str], origin: int, space: str) -> tuple[bool, str]:
+    index = 0
+    while index < len(text):
+        index = _skip_gap(text, index)
+        if index >= len(text):
+            break
+        if _keyword(text, index):
+            return False, "unknown"
+        if text[index] == "{":
+            found = _matching_brace(text, index)
+            if found is None:
+                return False, "unknown"
+            inner, end = found
+            scopes.append({})
+            ok, _root = _scan_statements(inner, scopes, calls, interest, locks, origin + index + 1, space)
+            scopes.pop()
+            if not ok:
+                return False, "unknown"
+            index = end
+            continue
+        if text[index] == "}":
+            return False, "unknown"
+        # A zero-argument closure that returns a tuple of clones, then a
+        # destructure of that call. This is one supported way to pass the same
+        # objects into several threads. Any other closure is not guessed.
+        closure = re.match(
+            r"let\s+(?:mut\s+)?(\w+)\s*=\s*\|\|\s*\(([^;]*)\)\s*;", text[index:])
+        if closure and _ident_boundary(text, index):
+            parts = _split_args(closure.group(2)) or []
+            roots = [_arg_root(part, scopes) for part in parts]
+            scopes[-1][closure.group(1)] = "tuple:" + "|".join(roots)
+            index += closure.end()
+            continue
+        destructure = re.match(
+            r"let\s+\(([^)]*)\)\s*=\s*(\w+)\s*\(\s*\)\s*;", text[index:])
+        if destructure and _ident_boundary(text, index):
+            names = [part.strip() for part in destructure.group(1).split(",") if part.strip()]
+            source = _lookup_root(scopes, destructure.group(2)) or ""
+            parts = source[6:].split("|") if source.startswith("tuple:") else []
+            if len(parts) == len(names) and parts:
+                for name, root in zip(names, parts):
+                    scopes[-1][name] = root
             else:
-                return None
-        calls.append(idents)
+                for name in names:
+                    scopes[-1][name] = "unknown"
+            index += destructure.end()
+            continue
+        let = re.match(r"let\s+(?:mut\s+)?(\w+)\s*=\s*", text[index:])
+        assign = None if let else re.match(r"(\w+)\s*=\s*", text[index:])
+        if assign and _lookup_root(scopes, assign.group(1)) is None:
+            assign = None
+        if let or assign:
+            match = let or assign
+            expr_at = index + match.end()
+            parsed = _expr_until_semi(text, expr_at)
+            if parsed is None:
+                ok, root = _scan_expr(text[expr_at:], scopes, calls, interest, locks, origin + expr_at, space)
+                if let or assign:
+                    scopes[-1][match.group(1)] = root
+                return ok, root
+            expr, end = parsed
+            ok, root = _scan_expr(expr, scopes, calls, interest, locks, origin + expr_at, space)
+            if not ok:
+                return False, "unknown"
+            scopes[-1][match.group(1)] = root
+            index = end
+            continue
+        parsed = _expr_until_semi(text, index)
+        if parsed is None:
+            return _scan_expr(text[index:], scopes, calls, interest, locks, origin + index, space)
+        expr, end = parsed
+        ok, _root = _scan_expr(expr, scopes, calls, interest, locks, origin + index, space)
+        if not ok:
+            return False, "unknown"
+        index = end
+    return True, "unknown"
+
+
+def call_snapshots(text: str, names: set[str], initial: dict[str, str] | None = None,
+                   locks: list[str] | None = None, space: str = "main") -> dict[str, list[list[str]]] | None:
+    """Roots of call arguments as they were when the call was reached.
+
+    A later ``let`` of the same name does not rewrite an earlier call.
+    ``None`` means the control flow is outside the supported subset.
+    """
+
+    found: list[str] = [] if locks is None else locks
+    calls: dict[str, list[list[str]]] = {}
+    ok, _root = _scan_statements(text, [dict(initial or {})], calls, set(names), found, 0, space)
+    if not ok:
+        return None
     return calls
 
 
-def _lock_receivers(body: str) -> list[str]:
-    return re.findall(r"\b([A-Za-z_]\w*)\s*\.\s*lock\s*\(", body)
-
-
-def _lock_root(locks: list[str], params: list[str], args: list[str], roots: dict[str, str]) -> str:
+def _lock_roots_at_use(body: str, initial: dict[str, str]) -> str:
+    locks: list[str] = []
+    if call_snapshots(body, set(), initial, locks, space="worker") is None:
+        return "unknown"
     if not locks:
         return "fail"
-    if len(params) != len(args):
+    if any(item in {None, "unknown", "absent"} for item in locks):
         return "unknown"
-    passed = dict(zip(params, args))
-    found: list[str] = []
-    for receiver in locks:
-        if receiver not in passed:
-            return "fail"
-        root = roots.get(passed[receiver])
-        if root is None or root == "unknown":
-            return "unknown"
-        found.append(root)
-    if len(set(found)) != 1:
+    if len(set(locks)) != 1:
         return "fail"
-    return found[0]
+    return locks[0]
 
 
 def _shared_lock(main: str, sender: str, receiver: str, stripped: str) -> str:
-    s_locks = _lock_receivers(sender)
-    r_locks = _lock_receivers(receiver)
-    if not s_locks or not r_locks:
-        return "fail"
-    roots = _mutex_roots(main)
-    if not roots:
+    snaps = call_snapshots(main, {"s", "r"})
+    if snaps is None:
         return "unknown"
-    s_args = _spawn_args(main, "s")
-    r_args = _spawn_args(main, "r")
-    if s_args is None or r_args is None:
+    s_calls = snaps.get("s", [])
+    r_calls = snaps.get("r", [])
+    if len(s_calls) != 1 or len(r_calls) != 1:
+        return "unknown" if s_calls or r_calls else "fail"
+    s_params = _params(stripped, "s")
+    r_params = _params(stripped, "r")
+    if len(s_params) != len(s_calls[0]) or len(r_params) != len(r_calls[0]):
         return "unknown"
-    if len(s_args) != 1 or len(r_args) != 1:
-        return "unknown" if s_args or r_args else "fail"
-    s_root = _lock_root(s_locks, _params(stripped, "s"), s_args[0], roots)
-    r_root = _lock_root(r_locks, _params(stripped, "r"), r_args[0], roots)
+    s_root = _lock_roots_at_use(sender, dict(zip(s_params, s_calls[0])))
+    r_root = _lock_roots_at_use(receiver, dict(zip(r_params, r_calls[0])))
     if "unknown" in (s_root, r_root):
         return "unknown"
     if "fail" in (s_root, r_root) or s_root != r_root:

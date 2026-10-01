@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -129,8 +130,50 @@ class RequirementTests(unittest.TestCase):
     def test_alternate_order_is_not_a_requirement_failure(self):
         with tempfile.TemporaryDirectory() as td:
             result = evaluate_requirements(ALTERNATE, Path(td))
-        self.assertEqual(result["status"], "bounded_covered_satisfied")
+        self._keep(result, "bounded_covered_satisfied", ALTERNATE, "alternate_order")
         self.assertNotEqual(structural_checks(ALTERNATE)["R2"]["status"], "fail")
+
+    def test_post_call_rebind_does_not_make_distinct_locks_pass(self):
+        src = DERIVED.replace(
+            "    let m_s = Arc::clone(&m);\n    let m_r = Arc::clone(&m);",
+            "    let m_s = Arc::new(Mutex::new(()));\n    let m_r = Arc::clone(&m);",
+        ).replace(
+            "    hs.join().unwrap();\n",
+            "    let m_s = Arc::clone(&m);\n    hs.join().unwrap();\n",
+        )
+        with tempfile.TemporaryDirectory() as td:
+            result = evaluate_requirements(src, Path(td) / "post-call")
+        self._keep(result, "fail", src, "post_call_rebind")
+        self.assertEqual(result["checks"]["R1"]["status"], "fail")
+
+    def test_worker_shadow_is_not_the_passed_lock(self):
+        src = DERIVED.replace(
+            "    {\n        let _guard = m.lock().unwrap();\n    }\n    ch1.send(1).unwrap();",
+            "    let m = Arc::new(Mutex::new(()));\n    {\n        let _guard = m.lock().unwrap();\n    }\n    ch1.send(1).unwrap();",
+        )
+        self.assertEqual(structural_checks(src)["R1"]["status"], "fail")
+
+    def test_unknown_lock_source_is_not_a_pass(self):
+        src = DERIVED.replace("let m_s = Arc::clone(&m);", "let m_s = other();")
+        self.assertEqual(structural_checks(src)["R1"]["status"], "unknown")
+        with tempfile.TemporaryDirectory() as td:
+            result = evaluate_requirements(src, Path(td) / "unknown-lock")
+        self.assertNotEqual(result["status"], "bounded_covered_satisfied")
+
+    def _keep(self, result, expected, source, label):
+        if result.get("status") == expected:
+            return
+        dest = Path("/Users/kevin/paper-review/papers/ConcPlanVerify/notes/strong-link-v16/failures")
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / f"{label}.rs").write_text(source, encoding="utf-8")
+        (dest / f"{label}.json").write_text(json.dumps(result, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+        runs = result.get("runs") or []
+        log = "\n".join(
+            f"kind={run.get('kind')} rc={run.get('returncode')} timeout={run.get('timed_out')}\n"
+            f"stdout={run.get('stdout')}\nstderr={run.get('stderr')}\n"
+            for run in runs)
+        (dest / f"{label}.log").write_text(log, encoding="utf-8")
+        self.fail(f"{label} status {result.get('status')}; wrote {dest}")
 
 
 if __name__ == "__main__":
