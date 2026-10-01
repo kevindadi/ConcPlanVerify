@@ -65,7 +65,9 @@ def _classify_stmt(stmt: str) -> dict | None:
         (r"^(\w+)\s*\.\s*acquire_count\s*\(\s*(-?\d+)\s*\)",
          lambda m: {"op": "acquire_count", "sem": m.group(1), "n": int(m.group(2))}),
         (r"^let\s+(?:mut\s+)?(\w+)\s*=\s*(\w+)\s*\.\s*acquire\s*\(",
-         lambda m: {"op": "raii_acquire", "permit": m.group(1), "sem": m.group(2)}),
+         lambda m: ({"op": "raii_discard", "sem": m.group(2)}
+                    if m.group(1) == "_"
+                    else {"op": "raii_acquire", "permit": m.group(1), "sem": m.group(2)})),
         (r"^(\w+)\s*\.\s*release\s*\(",
          lambda m: {"op": "permit_release", "permit": m.group(1)}),
         (r"^drop\s*\(\s*(\w+)\s*\)",
@@ -86,7 +88,7 @@ def _classify_stmt(stmt: str) -> dict | None:
     return None
 
 
-def _parse_sequence(text: str) -> dict:
+def _parse_sequence(text: str, ids: list[int] | None = None) -> dict:
     """Straight-line statements plus a supported ``while``.
 
     ``while false`` is recognized and its body is not reachable. Any other
@@ -95,7 +97,10 @@ def _parse_sequence(text: str) -> dict:
 
     if re.search(r"\b(if|match|for|loop|async)\b", text):
         return {"events": [], "unknown": True, "reason": "unsupported control flow"}
+    if ids is None:
+        ids = [0]
     events: list[dict] = []
+    introduced: list[int] = []
     index = 0
     while index < len(text):
         while index < len(text) and text[index] in " \t\r\n":
@@ -116,7 +121,7 @@ def _parse_sequence(text: str) -> dict:
                 guard = re.fullmatch(r"!\s*\*\s*(\w+)", condition)
                 if not guard:
                     return {"events": events, "unknown": True, "reason": "while condition is outside the subset"}
-                inner_parsed = _parse_sequence(inner)
+                inner_parsed = _parse_sequence(inner, ids)
                 if inner_parsed["unknown"]:
                     return inner_parsed
                 events.append({"op": "while_not", "guard": guard.group(1), "body": inner_parsed["events"]})
@@ -131,7 +136,7 @@ def _parse_sequence(text: str) -> dict:
             continue
         if stmt.startswith("{"):
             inner, _ignored = _brace_block(stmt, 0)
-            nested = _parse_sequence(inner)
+            nested = _parse_sequence(inner, ids)
             if nested["unknown"]:
                 return nested
             events.extend(nested["events"])
@@ -158,11 +163,19 @@ def _parse_sequence(text: str) -> dict:
             events.append(event)
             continue
         events.append(event)
+        if event.get("op") == "raii_acquire":
+            ids[0] += 1
+            event["instance"] = ids[0]
+            introduced.append(ids[0])
     events = _apply_constant_whiles(events)
     if any(event["op"] == "unknown_flag" for event in events):
         return {"events": [], "unknown": True, "reason": "guard value is not a known constant",
                 "terminated": False}
     terminated = any(event.get("op") == "return" for event in events)
+    if introduced:
+        # A block ending before notify drops the permits bound inside it.
+        # The drop is part of the straight-line order; it is not inferred later.
+        events.append({"op": "scope_end", "instances": list(introduced)})
     return {"events": events, "unknown": False, "reason": None, "terminated": terminated}
 
 
@@ -420,6 +433,75 @@ def _permit_effect(events: list[dict], sem: str) -> dict:
             "returned": returned, "held": len(held)}
 
 
+def _notifier_permit_proof(events: list[dict], sem: str, initial: int) -> dict:
+    """How many acquires before notify cannot be explained without a waiter.
+
+    A permit that is still live at notify_all already established its acquire.
+    Drop after that notify does not undo the order. A permit returned before
+    the next acquire can explain that later acquire, so taking and returning
+    one permit twice is one waiter, not two. ``acquire_count`` is one way to
+    consume permits; two distinct live ``acquire`` permits are another.
+    """
+
+    explainable = initial
+    proven = 0
+    live: dict[int, str] = {}
+    current: dict[str, int] = {}
+    for event in events:
+        op = event["op"]
+        if op == "release_count" and event["sem"] == sem:
+            return {"status": "fail", "proven": proven, "explainable": explainable,
+                    "reason": "the notifier releases permits before notify_all, so the acquire need not wait for the waiters"}
+        if op == "acquire_count" and event["sem"] == sem:
+            count = event["n"]
+            if count <= 0:
+                return {"status": "unknown", "reason": "non-positive acquire_count",
+                        "proven": proven, "explainable": explainable}
+            take = min(count, explainable)
+            explainable -= take
+            proven += count - take
+            continue
+        if op == "raii_discard" and event["sem"] == sem:
+            # ``let _ = acquire()`` drops that permit before the next statement.
+            if explainable > 0:
+                explainable -= 1
+            else:
+                proven += 1
+            explainable += 1
+            continue
+        if op == "raii_acquire" and event["sem"] == sem:
+            # A later let of the same name hides the old binding. It does not drop it.
+            instance = int(event.get("instance") or 0)
+            if explainable > 0:
+                explainable -= 1
+            else:
+                proven += 1
+            live[instance] = event["permit"]
+            current[event["permit"]] = instance
+            continue
+        if op == "permit_release":
+            instance = current.pop(event["permit"], None)
+            if instance in live:
+                del live[instance]
+                explainable += 1
+            continue
+        if op == "drop":
+            instance = current.pop(event["name"], None)
+            if instance in live:
+                del live[instance]
+                explainable += 1
+            continue
+        if op == "scope_end":
+            for instance in event.get("instances") or []:
+                if instance in live:
+                    del live[instance]
+                    explainable += 1
+                    for name, bound in list(current.items()):
+                        if bound == instance:
+                            del current[name]
+    return {"status": "ok", "proven": proven, "explainable": explainable, "held": len(live)}
+
+
 def _readiness(w1: str, w2: str, notifier: str, params: dict, g12_root: str | None) -> dict:
     if g12_root is None or any(len(params[role]) < 4 for role in ("w1", "w2", "notifier")):
         return _check("unknown", "static_subset", reason="g12 root was not resolved at the call")
@@ -463,34 +545,28 @@ def _readiness(w1: str, w2: str, notifier: str, params: dict, g12_root: str | No
             before_notify.append(event)
     if not saw_notify:
         return _check("fail", "static_subset", reason="notifier has no reachable notify_all")
-    effect = _permit_effect(before_notify, sem)
-    if effect["status"] != "ok":
-        return _check("unknown", "static_subset", reason=effect["reason"])
-    detail = {key: value for key, value in effect.items() if key != "status"}
-    if effect["supplied"] > 0:
-        return _check("fail", "static_subset",
-                      reason="the notifier releases permits before notify_all, so the acquire need not wait for the waiters",
+    proof = _notifier_permit_proof(before_notify, sem, initial)
+    detail = {key: value for key, value in proof.items() if key != "status"}
+    if proof["status"] == "unknown":
+        return _check("unknown", "static_subset", initial=initial, waiter_ready=waiter_ready, **detail)
+    if proof["status"] == "fail":
+        return _check("fail", "static_subset", initial=initial, **detail)
+    proven = proof["proven"]
+    if proven < 2:
+        reason = ("the notifier can finish from the initial count"
+                  if initial > 0 and proven == 0
+                  else "notifier reaches notify_all before two waiter permits are acquired")
+        return _check("fail", "static_subset", initial=initial, reason=reason, **detail)
+    if proven > 2:
+        return _check("unknown", "static_subset", initial=initial, waiter_ready=waiter_ready,
+                      reason="more than two waiter-backed acquires is outside the supported pattern",
                       **detail)
-    if effect["returned"] and effect["persistent"] != 2:
-        return _check("fail", "static_subset",
-                      reason="RAII acquire/release returns the permit before notify_all; it is not a persistent consume of two waiter permits",
+    if not waiter_ready:
+        return _check("unknown", "static_subset", initial=initial, waiter_ready=False,
+                      reason="notifier acquired two unexplained permits, but the waiters did not each release_count(1) before waiting",
                       **detail)
-    if effect["held"]:
-        return _check("fail", "static_subset",
-                      reason="RAII permits are still live at notify_all; Drop returns them, so they are not a persistent acquire_count",
-                      **detail)
-    if initial > 0 and effect["persistent"] <= initial:
-        return _check("fail", "static_subset",
-                      reason="the notifier's persistent acquire can finish from the initial count",
-                      initial=initial, **detail)
-    if initial == 0 and waiter_ready and effect["persistent"] == 2 and effect["returned"] == 0:
-        return _check("pass", "static_subset", initial=0, persistent=effect["persistent"],
-                      note="explicit acquire_count only; R8 and R9 stay uncovered")
-    if effect["persistent"] < 2 and effect["held"] == 0:
-        return _check("fail", "static_subset",
-                      reason="notifier reaches notify_all before a persistent acquire of 2 waiter permits",
-                      **detail)
-    return _check("unknown", "static_subset", initial=initial, waiter_ready=waiter_ready, **detail)
+    return _check("pass", "static_subset", initial=initial, proven=proven,
+                  note="straight-line acquire of two waiter permits; R8 and R9 stay uncovered")
 
 
 def execution_checks(runs: list[dict]) -> dict:

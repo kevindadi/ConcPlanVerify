@@ -96,7 +96,33 @@ class CondvarScoreTests(unittest.TestCase):
         live = HUMAN.replace(
             "g12.acquire_count(2).unwrap();",
             "let _p1 = g12.acquire();\n    let _p2 = g12.acquire();")
-        self.assertEqual(structural_checks(live)["R6"]["status"], "fail")
+        self.assertEqual(structural_checks(live)["R6"]["status"], "pass")
+        early_initial = live.replace("let g12 = Semaphore::new(0);", "let g12 = Semaphore::new(2);")
+        self.assertEqual(structural_checks(early_initial)["R6"]["status"], "fail")
+        reused = HUMAN.replace(
+            "g12.acquire_count(2).unwrap();",
+            "let p = g12.acquire();\n    p.release();\n    let q = g12.acquire();")
+        self.assertEqual(structural_checks(reused)["R6"]["status"], "fail")
+        only_one = HUMAN.replace(
+            "g12.acquire_count(2).unwrap();",
+            "let _p1 = g12.acquire();")
+        self.assertEqual(structural_checks(only_one)["R6"]["status"], "fail")
+        shadow = HUMAN.replace(
+            "g12.acquire_count(2).unwrap();",
+            "let _permit = g12.acquire();\n    let _permit = g12.acquire();")
+        self.assertEqual(structural_checks(shadow)["R6"]["status"], "pass")
+        discarded = HUMAN.replace(
+            "g12.acquire_count(2).unwrap();",
+            "let _ = g12.acquire();\n    let q = g12.acquire();")
+        self.assertEqual(structural_checks(discarded)["R6"]["status"], "fail")
+        nested_drop = HUMAN.replace(
+            "g12.acquire_count(2).unwrap();",
+            "{\n        let p = g12.acquire();\n    }\n    let q = g12.acquire();")
+        self.assertEqual(structural_checks(nested_drop)["R6"]["status"], "fail")
+        self_release = HUMAN.replace(
+            "g12.acquire_count(2).unwrap();",
+            "g12.release_count(2).unwrap();\n    g12.acquire_count(2).unwrap();")
+        self.assertEqual(structural_checks(self_release)["R6"]["status"], "fail")
         typed = HUMAN.replace(
             "let g12 = Semaphore::new(0);",
             "let g12: Arc<Semaphore> = Semaphore::new(0);")
