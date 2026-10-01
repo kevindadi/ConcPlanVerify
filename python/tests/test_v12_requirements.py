@@ -99,6 +99,16 @@ class RequirementTests(unittest.TestCase):
         self.assertNotEqual(result["status"], "bounded_covered_satisfied")
         self.assertEqual(result["checks"]["R5"]["status"], "pass")
 
+    def test_distinct_mutex_roots_do_not_pass(self):
+        src = DERIVED.replace(
+            "let m_r = Arc::clone(&m);",
+            "let m_r = Arc::new(Mutex::new(()));")
+        with tempfile.TemporaryDirectory() as td:
+            result = evaluate_requirements(src, Path(td) / "two-locks")
+        self.assertEqual(result["checks"]["R1"]["status"], "fail")
+        self.assertNotEqual(result["status"], "bounded_covered_satisfied")
+        self.assertTrue(all(run.get("kind") == "completed" for run in result["runs"]))
+
     def test_derived_control_passes_covered_checks(self):
         with tempfile.TemporaryDirectory() as td:
             result = evaluate_requirements(DERIVED, Path(td))

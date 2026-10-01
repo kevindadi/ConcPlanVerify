@@ -192,16 +192,25 @@ def _params(stripped: str, name: str) -> list[str]:
     return names
 
 
-def _mutex_family(main: str) -> set[str]:
-    names = set(re.findall(r"let\s+(\w+)\s*=\s*Arc::new\s*\(\s*Mutex::new", main))
-    changed = True
-    while changed:
-        changed = False
-        for clone, source in re.findall(r"let\s+(\w+)\s*=\s*Arc::clone\s*\(\s*&(\w+)\s*\)", main):
-            if source in names and clone not in names:
-                names.add(clone)
-                changed = True
-    return names
+def _mutex_roots(main: str) -> dict[str, str]:
+    """Map a binding to the Mutex construction it came from.
+
+    Each ``Arc::new(Mutex::new(...))`` is its own root. ``Arc::clone`` copies
+    that root. An unrecognized initializer is unknown, not another root's clone.
+    """
+
+    roots: dict[str, str] = {}
+    for match in re.finditer(r"let\s+(?:mut\s+)?(\w+)\s*=\s*([^;]+);", main):
+        name, expr = match.group(1), match.group(2).strip()
+        if re.match(r"Arc::new\s*\(\s*Mutex::new\b", expr):
+            roots[name] = f"root:{name}"
+            continue
+        clone = re.match(r"Arc::clone\s*\(\s*&(\w+)\s*\)", expr)
+        if clone:
+            source = clone.group(1)
+            roots[name] = roots.get(source, "unknown")
+            continue
+    return roots
 
 
 def _spawn_args(main: str, fname: str) -> list[list[str]] | None:
@@ -222,18 +231,23 @@ def _lock_receivers(body: str) -> list[str]:
     return re.findall(r"\b([A-Za-z_]\w*)\s*\.\s*lock\s*\(", body)
 
 
-def _locks_use_shared(locks: list[str], params: list[str], args: list[str], family: set[str]) -> str:
+def _lock_root(locks: list[str], params: list[str], args: list[str], roots: dict[str, str]) -> str:
     if not locks:
         return "fail"
     if len(params) != len(args):
         return "unknown"
     passed = dict(zip(params, args))
+    found: list[str] = []
     for receiver in locks:
         if receiver not in passed:
             return "fail"
-        if passed[receiver] not in family:
-            return "fail"
-    return "pass"
+        root = roots.get(passed[receiver])
+        if root is None or root == "unknown":
+            return "unknown"
+        found.append(root)
+    if len(set(found)) != 1:
+        return "fail"
+    return found[0]
 
 
 def _shared_lock(main: str, sender: str, receiver: str, stripped: str) -> str:
@@ -241,8 +255,8 @@ def _shared_lock(main: str, sender: str, receiver: str, stripped: str) -> str:
     r_locks = _lock_receivers(receiver)
     if not s_locks or not r_locks:
         return "fail"
-    family = _mutex_family(main)
-    if not family:
+    roots = _mutex_roots(main)
+    if not roots:
         return "unknown"
     s_args = _spawn_args(main, "s")
     r_args = _spawn_args(main, "r")
@@ -250,11 +264,11 @@ def _shared_lock(main: str, sender: str, receiver: str, stripped: str) -> str:
         return "unknown"
     if len(s_args) != 1 or len(r_args) != 1:
         return "unknown" if s_args or r_args else "fail"
-    s_status = _locks_use_shared(s_locks, _params(stripped, "s"), s_args[0], family)
-    r_status = _locks_use_shared(r_locks, _params(stripped, "r"), r_args[0], family)
-    if "unknown" in (s_status, r_status):
+    s_root = _lock_root(s_locks, _params(stripped, "s"), s_args[0], roots)
+    r_root = _lock_root(r_locks, _params(stripped, "r"), r_args[0], roots)
+    if "unknown" in (s_root, r_root):
         return "unknown"
-    if "fail" in (s_status, r_status):
+    if "fail" in (s_root, r_root) or s_root != r_root:
         return "fail"
     return "pass"
 
