@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -15,7 +16,7 @@ sys.path.insert(0, str(REPO / "python"))
 from cir_workflow.audit import AuditLog, read_events  # noqa: E402
 from cir_workflow.candidate_eval import evaluate_candidate  # noqa: E402
 from cir_workflow.channels import AuditedClient, build_client, key_for  # noqa: E402
-from cir_workflow.conditional_arms import arm_order, run_repairs  # noqa: E402
+from cir_workflow.conditional_arms import arm_order, plan_row, run_repairs  # noqa: E402
 from cir_workflow.env import load_dotenv  # noqa: E402
 from cir_workflow.live import LiveBudget  # noqa: E402
 from cir_workflow.send_holding_requirements import evaluate_requirements  # noqa: E402
@@ -23,7 +24,84 @@ from cir_workflow.transport import CHANNELS, build_registry, require_experiment_
 
 BIN = REPO.parent / "ConcIR/target/release/concir-backend"
 INS = BIN.with_name("concir-instrument")
+BIND = BIN.with_name("bind_check")
 MODELS = ["DeepSeek Flash", "Qwen", "GPT 6 Luna", "Kimi 2.7 Code"]
+MODEL_STOPS = {"identity_mismatch", "identity_unconfirmed", "cell_error", "request_error"}
+
+
+def _sha(path: Path) -> str | None:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def freeze_paths(record: dict) -> dict[str, str]:
+    """Files whose bytes must match the frozen protocol before any send."""
+
+    paths = [
+        Path(record["source_path"]),
+        Path(record["requirements_path"]),
+        Path(record["cir_path"]),
+        Path(record["contract_path"]),
+        REPO / "python/cir_workflow/conditional_arms.py",
+        REPO / "python/cir_workflow/send_holding_requirements.py",
+        REPO / "python/cir_workflow/evidence_v2.py",
+        REPO / "python/cir_workflow/candidate_eval.py",
+        BIN, INS, BIND,
+    ]
+    out = {}
+    for path in paths:
+        digest = _sha(path)
+        if digest is None:
+            raise FileNotFoundError(path)
+        out[str(path)] = digest
+    return out
+
+
+def build_protocol(record: dict) -> dict:
+    orders = arm_order(["deepseek-flash", "qwen3.8-flash", "gpt-6-luna", "kimi-k2.7-code"], seed=12)
+    return {
+        "seed": 12,
+        "arm_order": orders,
+        "max_repairs": 2,
+        "max_physical": 24,
+        "max_seconds": 6 * 3600,
+        "models": {
+            "deepseek-flash": {"temperature": 0, "channel": "deepseek-direct"},
+            "qwen3.8-flash": {"temperature": 0, "channel": "dashscope-direct", "enable_thinking": False},
+            "gpt-6-luna": {"temperature": None, "channel": "opencode-go", "surface": "responses"},
+            "kimi-k2.7-code": {"temperature": 1, "channel": "opencode-go"},
+        },
+        "inputs": {
+            "task": record["task"],
+            "source_path": record["source_path"],
+            "requirements_path": record["requirements_path"],
+            "cir_path": record["cir_path"],
+            "contract_path": record["contract_path"],
+        },
+        "freeze_files": freeze_paths(record),
+        "note": "Sampling parameters are per model. They are the same across arms of that model.",
+    }
+
+
+def _write_table(out: Path, results: list, budget: dict | None, audit_count: int) -> None:
+    (out / "RESULTS.json").write_text(json.dumps(results, ensure_ascii=False, indent=2) + "\n")
+    summary = {"results": results, "audit_events": audit_count, "budget": budget,
+               "real_model_requests_this_process": None}
+    (out / "SUMMARY.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
+
+
+def _plan(record: dict, orders: dict) -> list[dict]:
+    registry = build_registry()
+    rows = []
+    for name in MODELS:
+        spec = require_experiment_model(registry, name)
+        for arm in orders[spec.model_id]:
+            rows.append(plan_row(
+                {"model_id": spec.model_id, "case": record["task"], "arm": arm},
+                global_stop=None, model_stop=None, executed=None))
+    return rows
 
 
 def _eval(source, case, work):
@@ -40,45 +118,68 @@ def main() -> int:
     args = parser.parse_args()
     selected = json.loads(Path(args.selected).read_text(encoding="utf-8"))
     record = selected["selected_records"][0]
+    out = Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    protocol_path = out / "PROTOCOL.json"
+    state_path = out / "batch_state.json"
+    try:
+        expected = build_protocol(record)
+    except FileNotFoundError as exc:
+        print(f"freeze input missing: {exc}")
+        return 2
+    orders = expected["arm_order"]
+    results = _plan(record, orders)
+    if not args.confirm_paid_run:
+        protocol_path.write_text(json.dumps(expected, ensure_ascii=False, indent=2) + "\n")
+        _write_table(out, results, None, 0)
+        print("frozen; not executing")
+        return 0
+    if not protocol_path.is_file():
+        for row in results:
+            row["status"] = "not_started"
+            row["stop"] = "missing_freeze"
+        _write_table(out, results, None, 0)
+        print("missing freeze; not executing")
+        return 2
+    stored = json.loads(protocol_path.read_text(encoding="utf-8"))
+    if stored != expected:
+        for row in results:
+            row["status"] = "not_started"
+            row["stop"] = "frozen_protocol_mismatch"
+        _write_table(out, results, None, 0)
+        print("frozen protocol mismatch; not executing")
+        return 2
+    load_dotenv(REPO / ".env", override=True)
+    audit = AuditLog(out / "REQUEST_EVENTS.jsonl")
+    budget = LiveBudget(out / "budget.json", max_requests=int(stored["max_physical"]),
+                        max_seconds=int(stored["max_seconds"]))
+    batch = {"stopped": {}, "global_stop": None}
+    if state_path.is_file():
+        batch = json.loads(state_path.read_text(encoding="utf-8"))
+    stopped = dict(batch.get("stopped") or {})
+    global_stop = batch.get("global_stop")
     requirements = Path(record["requirements_path"]).read_text(encoding="utf-8")
     cir_text = Path(record["cir_path"]).read_text(encoding="utf-8")
     case = {"task": record["task"], "defect": Path(record["source_path"]).read_text(encoding="utf-8"),
             "requirements": requirements, "cir_text": cir_text,
             "cir_path": record["cir_path"], "contract_path": record["contract_path"]}
-    orders = arm_order(["deepseek-flash", "qwen3.8-flash", "gpt-6-luna", "kimi-k2.7-code"], seed=12)
-    protocol = {
-        "seed": 12, "arm_order": orders, "max_repairs": 2, "max_physical": 24,
-        "models": {
-            "deepseek-flash": {"temperature": 0, "channel": "deepseek-direct"},
-            "qwen3.8-flash": {"temperature": 0, "channel": "dashscope-direct", "enable_thinking": False},
-            "gpt-6-luna": {"temperature": None, "channel": "opencode-go", "surface": "responses"},
-            "kimi-k2.7-code": {"temperature": 1, "channel": "opencode-go"},
-        },
-        "note": "Sampling parameters are per model. They are the same across arms of that model.",
-    }
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    (out / "PROTOCOL.json").write_text(json.dumps(protocol, ensure_ascii=False, indent=2) + "\n")
-    if not args.confirm_paid_run:
-        print("frozen; not executing")
-        return 0
-    load_dotenv(REPO / ".env", override=True)
-    audit = AuditLog(out / "REQUEST_EVENTS.jsonl")
-    budget = LiveBudget(out / "budget.json", max_requests=24, max_seconds=6 * 3600)
     registry = build_registry()
-    results = []
-    global_stop = None
-    stopped: dict[str, str] = {}
+    _write_table(out, results, {"requests_used": budget.requests_used, "max_requests": budget.max_requests}, 0)
+    index = 0
     for name in MODELS:
         spec = require_experiment_model(registry, name)
         for arm in orders[spec.model_id]:
-            cell = {"model_id": spec.model_id, "case": case["task"], "arm": arm}
+            cell = results[index]
+            index += 1
             if global_stop:
-                results.append({**cell, "status": "not_started", "stop": global_stop})
+                cell["status"] = "not_started"
+                cell["stop"] = global_stop
                 continue
             if spec.model_id in stopped:
-                results.append({**cell, "status": "blocked", "stop": stopped[spec.model_id]})
-                (out / "RESULTS.json").write_text(json.dumps(results, ensure_ascii=False, indent=2) + "\n")
+                cell["status"] = "blocked"
+                cell["stop"] = stopped[spec.model_id]
+                _write_table(out, results, json.loads((out / "budget.json").read_text()),
+                             len(read_events(audit.path)) if audit.path.is_file() else 0)
                 continue
             dest = out / spec.model_id / arm
             channel = CHANNELS[spec.channel]
@@ -90,23 +191,28 @@ def main() -> int:
                     inner.temperature = 1.0
                 client = AuditedClient(inner, audit=audit, run_id=out.name, cell_id=f"{spec.model_id}/{arm}",
                                        spec=spec, arm=arm, task_id=case["task"], replicate=0, stage="repair")
-                result = run_repairs(case, arm, client, dest, evaluate_candidate=_eval, score=evaluate_requirements)
-                result.update(cell)
-                result["status"] = "executed"
+                result = run_repairs(
+                    case, arm, client, dest, evaluate_candidate=_eval, score=evaluate_requirements,
+                    freeze_files=stored["freeze_files"])
+                result.update({"model_id": spec.model_id, "case": case["task"], "arm": arm, "status": "executed"})
             except Exception as exc:  # noqa: BLE001
-                result = {**cell, "status": "executed", "stop": "cell_error", "error": f"{type(exc).__name__}: {exc}"}
-            results.append(result)
-            (out / "RESULTS.json").write_text(json.dumps(results, ensure_ascii=False, indent=2) + "\n")
-            print(spec.model_id, arm, result.get("stop"), flush=True)
+                result = {**cell, "status": "executed", "stop": "cell_error",
+                          "error": f"{type(exc).__name__}: {exc}"}
+            results[index - 1] = result
             if result.get("stop") in {"global_request_budget_exhausted", "global_time_budget_exhausted"}:
                 global_stop = result["stop"]
-            elif result.get("stop") in {"identity_mismatch", "cell_error", "request_error"}:
+            elif result.get("stop") in MODEL_STOPS:
                 stopped[spec.model_id] = result["stop"]
+            batch = {"stopped": stopped, "global_stop": global_stop}
+            state_path.write_text(json.dumps(batch, ensure_ascii=False, indent=2) + "\n")
+            events = read_events(audit.path) if audit.path.is_file() else []
+            _write_table(out, results, json.loads((out / "budget.json").read_text()), len(events))
+            print(spec.model_id, arm, result.get("stop"), flush=True)
     events = read_events(audit.path) if audit.path.is_file() else []
-    summary = {"results": results, "audit_events": len(events),
-               "budget": json.loads((out / "budget.json").read_text())}
-    (out / "SUMMARY.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
-    print("cells", len(results), "budget", summary["budget"].get("requests_used"))
+    _write_table(out, results, json.loads((out / "budget.json").read_text()) if (out / "budget.json").is_file() else None,
+                 len(events))
+    print("cells", len(results), "budget", (json.loads((out / "budget.json").read_text()).get("requests_used")
+                                            if (out / "budget.json").is_file() else None))
     return 0
 
 
