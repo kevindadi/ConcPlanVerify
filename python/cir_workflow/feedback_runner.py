@@ -159,12 +159,44 @@ def _protocol_file_hashes() -> dict[str, str]:
 
 
 def _snapshot_digest(record: dict) -> str:
+    """Bind the saved prompt, response, identity, and scores. Not a re-run."""
+
     payload = {
+        "system_prompt": record.get("system_prompt"),
+        "user_prompt": record.get("user_prompt"),
+        "feedback": record.get("feedback"),
+        "response": record.get("response"),
+        "candidate": record.get("candidate_source"),
+        "candidate_sha256": record.get("candidate_sha256"),
+        "identity": record.get("identity"),
+        "usage": record.get("usage"),
         "evaluation": record.get("evaluation_snapshot"),
         "delivery": record.get("delivery_snapshot"),
-        "candidate": record.get("candidate_source"),
     }
     return _sha_text(json.dumps(payload, sort_keys=True, default=str))
+
+
+def _round0_digest(record: dict) -> str:
+    payload = {
+        "evaluation": record.get("evaluation"),
+        "delivery": record.get("delivery"),
+        "source_sha256": record.get("source_sha256"),
+    }
+    return _sha_text(json.dumps(payload, sort_keys=True, default=str))
+
+
+def _saved_integrity(saved: dict | None) -> str | None:
+    """Missing digests stay legacy. They are not filled in during recovery."""
+
+    if not saved:
+        return None
+    if not (saved.get("evaluation_snapshot") or saved.get("delivery_snapshot")):
+        return None
+    if not saved.get("snapshot_sha256"):
+        return "snapshot_legacy"
+    if saved.get("snapshot_sha256") != _snapshot_digest(saved):
+        return "snapshot_corrupt"
+    return None
 
 
 _GENERATION_FIELDS = (
@@ -172,11 +204,43 @@ _GENERATION_FIELDS = (
 )
 
 
+_OMIT = object()
+
+
+def _scalar_tree(value: Any) -> Any:
+    """JSON-stable scalars. Objects and secrets are omitted."""
+
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, dict):
+        kept = {}
+        for key in sorted(value):
+            if str(key) in {"api_key", "authorization", "token"}:
+                continue
+            child = _scalar_tree(value[key])
+            if child is not _OMIT:
+                kept[str(key)] = child
+        return kept
+    if isinstance(value, (list, tuple)):
+        kept = []
+        for item in value:
+            child = _scalar_tree(item)
+            if child is not _OMIT:
+                kept.append(child)
+        return kept
+    return _OMIT
+
+
 def _generation_record(client) -> dict:
     """Scalar send parameters. Object ids and reprs are not part of the protocol."""
 
     if client is None:
         return {}
+    explicit = getattr(client, "protocol_record", None)
+    if callable(explicit):
+        recorded = explicit()
+        if isinstance(recorded, dict):
+            return recorded
     record: dict[str, Any] = {}
     for key in _GENERATION_FIELDS:
         if not hasattr(client, key):
@@ -185,21 +249,26 @@ def _generation_record(client) -> dict:
         if isinstance(value, (str, int, float, bool)) or value is None:
             record[key] = value
     extra = getattr(client, "extra_body", None)
-    if isinstance(extra, dict):
-        record["extra_body"] = {
-            key: extra[key] for key in sorted(extra)
-            if isinstance(extra[key], (str, int, float, bool)) or extra[key] is None
-        }
+    if extra is not None:
+        tree = _scalar_tree(extra)
+        if tree is not _OMIT:
+            record["extra_body"] = tree
     return record
 
 
 def _fingerprint(spec, arm: str, case: dict, max_repairs: int, freeze_files: dict | None = None,
-                 *, system_text: str = "", initial_source: str = "", client=None) -> str:
+                 *, system_text: str = "", initial_source: str = "", client=None,
+                 stop_on_unknown: bool = False, require_defect_signal: bool = True,
+                 classify_responses: bool = False) -> str:
     payload = {"model": spec.model_id, "arm": arm, "max_repairs": max_repairs,
                "channel": spec.channel, "surface": spec.surface,
                "system": _sha_text(system_text),
                "initial_source": _sha_text(initial_source),
+               "prompt_template": _sha_file(PROMPT_PATH),
                "generation": _generation_record(client),
+               "stop_on_unknown": bool(stop_on_unknown),
+               "require_defect_signal": bool(require_defect_signal),
+               "classify_responses": bool(classify_responses),
                "requirements": _sha_text(case.get("requirements") or ""),
                "cir": _sha_text(case.get("cir_text") or json.dumps(case.get("cir") or {}, sort_keys=True)),
                "protocol_files": _protocol_file_hashes(),
@@ -451,7 +520,9 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
     initial_source = source if source is not None else case["defect"]
     fingerprint = _fingerprint(spec, arm, case, max_repairs, freeze_files,
                                system_text=system_text, initial_source=initial_source,
-                               client=client)
+                               client=client, stop_on_unknown=stop_on_unknown,
+                               require_defect_signal=require_defect_signal,
+                               classify_responses=classify_responses)
     if state.get("fingerprint") and state["fingerprint"] != fingerprint:
         return {"case": case["id"], "arm": arm, "model": spec.model_id, "stop": "fingerprint_mismatch",
                 "actual_model_requests_this_run": 0, "physical_attempts_this_run": 0,
@@ -524,16 +595,30 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
             return True
         return False
 
+    def blocked(stop_name: str) -> dict[str, Any]:
+        return {"case": case["id"], "arm": arm, "model": spec.model_id, "stop": stop_name,
+                "actual_model_requests_this_run": 0, "physical_attempts_this_run": 0,
+                "logical_calls_this_run": 0, "requests_recorded": len(state.get("requests") or []),
+                "in_defect_denominator": False, "first_requirement_round": None,
+                "first_design_round": None, "first_both_round": None, "rounds": [],
+                "usage": [], "identity": [], "feedback_provenance": [], **_cumulative(state)}
+
     tool_started = time.perf_counter()
     if state.get("round0"):
-        initial = state["round0"]["evaluation"]
-        initial_eval = state["round0"]["delivery"]
+        round0 = state["round0"]
+        if not round0.get("snapshot_sha256"):
+            return blocked("snapshot_legacy")
+        if round0.get("snapshot_sha256") != _round0_digest(round0):
+            return blocked("snapshot_corrupt")
+        initial = round0["evaluation"]
+        initial_eval = round0["delivery"]
     else:
         initial = score(case, current, out_dir / "round-0")
         initial_eval = evaluate(current, case, out_dir / "eval-0")
         initial_eval["tool_time_s"] = time.perf_counter() - tool_started
         state["round0"] = {"evaluation": initial, "delivery": initial_eval,
                            "source_sha256": _sha_text(current)}
+        state["round0"]["snapshot_sha256"] = _round0_digest(state["round0"])
         _save_state(state_path, state)
     finished = consider(0, current, initial, initial_eval)
     if (require_defect_signal and not finished and not has_defect_signal(initial_eval)
@@ -574,6 +659,10 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                 else:
                     prompt = render_prompt(case["requirements"], cir_text, current, feedback)
             if saved:
+                integrity = _saved_integrity(saved)
+                if integrity:
+                    stop = integrity
+                    break
                 if saved.get("status") in {"error", "outcome_unknown", "identity_mismatch",
                                            "identity_unconfirmed",
                                            "global_request_budget_exhausted",
@@ -760,9 +849,6 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                 stop = "identity_mismatch" if identity.get("error") else "identity_unconfirmed"
                 break
             if saved and saved.get("evaluation_snapshot") and saved.get("delivery_snapshot"):
-                if saved.get("snapshot_sha256") and saved.get("snapshot_sha256") != _snapshot_digest(saved):
-                    stop = "snapshot_corrupt"
-                    break
                 extracted = saved.get("candidate_source") or _extract_rust_body(response)
                 if extracted:
                     current = extracted

@@ -224,6 +224,172 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(second["stop"], "phase_complete")
         self.assertEqual(client.calls, 1)
 
+    def test_audited_wrapper_sees_inner_max_tokens(self):
+        from cir_workflow.audit import AuditLog
+        from cir_workflow.channels import AuditedClient
+        spec = require_experiment_model(build_registry(), "DeepSeek Flash")
+        score, evaluate = _score_factory({"value": "same"})
+        common = dict(max_repairs=2, evaluate=evaluate, score=score, require_defect_signal=False,
+                      feedback_builder=lambda arm, requirement, delivery: "feedback",
+                      system_prompt="rules")
+
+        class _Inner(_Fake):
+            def __init__(self):
+                super().__init__()
+                self.max_tokens = 100
+                self.temperature = 0
+                self.model = "deepseek-flash"
+                self.base_url = "https://api.deepseek.com"
+                self.extra_body = {"enable_thinking": False}
+
+        def wrap(inner, root):
+            return AuditedClient(inner, audit=AuditLog(root / "audit.jsonl"), run_id="probe",
+                                 cell_id="probe-cell", spec=spec, arm="counterexample",
+                                 task_id=_case()["id"], replicate=0)
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            inner = _Inner()
+            run_arm(_case(), spec, "counterexample", wrap(inner, root), root / "cell",
+                    stop_after_round=1, **common)
+            inner.max_tokens = 200
+            second = run_arm(_case(), spec, "counterexample", wrap(inner, root), root / "cell",
+                             stop_after_round=2, **common)
+        self.assertEqual(second["stop"], "fingerprint_mismatch")
+        self.assertEqual(inner.calls, 1)
+
+    def test_audited_wrapper_sees_nested_extra_body(self):
+        from cir_workflow.audit import AuditLog
+        from cir_workflow.channels import AuditedClient
+        spec = require_experiment_model(build_registry(), "DeepSeek Flash")
+        score, evaluate = _score_factory({"value": "same"})
+        common = dict(max_repairs=2, evaluate=evaluate, score=score, require_defect_signal=False,
+                      feedback_builder=lambda arm, requirement, delivery: "feedback",
+                      system_prompt="rules")
+
+        class _Inner(_Fake):
+            def __init__(self):
+                super().__init__()
+                self.max_tokens = 128
+                self.temperature = 0
+                self.model = "deepseek-flash"
+                self.extra_body = {"thinking": {"type": "disabled"}}
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            inner = _Inner()
+            client = AuditedClient(inner, audit=AuditLog(root / "a.jsonl"), run_id="r",
+                                   cell_id="c", spec=spec, arm="counterexample",
+                                   task_id=_case()["id"], replicate=0)
+            run_arm(_case(), spec, "counterexample", client, root / "cell", stop_after_round=1, **common)
+            inner.extra_body = {"thinking": {"type": "enabled"}}
+            second = run_arm(_case(), spec, "counterexample", client, root / "cell",
+                             stop_after_round=2, **common)
+        self.assertEqual(second["stop"], "fingerprint_mismatch")
+        self.assertEqual(inner.calls, 1)
+
+    def test_rebuilt_audited_wrapper_resumes(self):
+        from cir_workflow.audit import AuditLog
+        from cir_workflow.channels import AuditedClient
+        spec = require_experiment_model(build_registry(), "DeepSeek Flash")
+        score, evaluate = _score_factory({"value": "same"})
+        common = dict(max_repairs=2, evaluate=evaluate, score=score, require_defect_signal=False,
+                      feedback_builder=lambda arm, requirement, delivery: "feedback",
+                      system_prompt="rules")
+
+        class _Inner(_Fake):
+            def __init__(self):
+                super().__init__()
+                self.max_tokens = 128
+                self.temperature = 0
+                self.model = "deepseek-flash"
+                self.extra_body = {"nested": {"a": 1}}
+
+        def wrap(inner, root):
+            return AuditedClient(inner, audit=AuditLog(root / "a.jsonl"), run_id="r",
+                                 cell_id="c", spec=spec, arm="counterexample",
+                                 task_id=_case()["id"], replicate=0)
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            first_inner = _Inner()
+            run_arm(_case(), spec, "counterexample", wrap(first_inner, root), root / "cell",
+                    stop_after_round=1, **common)
+            second_inner = _Inner()
+            second = run_arm(_case(), spec, "counterexample", wrap(second_inner, root), root / "cell",
+                             stop_after_round=2, **common)
+        self.assertEqual(second["stop"], "cell_repair_budget_exhausted")
+        self.assertEqual(first_inner.calls, 1)
+        self.assertEqual(second_inner.calls, 1)
+
+    def test_saved_prompt_feedback_and_response_tamper_block(self):
+        spec = require_experiment_model(build_registry(), "DeepSeek Flash")
+        score, evaluate = _score_factory({"value": "same"})
+        common = dict(max_repairs=2, evaluate=evaluate, score=score, require_defect_signal=False,
+                      feedback_builder=lambda arm, requirement, delivery: "feedback",
+                      system_prompt="rules")
+        for field in ("user_prompt", "system_prompt", "feedback", "response"):
+            client = _Fake()
+            with self.subTest(field=field):
+                with tempfile.TemporaryDirectory() as td:
+                    out = Path(td)
+                    run_arm(_case(), spec, "counterexample", client, out, stop_after_round=1, **common)
+                    state_path = out / "state.json"
+                    state = json.loads(state_path.read_text())
+                    state["requests"][0][field] = "tampered"
+                    state_path.write_text(json.dumps(state))
+                    second = run_arm(_case(), spec, "counterexample", client, out,
+                                     stop_after_round=2, **common)
+                self.assertEqual(second["stop"], "snapshot_corrupt")
+                self.assertEqual(client.calls, 1)
+
+    def test_identity_and_round0_tamper_block(self):
+        spec = require_experiment_model(build_registry(), "DeepSeek Flash")
+        score, evaluate = _score_factory({"value": "same"})
+        common = dict(max_repairs=2, evaluate=evaluate, score=score, require_defect_signal=False,
+                      feedback_builder=lambda arm, requirement, delivery: "feedback",
+                      system_prompt="rules")
+        client = _Fake()
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td)
+            run_arm(_case(), spec, "counterexample", client, out, stop_after_round=1, **common)
+            state_path = out / "state.json"
+            state = json.loads(state_path.read_text())
+            state["requests"][0]["identity"]["returned_model"] = "other-model"
+            state_path.write_text(json.dumps(state))
+            second = run_arm(_case(), spec, "counterexample", client, out, stop_after_round=2, **common)
+        self.assertEqual(second["stop"], "snapshot_corrupt")
+        self.assertEqual(client.calls, 1)
+        client = _Fake()
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td)
+            run_arm(_case(), spec, "counterexample", client, out, stop_after_round=1, **common)
+            state_path = out / "state.json"
+            state = json.loads(state_path.read_text())
+            state["round0"]["evaluation"]["requirement"]["status"] = "tampered"
+            state_path.write_text(json.dumps(state))
+            second = run_arm(_case(), spec, "counterexample", client, out, stop_after_round=2, **common)
+        self.assertEqual(second["stop"], "snapshot_corrupt")
+        self.assertEqual(client.calls, 1)
+
+    def test_legacy_snapshot_is_not_trusted(self):
+        spec = require_experiment_model(build_registry(), "DeepSeek Flash")
+        client = _Fake()
+        score, evaluate = _score_factory({"value": "same"})
+        common = dict(max_repairs=2, evaluate=evaluate, score=score, require_defect_signal=False,
+                      feedback_builder=lambda arm, requirement, delivery: "feedback",
+                      system_prompt="rules")
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td)
+            run_arm(_case(), spec, "counterexample", client, out, stop_after_round=1, **common)
+            state_path = out / "state.json"
+            state = json.loads(state_path.read_text())
+            state["round0"].pop("snapshot_sha256")
+            state_path.write_text(json.dumps(state))
+            second = run_arm(_case(), spec, "counterexample", client, out, stop_after_round=2, **common)
+        self.assertEqual(second["stop"], "snapshot_legacy")
+        self.assertEqual(client.calls, 1)
+
 
 class BudgetMirrorTests(unittest.TestCase):
     def test_concurrent_mirrors_keep_the_sqlite_count(self):
