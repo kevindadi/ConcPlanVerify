@@ -345,7 +345,9 @@ class RunnerTests(unittest.TestCase):
         dest = self.out / "recover-run"
         dest.mkdir()
         (dest / "state.json").write_text(json.dumps({
-            "fingerprint": _fingerprint(self.spec, "verdict_only", self.case, 2),
+            "fingerprint": _fingerprint(self.spec, "verdict_only", self.case, 2,
+                                         system_text=PROMPT_PATH.read_text(encoding="utf-8").strip(),
+                                         initial_source=self.case["defect"]),
             "requests": [],
             "pending": {"round": 1, "arm": "verdict_only",
                         "prompt_sha256": _sha_text(prompt),
@@ -404,7 +406,9 @@ class RunnerTests(unittest.TestCase):
         dest = self.out / "rounds-run"
         dest.mkdir()
         (dest / "state.json").write_text(json.dumps({
-            "fingerprint": _fingerprint(self.spec, "verdict_only", self.case, 2),
+            "fingerprint": _fingerprint(self.spec, "verdict_only", self.case, 2,
+                                         system_text=PROMPT_PATH.read_text(encoding="utf-8").strip(),
+                                         initial_source=self.case["defect"]),
             "requests": [{
                 "round": 1, "arm": "verdict_only", "status": "ok",
                 "prompt_sha256": _sha_text(prompt),
@@ -457,7 +461,9 @@ class RunnerTests(unittest.TestCase):
         dest = self.out / "tamper-run"
         dest.mkdir()
         (dest / "state.json").write_text(json.dumps({
-            "fingerprint": _fingerprint(self.spec, "verdict_only", self.case, 2),
+            "fingerprint": _fingerprint(self.spec, "verdict_only", self.case, 2,
+                                         system_text=PROMPT_PATH.read_text(encoding="utf-8").strip(),
+                                         initial_source=self.case["defect"]),
             "requests": [],
             "pending": {
                 "round": 1, "arm": "verdict_only", "attempt": 1,
@@ -503,7 +509,9 @@ class RunnerTests(unittest.TestCase):
         dest = self.out / "edited-run"
         dest.mkdir()
         (dest / "state.json").write_text(json.dumps({
-            "fingerprint": _fingerprint(self.spec, "verdict_only", self.case, 2),
+            "fingerprint": _fingerprint(self.spec, "verdict_only", self.case, 2,
+                                         system_text=PROMPT_PATH.read_text(encoding="utf-8").strip(),
+                                         initial_source=self.case["defect"]),
             "requests": [],
             "pending": {
                 "round": 1, "arm": "verdict_only", "attempt": 1,

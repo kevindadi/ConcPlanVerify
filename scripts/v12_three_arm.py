@@ -63,6 +63,10 @@ def freeze_paths(records: list[dict]) -> dict[str, str]:
         REPO / "python/cir_workflow/audit.py",
         REPO / "python/cir_workflow/live.py",
         REPO / "python/cir_workflow/channels.py",
+        REPO / "python/cir_workflow/transport.py",
+        REPO / "python/cir_workflow/opencode_go.py",
+        REPO / "python/cir_workflow/direct.py",
+        REPO / "python/cir_workflow/env.py",
         REPO / "python/cir_workflow/rust_oracle.py",
         REPO / "scripts/v12_three_arm.py",
         REPO / "runtime/concir_sync/src/lib.rs",
@@ -78,14 +82,15 @@ def freeze_paths(records: list[dict]) -> dict[str, str]:
     return out
 
 
-def build_protocol(records: list[dict], concurrency: int = 3) -> dict:
+def build_protocol(records: list[dict], concurrency: int = 3, prior_probes: int = 0) -> dict:
     orders = arm_order(["deepseek-flash", "qwen3.8-flash", "gpt-6-luna", "glm-5.3-flash"], seed=12)
     cells = len(records) * len(MODELS) * 3
     return {
         "seed": 12,
         "arm_order": orders,
         "max_repairs": 2,
-        "max_physical": cells * 2,
+        "max_physical": cells * 2 - int(prior_probes),
+        "prior_probes": int(prior_probes),
         "concurrency": concurrency,
         "schedule": "all first rounds, then all second rounds",
         "cell_key": "task/model/arm",
@@ -94,8 +99,13 @@ def build_protocol(records: list[dict], concurrency: int = 3) -> dict:
             "deepseek-flash": {"temperature": 0, "channel": "deepseek-direct"},
             "qwen3.8-flash": {"temperature": 0, "channel": "dashscope-direct", "enable_thinking": False},
             "gpt-6-luna": {"temperature": None, "channel": "opencode-go", "surface": "responses"},
-            "glm-5.3-flash": {"display": "GLM 5.3 Flash", "channel": "opencode-go",
-                              "surface": "chat", "temperature": 0},
+            "glm-5.3-flash": {
+                "display": "GLM 5.3 Flash", "channel": "opencode-go",
+                "surface": "chat", "temperature": 0, "max_tokens": 16384,
+                "reasoning_effort": "low", "thinking_field": "not_sent",
+                "thinking_field_reason": "OpenCode Go returned 400 unknown field thinking",
+                "parameter_source": "https://docs.z.ai/guides/llm/glm-5.3",
+            },
         },
         "inputs": [{
             "task": record["task"],
@@ -107,6 +117,18 @@ def build_protocol(records: list[dict], concurrency: int = 3) -> dict:
         "freeze_files": freeze_paths(records),
         "note": "Sampling parameters are per model. They are the same across arms of that model.",
     }
+
+
+def _acquire_coordinator(out: Path):
+    """One process may send for this run. The handle is held until exit."""
+
+    handle = (out / "coordinator.lock").open("a", encoding="utf-8")
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        handle.close()
+        return None
+    return handle
 
 
 def _reject(out: Path, reason: str, detail: dict) -> None:
@@ -178,6 +200,7 @@ def main() -> int:
     parser.add_argument("--out", required=True)
     parser.add_argument("--confirm-paid-run", action="store_true")
     parser.add_argument("--concurrency", type=int, default=3)
+    parser.add_argument("--prior-probes", type=int, default=0)
     args = parser.parse_args()
     selected = json.loads(Path(args.selected).read_text(encoding="utf-8"))
     records = list(selected["selected_records"])
@@ -189,7 +212,8 @@ def main() -> int:
     protocol_path = out / "PROTOCOL.json"
     state_path = out / "batch_state.json"
     try:
-        expected = build_protocol(records, concurrency=args.concurrency)
+        expected = build_protocol(records, concurrency=args.concurrency,
+                                  prior_probes=args.prior_probes)
     except FileNotFoundError as exc:
         print(f"freeze input missing: {exc}")
         return 2
@@ -208,12 +232,18 @@ def main() -> int:
         _write_table(out, results, None, 0)
         print("frozen; not executing")
         return 0
+    coordinator = _acquire_coordinator(out)
+    if coordinator is None:
+        print("another coordinator holds this run; not sending")
+        return 2
     if not protocol_path.is_file():
+        coordinator.close()
         _reject(out, "missing_freeze", {})
         print("missing freeze; not executing")
         return 2
     stored = json.loads(protocol_path.read_text(encoding="utf-8"))
     if stored != expected:
+        coordinator.close()
         _reject(out, "frozen_protocol_mismatch", {})
         print("frozen protocol mismatch; not executing")
         return 2
@@ -290,8 +320,9 @@ def main() -> int:
         channel = CHANNELS[spec.channel]
         try:
             api_key = key_for(spec, dict(os.environ), channel.api_key_env)
+            model_budget = (stored.get("models") or {}).get(spec.model_id) or {}
             inner = build_client(spec, budget=budget, evidence_dir=dest / "llm", api_key=api_key,
-                                 timeout=120.0, max_tokens=4096)
+                                 timeout=120.0, max_tokens=int(model_budget.get("max_tokens") or 4096))
             client = AuditedClient(inner, audit=audit, run_id=out.name,
                                    cell_id=_cell_key(case["task"], spec.model_id, arm),
                                    spec=spec, arm=arm, task_id=case["task"], replicate=0, stage="repair")
@@ -338,6 +369,7 @@ def main() -> int:
                  len(events))
     print("cells", len(results), "budget", (json.loads((out / "budget.json").read_text()).get("requests_used")
                                             if (out / "budget.json").is_file() else None))
+    coordinator.close()
     return 0
 
 

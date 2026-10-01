@@ -149,8 +149,61 @@ def load_frozen(row: dict, tools: dict | None = None) -> dict[str, Any]:
     return case
 
 
-def _fingerprint(spec, arm: str, case: dict, max_repairs: int) -> str:
+def _protocol_file_hashes() -> dict[str, str]:
+    """Hashes of the code that changes prompts or scores. Not object ids."""
+
+    names = ("feedback_runner.py", "conditional_arms.py", "condvar_requirements.py",
+             "send_holding_requirements.py", "task_score.py")
+    here = Path(__file__).resolve().parent
+    return {name: _sha_file(here / name) for name in names}
+
+
+def _snapshot_digest(record: dict) -> str:
+    payload = {
+        "evaluation": record.get("evaluation_snapshot"),
+        "delivery": record.get("delivery_snapshot"),
+        "candidate": record.get("candidate_source"),
+    }
+    return _sha_text(json.dumps(payload, sort_keys=True, default=str))
+
+
+_GENERATION_FIELDS = (
+    "temperature", "max_tokens", "reasoning_effort", "base_url", "model",
+)
+
+
+def _generation_record(client) -> dict:
+    """Scalar send parameters. Object ids and reprs are not part of the protocol."""
+
+    if client is None:
+        return {}
+    record: dict[str, Any] = {}
+    for key in _GENERATION_FIELDS:
+        if not hasattr(client, key):
+            continue
+        value = getattr(client, key)
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            record[key] = value
+    extra = getattr(client, "extra_body", None)
+    if isinstance(extra, dict):
+        record["extra_body"] = {
+            key: extra[key] for key in sorted(extra)
+            if isinstance(extra[key], (str, int, float, bool)) or extra[key] is None
+        }
+    return record
+
+
+def _fingerprint(spec, arm: str, case: dict, max_repairs: int, freeze_files: dict | None = None,
+                 *, system_text: str = "", initial_source: str = "", client=None) -> str:
     payload = {"model": spec.model_id, "arm": arm, "max_repairs": max_repairs,
+               "channel": spec.channel, "surface": spec.surface,
+               "system": _sha_text(system_text),
+               "initial_source": _sha_text(initial_source),
+               "generation": _generation_record(client),
+               "requirements": _sha_text(case.get("requirements") or ""),
+               "cir": _sha_text(case.get("cir_text") or json.dumps(case.get("cir") or {}, sort_keys=True)),
+               "protocol_files": _protocol_file_hashes(),
+               "freeze": freeze_files or {},
                **(case.get("fingerprint_parts") or {"case": case["id"],
                                                     "defect": _sha_text(case["defect"])})}
     return _sha_text(json.dumps(payload, sort_keys=True))
@@ -394,7 +447,11 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
     out_dir.mkdir(parents=True, exist_ok=True)
     state_path = out_dir / "state.json"
     state = _load_state(state_path)
-    fingerprint = _fingerprint(spec, arm, case, max_repairs)
+    system_text = system_prompt if system_prompt is not None else PROMPT_PATH.read_text(encoding="utf-8").strip()
+    initial_source = source if source is not None else case["defect"]
+    fingerprint = _fingerprint(spec, arm, case, max_repairs, freeze_files,
+                               system_text=system_text, initial_source=initial_source,
+                               client=client)
     if state.get("fingerprint") and state["fingerprint"] != fingerprint:
         return {"case": case["id"], "arm": arm, "model": spec.model_id, "stop": "fingerprint_mismatch",
                 "actual_model_requests_this_run": 0, "physical_attempts_this_run": 0,
@@ -468,9 +525,16 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
         return False
 
     tool_started = time.perf_counter()
-    initial = score(case, current, out_dir / "round-0")
-    initial_eval = evaluate(current, case, out_dir / "eval-0")
-    initial_eval["tool_time_s"] = time.perf_counter() - tool_started
+    if state.get("round0"):
+        initial = state["round0"]["evaluation"]
+        initial_eval = state["round0"]["delivery"]
+    else:
+        initial = score(case, current, out_dir / "round-0")
+        initial_eval = evaluate(current, case, out_dir / "eval-0")
+        initial_eval["tool_time_s"] = time.perf_counter() - tool_started
+        state["round0"] = {"evaluation": initial, "delivery": initial_eval,
+                           "source_sha256": _sha_text(current)}
+        _save_state(state_path, state)
     finished = consider(0, current, initial, initial_eval)
     if (require_defect_signal and not finished and not has_defect_signal(initial_eval)
             and (initial_eval.get("followup") or {}).get("category") not in
@@ -479,36 +543,37 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
         finished = True
     delivery_for_feedback = initial_eval
     requirement_for_feedback = initial
-    system_text = system_prompt if system_prompt is not None else PROMPT_PATH.read_text(encoding="utf-8").strip()
     in_denominator = (initial["requirement_error"] and not initial["tool_error"]
                       and not initial["capability_gap"] and initial["support"]["supported"]
                       and stop not in {"tool_failure", "capability_gap"})
     if not finished:
         for repair_round in range(1, max_repairs + 1):
             if stop_after_round is not None and repair_round > stop_after_round:
-                stop = "phase_complete"
+                stop = "phase_complete" if stop_after_round < max_repairs else "cell_repair_budget_exhausted"
                 break
             saved = next((item for item in state["requests"] if item.get("round") == repair_round
                           and item.get("arm") == arm), None)
-            if feedback_builder is not None:
-                feedback = feedback_builder(arm, requirement_for_feedback, delivery_for_feedback)
+            if saved and saved.get("user_prompt"):
+                feedback = saved.get("feedback") or ""
+                prompt = saved["user_prompt"]
                 items = []
             else:
-                feedback, items = feedback_from_toolchain(arm, delivery_for_feedback)
-            for item in items:
-                item["arm"] = arm
-                item["round"] = repair_round - 1
-            provenance.extend(items)
-            if prompt_renderer is not None:
-                prompt = prompt_renderer(
-                    arm=arm, requirements=case["requirements"],
-                    cir_text=case.get("cir_text") or cir_text, previous=current, feedback=feedback)
-            else:
-                prompt = render_prompt(case["requirements"], cir_text, current, feedback)
+                if feedback_builder is not None:
+                    feedback = feedback_builder(arm, requirement_for_feedback, delivery_for_feedback)
+                    items = []
+                else:
+                    feedback, items = feedback_from_toolchain(arm, delivery_for_feedback)
+                for item in items:
+                    item["arm"] = arm
+                    item["round"] = repair_round - 1
+                provenance.extend(items)
+                if prompt_renderer is not None:
+                    prompt = prompt_renderer(
+                        arm=arm, requirements=case["requirements"],
+                        cir_text=case.get("cir_text") or cir_text, previous=current, feedback=feedback)
+                else:
+                    prompt = render_prompt(case["requirements"], cir_text, current, feedback)
             if saved:
-                if saved.get("prompt_sha256") not in (None, _sha_text(prompt)):
-                    stop = "fingerprint_mismatch"
-                    break
                 if saved.get("status") in {"error", "outcome_unknown", "identity_mismatch",
                                            "identity_unconfirmed",
                                            "global_request_budget_exhausted",
@@ -671,6 +736,7 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                     "round": repair_round, "arm": arm, "attempt": repair_round,
                     "case": case["id"],
                     "model": spec.model_id, "prompt_sha256": pending["prompt_sha256"],
+                    "user_prompt": prompt, "system_prompt": system_text,
                     "feedback": feedback, "response": getattr(outcome, "text", ""),
                     "identity": identity, "usage": usage,
                     "usage_raw": raw_usage if isinstance(raw_usage, dict) else None,
@@ -693,6 +759,24 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
             if not identity["identity_confirmed"]:
                 stop = "identity_mismatch" if identity.get("error") else "identity_unconfirmed"
                 break
+            if saved and saved.get("evaluation_snapshot") and saved.get("delivery_snapshot"):
+                if saved.get("snapshot_sha256") and saved.get("snapshot_sha256") != _snapshot_digest(saved):
+                    stop = "snapshot_corrupt"
+                    break
+                extracted = saved.get("candidate_source") or _extract_rust_body(response)
+                if extracted:
+                    current = extracted
+                evaluation = saved["evaluation_snapshot"]
+                delivery = saved["delivery_snapshot"]
+                requirement_for_feedback = evaluation
+                delivery_for_feedback = delivery
+                if consider(repair_round, current, evaluation, delivery):
+                    break
+                if stop_after_round is not None and repair_round >= stop_after_round:
+                    stop = ("phase_complete" if repair_round < max_repairs
+                            else "cell_repair_budget_exhausted")
+                    break
+                continue
             extracted = _extract_rust_body(response)
             if classify_responses:
                 response_class = _response_class(
@@ -720,14 +804,23 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
             elapsed = time.perf_counter() - tool_started
             delivery["tool_time_s"] = elapsed
             delivery_for_feedback = delivery
-            if state["requests"]:
-                state["requests"][-1]["tool_time_s"] = elapsed
+            record = next((item for item in state["requests"]
+                           if item.get("round") == repair_round and item.get("arm") == arm), None)
+            if record is not None:
+                record["tool_time_s"] = elapsed
+                record["user_prompt"] = prompt
+                record["system_prompt"] = system_text
+                record["candidate_source"] = current
+                record["candidate_sha256"] = _sha_text(current)
+                record["evaluation_snapshot"] = evaluation
+                record["delivery_snapshot"] = delivery
+                record["snapshot_sha256"] = _snapshot_digest(record)
                 _save_state(state_path, state)
-            _save_state(state_path, state)
             if consider(repair_round, current, evaluation, delivery):
                 break
             if stop_after_round is not None and repair_round >= stop_after_round:
-                stop = "phase_complete"
+                stop = ("phase_complete" if repair_round < max_repairs
+                        else "cell_repair_budget_exhausted")
                 break
         else:
             stop = stop or "cell_repair_budget_exhausted"
