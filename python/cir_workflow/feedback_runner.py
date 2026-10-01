@@ -306,6 +306,27 @@ def _recover_pending(state: dict, audit_events: list[dict]) -> str | None:
     return status
 
 
+def _freeze_error(freeze_files: dict[str, str] | None) -> str | None:
+    if not freeze_files:
+        return None
+    for path, expected in freeze_files.items():
+        if _sha_file(Path(path)) != expected:
+            return path
+    return None
+
+
+def _response_class(text: str, finish_reason: str | None, extracted: str) -> str:
+    if finish_reason == "length" and not extracted:
+        return "truncated"
+    if not (text or "").strip():
+        return "empty"
+    if not extracted:
+        return "unparsed"
+    if finish_reason == "length":
+        return "truncated"
+    return "code"
+
+
 def _cumulative(state: dict) -> dict[str, Any]:
     physical = 0
     logical = 0
@@ -329,7 +350,14 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
             evaluate: Callable | None = None,
             score: Callable | None = None,
             halt_after_new_requests: int | None = None,
-            audit_events: list[dict] | None = None) -> dict[str, Any]:
+            audit_events: list[dict] | None = None,
+            prompt_renderer: Callable | None = None,
+            feedback_builder: Callable | None = None,
+            stop_on_unknown: bool = False,
+            require_defect_signal: bool = True,
+            freeze_files: dict[str, str] | None = None,
+            classify_responses: bool = False,
+            system_prompt: str | None = None) -> dict[str, Any]:
     """Run one arm from a frozen candidate. ``source`` defaults to the defect."""
 
     out_dir = Path(out_dir)
@@ -376,6 +404,9 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
         nonlocal first_requirement, first_design, first_both, stop
         requirement_pass = evaluation["requirement"]["status"] == "pass"
         design_pass = evaluation["design"]["status"] == "pass"
+        if stop_on_unknown and evaluation["requirement"]["status"] == "unknown":
+            stop = "unknown"
+            return True
         if requirement_pass and first_requirement is None:
             first_requirement = round_no
         if design_pass and first_design is None:
@@ -393,7 +424,7 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
         if evaluation["tool_error"] or category == "tool_failure" or action == "stop" and category == "tool_failure":
             stop = "tool_failure"
             return True
-        if evaluation["capability_gap"] or category == "capability_gap":
+        if evaluation["capability_gap"] or (require_defect_signal and category == "capability_gap"):
             stop = "capability_gap"
             return True
         if requirement_pass:
@@ -406,12 +437,14 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
     initial_eval = evaluate(current, case, out_dir / "eval-0")
     initial_eval["tool_time_s"] = time.perf_counter() - tool_started
     finished = consider(0, current, initial, initial_eval)
-    if (not finished and not has_defect_signal(initial_eval)
+    if (require_defect_signal and not finished and not has_defect_signal(initial_eval)
             and (initial_eval.get("followup") or {}).get("category") not in
             {"tool_failure", "capability_gap"}):
         stop = "no_toolchain_signal"
         finished = True
     delivery_for_feedback = initial_eval
+    requirement_for_feedback = initial
+    system_text = system_prompt if system_prompt is not None else PROMPT_PATH.read_text(encoding="utf-8").strip()
     in_denominator = (initial["requirement_error"] and not initial["tool_error"]
                       and not initial["capability_gap"] and initial["support"]["supported"]
                       and stop not in {"tool_failure", "capability_gap"})
@@ -419,12 +452,21 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
         for repair_round in range(1, max_repairs + 1):
             saved = next((item for item in state["requests"] if item.get("round") == repair_round
                           and item.get("arm") == arm), None)
-            feedback, items = feedback_from_toolchain(arm, delivery_for_feedback)
+            if feedback_builder is not None:
+                feedback = feedback_builder(arm, requirement_for_feedback, delivery_for_feedback)
+                items = []
+            else:
+                feedback, items = feedback_from_toolchain(arm, delivery_for_feedback)
             for item in items:
                 item["arm"] = arm
                 item["round"] = repair_round - 1
             provenance.extend(items)
-            prompt = render_prompt(case["requirements"], cir_text, current, feedback)
+            if prompt_renderer is not None:
+                prompt = prompt_renderer(
+                    arm=arm, requirements=case["requirements"],
+                    cir_text=case.get("cir_text") or cir_text, previous=current, feedback=feedback)
+            else:
+                prompt = render_prompt(case["requirements"], cir_text, current, feedback)
             if saved:
                 if saved.get("prompt_sha256") not in (None, _sha_text(prompt)):
                     stop = "fingerprint_mismatch"
@@ -442,20 +484,26 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                 response = saved["response"]
                 identity = saved["identity"]
             else:
-                system = PROMPT_PATH.read_text(encoding="utf-8").strip()
                 pending = {"round": repair_round, "arm": arm, "attempt": repair_round,
                            "run_id": getattr(client, "run_id", None),
                            "cell_id": getattr(client, "cell_id", None),
                            "model": spec.model_id,
                            "prompt_sha256": _sha_text(prompt),
-                           "audit_prompt_sha256": _sha_text(system + "\n\n" + prompt.strip()),
+                           "audit_prompt_sha256": _sha_text(system_text + "\n\n" + prompt.strip()),
                            "feedback": feedback}
+                frozen = _freeze_error(freeze_files)
+                if frozen:
+                    stop = "frozen_input_changed"
+                    state["pending"] = None
+                    state["freeze_error"] = frozen
+                    _save_state(state_path, state)
+                    break
                 state["pending"] = pending
                 _save_state(state_path, state)
                 started = time.perf_counter()
                 try:
                     outcome = _invoke_complete(
-                        client, PROMPT_PATH.read_text(encoding="utf-8"), prompt,
+                        client, system_text, prompt,
                         candidate_round=repair_round, attempt=repair_round)
                 except ModelIdentityError as exc:
                     outcome = exc.outcome
@@ -540,6 +588,7 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                         "physical_attempts": sent, "logical_call": bool(sent),
                         "send_status": send_status, "transport_log": log,
                         "status": "error", "error_type": kind,
+                        "response_class": "service_error" if classify_responses else None,
                     }
                     state["requests"].append(record)
                     state["pending"] = None
@@ -562,7 +611,8 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                     identity_error = str(exc)
                 identity = {"requested_model": requested, "returned_model": returned,
                             "channel": spec.channel, "display_name": spec.display_name,
-                            "identity_confirmed": bool(confirmed), "error": identity_error}
+                            "identity_confirmed": bool(confirmed), "error": identity_error,
+                            "finish_reason": getattr(outcome, "finish_reason", None)}
                 usage = _usage(outcome)
                 usage["model_time_ms"] = model_ms
                 sent = _physical_of(outcome, client=client)
@@ -595,6 +645,16 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
                 stop = "identity_mismatch" if identity.get("error") else "identity_unconfirmed"
                 break
             extracted = _extract_rust_body(response)
+            if classify_responses:
+                response_class = _response_class(
+                    response or "", (identity or {}).get("finish_reason"), extracted)
+                if response_class != "code":
+                    rounds.append({"round": repair_round, "response_class": response_class,
+                                   "new_candidate": False, "requirement_status": None})
+                    if state["requests"]:
+                        state["requests"][-1]["response_class"] = response_class
+                        _save_state(state_path, state)
+                    continue
             if not extracted:
                 current_eval = score(case, current, out_dir / f"round-{repair_round}")
                 # Protocol miss: the response is not a program. Count the request,
@@ -606,6 +666,7 @@ def run_arm(case: dict[str, Any], spec, arm: str, client, out_dir: Path, *,
             current = extracted
             tool_started = time.perf_counter()
             evaluation = score(case, current, out_dir / f"round-{repair_round}")
+            requirement_for_feedback = evaluation
             delivery = evaluate(current, case, out_dir / f"eval-{repair_round}")
             elapsed = time.perf_counter() - tool_started
             delivery["tool_time_s"] = elapsed

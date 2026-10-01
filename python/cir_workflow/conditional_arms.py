@@ -47,6 +47,22 @@ def conformance_feedback(evaluation: dict) -> str:
         lines.append(
             f"conform.event_index={violation.get('event_index')} got={violation.get('got')} "
             f"resource={violation.get('resource')} checker_next={violation.get('expected')}")
+    binding = evaluation.get("binding") or {}
+    for item in binding.get("attributes") or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("status") not in {"mismatch", "unknown"}:
+            continue
+        lines.append(
+            f"attribute.resource={item.get('resource_id')} status={item.get('status')} "
+            f"expected={item.get('expected')} observed={item.get('observed')} "
+            f"site={item.get('construction_site')} evidence={item.get('evidence')} "
+            f"reason={item.get('reason')}")
+    for gap in binding.get("uncovered_sync") or []:
+        if isinstance(gap, dict):
+            lines.append(
+                f"uncovered_sync.kind={gap.get('kind')} form={gap.get('form')} "
+                f"site={gap.get('site')} function={gap.get('function')}")
     return "\n".join(lines) + "\n"
 
 
@@ -73,69 +89,106 @@ def feedback_for(arm: str, requirement: dict, evaluation: dict | None) -> str:
     return text
 
 
-def run_repairs(case: dict, arm: str, client, out_dir: Path, *, max_repairs: int = 2,
-                evaluate_candidate=None, score=None) -> dict[str, Any]:
-    """One cell. Round 0 is the original defect and does not call the model."""
+SYSTEM = "Repair the Rust program so the requirements are met."
 
-    from .generation import _extract_rust_body
-    out_dir.mkdir(parents=True, exist_ok=True)
-    score = score or evaluate_requirements
-    current = case["defect"]
-    rounds = []
-    prompts = []
-    stop = None
-    first_requirement = None
-    for repair in range(0, max_repairs + 1):
-        requirement = score(current, out_dir / f"round-{repair}")
-        evaluation = None
-        if evaluate_candidate is not None:
-            evaluation = evaluate_candidate(current, case, out_dir / f"eval-{repair}")
-        rounds.append({"round": repair, "requirement_status": requirement["status"],
-                       "design_status": (evaluation or {}).get("ledger", {}).get("trace", {}).get("state"),
-                       "delivery_status": (evaluation or {}).get("ledger", {}).get("delivery_status")})
-        if requirement["status"] == "bounded_covered_satisfied" and first_requirement is None:
-            first_requirement = repair
-            stop = "bounded_covered_satisfied"
-            break
-        if requirement["status"] == "unknown":
-            stop = "unknown"
-            break
-        if repair == max_repairs:
-            stop = "cell_repair_budget_exhausted"
-            break
-        feedback = feedback_for(arm, requirement, evaluation)
-        prompt = render_prompt(arm=arm, requirements=case["requirements"],
-                               cir_text=case.get("cir_text"), previous=current, feedback=feedback)
-        (out_dir / f"prompt-{repair + 1}.txt").write_text(prompt, encoding="utf-8")
-        prompts.append(prompt)
-        try:
-            outcome = client.complete(
-                "Repair the Rust program so the requirements are met.", prompt)
-        except Exception as exc:  # noqa: BLE001
-            from .live import BudgetExhausted
-            from .transport import ModelIdentityError
-            if isinstance(exc, BudgetExhausted):
-                stop = "global_request_budget_exhausted" if "deadline" not in str(exc) else "global_time_budget_exhausted"
-                return {"arm": arm, "stop": stop, "first_requirement_round": first_requirement,
-                        "rounds": rounds, "prompts": prompts, "final_source": current,
-                        "physical_attempts": getattr(exc, "physical_attempts", 0),
-                        "send_status": "not_sent" if not getattr(exc, "physical_attempts", 0) else "sent"}
-            if isinstance(exc, ModelIdentityError):
-                return {"arm": arm, "stop": "identity_mismatch", "first_requirement_round": first_requirement,
-                        "rounds": rounds, "prompts": prompts, "final_source": current,
-                        "error": str(exc)}
-            raise
-        extracted = _extract_rust_body(getattr(outcome, "text", "") or "")
-        if not extracted:
-            current = current
-            continue
-        current = extracted
-        (out_dir / f"source-{repair + 1}.rs").write_text(current, encoding="utf-8")
+
+def _nonempty_without_state(path: Path) -> bool:
+    if not path.exists():
+        return False
+    files = [item for item in path.rglob("*") if item.is_file()]
+    if not files:
+        return False
+    return not (path / "state.json").is_file()
+
+
+def plan_row(cell: dict, *, global_stop: str | None, model_stop: str | None,
+             executed: dict | None) -> dict:
+    """Every planned cell is a row, including ones that never send."""
+
+    if executed is not None:
+        row = {**cell, "status": "executed"}
+        row.update(executed)
+        return row
+    if global_stop:
+        return {**cell, "status": "not_started", "stop": global_stop}
+    if model_stop:
+        return {**cell, "status": "blocked", "stop": model_stop}
+    return {**cell, "status": "not_started", "stop": "not_started"}
+
+
+def run_repairs(case: dict, arm: str, client, out_dir: Path, *, max_repairs: int = 2,
+                evaluate_candidate=None, score=None, audit_events=None,
+                freeze_files: dict[str, str] | None = None) -> dict[str, Any]:
+    """One cell on the shared repair state machine.
+
+    Prompt and feedback differ by arm. Request identity, recovery, and budget
+    handling are the ones already used by the two-arm runner.
+    """
+
+    from .audit import read_events
+    from .feedback_runner import run_arm
+    from .transport import build_registry, require_experiment_model
+
+    out_dir = Path(out_dir)
+    if _nonempty_without_state(out_dir):
+        return {"arm": arm, "stop": "refuse_nonempty_without_state",
+                "actual_model_requests_this_run": 0, "physical_attempts_this_run": 0,
+                "first_requirement_round": None, "rounds": [], "send_status": "not_sent"}
+    spec = getattr(client, "spec", None)
+    if spec is None:
+        spec = require_experiment_model(build_registry(), case.get("model_name") or "DeepSeek Flash")
+    if audit_events is None:
+        audit = getattr(client, "audit", None)
+        if audit is not None and Path(getattr(audit, "path", "")).is_file():
+            audit_events = read_events(audit.path)
+    scorer = score or evaluate_requirements
+
+    def adapted(case_obj, source, work):
+        raw = scorer(source, work)
+        status = raw["status"]
+        mapped = "pass" if status == "bounded_covered_satisfied" else status
+        return {"requirement": {"status": mapped, "raw_status": status},
+                "design": {"status": "separate"},
+                "requirement_error": status == "fail",
+                "tool_error": False, "capability_gap": False,
+                "support": {"supported": status != "unknown"}, "raw": raw}
+
+    def builder(arm_name, requirement, evaluation):
+        raw = requirement.get("raw") or requirement
+        return feedback_for(arm_name, raw, evaluation if evaluate_candidate is not None else None)
+
+    def toolchain(source, case_obj, work):
+        if evaluate_candidate is None:
+            return {"ledger": {}, "followup": {}, "binding": {}, "functional": {}}
+        return evaluate_candidate(source, case_obj, work)
+
+    cir_text = case.get("cir_text") or ""
+    try:
+        cir_doc = json.loads(cir_text) if cir_text else case.get("cir") or {}
+    except json.JSONDecodeError:
+        cir_doc = case.get("cir") or {}
+    arm_case = {"id": case.get("id") or case.get("task") or "cell",
+                "defect": case["defect"], "requirements": case.get("requirements") or "",
+                "cir": cir_doc, "cir_text": cir_text,
+                "cir_path": case.get("cir_path"), "contract_path": case.get("contract_path"),
+                "tools": case.get("tools")}
+    result = run_arm(
+        arm_case, spec, arm, client, out_dir, max_repairs=max_repairs,
+        evaluate=toolchain, score=adapted, audit_events=audit_events,
+        prompt_renderer=render_prompt, feedback_builder=builder,
+        stop_on_unknown=True, require_defect_signal=False,
+        freeze_files=freeze_files, classify_responses=True, system_prompt=SYSTEM)
+    if result.get("stop") == "requirement_pass":
+        result["stop"] = "bounded_covered_satisfied"
+    if result.get("stop") in {"global_request_budget_exhausted", "global_time_budget_exhausted"}:
+        result["send_status"] = "not_sent" if not result.get("physical_attempts_this_run") else "sent"
+    result["arm"] = arm
     (out_dir / "result.json").write_text(json.dumps({
-        "arm": arm, "stop": stop, "first_requirement_round": first_requirement, "rounds": rounds,
+        "arm": arm, "stop": result.get("stop"),
+        "first_requirement_round": result.get("first_requirement_round"),
+        "rounds": result.get("rounds"),
     }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return {"arm": arm, "stop": stop, "first_requirement_round": first_requirement,
-            "rounds": rounds, "prompts": prompts, "final_source": current}
+    return result
 
 
 def arm_order(models: list[str], seed: int = 12) -> dict[str, list[str]]:
