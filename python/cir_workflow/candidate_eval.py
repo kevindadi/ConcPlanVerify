@@ -179,25 +179,80 @@ def _acquisition_id(parts: dict) -> str:
 def _adaptation_feedback(ledger, result: dict) -> str | None:
     """A safe, CIR-preserving encoding-adaptation request.
 
-    Only when the identity is resolved (a binding exists) but the runtime cannot
-    observe a required value/attribute. Returns non-empty feedback so the code
-    stage gets a real repair round; it never accepts and never loosens a gate.
+    Only when EVERY failed property's dependencies are identity-resolved (not just
+    "some mapping is non-empty") and the runtime cannot observe a required value.
+    The suggestion never changes CIR resource types or the synchronization
+    structure. It never accepts and never loosens a gate.
     """
-    unsupported = [p.property_id for p in getattr(ledger, "properties", [])
+    unsupported = [p for p in getattr(ledger, "properties", [])
                    if p.independent_requirement_result in ("unsupported", "unmapped")]
     if not unsupported:
         return None
-    if not (result.get("binding") or {}).get("mapping"):
+    if not all(getattr(p, "identity_relevant_verified", False) for p in unsupported):
         return None
-    ids = ", ".join(unsupported)
+    ids = ", ".join(p.property_id for p in unsupported)
     return (
-        "Representation adaptation required for: " + ids + ". The CIR identity is "
-        "resolved but the runtime cannot observe the required value/attribute. Expose "
-        "the protected variable as a primitive stored through its declared lock (or as "
-        "a directly observable field), and keep the exact CIR synchronization "
-        "operations, protection relation and thread completion obligations unchanged. "
-        "Do not change the requirements or the contract. This is an encoding change; "
-        "the program will be re-compiled, re-bound, re-run and re-checked."
+        "Representation adaptation required for: " + ids + ". The identity of the "
+        "failed properties is resolved, but the runtime cannot observe the required "
+        "value/attribute. Expose the protected value as a directly observable "
+        "primitive WITHOUT changing the CIR resource types or the synchronization "
+        "structure: do not turn an Atomic into a Mutex, do not add a lock to a "
+        "variable that a declared lock already guards, and keep every "
+        "synchronization operation, protection edge and thread obligation unchanged. "
+        "The program will be re-compiled, re-bound, re-run and re-checked."
+    )
+
+
+def _channel_protocol_feedback(ledger, result: dict) -> str | None:
+    """Concrete, fixable feedback for unresolved channel endpoints.
+
+    The supported subset still requires the endpoint naming protocol, so a miss
+    is reported with the function, construction site and CIR channel resources
+    rather than stopping with empty feedback. It never guesses a binding from
+    creation order or from "the only remaining channel".
+    """
+    ambiguous = (result.get("binding") or {}).get("ambiguous") or []
+    misses = [row for row in ambiguous if isinstance(row, dict)
+              and str(row.get("reason", "")).startswith("channel ")]
+    if not misses:
+        return None
+    channels: list[str] = []
+    try:
+        cir = json.loads(Path(result["cir_path"]).read_text(encoding="utf-8"))
+        for module in cir.get("modules", []):
+            for resource in module.get("resources", []):
+                if resource.get("type") == "Channel":
+                    channels.append(f"{module.get('name')}::{resource.get('name')}")
+    except (OSError, KeyError, json.JSONDecodeError):
+        channels = []
+    where: dict[str, tuple] = {}
+    semantics = (result.get("resources") or {}).get("channel_semantics") or {}
+    for endpoint in semantics.get("endpoints", []):
+        if isinstance(endpoint, dict) and endpoint.get("name"):
+            where[endpoint["name"]] = (endpoint.get("function"), endpoint.get("site"))
+    lines = []
+    for row in misses:
+        name = row.get("rust")
+        function, site = where.get(name, (None, row.get("site")))
+        detail = f"- endpoint {name!r}"
+        if function:
+            detail += f" in function {function!r}"
+        if site is not None:
+            detail += f" at site {site}"
+        detail += f": {row.get('reason')}"
+        if row.get("token"):
+            detail += f" (token {row['token']!r})"
+        lines.append(detail)
+    known = (" Known CIR channels: " + ", ".join(channels) + ".") if channels else ""
+    return (
+        "The channel endpoints could not be bound to the verified CIR channels.\n"
+        + "\n".join(lines)
+        + known
+        + "\nGive each channel endpoint the name of its CIR channel resource, keep the "
+        "sender/receiver pair and the construction site unambiguous, and pass the "
+        "endpoints to the worker functions under those names. Do not infer a binding "
+        "from creation order or from 'the only remaining channel'. Preserve the verified "
+        "CIR synchronization operations, capacities and thread obligations."
     )
 
 
@@ -284,6 +339,13 @@ def decide_followup(ledger: ReexecutionLedger, result: dict) -> dict[str, Any]:
                              "same name and call it from its spawn closure. Preserve the "
                              "verified CIR synchronization, resource names, and shared-state "
                              "updates. Do not guess thread identity from spawn order."),
+                "semantic_retry": False, "protocol_retry": True}
+    # Unresolved channel endpoints are a fixable naming-protocol miss: report
+    # the function, construction site and CIR channels instead of stopping.
+    fb_channel = _channel_protocol_feedback(ledger, result)
+    if verdict == "inconclusive" and ledger.hashes.get("verified") and fb_channel:
+        return {"action": "repair_protocol", "category": "protocol_noncompliance",
+                "status": "channel_endpoint_protocol", "feedback": fb_channel,
                 "semantic_retry": False, "protocol_retry": True}
     if ledger.delivery_status == "withhold_capability" or any(
             "unsupported" in reason for reason in ledger.reasons):
