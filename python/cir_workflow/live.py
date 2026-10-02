@@ -146,7 +146,14 @@ class LiveBudget:
                 "run_id TEXT,"
                 "cell_id TEXT,"
                 "logical_attempt TEXT,"
-                "transport_retry INTEGER)")
+                "transport_retry INTEGER,"
+                "stage TEXT,"
+                "model TEXT)")
+            # Upgrade a database created before the stage/model columns existed.
+            attempt_cols = {info[1] for info in conn.execute("PRAGMA table_info(attempt)")}
+            for column in ("stage", "model"):
+                if column not in attempt_cols:
+                    conn.execute(f"ALTER TABLE attempt ADD COLUMN {column} TEXT")
             row = conn.execute(
                 "SELECT max_requests, max_seconds, deadline_epoch, requests_used FROM budget WHERE id = 1"
             ).fetchone()
@@ -264,9 +271,11 @@ class LiveBudget:
             if "logical_attempt" in columns:
                 cursor = conn.execute(
                     "INSERT INTO attempt (reserved_at, status, detail, run_id, cell_id, "
-                    "logical_attempt, transport_retry) VALUES (?, 'reserved', NULL, ?, ?, ?, ?)",
+                    "logical_attempt, transport_retry, stage, model) "
+                    "VALUES (?, 'reserved', NULL, ?, ?, ?, ?, ?, ?)",
                     (time.time(), link.get("run_id"), link.get("cell_id"),
-                     link.get("logical_attempt"), link.get("transport_retry")))
+                     link.get("logical_attempt"), link.get("transport_retry"),
+                     link.get("stage"), link.get("model")))
             else:
                 cursor = conn.execute(
                     "INSERT INTO attempt (reserved_at, status, detail) VALUES (?, 'reserved', NULL)",
@@ -331,6 +340,18 @@ class LiveBudget:
     def remaining(self) -> int:
         return max(0, self.max_requests - self.requests_used)
 
+    def cell_attempt_count(self, cell_id: str) -> int:
+        """Physical attempts already reserved for one cell, across restarts."""
+        if not cell_id:
+            return 0
+        conn = self._connect()
+        try:
+            row = conn.execute("SELECT COUNT(*) FROM attempt WHERE cell_id = ?",
+                               (cell_id,)).fetchone()
+            return int(row[0]) if row else 0
+        finally:
+            conn.close()
+
 
 def preserve_response_record(budget: Any, write, record: dict[str, Any]) -> None:
     """A failed evidence write must not drop a response that already came back."""
@@ -351,6 +372,8 @@ def reservation_link(client: Any, transport_retry: int) -> dict[str, Any]:
         "cell_id": ctx.get("cell_id"),
         "logical_attempt": ctx.get("attempt_id"),
         "transport_retry": int(transport_retry),
+        "stage": ctx.get("stage") or getattr(client, "stage", None),
+        "model": ctx.get("model"),
     }
 
 

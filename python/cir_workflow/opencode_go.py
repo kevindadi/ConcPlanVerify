@@ -40,7 +40,7 @@ class OpenCodeGoClient:
     def __init__(self, *, api_key: str, budget, evidence_dir: Path | str,
                  model: str, timeout: float = 90.0, max_tokens: int = 4096,
                  temperature: float = 0.0, reasoning_effort: str | None = None,
-                 extra_body: dict | None = None) -> None:
+                 extra_body: dict | None = None, thinking: dict | None = None) -> None:
         from openai import OpenAI
 
         self.model = model
@@ -53,12 +53,20 @@ class OpenCodeGoClient:
         self.temperature = temperature
         self.reasoning_effort = reasoning_effort
         self.extra_body = extra_body
+        self.thinking = thinking
+        self.last_request_params: dict[str, Any] = {}
         import uuid
 
         self._client = OpenAI(
             api_key=api_key, base_url=OPENCODE_GO_BASE_URL, timeout=timeout,
             max_retries=0,
             default_headers={"x-opencode-session": str(uuid.uuid4())})
+
+    def close(self) -> None:
+        try:
+            self._client.close()
+        except Exception:  # noqa: BLE001 - best-effort abort for the hard timeout
+            pass
 
     def _record(self, record: dict[str, Any]) -> None:
         with self.log_path.open("a", encoding="utf-8") as handle:
@@ -91,6 +99,8 @@ class OpenCodeGoClient:
                 self._record({"status": "error", "model": self.model,
                               "messages": messages, "prompt_sha256": prompt_sha,
                               "transport_index": attempt + 1,
+                              "thinking": self.thinking,
+                              "request_params": getattr(self, "last_request_params", {}),
                               "error": str(exc), "error_type": type(exc).__name__,
                               "wall_ms": int((time.monotonic() - started) * 1000),
                               **getattr(self, "call_context", {})})
@@ -130,10 +140,18 @@ class OpenCodeGoClient:
             "model": self.model, "messages": messages,
             "temperature": self.temperature, "max_tokens": self.max_tokens,
         }
+        extra_body = dict(self.extra_body or {})
+        if self.thinking:
+            for key, value in self.thinking.items():
+                if key in ("reasoning_effort", "reasoning"):
+                    kwargs[key] = value
+                else:
+                    extra_body[key] = value
         if self.reasoning_effort:
             kwargs["reasoning_effort"] = self.reasoning_effort
-        if self.extra_body:
-            kwargs["extra_body"] = self.extra_body
+        if extra_body:
+            kwargs["extra_body"] = extra_body
+        self.last_request_params = {k: v for k, v in kwargs.items() if k != "messages"}
         response = self._create_with_retry(kwargs, messages, prompt_sha, started)
         wall_ms = int((time.monotonic() - started) * 1000)
         choice = (response.choices or [None])[0]
@@ -147,6 +165,7 @@ class OpenCodeGoClient:
         response_model = getattr(response, "model", None)
         record = {"status": "ok", "model": self.model, "temperature": kwargs["temperature"],
                   "reasoning_effort": self.reasoning_effort, "max_tokens": self.max_tokens,
+                  "thinking": self.thinking, "request_params": self.last_request_params,
                   "response_model": response_model,
                   "request_id": getattr(response, "id", None), "messages": messages,
                   "prompt_sha256": prompt_sha, "usage": usage, "cost": cost,
@@ -172,7 +191,7 @@ class OpenCodeGoResponsesClient:
 
     def __init__(self, *, api_key: str, budget, evidence_dir: Path | str,
                  model: str, timeout: float = 90.0, max_tokens: int = 4096,
-                 temperature: float = 0.0) -> None:
+                 temperature: float = 0.0, thinking: dict | None = None) -> None:
         from openai import OpenAI
 
         self.model = model
@@ -183,12 +202,20 @@ class OpenCodeGoResponsesClient:
         self.timeout = timeout
         self.max_tokens = max_tokens
         self.temperature = temperature
+        self.thinking = thinking
+        self.last_request_params: dict[str, Any] = {}
         import uuid
 
         self._client = OpenAI(
             api_key=api_key, base_url=OPENCODE_GO_BASE_URL, timeout=timeout,
             max_retries=0,
             default_headers={"x-opencode-session": str(uuid.uuid4())})
+
+    def close(self) -> None:
+        try:
+            self._client.close()
+        except Exception:  # noqa: BLE001 - best-effort abort for the hard timeout
+            pass
 
     def _record(self, record: dict[str, Any]) -> None:
         with self.log_path.open("a", encoding="utf-8") as handle:
@@ -206,6 +233,16 @@ class OpenCodeGoResponsesClient:
             "model": self.model, "instructions": system_prompt,
             "input": user_prompt, "max_output_tokens": self.max_tokens,
         }
+        if self.thinking:
+            if "reasoning" in self.thinking:
+                kwargs["reasoning"] = self.thinking["reasoning"]
+            elif "reasoning_effort" in self.thinking:
+                kwargs["reasoning"] = {"effort": self.thinking["reasoning_effort"]}
+            for key in ("text", "include", "tools", "temperature"):
+                if key in self.thinking:
+                    kwargs[key] = self.thinking[key]
+        self.last_request_params = {k: v for k, v in kwargs.items()
+                                    if k not in ("instructions", "input")}
         response = None
         for attempt in range(3):
             try:
@@ -227,6 +264,8 @@ class OpenCodeGoResponsesClient:
                 self._record({"status": "error", "model": self.model,
                               "surface": "responses", "messages": messages,
                               "prompt_sha256": prompt_sha, "transport_index": attempt + 1,
+                              "thinking": self.thinking,
+                              "request_params": getattr(self, "last_request_params", {}),
                               "error": str(exc), "error_type": type(exc).__name__,
                               "wall_ms": int((time.monotonic() - started) * 1000),
                               **getattr(self, "call_context", {})})
@@ -257,6 +296,7 @@ class OpenCodeGoResponsesClient:
         preserve_response_record(self.budget, self._record, {"status": "ok", "model": self.model, "surface": "responses",
                       "response_model": response_model,
                       "request_id": getattr(response, "id", None),
+                      "thinking": self.thinking, "request_params": self.last_request_params,
                       "messages": messages, "prompt_sha256": prompt_sha,
                       "usage": usage, "transport_index": index,
                       "content_sha256": _sha(content),

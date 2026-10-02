@@ -64,7 +64,8 @@ def _require_cursor_model(api_key: str, model_id: str) -> None:
 
 
 def build_client(spec: ModelSpec, *, budget: Any, evidence_dir: Path | str,
-                 api_key: str, timeout: float = 90.0, max_tokens: int = 4096):
+                 api_key: str, timeout: float = 90.0, max_tokens: int = 4096,
+                 thinking: dict | None = None):
     """Construct the inner client for a model, or raise ChannelUnavailable."""
 
     if spec.status != "available" or not spec.model_id:
@@ -89,14 +90,18 @@ def build_client(spec: ModelSpec, *, budget: Any, evidence_dir: Path | str,
         from .opencode_go import OpenCodeGoClient, OpenCodeGoResponsesClient
         cls = OpenCodeGoResponsesClient if spec.surface == "responses" else OpenCodeGoClient
         extra = {}
-        if spec.model_id == "glm-5.3-flash":
+        if spec.model_id == "glm-5.3-flash" and not thinking:
             # Z.ai documents reasoning_effort low|high|max. OpenCode Go rejects
             # a thinking field, so it is not sent. low is the documented
             # lightweight setting and is the same for arms A, B, and C.
             extra = {"reasoning_effort": "low"}
+        if cls is OpenCodeGoResponsesClient:
+            return cls(api_key=api_key, budget=budget,
+                       evidence_dir=evidence_dir, model=spec.model_id,
+                       timeout=timeout, max_tokens=max_tokens, thinking=thinking)
         return cls(api_key=api_key, budget=budget,
                    evidence_dir=evidence_dir, model=spec.model_id,
-                   timeout=timeout, max_tokens=max_tokens, **extra)
+                   timeout=timeout, max_tokens=max_tokens, thinking=thinking, **extra)
     if spec.channel == "cursor":
         from .cursor_harness import StagedCursorClient
         _require_cursor_model(api_key, server_model_id(spec))
@@ -135,12 +140,20 @@ _OMIT = object()
 def _public_send_record(client: Any, *, channel: str, surface: str,
                         endpoint: str | None) -> dict[str, Any]:
     record: dict[str, Any] = {"channel": channel, "surface": surface, "endpoint": endpoint}
-    for key in ("temperature", "max_tokens", "reasoning_effort", "base_url", "model"):
+    for key in ("temperature", "max_tokens", "max_output_tokens", "reasoning_effort",
+                "base_url", "model"):
         if not hasattr(client, key):
             continue
         value = getattr(client, key)
         if isinstance(value, (str, int, float, bool)) or value is None:
             record[key] = value
+    for key in ("thinking", "last_request_params"):
+        value = getattr(client, key, None)
+        if value is None:
+            continue
+        tree = _scalar_tree(value)
+        if tree is not _OMIT:
+            record[key] = tree
     extra = getattr(client, "extra_body", None)
     if extra is not None:
         tree = _scalar_tree(extra)
@@ -191,7 +204,7 @@ class AuditedClient:
         bind_context(self.inner, {
             "run_id": self.run_id, "cell_id": self.cell_id, "arm": self.arm,
             "model": self.spec.model_id, "candidate_round": candidate_round,
-            "attempt_id": attempt_id,
+            "attempt_id": attempt_id, "stage": self.stage,
         })
         begin = getattr(getattr(self.inner, "budget", None), "begin_logical_call", None)
         if begin:
