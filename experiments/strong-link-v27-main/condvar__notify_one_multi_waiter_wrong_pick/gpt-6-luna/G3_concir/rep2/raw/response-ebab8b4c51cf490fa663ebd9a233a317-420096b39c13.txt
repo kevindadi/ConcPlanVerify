@@ -1,0 +1,95 @@
+```rust
+use concir_sync::Semaphore;
+use std::sync::{Condvar, Mutex};
+use std::thread;
+
+fn w1(
+    m: &Mutex<()>,
+    cv: &Condvar,
+    g12_permit: concir_sync::Permit,
+    g_n: &Semaphore,
+) {
+    let guard = m.lock().unwrap();
+    g12_permit.release();
+    let guard = cv.wait(guard).unwrap();
+    let g_n_permit = g_n.acquire();
+    drop(guard);
+    drop(g_n_permit);
+}
+
+fn w2(
+    m: &Mutex<()>,
+    cv: &Condvar,
+    g12_permit: concir_sync::Permit,
+    g_n: &Semaphore,
+) {
+    let guard = m.lock().unwrap();
+    g12_permit.release();
+    let guard = cv.wait(guard).unwrap();
+    let g_n_permit = g_n.acquire();
+    drop(guard);
+    drop(g_n_permit);
+}
+
+fn notifier(
+    m: &Mutex<()>,
+    cv: &Condvar,
+    g12: &Semaphore,
+    g_n_permit_1: concir_sync::Permit,
+    g_n_permit_2: concir_sync::Permit,
+) {
+    let g12_permit_1 = g12.acquire();
+    let g12_permit_2 = g12.acquire();
+    let guard = m.lock().unwrap();
+    g_n_permit_1.release();
+    g_n_permit_2.release();
+    cv.notify_all();
+    drop(guard);
+    drop(g12_permit_1);
+    drop(g12_permit_2);
+}
+
+fn main() {
+    let m = Mutex::new(());
+    let cv = Condvar::new();
+
+    // These permits are held until the corresponding CIR semaphore releases.
+    let g12 = Semaphore::new(2);
+    let g_n = Semaphore::new(2);
+    let g12_permit_1 = g12.acquire();
+    let g12_permit_2 = g12.acquire();
+    let g_n_permit_1 = g_n.acquire();
+    let g_n_permit_2 = g_n.acquire();
+
+    let m_ref = &m;
+    let cv_ref = &cv;
+    let g12_ref = &g12;
+    let g_n_ref = &g_n;
+
+    thread::scope(|scope| {
+        let w1_handle = scope.spawn(move || {
+            w1(m_ref, cv_ref, g12_permit_1, g_n_ref);
+        });
+
+        let m_ref = &m;
+        let cv_ref = &cv;
+        let g_n_ref = &g_n;
+        let w2_handle = scope.spawn(move || {
+            w2(m_ref, cv_ref, g12_permit_2, g_n_ref);
+        });
+
+        let m_ref = &m;
+        let cv_ref = &cv;
+        let g12_ref = &g12;
+        let notifier_handle = scope.spawn(move || {
+            notifier(m_ref, cv_ref, g12_ref, g_n_permit_1, g_n_permit_2);
+        });
+
+        w1_handle.join().unwrap();
+        w2_handle.join().unwrap();
+        notifier_handle.join().unwrap();
+    });
+
+    println!("DONE waiters=0");
+}
+```
