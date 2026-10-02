@@ -1,0 +1,70 @@
+{
+  "channel_semantics": {
+    "constructions": [
+      {
+        "capacity": 1,
+        "capacity_class": "bounded",
+        "constructor": "sync_channel",
+        "evidence": "let_tuple",
+        "function": "main",
+        "id": "ctor0",
+        "rx": "rx",
+        "site": "1024",
+        "tx": "tx"
+      }
+    ],
+    "endpoints": [
+      {
+        "construction_id": "ctor0",
+        "evidence": "param_from_call",
+        "function": "receiver",
+        "name": "ch",
+        "site": "747",
+        "status": "traced"
+      },
+      {
+        "construction_id": "ctor0",
+        "evidence": "param_from_call",
+        "function": "sender",
+        "name": "ch",
+        "site": "342",
+        "status": "traced"
+      }
+    ],
+    "semaphores": [],
+    "uncovered_sync": []
+  },
+  "harness_notes": [],
+  "limitations": [],
+  "resources": [
+    {
+      "display": "m_mutex0",
+      "kind": "Mutex",
+      "name": "m_mutex0#996",
+      "site": "996"
+    },
+    {
+      "display": "sender",
+      "entry": "sender",
+      "kind": "Spawn",
+      "name": "sender#1097",
+      "site": "1097",
+      "unique_entry": true
+    },
+    {
+      "display": "receiver",
+      "entry": "receiver",
+      "kind": "Spawn",
+      "name": "receiver#1210",
+      "site": "1210",
+      "unique_entry": true
+    },
+    {
+      "display": "ch",
+      "kind": "Channel",
+      "name": "ch"
+    }
+  ],
+  "schema_version": "cir-resources-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-replay/channel__bounded_backpressure_lock_held/glm-5.3-flash/G3_concir/rep0/round-1/instrument/input.rs"
+}
