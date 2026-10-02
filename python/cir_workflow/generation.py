@@ -149,12 +149,18 @@ class CirGenProvider:
         from .prompts import (concir_generation_v3_system_prompt,
                               concir_generation_v4_system_prompt,
                               requirements_only_user_prompt)
-        version = prompt_version or os.environ.get("CIR_PROMPT_VERSION", "v3")
+        # The version must be explicit (frozen config or env); an unknown version
+        # is refused before any request instead of silently defaulting.
+        version = prompt_version or os.environ.get("CIR_PROMPT_VERSION")
+        if version not in ("v3", "v4"):
+            raise ValueError(
+                f"unknown CIR prompt version {version!r}; set cir_prompt_version explicitly")
         if version == "v4":
             self.system = concir_generation_v4_system_prompt()
         else:
             self.system = concir_generation_v3_system_prompt()
         self.prompt_version = version
+        self.system_sha256 = hashlib.sha256(self.system.encode()).hexdigest()
         self.client = client
         self._prompt = requirements_only_user_prompt
         self.calls: list[dict[str, Any]] = []
@@ -321,7 +327,8 @@ def _safety_only_pass(contract: dict[str, Any], explore) -> bool:
 
 def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
            k: int = 4, prompt_asset: str | None = None,
-           with_codegen: bool = True, ablation: dict | None = None) -> dict[str, Any]:
+           with_codegen: bool = True, ablation: dict | None = None,
+           prompt_version: str | None = None) -> dict[str, Any]:
     from .concir_client import ConcirClient
     from .json_utils import extract_json
     from .normalize import normalize as normalize_program
@@ -333,7 +340,7 @@ def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
     if hasattr(llm_client, "set_stage"):
         llm_client.set_stage("cir")
     backend = ConcirClient(str(binary), workdir=out_dir / "calls", timeout=60.0)
-    provider = CirGenProvider(llm_client)
+    provider = CirGenProvider(llm_client, prompt_version)
     contract = task.contract
     ablation = dict(ablation or {})
 
@@ -1025,10 +1032,12 @@ def code_stage_view(code: dict[str, Any] | None) -> dict[str, Any]:
 def run_g3_v2(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
               k_cir: int = 4, k_code: int = 3, instrument_binary=None,
               binding_binary=None,
-              ablation: dict | None = None) -> dict[str, Any]:
+              ablation: dict | None = None,
+              prompt_version: str | None = None) -> dict[str, Any]:
     """§1: verified CIR, then LLM-generated Rust post-verified by tools."""
     cir_rec = run_g3(llm_client, binary, task, out_dir / "cir", k=k_cir,
-                     with_codegen=False, ablation=ablation)
+                     with_codegen=False, ablation=ablation,
+                     prompt_version=prompt_version)
     rounds = list(cir_rec.get("rounds", []))
     for rnd in rounds:
         rnd["stage"] = "cir"

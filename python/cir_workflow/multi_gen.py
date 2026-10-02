@@ -97,6 +97,7 @@ def matrix_from_config(config: dict) -> list[dict]:
                         "round_cap": int((config.get("rounds") or ROUND_CAPS)[arm]),
                         "g3_code_cap": int(config.get("g3_code_rounds") or G3_CODE_ROUND_CAP),
                         "ablation": dict(config.get("ablation") or {}),
+                        "cir_prompt_version": config.get("cir_prompt_version"),
                     })
     return cells
 
@@ -469,7 +470,8 @@ def run_one_cell(cell: dict, client, task, out_dir: Path, *, binary: Path,
                            k_code=int(cell.get("g3_code_cap", 3)),
                            instrument_binary=instrument,
                            binding_binary=bind_check,
-                           ablation=cell.get("ablation"))
+                           ablation=cell.get("ablation"),
+                           prompt_version=cell.get("cir_prompt_version"))
         record["model_pass_is_not_rf"] = True
         return record
     mode, internal, k = ARM_MODE[arm]
