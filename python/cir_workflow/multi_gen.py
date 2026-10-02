@@ -455,7 +455,8 @@ def _oracle_score_cell(out_dir: Path, task, record: dict, binary: Path,
 
 
 def run_one_cell(cell: dict, client, task, out_dir: Path, *, binary: Path,
-                 instrument: Path | None, stage_runner: Callable | None = None) -> dict:
+                 instrument: Path | None, bind_check: Path | None = None,
+                 stage_runner: Callable | None = None) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     if stage_runner is not None:
         return stage_runner(cell, client, task, out_dir)
@@ -467,6 +468,7 @@ def run_one_cell(cell: dict, client, task, out_dir: Path, *, binary: Path,
                            k_cir=int(cell.get("round_cap", 3)),
                            k_code=int(cell.get("g3_code_cap", 3)),
                            instrument_binary=instrument,
+                           binding_binary=bind_check,
                            ablation=cell.get("ablation"))
         record["model_pass_is_not_rf"] = True
         return record
@@ -489,7 +491,8 @@ def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tas
                    binary: Path, instrument: Path | None = None, live: bool = False,
                    stage_runner: Callable | None = None, seed: int = 20261002,
                    spec_resolver: Callable | None = None,
-                   model_concurrency: dict | None = None) -> dict:
+                   model_concurrency: dict | None = None,
+                   bind_check: Path | None = None) -> dict:
     if not config["models"]:
         return {"cells": [], "calls": 0, "stop": "empty_matrix", "real_requests": 0}
     config = dict(config)
@@ -598,7 +601,8 @@ def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tas
             task = tasks_by_id[cell["task"]]
             try:
                 record = run_one_cell(cell, audited, task, cell_dir, binary=binary,
-                                      instrument=instrument, stage_runner=stage_runner)
+                                      instrument=instrument, bind_check=bind_check,
+                                      stage_runner=stage_runner)
                 write_cell_cache(cell_dir, {
                     "status": "executed", "fingerprint": fingerprint,
                     "accepted": record.get("accepted"),

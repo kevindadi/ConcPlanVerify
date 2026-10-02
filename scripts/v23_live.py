@@ -42,8 +42,21 @@ try:
 except Exception:  # noqa: BLE001
     pass
 
-BINARY = Path(os.environ.get("CONCIR_BACKEND", str(REPO.parent / "ConcIR/target/release/concir-backend"))).resolve()
-INSTRUMENT = Path(os.environ.get("CONCIR_INSTRUMENT", str(REPO.parent / "ConcIR/target/release/concir-instrument"))).resolve()
+from cir_workflow.toolchain import (ToolchainError, resolve as resolve_toolchain,
+                                    write_manifest)
+
+
+def _initial_toolchain():
+    try:
+        return resolve_toolchain()
+    except ToolchainError:
+        return None
+
+
+TOOLCHAIN = _initial_toolchain()
+BINARY = TOOLCHAIN.backend if TOOLCHAIN else (REPO.parent / "ConcIR/target/release/concir-backend")
+INSTRUMENT = TOOLCHAIN.instrument if TOOLCHAIN else (REPO.parent / "ConcIR/target/release/concir-instrument")
+BIND_CHECK = TOOLCHAIN.bind_check if TOOLCHAIN else (REPO.parent / "ConcIR/target/release/bind_check")
 OUT = Path(os.environ.get("V23_OUT", str(REPO / "experiments/strong-link-v23-thinking"))).resolve()
 # Deviation D-1: the OpenCode gateway reset concurrent Qwen thinking connections,
 # so Qwen calls are serialized per model; global concurrency stays 3.
@@ -131,7 +144,7 @@ class MockModel:
         return SimpleNamespace(text="fn main() {}\n", response_model=self.model,
                                usage={"prompt_tokens": 1, "completion_tokens": 1},
                                wall_ms=1, finish_reason="stop", request_id="mock",
-                               transport_attempt=1)
+                               transport_attempt=1, prompt_sha256="mock")
 
 
 def _dry_run(config: dict) -> int:
@@ -142,7 +155,8 @@ def _dry_run(config: dict) -> int:
     result = execute_matrix(
         config, out, client_factory=lambda spec, cell, budget, o: MockModel(spec, budget),
         tasks_by_id=tasks, binary=BINARY, instrument=INSTRUMENT, live=False,
-        spec_resolver=lambda cell: config_spec(entries[cell["model_id"]]))
+        spec_resolver=lambda cell: config_spec(entries[cell["model_id"]]),
+        bind_check=BIND_CHECK)
     by_arm: dict[str, int] = {}
     for item in result["cells"]:
         by_arm[item["cell"]["arm"]] = by_arm.get(item["cell"]["arm"], 0) + 1
@@ -152,12 +166,29 @@ def _dry_run(config: dict) -> int:
 
 
 def main() -> int:
+    global TOOLCHAIN, BINARY, INSTRUMENT, BIND_CHECK
     load_dotenv(REPO / ".env")
+    if "--toolchain-dir" in sys.argv:
+        os.environ["CONCIR_TOOLCHAIN"] = sys.argv[sys.argv.index("--toolchain-dir") + 1]
+        TOOLCHAIN = _initial_toolchain()
+        if TOOLCHAIN is not None:
+            BINARY, INSTRUMENT, BIND_CHECK = (TOOLCHAIN.backend, TOOLCHAIN.instrument,
+                                              TOOLCHAIN.bind_check)
     config_path = Path(sys.argv[1]) if len(sys.argv) > 1 and not sys.argv[1].startswith("--") else (
         Path("/Users/kevin/paper-review/papers/ConcPlanVerify/notes/strong-link-v23/FROZEN_CONFIG.json"))
     config = load_config(config_path)
     if "--dry-run" in sys.argv:
         return _dry_run(config)
+    if TOOLCHAIN is None:
+        print(json.dumps({"stop": "toolchain_required", "new_requests": 0,
+                          "error": "no toolchain configured; refusing target/release fallback"}))
+        return 2
+    TOOLCHAIN.validate()
+    if TOOLCHAIN.is_legacy_release:
+        print(json.dumps({"stop": "legacy_toolchain_refused", "new_requests": 0,
+                          "error": "resolved toolchain is target/release; refusing"}))
+        return 2
+    os.environ.update(TOOLCHAIN.as_env())
     from cir_workflow.binding import default_binary
     from cir_workflow.multi_gen import run_pin_error, workflow_fingerprint
     workflow = {"workflow_sha256": workflow_fingerprint(BINARY, INSTRUMENT, default_binary()),
@@ -167,6 +198,7 @@ def main() -> int:
         print(json.dumps({"stop": "protocol_stop", "error": pin_error, "new_requests": 0}))
         return 2
     OUT.mkdir(parents=True, exist_ok=True)
+    write_manifest(TOOLCHAIN, OUT / "TOOLCHAIN_MANIFEST.json")
     if "--skip-preflight" in sys.argv:
         pf = OUT / "PREFLIGHT.json"
         blocked = json.loads(pf.read_text())["blocked_models"] if pf.is_file() else []
@@ -193,7 +225,8 @@ def main() -> int:
     result = execute_matrix(live_config, OUT, client_factory=factory, tasks_by_id=tasks,
                             binary=BINARY, instrument=INSTRUMENT, live=True,
                             spec_resolver=resolver,
-                            model_concurrency=V23_MODEL_CONCURRENCY)
+                            model_concurrency=V23_MODEL_CONCURRENCY,
+                            bind_check=BIND_CHECK)
     slim = [{"cell": item["cell"], "status": item["status"], "error": item["error"],
              "calls": item["calls"], "cached": item.get("cached"),
              "accepted": (item.get("record") or {}).get("accepted"),

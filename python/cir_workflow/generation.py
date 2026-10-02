@@ -825,6 +825,7 @@ def _cir_props_for(binary: Path, cir_path: Path, contract_path: Path
 
 def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path,
                          out_dir: Path, *, k_code: int = 3, instrument_binary=None,
+                         binding_binary=None,
                          functional_spec: dict | None = None, n_runs: int = 32
                          ) -> dict[str, Any]:
     """Generate Rust, then evaluate each candidate with the shared core.
@@ -890,7 +891,7 @@ def run_llmcode_from_cir(llm_client, binary: Path, task: GenTask, cir_path: Path
             rust, Path(cir_path), task.contract_path, out_dir / f"round-{round_no}",
             binary=binary, instrument=instrument_binary, n_runs=n_runs,
             functional_spec=functional_spec, cell_id=task.id, round_no=round_no,
-            candidate_kind="online")
+            candidate_kind="online", binding_binary=binding_binary)
         follow = evaluated["followup"]
         info["stages"] = {**info["stages"], **evaluated.get("stages", {})}
         info["evaluation"] = {
@@ -1023,6 +1024,7 @@ def code_stage_view(code: dict[str, Any] | None) -> dict[str, Any]:
 
 def run_g3_v2(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
               k_cir: int = 4, k_code: int = 3, instrument_binary=None,
+              binding_binary=None,
               ablation: dict | None = None) -> dict[str, Any]:
     """§1: verified CIR, then LLM-generated Rust post-verified by tools."""
     cir_rec = run_g3(llm_client, binary, task, out_dir / "cir", k=k_cir,
@@ -1042,7 +1044,8 @@ def run_g3_v2(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
         return combined
     code = run_llmcode_from_cir(llm_client, binary, task,
                                 Path(cir_rec["cir_path"]), out_dir / "code",
-                                k_code=k_code, instrument_binary=instrument_binary)
+                                k_code=k_code, instrument_binary=instrument_binary,
+                                binding_binary=binding_binary)
     for rnd in code.get("rounds", []):
         rnd["stage"] = "code"
     combined["rounds"].extend(code.get("rounds", []))
