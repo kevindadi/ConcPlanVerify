@@ -1,0 +1,39 @@
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+struct Shared {
+    ready: bool,
+}
+
+fn waiter(m: Arc<Mutex<Shared>>, cv: Arc<Condvar>) {
+    let mut state = m.lock().unwrap();
+    while !state.ready {
+        state = cv.wait(state).unwrap();
+    }
+    assert!(state.ready);
+}
+
+fn notifier(m: Arc<Mutex<Shared>>, cv: Arc<Condvar>) {
+    let mut state = m.lock().unwrap();
+    state.ready = true;
+    cv.notify_one();
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(Shared { ready: false }));
+    let cv = Arc::new(Condvar::new());
+
+    let waiter_m = Arc::clone(&m);
+    let waiter_cv = Arc::clone(&cv);
+    let waiter_thread = thread::spawn(move || waiter(waiter_m, waiter_cv));
+
+    let notifier_m = Arc::clone(&m);
+    let notifier_cv = Arc::clone(&cv);
+    let notifier_thread = thread::spawn(move || notifier(notifier_m, notifier_cv));
+
+    waiter_thread.join().unwrap();
+    notifier_thread.join().unwrap();
+
+    let state = m.lock().unwrap();
+    println!("DONE ready={}", state.ready);
+}

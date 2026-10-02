@@ -1,0 +1,62 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E914",
+      "severity": "error",
+      "message": "local 'observed' of function 'increment' collides with a parameter or resource name",
+      "path": "modules[0].functions[3].locals[0]",
+      "fix_hint": "rename the local",
+      "json_path": "modules[0].functions[3].locals[0]"
+    },
+    {
+      "code": "E914",
+      "severity": "error",
+      "message": "local 'old' of function 'increment' collides with a parameter or resource name",
+      "path": "modules[0].functions[3].locals[1]",
+      "fix_hint": "rename the local",
+      "json_path": "modules[0].functions[3].locals[1]"
+    },
+    {
+      "code": "E912",
+      "severity": "warning",
+      "message": "'observed' in function 'increment' is modeled: false; the value is Unknown in the net",
+      "path": "modules[0].functions[3]",
+      "location": "main::increment",
+      "fix_hint": "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled",
+      "json_path": "modules[0].functions[3]"
+    },
+    {
+      "code": "E912",
+      "severity": "warning",
+      "message": "'old' in function 'increment' is modeled: false; the value is Unknown in the net",
+      "path": "modules[0].functions[3]",
+      "location": "main::increment",
+      "fix_hint": "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled",
+      "json_path": "modules[0].functions[3]"
+    }
+  ],
+  "expected_shapes": [
+    "rename the local",
+    "set \"modeled\": true only if a single shared slot is acceptable, or use a Var for concurrent data; otherwise both branch arms are enabled"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::w1",
+    "main::w2",
+    "main::increment"
+  ],
+  "normalizations": [
+    {
+      "rule": "add_local",
+      "function": "increment",
+      "names": [
+        "observed",
+        "old"
+      ]
+    }
+  ],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

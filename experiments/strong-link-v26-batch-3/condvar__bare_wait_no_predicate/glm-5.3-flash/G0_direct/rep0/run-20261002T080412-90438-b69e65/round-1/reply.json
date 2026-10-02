@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\n\nfn main() {\n    // Shared resources: m (lock), cv (condition variable), ready (shared flag)\n    let m = Arc::new(Mutex::new(false));\n    let cv = Arc::new(Condvar::new());\n\n    let waiter_m = Arc::clone(&m);\n    let waiter_cv = Arc::clone(&cv);\n\n    let waiter = std::thread::spawn(move || {\n        // R4: check flag first, wait only while flag is false, re-check after each wake.\n        // R6: does not hold the lock while blocked (Condvar::wait releases it).\n        // R9: does not pass the wait until the flag is true.\n        let mut ready = waiter_m.lock().unwrap();\n        while !*ready {\n            ready = waiter_cv.wait(ready).unwrap();\n        }\n    });\n\n    let notifier_m = Arc::clone(&m);\n    let notifier_cv = Arc::clone(&cv);\n\n    let notifier = std::thread::spawn(move || {\n        // R3: set flag to true while holding the lock, signal, then release the lock.\n        let mut ready = notifier_m.lock().unwrap();\n        *ready = true;\n        notifier_cv.notify_one();\n        drop(ready);\n    });\n\n    // R1/R7: both roles run concurrently and main waits for both to finish.\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n\n    // R10: print exactly this line and exit.\n    println!(\"DONE ready=true\");\n}\n```"
+}
