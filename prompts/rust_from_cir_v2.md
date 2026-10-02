@@ -56,3 +56,20 @@ is applied later by the checker.
 - Do not make the program sequential and do not delete a critical section.
 - Do not use `sleep` or `yield_now` to dodge synchronization.
 - Join every spawned thread. Print the terminal line from the requirements.
+
+## Supported encoding range (checked by the tools)
+
+- Threads: `thread::spawn(move || named_fn(...))` where the closure body is one call
+  to a **named** function. Name each CIR worker as its own Rust function. Anonymous
+  multi-call closures and `thread::scope` are not instrumented.
+- Locks: `std::sync::Mutex` / `Condvar` (through `Arc`), or the provided `concir_sync`
+  counting semaphore. `RwLock`, `Barrier`, `Once` and async are not instrumented.
+- A protected `var`: store it as a primitive inside the mutex that guards it
+  (`Mutex<bool>` / `Mutex<i32>`), or as a primitive **field** of a plain struct
+  `Mutex<Struct>` whose field name equals the var name. Primitive values stored
+  directly or as struct fields are observable; nested structs and non-primitive
+  fields are not.
+- Atomics: `std::sync::atomic::Atomic*` on a simple path receiver (`c.load`,
+  `c.compare_exchange`, `c.store`). A field receiver (`s.c.load`) is not observed.
+- Channels: `std::sync::mpsc` with the CIR capacity (`channel()` = 0, `sync_channel(n)`).
+- Print the exact terminal line; the text alone does not satisfy a requirement.
