@@ -1,0 +1,36 @@
+The program has a compile-time defect: `s1`'s closure ends with `tx.send(1).expect(...)`, whose value is `()` (the `Ok` payload of `Result<(), SendError>`), so `s1.join()` yields `()` while `r.join()` yields `i32`. The expression `s1.join().expect(...) + r.join().expect(...)` therefore tries to add `() + i32` and does not compile. Additionally, even if the sender returned the sent value, summing both sides would yield `done=2`, violating R7's required output `DONE done=1`. The `done` value must be the single exchanged value (the receiver's result), while still joining both threads to satisfy R4/R5.
+
+```rust
+use std::sync::mpsc::sync_channel;
+use std::thread;
+
+fn main() {
+    // R2: sync_channel with capacity 0 is unbuffered — a send and a recv
+    // must rendezvous for the value to be exchanged.
+    let (tx, rx) = sync_channel::<i32>(0);
+
+    // R1: spawn the two roles so they run concurrently.
+    let s1 = thread::spawn(move || {
+        // R3: sender passes exactly one value.
+        tx.send(1).expect("s1: receiver disappeared before send");
+    });
+
+    let r = thread::spawn(move || {
+        // R3: receiver takes exactly one value.
+        rx.recv().expect("r: sender disappeared before recv")
+    });
+
+    // R4: join both threads; if either partner vanished, the expect above
+    // panics rather than hanging, so no task waits forever.
+    s1.join().expect("s1 panicked");
+
+    // The single value exchanged over ch is what the receiver obtained.
+    let done = r.join().expect("r panicked");
+
+    // R6: with capacity 0 and one send/one recv, the channel is empty
+    // once both tasks finish — nothing is left in `ch`.
+    // R5/R7: both joins completed, so every interleaving terminates here
+    // and exactly one line is printed.
+    println!("DONE done={}", done);
+}
+```

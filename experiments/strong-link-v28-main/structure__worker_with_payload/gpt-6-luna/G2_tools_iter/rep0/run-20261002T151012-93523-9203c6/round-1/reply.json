@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::atomic::{AtomicU64, Ordering};\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nstruct Shared {\n    m: Mutex<()>,\n    acc: AtomicU64,\n}\n\nfn compute() -> u64 {\n    (1..=100).sum()\n}\n\nfn w1(shared: Arc<Shared>) {\n    let guard = shared.m.lock().expect(\"mutex poisoned\");\n    let local = compute();\n    shared.acc.fetch_add(local, Ordering::Relaxed);\n    drop(guard);\n}\n\nfn w2(shared: Arc<Shared>) {\n    let guard = shared.m.lock().expect(\"mutex poisoned\");\n    let local = compute();\n    shared.acc.fetch_add(local, Ordering::Relaxed);\n    drop(guard);\n}\n\nfn main() {\n    let shared = Arc::new(Shared {\n        m: Mutex::new(()),\n        acc: AtomicU64::new(0),\n    });\n\n    let w1_handle = {\n        let shared = Arc::clone(&shared);\n        thread::spawn(move || w1(shared))\n    };\n    let w2_handle = {\n        let shared = Arc::clone(&shared);\n        thread::spawn(move || w2(shared))\n    };\n\n    w1_handle.join().expect(\"w1 panicked\");\n    w2_handle.join().expect(\"w2 panicked\");\n\n    assert_eq!(shared.acc.load(Ordering::Relaxed), 10_100);\n    println!(\"DONE done=1\");\n}\n```"
+}

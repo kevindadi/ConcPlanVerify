@@ -1,0 +1,129 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. The design contains two modules, where one module owns the first shared resource and the other module owns the second shared resource.
+R2. One task runs in the first module and another task runs in the second module, and both tasks need both resources.
+R3. Each task must declare that it depends on the resource owned by the other module.
+R4. Each task must hold both resources at the same time while it performs its work.
+R5. It must never be possible for the two tasks to leave each other waiting forever, each holding one resource and needing the other.
+R6. Every task must release each resource it holds before it finishes.
+R7. A starting thread launches both tasks and only finishes after both tasks have finished.
+R8. Both tasks must finish even though they run in different modules.
+R9. Every possible schedule or interleaving must terminate.
+R10. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): t1, t2.
+- Shared resources: a (lock), b (lock).
+
+
+Current program:
+```rust
+//! Deadlock-free two-resource design.
+//!
+//! Repaired defect: an earlier draft had t1 acquire (a, then b) while t2
+//! acquired (b, then a) — a circular wait, i.e. deadlock (violates R5/R9).
+//! Repair: one global lock hierarchy. Every task acquires `a` before `b`,
+//! so a cycle in the wait-for graph is impossible under any interleaving.
+
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, OnceLock};
+use std::thread;
+
+mod res_a {
+    //! R1: this module owns shared resource `a`.
+    use std::sync::{Mutex, OnceLock};
+
+    static A: OnceLock<Mutex<()>> = OnceLock::new();
+
+    pub fn a() -> &'static Mutex<()> {
+        A.get_or_init(|| Mutex::new(()))
+    }
+}
+
+mod res_b {
+    //! R1: this module owns shared resource `b`.
+    use std::sync::{Mutex, OnceLock};
+
+    static B: OnceLock<Mutex<()>> = OnceLock::new();
+
+    pub fn b() -> &'static Mutex<()> {
+        B.get_or_init(|| Mutex::new(()))
+    }
+}
+
+/// Number of tasks that have fully finished (released all resources).
+static FINISHED: AtomicUsize = AtomicUsize::new(0);
+
+mod task1 {
+    //! R2: task t1 runs in this module.
+    use std::sync::atomic::Ordering;
+
+    use super::{res_a, res_b, FINISHED};
+
+    pub fn t1() {
+        // R3: t1 declares its dependency on the *other* module's resource `b`
+        // by acquiring it here. Global hierarchy respected: a before b.
+        let ga = res_a::a().lock().unwrap(); // own module's resource a
+        let gb = res_b::b().lock().unwrap(); // dependency on res_b's b
+
+        // R4: both `a` and `b` are held simultaneously while the work runs.
+        // (critical section: work using both resources)
+
+        // R6: release each resource before t1 finishes (RAII drop).
+        drop(gb);
+        drop(ga);
+
+        FINISHED.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+mod task2 {
+    //! R2: task t2 runs in this module.
+    use std::sync::atomic::Ordering;
+
+    use super::{res_a, res_b, FINISHED};
+
+    pub fn t2() {
+        // R3: t2 declares its dependency on res_a's `a`.
+        // Same global hierarchy: a before b — this is the deadlock repair.
+        let ga = res_a::a().lock().unwrap(); // dependency on res_a's a
+        let gb = res_b::b().lock().unwrap(); // own module's resource b
+
+        // R4: both `a` and `b` are held simultaneously while the work runs.
+
+        // R6: release each resource before t2 finishes (RAII drop).
+        drop(gb);
+        drop(ga);
+
+        FINISHED.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+fn main() {
+    // R7: the starting thread launches both tasks...
+    let h1 = thread::spawn(task1::t1);
+    let h2 = thread::spawn(task2::t2);
+
+    // R7/R8: ...and finishes only after both tasks (from different
+    // modules) have finished.
+    h1.join().expect("t1 panicked");
+    h2.join().expect("t2 panicked");
+
+    let done = if FINISHED.load(Ordering::SeqCst) == 2 { 1 } else { 0 };
+
+    // R10: exactly one line, then exit.
+    println!("DONE done={}", done);
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

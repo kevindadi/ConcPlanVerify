@@ -1,0 +1,101 @@
+## Review notes (defects found and fixed)
+
+1. **Missed-wakeup race (R6):** In an earlier draft the notifier called `notify_all()` immediately after spawning, before the waiters had actually entered `cv.wait()`. A `notify` that fires before a waiter blocks is lost, so a waiter could sleep forever (violates R3/R8/R9). Fixed with the permit semaphore `g12`: each waiter releases one permit *while holding `m`*, right before evaluating the wait predicate; the notifier acquires two permits before touching `m`/`cv`. Because the waiter still holds `m` when releasing its permit, and `cv.wait()` atomically releases `m`, the notifier cannot run its critical section until both waiters are genuinely blocked.
+2. **`notify_one` instead of `notify_all` (R7):** Waking a single waiter leaves the other blocked forever. Fixed by using `notify_all()`.
+3. **Waiting without holding the lock (R4):** Fixed — the waiter locks `m` and passes the guard into `cv.wait()`, which atomically releases/reacquires it.
+4. **Notifier not holding the lock across the state change + wake (R5):** Fixed — the notifier locks `m`, flips the predicate `go`, calls `notify_all()`, then drops the guard.
+5. **Spurious wakeups / lost predicate:** The wait uses a `while !*go` loop, so spurious wakeups re-block correctly, and the predicate is set under the same lock that guards the wait.
+6. **Premature `DONE` (R8/R10):** Main acquires `gN` (released by the notifier after waking everyone) and joins all threads before printing, so every schedule terminates with all roles finished and exactly one output line.
+
+## Program
+
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+/// Minimal counting semaphore (permits + condvar), used for g12 and gN.
+struct Semaphore {
+    permits: Mutex<usize>,
+    cv: Condvar,
+}
+
+impl Semaphore {
+    fn new(n: usize) -> Self {
+        Semaphore { permits: Mutex::new(n), cv: Condvar::new() }
+    }
+
+    fn acquire(&self) {
+        let mut p = self.permits.lock().unwrap();
+        while *p == 0 {
+            p = self.cv.wait(p).unwrap();
+        }
+        *p -= 1;
+    }
+
+    fn release(&self) {
+        *self.permits.lock().unwrap() += 1;
+        self.cv.notify_one();
+    }
+}
+
+fn main() {
+    // m doubles as the lock guarding cv's predicate (the `go` flag).
+    let m = Arc::new(Mutex::new(false));
+    let cv = Arc::new(Condvar::new());
+    let g12 = Arc::new(Semaphore::new(0)); // readiness permits from w1/w2
+    let gN = Arc::new(Semaphore::new(0)); // notifier-finished permit
+
+    let mut handles = Vec::new();
+
+    // R1: two waiter roles, w1 and w2.
+    for name in ["w1", "w2"] {
+        let m = Arc::clone(&m);
+        let cv = Arc::clone(&cv);
+        let g12 = Arc::clone(&g12);
+        handles.push(thread::spawn(move || {
+            // R4: take the lock before waiting on the condition variable.
+            let mut go = m.lock().unwrap();
+            // R6: signal "ready to wait" while still holding m, so the
+            // notifier cannot proceed until we are (about to be) blocked.
+            g12.release();
+            // R2: block until told to proceed; loop guards against
+            // spurious wakeups.
+            while !*go {
+                go = cv.wait(go).unwrap();
+            }
+            drop(go);
+            let _ = name; // role label; no output required from waiters
+        }));
+    }
+
+    // R1: one notifier role, running concurrently with the waiters.
+    {
+        let m = Arc::clone(&m);
+        let cv = Arc::clone(&cv);
+        let g12 = Arc::clone(&g12);
+        let gN = Arc::clone(&gN);
+        handles.push(thread::spawn(move || {
+            // R6: wait until BOTH waiters are ready to wait.
+            g12.acquire();
+            g12.acquire();
+            // R5: take the lock before waking the waiters.
+            let mut go = m.lock().unwrap();
+            *go = true;          // predicate change under the same lock
+            cv.notify_all();     // R3 + R7: wake EVERY blocked waiter
+            drop(go);            // R5: release the lock afterwards
+            gN.release();        // tell main the wake-up is complete
+        }));
+    }
+
+    // Wait until the notifier has woken everyone, then let all roles finish.
+    gN.acquire();
+    for h in handles {
+        h.join().unwrap();
+    }
+
+    // R10: all waiters have exited, so none remain waiting.
+    println!("DONE waiters=0");
+}
+```
+
+**Why every schedule terminates:** the notifier only runs after both waiters have signaled readiness *while holding `m`*; since `cv.wait()` releases `m` atomically, the notifier's critical section (set `go`, `notify_all`) is guaranteed to happen after both waiters are blocked, so `notify_all()` cannot be a lost wakeup. Both waiters then observe `go == true`, exit their loops, and all three threads are joined before the single required line is printed.

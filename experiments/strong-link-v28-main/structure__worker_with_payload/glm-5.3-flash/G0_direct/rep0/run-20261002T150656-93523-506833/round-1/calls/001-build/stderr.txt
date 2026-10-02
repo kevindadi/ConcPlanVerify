@@ -1,0 +1,33 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20261002T150656-93523-506833/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0596]: cannot borrow `acc` as mutable, as it is not declared as mutable
+  --> src/main.rs:18:6
+   |
+18 |     *acc += 1;                   // R2: update shared counter while holding m
+   |      ^^^ cannot borrow as mutable
+   |
+help: consider changing this to be mutable
+   |
+16 |     let mut acc = m.lock().unwrap(); // R5: waits if another worker holds m
+   |         +++
+
+For more information about this error, try `rustc --explain E0596`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 1 previous error
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`

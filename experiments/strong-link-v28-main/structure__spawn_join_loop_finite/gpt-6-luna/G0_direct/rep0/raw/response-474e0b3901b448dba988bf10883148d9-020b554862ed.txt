@@ -1,0 +1,14 @@
+```rust
+use std::thread;
+
+fn worker() {}
+
+fn main() {
+    for _ in 0..2 {
+        let handle = thread::spawn(worker);
+        handle.join().unwrap();
+    }
+
+    println!("DONE done=1");
+}
+```

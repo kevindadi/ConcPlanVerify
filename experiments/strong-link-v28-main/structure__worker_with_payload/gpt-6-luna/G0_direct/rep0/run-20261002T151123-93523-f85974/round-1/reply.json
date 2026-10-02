@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{\n    atomic::{AtomicUsize, Ordering},\n    Arc, Mutex,\n};\nuse std::thread;\n\nfn compute() -> usize {\n    (1..=10).sum()\n}\n\nfn w1(m: Arc<Mutex<()>>, acc: Arc<AtomicUsize>) {\n    let guard = m.lock().unwrap();\n    acc.fetch_add(compute(), Ordering::SeqCst);\n    drop(guard);\n}\n\nfn w2(m: Arc<Mutex<()>>, acc: Arc<AtomicUsize>) {\n    let guard = m.lock().unwrap();\n    acc.fetch_add(compute(), Ordering::SeqCst);\n    drop(guard);\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(()));\n    let acc = Arc::new(AtomicUsize::new(0));\n\n    let t1 = thread::spawn({\n        let m = Arc::clone(&m);\n        let acc = Arc::clone(&acc);\n        move || w1(m, acc)\n    });\n\n    let t2 = thread::spawn({\n        let m = Arc::clone(&m);\n        let acc = Arc::clone(&acc);\n        move || w2(m, acc)\n    });\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

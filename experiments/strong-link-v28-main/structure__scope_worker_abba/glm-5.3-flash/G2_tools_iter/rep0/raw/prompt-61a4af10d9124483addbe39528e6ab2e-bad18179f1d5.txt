@@ -1,0 +1,88 @@
+Revise the Rust program using the tool feedback.
+
+Specification:
+# Requirements
+
+R1. A main task starts a group of two workers that both contend for the same two mutexes, A and B. [U]
+R2. Each worker takes mutex A and mutex B and, at some point, holds both of them at the same time.
+R3. Each worker releases each mutex it took once its work is finished. [U]
+R4. At most one worker may hold a given mutex at any moment.
+R5. The two workers take the mutexes in the same order so that no wait cycle can form.
+R6. A worker that cannot take a held mutex waits until it becomes free.
+R7. Every schedule and interleaving of the workers must terminate.
+R8. Each worker completes, and the group finishes only after both workers have completed.
+R9. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2.
+- Shared resources: a (lock), b (lock).
+
+
+Current program:
+```rust
+//! Two workers (w1, w2) contend for two shared mutexes (a, b).
+//!
+//! R1: main spawns two workers that contend for mutexes a and b.
+//! R2: each worker takes a then b, so it holds both simultaneously.
+//! R3: each worker releases both mutexes (guards drop) when its work is done.
+//! R4: std::sync::Mutex guarantees at most one holder per mutex.
+//! R5: both workers lock in the same order (a, then b) -> no wait cycle.
+//! R6: lock() blocks until the mutex becomes free.
+//! R7: consistent lock ordering means every interleaving terminates.
+//! R8: main joins both workers; the group finishes only after both complete.
+//! R9: the program prints exactly `DONE done=1` and exits.
+
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+/// Body executed by each worker. `name` is only for documentation purposes;
+/// workers produce no output so the program's sole printed line is `DONE done=1`.
+fn worker(name: &'static str, a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {
+    // R5/R6: take a first, then b — same order as the other worker, blocking
+    // until each mutex is free. No cycle can form, so this always terminates.
+    let _guard_a: MutexGuard = a.lock().unwrap();
+
+    // R2: after this line the worker holds both a and b at the same time.
+    let _guard_b: MutexGuard = b.lock().unwrap();
+
+    // Simulate work while holding both mutexes. (No output: R9 requires the
+    // program to print exactly one line.)
+    let _ = name;
+    std::hint::black_box(());
+
+    // R3: work is finished; both guards drop here, releasing b then a.
+}
+
+type MutexGuard = std::sync::MutexGuard<'static, ()>;
+
+fn main() {
+    // Shared resources a and b.
+    let a: Arc<Mutex<()>> = Arc::new(Mutex::new(()));
+    let b: Arc<Mutex<()>> = Arc::new(Mutex::new(()));
+
+    // R1: start the group of two workers, w1 and w2.
+    let mut handles = Vec::new();
+    for name in ["w1", "w2"] {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        handles.push(thread::spawn(move || worker(name, a, b)));
+    }
+
+    // R8: the group finishes only after both workers have completed.
+    for handle in handles {
+        handle.join().expect("worker panicked");
+    }
+
+    // R9: print exactly this line, then exit.
+    println!("DONE done=1");
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": null, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/structure__scope_worker_abba/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143502-89744-369177/round-1/calls/001-build", "exit_code": 101, "extra": {"argv_sha256": "dc004d6cac4e375c9400c2944195f3a360955b9fec63edfb2eb27b23612d8662", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/structure__scope_worker_abba/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143502-89744-369177/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/structure__scope_worker_abba/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143502-89744-369177/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/structure__scope_worker_abba/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143502-89744-369177/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/structure__scope_worker_abba/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143502-89744-369177/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/structure__scope_worker_abba/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143502-89744-369177/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/structure__scope_worker_abba/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143502-89744-369177/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "503ae2609cec53d1549d7c905acda7953c9bebbab8beb1d4f3fdd0cf59fb6763", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 172}, "build_ok": false, "lockbud_detected": false, "lockbud_status": "lockbud_unavailable", "miri_detected": false, "miri_statuses": []}
+
+Output the complete corrected Rust program.

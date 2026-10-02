@@ -1,0 +1,55 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::compute') captures a return into 'r', but 'main::compute' has no modeled return",
+      "path": "modules[0].functions[2].body[1]",
+      "location": "main::w1.s2",
+      "fix_hint": "declare a modeled return on the callee, or drop dst",
+      "json_path": "modules[0].functions[2].body[1]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'w1' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[2]",
+      "location": "main::w1",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[2]"
+    },
+    {
+      "code": "E923",
+      "severity": "error",
+      "message": "call('main::compute') captures a return into 'r', but 'main::compute' has no modeled return",
+      "path": "modules[0].functions[3].body[1]",
+      "location": "main::w2.s2",
+      "fix_hint": "declare a modeled return on the callee, or drop dst",
+      "json_path": "modules[0].functions[3].body[1]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'w2' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[3]",
+      "location": "main::w2",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[3]"
+    }
+  ],
+  "expected_shapes": [
+    "declare a modeled return on the callee, or drop dst",
+    "keep activation slots unmodeled, or publish concurrent values through a Var"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::compute",
+    "main::w1",
+    "main::w2"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\n\nstruct Semaphore {\n    permits: Mutex<usize>,\n    available: Condvar,\n}\n\nimpl Semaphore {\n    fn new(permits: usize) -> Self {\n        Self {\n            permits: Mutex::new(permits),\n            available: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            // wait releases the mutex, allowing the permit holder to release.\n            permits = self.available.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        *permits += 1;\n        drop(permits);\n        self.available.notify_one();\n    }\n}\n\nfn work(s: &Semaphore) {\n    s.acquire();\n\n    let mut total = 0_u64;\n    for i in 0..1_000 {\n        total += i;\n    }\n    assert_eq!(total, 499_500);\n\n    s.release();\n}\n\nfn w1(s: Arc<Semaphore>) {\n    work(&s);\n}\n\nfn w2(s: Arc<Semaphore>) {\n    work(&s);\n}\n\nfn main() {\n    let s = Arc::new(Semaphore::new(1));\n\n    let first = std::thread::spawn({\n        let s = Arc::clone(&s);\n        move || w1(s)\n    });\n    let second = std::thread::spawn({\n        let s = Arc::clone(&s);\n        move || w2(s)\n    });\n\n    first.join().unwrap();\n    second.join().unwrap();\n\n    println!(\"DONE permits=1\");\n}\n```"
+}

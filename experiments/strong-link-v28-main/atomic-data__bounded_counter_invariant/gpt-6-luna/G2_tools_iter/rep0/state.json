@@ -1,0 +1,12 @@
+{
+  "fingerprint": "d47bdf3d21f6a7bf2650b47f5cbc3ae15bab96310400ac8cc815b2f770ab9a88",
+  "calls": [
+    {
+      "system": "Revise the Rust program using the tool feedback.",
+      "user": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.\nR2. Both worker threads share a single integer counter that is declared to range from zero to two and starts at zero.\nR3. Each worker adds exactly one to the shared counter while it holds the mutual-exclusion lock.\nR4. A worker must hold the mutual-exclusion lock whenever it reads or writes the shared counter, so the two workers never update it at the same time.\nR5. In every state that can occur, the counter value stays within its declared range from zero to two.\nR6. Every possible schedule and interleaving of the two workers must terminate.\nR7. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2.\n- Shared resources: m (lock), c (shared variable).\n\n\nOutput the complete Rust program.",
+      "response": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn w1(m: Arc<Mutex<u8>>) {\n    let mut c = m.lock().unwrap();\n    assert!(*c < 2);\n    *c += 1;\n}\n\nfn w2(m: Arc<Mutex<u8>>) {\n    let mut c = m.lock().unwrap();\n    assert!(*c < 2);\n    *c += 1;\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(0u8));\n\n    let t1 = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || w1(m))\n    };\n    let t2 = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || w2(m))\n    };\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```",
+      "response_model": "gpt-6-luna",
+      "snapshot_sha256": "b323167c43289eacd4abd4796f4632a7e20b09a552024127f4395b58626b261d"
+    }
+  ]
+}

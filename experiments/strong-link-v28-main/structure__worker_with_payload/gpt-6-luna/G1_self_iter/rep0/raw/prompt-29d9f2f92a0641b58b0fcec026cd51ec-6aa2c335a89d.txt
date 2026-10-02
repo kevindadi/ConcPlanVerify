@@ -1,0 +1,75 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. A main task starts a group of two workers. [U]
+R2. Each worker takes a shared mutex, calls a sequential helper routine that performs only local computation, then updates a shared counter while still holding the mutex. [U]
+R3. Each worker releases the mutex it took before it finishes. [U]
+R4. At most one worker may hold the shared mutex at any moment.
+R5. A worker that cannot take a held mutex waits until it becomes free.
+R6. Every schedule and interleaving of the workers must terminate.
+R7. Both workers complete.
+R8. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2, compute.
+- Shared resources: m (lock), acc (shared variable).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+struct Counter {
+    acc: usize,
+}
+
+fn compute() {
+    let result = (0..1_000).fold(0usize, |sum, n| sum.wrapping_add(n));
+    std::hint::black_box(result);
+}
+
+fn w1(m: Arc<Mutex<Counter>>) {
+    let mut guard = m.lock().unwrap();
+    compute();
+    guard.acc += 1;
+    drop(guard);
+}
+
+fn w2(m: Arc<Mutex<Counter>>) {
+    let mut guard = m.lock().unwrap();
+    compute();
+    guard.acc += 1;
+    drop(guard);
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(Counter { acc: 0 }));
+
+    let h1 = {
+        let m = Arc::clone(&m);
+        thread::spawn(move || w1(m))
+    };
+    let h2 = {
+        let m = Arc::clone(&m);
+        thread::spawn(move || w2(m))
+    };
+
+    h1.join().unwrap();
+    h2.join().unwrap();
+
+    assert_eq!(m.lock().unwrap().acc, 2);
+    println!("DONE done=1");
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

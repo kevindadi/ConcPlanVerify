@@ -1,0 +1,12 @@
+{
+  "fingerprint": "9addadc01c6b26226b5e35e898d286ac1a1c71114a6391fa4e2d533afdd83f44",
+  "calls": [
+    {
+      "system": "Write one Rust program from the requirements. Do not invent extra requirements.",
+      "user": "Specification:\n# Requirements\n\nR1. A main task starts a worker task and waits for that worker to finish, then begins the same start-and-wait cycle again. [U]\nR2. The worker task performs no shared work and shares no mutexes or counters with the main task. [U]\nR3. Each started worker is waited for exactly once before the next worker is started.\nR4. No task ever waits for a worker that cannot finish, so no execution stalls.\nR5. Every schedule and interleaving must terminate.\nR6. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): worker.\n\n\nOutput the complete Rust program.",
+      "response": "```rust\nuse std::thread;\n\nfn worker() {}\n\nfn main() {\n    for _ in 0..2 {\n        let handle = thread::spawn(worker);\n        handle.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```",
+      "response_model": "gpt-6-luna",
+      "snapshot_sha256": "c4cd8f11494c768b6b1e44ac542d0c2dfb113bcdaa80f42939372e7da5b69355"
+    }
+  ]
+}

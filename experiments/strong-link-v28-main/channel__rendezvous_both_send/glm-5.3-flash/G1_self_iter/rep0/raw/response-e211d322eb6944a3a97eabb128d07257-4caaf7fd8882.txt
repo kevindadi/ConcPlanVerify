@@ -1,0 +1,39 @@
+```rust
+use std::sync::mpsc::sync_channel;
+use std::thread;
+
+fn main() {
+    // R2: sync_channel with capacity 0 is unbuffered — a send and a recv
+    // must rendezvous for the value to be exchanged.
+    let (tx, rx) = sync_channel::<i32>(0);
+
+    // R1: spawn the two roles so they run concurrently.
+    let s1 = thread::spawn(move || {
+        // R3: sender passes exactly one value.
+        tx.send(1).expect("s1: receiver disappeared before send");
+    });
+
+    let r = thread::spawn(move || {
+        // R3: receiver takes exactly one value.
+        rx.recv().expect("r: sender disappeared before recv")
+    });
+
+    // R4: join both threads; if either partner vanished, the expect above
+    // panics rather than hanging, so no task waits forever.
+    let done = s1.join().expect("s1 panicked") + r.join().expect("r panicked");
+
+    // R6: with capacity 0 and one send/one recv, the channel is empty
+    // once both tasks finish — nothing is left in `ch`.
+    // R5/R7: both joins completed, so every interleaving terminates here
+    // and exactly one line is printed.
+    println!("DONE done={}", done);
+}
+```
+
+**Concurrency review and justification of repairs:**
+
+- **Rendezvous (R2):** `sync_channel::<i32>(0)` is a zero-capacity channel; `send` blocks until a receiver is ready and `recv` blocks until a sender is ready, guaranteeing a true handoff with no buffering.
+- **No indefinite waiting (R4):** Both `send` and `recv` are paired one-to-one, so each blocking call has a guaranteed partner. If a partner thread panicked or was dropped (causing the channel end to close), the `expect` on the `SendError`/`RecvError` aborts immediately instead of hanging.
+- **Termination on every interleaving (R5):** The main thread joins both tasks before printing. Whichever task reaches its operation first simply blocks until the other arrives; there is no ordering dependency that could deadlock, since each task performs exactly one channel operation.
+- **Empty channel (R6):** With capacity 0, the value exists only during the rendezvous; after `recv` returns, `ch` holds nothing, and no further sends occur.
+- **Exact output (R7):** The single `println!` runs only after both tasks have finished, printing exactly `DONE done=1`, after which `main` returns and the process exits.

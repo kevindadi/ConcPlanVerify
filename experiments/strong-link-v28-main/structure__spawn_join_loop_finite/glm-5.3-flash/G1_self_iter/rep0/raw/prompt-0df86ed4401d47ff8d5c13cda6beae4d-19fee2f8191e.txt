@@ -1,0 +1,69 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. A main task starts a worker task and waits for that worker to finish, then begins the same start-and-wait cycle again. [U]
+R2. The worker task performs no shared work and shares no mutexes or counters with the main task. [U]
+R3. Each started worker is waited for exactly once before the next worker is started.
+R4. No task ever waits for a worker that cannot finish, so no execution stalls.
+R5. Every schedule and interleaving must terminate.
+R6. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): worker.
+
+
+Current program:
+```rust
+//! Start-and-wait cycle, repeated once, then report completion.
+//!
+//! Concurrency design (justification of repairs):
+//! - R1: `main` performs the start-and-wait cycle, then performs the same
+//!   cycle a second time before printing the final line.
+//! - R2: `worker` is a plain function touching no statics, no mutexes, and
+//!   no counters; it shares nothing with `main`.
+//! - R3: Each `JoinHandle` is consumed by exactly one `join()` call. Rust's
+//!   ownership makes a double-wait or a missed-wait a compile error, so
+//!   every started worker is waited for exactly once before the next start.
+//! - R4: `join()` returns as soon as the worker's closure returns; the
+//!   worker cannot fail to finish (its body is trivially terminating), so
+//!   no wait can stall.
+//! - R5: Both tasks have finite, non-blocking bodies; the only
+//!   synchronization is the join, which is guaranteed to complete. Every
+//!   interleaving therefore terminates.
+//! - R6: The program prints exactly one line, `DONE done=1`, then exits.
+
+fn worker() {
+    // No shared work, no mutexes, no counters (R2). Body intentionally
+    // empty so the task always finishes promptly (R4, R5).
+}
+
+/// One full cycle: start the worker, then wait for it exactly once (R1, R3).
+fn run_cycle() {
+    let handle = std::thread::spawn(worker);
+    // `join` consumes `handle`, so this wait can happen at most once,
+    // and it happens before `run_cycle` returns, i.e. before the next
+    // worker is started (R3). It cannot block forever (R4).
+    handle.join().expect("worker task panicked");
+}
+
+fn main() {
+    // First start-and-wait cycle (R1).
+    run_cycle();
+    // The same start-and-wait cycle begins again (R1).
+    run_cycle();
+
+    // Exactly the required output line, then the process exits (R6).
+    println!("DONE done=1");
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

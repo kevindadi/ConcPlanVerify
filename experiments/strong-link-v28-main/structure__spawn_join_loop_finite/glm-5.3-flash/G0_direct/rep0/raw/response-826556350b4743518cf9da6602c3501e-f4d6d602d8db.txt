@@ -1,0 +1,33 @@
+```rust
+use tokio::task::JoinHandle;
+
+// Role: worker
+// Performs no shared work: it touches only its own local counter and
+// returns it as the task's result. It shares no mutexes or counters
+// with the main task.
+async fn worker() -> u32 {
+    let mut local_count: u32 = 0;
+    local_count += 1;
+    local_count
+}
+
+#[tokio::main]
+async fn main() {
+    // R1: main starts a worker and waits for it to finish,
+    // then begins the same start-and-wait cycle again.
+    // R3: each started worker is awaited exactly once before the next starts.
+    // R4/R5: each worker always finishes, so every await completes and
+    // every interleaving terminates.
+
+    // First start-and-wait cycle.
+    let handle: JoinHandle<u32> = tokio::spawn(worker());
+    let _first = handle.await.expect("worker panicked");
+
+    // Second start-and-wait cycle (the same cycle begun again).
+    let handle: JoinHandle<u32> = tokio::spawn(worker());
+    let done = handle.await.expect("worker panicked");
+
+    // R6: print exactly one line, then exit.
+    println!("DONE done={}", done);
+}
+```

@@ -1,0 +1,84 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+// R1: main starts three worker roles (w1, w2, w3) sharing a single permit (s),
+//     and each role runs up to two activations at once.
+// R2: each activation holds the permit while working and releases it afterwards.
+// R3: the semaphore s is initialized with exactly one permit.
+// R4: acquire blocks until a permit is available.
+// R5/R6: all threads are joined; every schedule terminates and all workers complete.
+// R7: exactly one line "DONE done=1" is printed, then the program exits.
+
+use std::sync::{Arc};
+use std::thread;
+
+// A simple counting semaphore.
+struct Semaphore {
+    permits: Mutex<usize>,
+    available: Condvar,
+}
+
+impl Semaphore {
+    fn new(count: usize) -> Self {
+        Semaphore {
+            permits: Mutex::new(count),
+            available: Condvar::new(),
+        }
+    }
+
+    // R4: wait until a permit is available, then take it.
+    fn acquire(&self) {
+        let mut permits = self.permits.lock().unwrap();
+        while *permits == 0 {
+            permits = self.available.wait(permits).unwrap();
+        }
+        *permits -= 1;
+    }
+
+    // R2: give the permit back.
+    fn release(&self) {
+        let mut permits = self.permits.lock().unwrap();
+        *permits += 1;
+        self.available.notify_one();
+    }
+}
+
+// One activation of a worker role: holds the permit while doing its work.
+fn activation(s: Arc<Semaphore>, role: &'static str, id: usize) {
+    s.acquire(); // R2, R3, R4
+    // Do the activation's work while holding the single permit.
+    let _work = (role, id); // work payload; holding permit is the critical section
+    s.release(); // R2
+}
+
+// A worker role: runs up to two activations at once, then completes.
+fn worker(s: Arc<Semaphore>, role: &'static str) {
+    let mut handles = Vec::new();
+    for id in 0..2 {
+        let s = Arc::clone(&s);
+        handles.push(thread::spawn(move || activation(s, role, id)));
+    }
+    for h in handles {
+        h.join().unwrap();
+    }
+    // Worker role complete (R6).
+}
+
+fn main() { cir_trace::init();
+    // Shared resource: s, a semaphore with a single permit (R1, R3).
+    let s = Arc::new(Semaphore::new(1));
+
+    // Main task starts the three worker roles w1, w2, w3 (R1).
+    let mut workers = Vec::new();
+    for role in ["w1", "w2", "w3"] {
+        let s = Arc::clone(&s);
+        workers.push(thread::spawn(move || worker(s, role)));
+    }
+
+    // R5, R6: wait for all worker roles to complete.
+    for w in workers {
+        w.join().unwrap();
+    }
+
+    // R7: print exactly this line, then exit.
+    println!("DONE done=1");
+ cir_trace::finish();}

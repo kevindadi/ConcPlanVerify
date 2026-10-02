@@ -1,0 +1,166 @@
+Revise the Rust program using the tool feedback.
+
+Specification:
+# Requirements
+
+R1. The design contains one main thread and two short-lived workers.
+R2. An independent bystander task also runs and keeps making progress without ever finishing on its own. [U]
+R3. The two workers share the same two locks and also use two counting permits to coordinate with each other.
+R4. Each worker must hold both locks at the same time while it enters its critical section.
+R5. The two workers must use the two permits as a handshake, so that neither takes its second lock before the other has taken its first.
+R6. The bystander task must not prevent the two workers from finishing.
+R7. At every point during execution, it must still be possible for the first worker to finish.
+R8. At every point during execution, it must still be possible for the second worker to finish.
+R9. Neither worker may wait forever for a permit or a lock that the other worker never provides.
+R10. Every worker must release each lock it holds before it finishes.
+R11. The main thread starts all three tasks and only finishes after both workers have finished, even though the bystander may keep running.
+R12. The program must print exactly the line `DONE a=1 b=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): a, b, bystander.
+- Shared resources: a (lock), b (lock), sa (semaphore), sb (semaphore), flag (shared variable).
+
+
+Current program:
+```rust
+// Deadlock-free two-lock handshake with an independent bystander.
+//
+// Roles:  a, b (workers), bystander (never-ending task)
+// Shared: a, b (mutexes), sa, sb (counting semaphores), flag (shared variable)
+//
+// Protocol (R4, R5):
+//   worker a: lock a -> signal sa -> wait sb -> lock b -> critical -> release both
+//   worker b: lock b -> signal sb -> wait sa -> lock a -> critical -> release both
+// Neither worker takes its second lock until the other has taken its first,
+// so the circular-wait condition never arises (R7, R8, R9).
+// The bystander never touches the locks, so it can never block the workers (R6).
+
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+/// A simple counting semaphore (permit counter) built from a mutex + condvar.
+struct Sem {
+    permits: Mutex<usize>,
+    cv: Condvar,
+}
+
+impl Sem {
+    fn new(initial: usize) -> Self {
+        Sem {
+            permits: Mutex::new(initial),
+            cv: Condvar::new(),
+        }
+    }
+
+    fn acquire(&self) {
+        let mut count = self.permits.lock().unwrap();
+        while *count == 0 {
+            count = self.cv.wait(count).unwrap();
+        }
+        *count -= 1;
+    }
+
+    fn release(&self) {
+        let mut count = self.permits.lock().unwrap();
+        *count += 1;
+        drop(count);
+        self.cv.notify_one();
+    }
+}
+
+/// Worker a: takes lock a first, then lock b.
+fn a(
+    lock_a: Arc<Mutex<()>>,
+    lock_b: Arc<Mutex<()>>,
+    sa: Arc<Sem>,
+    sb: Arc<Sem>,
+    flag: Arc<AtomicUsize>,
+) {
+    let _first = lock_a.lock().unwrap(); // first lock
+    sa.release(); // handshake: "I hold my first lock"
+    sb.acquire(); // wait until b holds its first lock (R5)
+    let _second = lock_b.lock().unwrap(); // second lock -> holds both (R4)
+
+    // Critical section while holding both locks.
+    flag.fetch_or(1, Ordering::SeqCst);
+
+    drop(_second); // release each lock before finishing (R10)
+    drop(_first);
+}
+
+/// Worker b: takes lock b first, then lock a.
+fn b(
+    lock_a: Arc<Mutex<()>>,
+    lock_b: Arc<Mutex<()>>,
+    sa: Arc<Sem>,
+    sb: Arc<Sem>,
+    flag: Arc<AtomicUsize>,
+) {
+    let _first = lock_b.lock().unwrap(); // first lock
+    sb.release(); // handshake: "I hold my first lock"
+    sa.acquire(); // wait until a holds its first lock (R5)
+    let _second = lock_a.lock().unwrap(); // second lock -> holds both (R4)
+
+    // Critical section while holding both locks.
+    flag.fetch_or(2, Ordering::SeqCst);
+
+    drop(_second); // release each lock before finishing (R10)
+    drop(_first);
+}
+
+/// Bystander: runs forever, keeps making progress, never finishes (R2).
+/// It only reads `flag` and yields; it never touches the locks or the
+/// semaphores, so it can never prevent the workers from finishing (R6).
+fn bystander(flag: Arc<AtomicUsize>) {
+    loop {
+        let _progress = flag.load(Ordering::Relaxed);
+        thread::yield_now();
+    }
+}
+
+fn main() {
+    // Shared resources.
+    let lock_a = Arc::new(Mutex::new(())); // lock a
+    let lock_b = Arc::new(Mutex::new(())); // lock b
+    let sa = Arc::new(Sem::new(0)); // semaphore sa
+    let sb = Arc::new(Sem::new(0)); // semaphore sb
+    let flag = Arc::new(AtomicUsize::new(0)); // shared variable
+
+    // Main starts all three tasks (R1, R11).
+    let ha = {
+        let (lock_a, lock_b, sa, sb, flag) =
+            (lock_a.clone(), lock_b.clone(), sa.clone(), sb.clone(), flag.clone());
+        thread::spawn(move || a(lock_a, lock_b, sa, sb, flag))
+    };
+    let hb = {
+        let (lock_a, lock_b, sa, sb, flag) =
+            (lock_a.clone(), lock_b.clone(), sa.clone(), sb.clone(), flag.clone());
+        thread::spawn(move || b(lock_a, lock_b, sa, sb, flag))
+    };
+    let hby = {
+        let flag = flag.clone();
+        thread::spawn(move || bystander(flag))
+    };
+
+    // Main waits only for the two workers; the bystander is left running (R11).
+    ha.join().expect("worker a panicked");
+    hb.join().expect("worker b panicked");
+
+    // Both workers finished: each set its bit in the shared flag.
+    assert_eq!(flag.load(Ordering::SeqCst), 3, "both workers must have run");
+
+    // Exactly the required output (R12). The bystander thread is detached;
+    // the process exits when main returns.
+    println!("DONE a=1 b=1");
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": {"argv": ["cargo", "test", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143601-89744-cdcfd5/round-1/calls/002-test", "exit_code": 0, "extra": {"argv_sha256": "e445d63396d5d53b0fcc667c10f4888c7643675f6bd908771d32f0b763ac915d", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143601-89744-cdcfd5/round-1/calls/002-test/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143601-89744-cdcfd5/round-1/calls/002-test/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143601-89744-cdcfd5/round-1/calls/002-test/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143601-89744-cdcfd5/round-1/calls/002-test/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143601-89744-cdcfd5/round-1/calls/002-test/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143601-89744-cdcfd5/round-1/calls/002-test/wall_ms.txt"}, "stderr_sha256": "903eb72c3fd7ae2b34958be4cb8897658a8e0c57ed9d57b114b058592962ae6a", "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd", "timed_out": false, "tool": "test", "wall_ms": 528}, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143601-89744-cdcfd5/round-1/calls/001-build", "exit_code": 0, "extra": {"argv_sha256": "394fd1fc53a08714450a2f7578dda2da04e28aa21bdb0b32faf07d41e51ab44b", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143601-89744-cdcfd5/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143601-89744-cdcfd5/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143601-89744-cdcfd5/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143601-89744-cdcfd5/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143601-89744-cdcfd5/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T143601-89744-cdcfd5/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "903eb72c3fd7ae2b34958be4cb8897658a8e0c57ed9d57b114b058592962ae6a", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 269}, "build_ok": true, "lockbud_detected": false, "lockbud_status": "clean", "miri_detected": false, "miri_statuses": ["timeout", "timeout", "timeout", "timeout", "timeout", "timeout", "timeout", "timeout", "timeout", "timeout", "timeout", "timeout", "timeout", "timeout", "timeout", "timeout"]}
+
+Output the complete corrected Rust program.

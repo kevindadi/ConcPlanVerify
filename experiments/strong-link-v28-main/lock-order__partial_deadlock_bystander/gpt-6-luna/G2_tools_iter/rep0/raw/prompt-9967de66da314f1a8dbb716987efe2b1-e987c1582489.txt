@@ -1,0 +1,151 @@
+Revise the Rust program using the tool feedback.
+
+Specification:
+# Requirements
+
+R1. The design contains one main thread and two short-lived workers.
+R2. An independent bystander task also runs and keeps making progress without ever finishing on its own. [U]
+R3. The two workers share the same two locks and also use two counting permits to coordinate with each other.
+R4. Each worker must hold both locks at the same time while it enters its critical section.
+R5. The two workers must use the two permits as a handshake, so that neither takes its second lock before the other has taken its first.
+R6. The bystander task must not prevent the two workers from finishing.
+R7. At every point during execution, it must still be possible for the first worker to finish.
+R8. At every point during execution, it must still be possible for the second worker to finish.
+R9. Neither worker may wait forever for a permit or a lock that the other worker never provides.
+R10. Every worker must release each lock it holds before it finishes.
+R11. The main thread starts all three tasks and only finishes after both workers have finished, even though the bystander may keep running.
+R12. The program must print exactly the line `DONE a=1 b=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): a, b, bystander.
+- Shared resources: a (lock), b (lock), sa (semaphore), sb (semaphore), flag (shared variable).
+
+
+Current program:
+```rust
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc, Condvar, Mutex,
+};
+use std::thread;
+
+struct Semaphore {
+    permits: Mutex<usize>,
+    ready: Condvar,
+}
+
+impl Semaphore {
+    fn new() -> Self {
+        Self {
+            permits: Mutex::new(0),
+            ready: Condvar::new(),
+        }
+    }
+
+    fn release(&self) {
+        let mut permits = self.permits.lock().expect("semaphore mutex poisoned");
+        *permits += 1;
+        self.ready.notify_one();
+    }
+
+    fn acquire(&self) {
+        let mut permits = self.permits.lock().expect("semaphore mutex poisoned");
+        while *permits == 0 {
+            permits = self.ready.wait(permits).expect("semaphore mutex poisoned");
+        }
+        *permits -= 1;
+    }
+}
+
+struct Shared {
+    a: Mutex<()>,
+    b: Mutex<()>,
+    sa: Semaphore,
+    sb: Semaphore,
+    flag: AtomicUsize,
+}
+
+fn a(shared: Arc<Shared>) -> usize {
+    let a_guard = shared.a.lock().expect("lock a poisoned");
+    shared.sa.release();
+
+    // Wait until b has taken its first lock.
+    shared.sb.acquire();
+    let b_guard = shared.b.lock().expect("lock b poisoned");
+
+    // Critical section: both locks are held.
+    drop(b_guard);
+    drop(a_guard);
+    1
+}
+
+fn b(shared: Arc<Shared>) -> usize {
+    let b_guard = shared.b.lock().expect("lock b poisoned");
+    shared.sb.release();
+
+    // Wait until a has taken its first lock.
+    shared.sa.acquire();
+
+    // Let a take b, then acquire both locks in a safe order.
+    drop(b_guard);
+    let a_guard = shared.a.lock().expect("lock a poisoned");
+    let b_guard = shared.b.lock().expect("lock b poisoned");
+
+    // Critical section: both locks are held.
+    drop(b_guard);
+    drop(a_guard);
+    1
+}
+
+fn bystander(shared: Arc<Shared>) {
+    loop {
+        shared.flag.fetch_add(1, Ordering::Relaxed);
+        thread::yield_now();
+    }
+}
+
+fn main() {
+    let shared = Arc::new(Shared {
+        a: Mutex::new(()),
+        b: Mutex::new(()),
+        sa: Semaphore::new(),
+        sb: Semaphore::new(),
+        flag: AtomicUsize::new(0),
+    });
+
+    let a_handle = {
+        let shared = Arc::clone(&shared);
+        thread::spawn(move || a(shared))
+    };
+
+    let b_handle = {
+        let shared = Arc::clone(&shared);
+        thread::spawn(move || b(shared))
+    };
+
+    let bystander_handle = {
+        let shared = Arc::clone(&shared);
+        thread::spawn(move || bystander(shared))
+    };
+    drop(bystander_handle);
+
+    // Ensure the bystander has started; it then continues independently.
+    while shared.flag.load(Ordering::Relaxed) == 0 {
+        thread::yield_now();
+    }
+
+    let a_result = a_handle.join().expect("worker a panicked");
+    let b_result = b_handle.join().expect("worker b panicked");
+
+    println!("DONE a={} b={}", a_result, b_result);
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": {"argv": ["cargo", "test", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/gpt-6-luna/G2_tools_iter/rep0/run-20261002T151123-93523-9b019b/round-1/calls/002-test", "exit_code": 0, "extra": {"argv_sha256": "8032102fb967a483e099608f2cc8416a4554ac938810789a2728cd2950cb5839", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/gpt-6-luna/G2_tools_iter/rep0/run-20261002T151123-93523-9b019b/round-1/calls/002-test/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/gpt-6-luna/G2_tools_iter/rep0/run-20261002T151123-93523-9b019b/round-1/calls/002-test/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/gpt-6-luna/G2_tools_iter/rep0/run-20261002T151123-93523-9b019b/round-1/calls/002-test/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/gpt-6-luna/G2_tools_iter/rep0/run-20261002T151123-93523-9b019b/round-1/calls/002-test/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/gpt-6-luna/G2_tools_iter/rep0/run-20261002T151123-93523-9b019b/round-1/calls/002-test/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/gpt-6-luna/G2_tools_iter/rep0/run-20261002T151123-93523-9b019b/round-1/calls/002-test/wall_ms.txt"}, "stderr_sha256": "3c6694214d20b1cc6ea0111ba5e9b645b543fdfb11788057c0168f20372effcb", "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd", "timed_out": false, "tool": "test", "wall_ms": 525}, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/gpt-6-luna/G2_tools_iter/rep0/run-20261002T151123-93523-9b019b/round-1/calls/001-build", "exit_code": 0, "extra": {"argv_sha256": "5c33e2a2d52ad674233f006563e439ee231542afc235f14dcc455e77019e831b", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/gpt-6-luna/G2_tools_iter/rep0/run-20261002T151123-93523-9b019b/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/gpt-6-luna/G2_tools_iter/rep0/run-20261002T151123-93523-9b019b/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/gpt-6-luna/G2_tools_iter/rep0/run-20261002T151123-93523-9b019b/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/gpt-6-luna/G2_tools_iter/rep0/run-20261002T151123-93523-9b019b/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/gpt-6-luna/G2_tools_iter/rep0/run-20261002T151123-93523-9b019b/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__partial_deadlock_bystander/gpt-6-luna/G2_tools_iter/rep0/run-20261002T151123-93523-9b019b/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "3c6694214d20b1cc6ea0111ba5e9b645b543fdfb11788057c0168f20372effcb", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 284}, "build_ok": true, "lockbud_detected": false, "lockbud_status": "clean", "miri_detected": false, "miri_statuses": ["thread_leak", "thread_leak", "thread_leak", "thread_leak", "thread_leak", "thread_leak", "thread_leak", "thread_leak", "thread_leak", "thread_leak", "thread_leak", "thread_leak", "thread_leak", "thread_leak", "thread_leak", "thread_leak"]}
+
+Output the complete corrected Rust program.

@@ -1,0 +1,12 @@
+{
+  "fingerprint": "c4ca477909562f0d003295e81c17dc1c557be471a5cebdbad2f0e2a2679605b2",
+  "calls": [
+    {
+      "system": "Write one Rust program from the requirements. Do not invent extra requirements.",
+      "user": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.\nR2. Both worker threads share a single integer counter that is declared to range from zero to two and starts at zero.\nR3. Each worker adds one to the shared counter only when doing so keeps the value within the required upper limit.\nR4. A worker must hold the mutual-exclusion lock whenever it reads or writes the shared counter, so the two workers never update it at the same time.\nR5. In every state that can occur, the counter never exceeds one, even though its declared range allows up to two.\nR6. Every possible schedule and interleaving of the two workers must terminate.\nR7. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2.\n- Shared resources: m (lock), c (shared variable).\n\n\nOutput the complete Rust program.",
+      "response": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nconst COUNTER_RANGE_MAX: u8 = 2;\n\nstruct State {\n    c: u8, // Maintained in the declared range 0..=2.\n}\n\nstruct Shared {\n    m: Mutex<State>,\n}\n\nfn w1(shared: Arc<Shared>) {\n    let mut state = shared.m.lock().unwrap();\n    debug_assert!(state.c <= COUNTER_RANGE_MAX);\n    if state.c < 1 {\n        state.c += 1;\n    }\n}\n\nfn w2(shared: Arc<Shared>) {\n    let mut state = shared.m.lock().unwrap();\n    debug_assert!(state.c <= COUNTER_RANGE_MAX);\n    if state.c < 1 {\n        state.c += 1;\n    }\n}\n\nfn main() {\n    let shared = Arc::new(Shared {\n        m: Mutex::new(State { c: 0 }),\n    });\n\n    let worker1 = {\n        let shared = Arc::clone(&shared);\n        thread::spawn(move || w1(shared))\n    };\n\n    let worker2 = {\n        let shared = Arc::clone(&shared);\n        thread::spawn(move || w2(shared))\n    };\n\n    worker1.join().unwrap();\n    worker2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```",
+      "response_model": "gpt-6-luna",
+      "snapshot_sha256": "3bd24e1762ff2ab058b76697a9a7e801674a6912426193b3a41c00bb17137f79"
+    }
+  ]
+}

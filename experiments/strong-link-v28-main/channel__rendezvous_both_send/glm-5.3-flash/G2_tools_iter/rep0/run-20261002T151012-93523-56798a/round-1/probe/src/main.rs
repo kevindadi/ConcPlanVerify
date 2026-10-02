@@ -1,0 +1,28 @@
+use std::sync::mpsc::sync_channel;
+use std::thread;
+
+fn main() {
+    // R2: unbuffered (rendezvous) channel — send and recv must meet to exchange the value.
+    let (tx, rx) = sync_channel::<i32>(0);
+
+    // R1: main starts sender (s1) and receiver (r) concurrently.
+    let s1 = thread::spawn(move || {
+        // R3: sender passes exactly one value.
+        tx.send(1).expect("s1: send failed");
+    });
+
+    let r = thread::spawn(move || {
+        // R3: receiver takes exactly one value.
+        rx.recv().expect("r: recv failed")
+    });
+
+    // R4/R5: joining both tasks guarantees neither is left waiting forever
+    // and every interleaving terminates with both tasks finished.
+    let received = r.join().expect("r: panicked");
+    s1.join().expect("s1: panicked");
+
+    // R6: with a zero-capacity channel and one send/one recv matched,
+    // the channel is empty once both tasks have finished.
+    // R7: print exactly `DONE done=1`.
+    println!("DONE done={}", received);
+}

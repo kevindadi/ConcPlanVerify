@@ -1,0 +1,69 @@
+## Analysis of defects to avoid
+
+The classic concurrency defect in this shape of program is **deadlock by inconsistent lock ordering**: if t1 takes `a` then `b`, while t2 takes `b` then `a`, an interleaving exists where each holds one lock and waits forever for the other (violates R8/R11). The same hazard applies to the second pair with `c`/`d`. The fix is to fix a global acquisition order per pair (R6, R7) and acquire both locks before working (R4), releasing them via RAII guards (R9). The pairs use disjoint lock sets, so they are independent (R5). The main thread starts all workers and joins them before printing (R10), and since ordering is consistent, every interleaving terminates (R11).
+
+```rust
+use std::sync::Mutex;
+
+fn main() {
+    // Shared locks: first pair (a, b) and second pair (c, d). (R2)
+    let a = Mutex::new(());
+    let b = Mutex::new(());
+    let c = Mutex::new(());
+    let d = Mutex::new(());
+
+    // Main thread starts all four workers and waits for them. (R1, R10)
+    std::thread::scope(|s| {
+        // t1 and t2 both need a and b (R3), both lock in the same
+        // relative order a -> b (R6), hold both while working (R4),
+        // and release both via guard drop before finishing (R9).
+        let t1 = s.spawn(|| {
+            let _g1 = a.lock().unwrap();
+            let _g2 = b.lock().unwrap();
+            // work while holding both locks of the first pair
+        });
+
+        let t2 = s.spawn(|| {
+            let _g1 = a.lock().unwrap();
+            let _g2 = b.lock().unwrap();
+            // work while holding both locks of the first pair
+        });
+
+        // t3 and t4 both need c and d (R3), both lock in the same
+        // relative order c -> d (R7). These locks are disjoint from
+        // a and b, so this pair is independent of the first (R5).
+        let t3 = s.spawn(|| {
+            let _g1 = c.lock().unwrap();
+            let _g2 = d.lock().unwrap();
+            // work while holding both locks of the second pair
+        });
+
+        let t4 = s.spawn(|| {
+            let _g1 = c.lock().unwrap();
+            let _g2 = d.lock().unwrap();
+            // work while holding both locks of the second pair
+        });
+
+        // Main thread finishes only after all four workers finish. (R10)
+        t1.join().unwrap();
+        t2.join().unwrap();
+        t3.join().unwrap();
+        t4.join().unwrap();
+    });
+
+    // Exactly one line of output, then exit. (R12)
+    println!("DONE done=1");
+}
+```
+
+### Why every requirement holds
+
+- **R1/R10**: `main` spawns `t1`–`t4` in a scope and joins each before continuing.
+- **R2**: four `Mutex`es `a`, `b`, `c`, `d`, grouped into two pairs.
+- **R3**: `t1`/`t2` lock `a`+`b`; `t3`/`t4` lock `c`+`d`.
+- **R4**: both guards are alive simultaneously during the work section.
+- **R5**: the pairs touch disjoint locks, so no pair's progress depends on the other.
+- **R6/R7**: within each pair, both workers acquire in the identical order (`a`→`b`, `c`→`d`).
+- **R8/R11**: consistent ordering makes a circular wait impossible, so no interleaving can deadlock; every schedule terminates.
+- **R9**: `MutexGuard` drops (releases) at scope exit, including on early return or panic-unwind of the worker body.
+- **R12**: the program prints exactly `DONE done=1` once, after all joins, then exits.

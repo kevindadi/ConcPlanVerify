@@ -1,0 +1,140 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. The design contains one main thread and two short-lived workers.
+R2. An independent bystander task also runs and keeps making progress without ever finishing on its own. [U]
+R3. The two workers share the same two locks and also use two counting permits to coordinate with each other.
+R4. Each worker must hold both locks at the same time while it enters its critical section.
+R5. The two workers must use the two permits as a handshake, so that neither takes its second lock before the other has taken its first.
+R6. The bystander task must not prevent the two workers from finishing.
+R7. At every point during execution, it must still be possible for the first worker to finish.
+R8. At every point during execution, it must still be possible for the second worker to finish.
+R9. Neither worker may wait forever for a permit or a lock that the other worker never provides.
+R10. Every worker must release each lock it holds before it finishes.
+R11. The main thread starts all three tasks and only finishes after both workers have finished, even though the bystander may keep running.
+R12. The program must print exactly the line `DONE a=1 b=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): a, b, bystander.
+- Shared resources: a (lock), b (lock), sa (semaphore), sb (semaphore), flag (shared variable).
+
+
+Current program:
+```rust
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+struct Semaphore {
+    permits: Mutex<usize>,
+    available: Condvar,
+}
+
+impl Semaphore {
+    fn new() -> Self {
+        Self {
+            permits: Mutex::new(0),
+            available: Condvar::new(),
+        }
+    }
+
+    fn release(&self) {
+        let mut permits = self.permits.lock().unwrap();
+        *permits += 1;
+        self.available.notify_one();
+    }
+
+    fn acquire(&self) {
+        let mut permits = self.permits.lock().unwrap();
+        while *permits == 0 {
+            permits = self.available.wait(permits).unwrap();
+        }
+        *permits -= 1;
+    }
+}
+
+struct Shared {
+    a: Mutex<()>,
+    b: Mutex<()>,
+    sa: Semaphore,
+    sb: Semaphore,
+    flag: AtomicUsize,
+}
+
+fn a(shared: Arc<Shared>) -> usize {
+    let first_a = shared.a.lock().unwrap();
+    shared.sa.release();
+    shared.sb.acquire();
+
+    let second_b = shared.b.lock().unwrap();
+    shared.flag.fetch_add(1, Ordering::SeqCst);
+
+    drop(second_b);
+    drop(first_a);
+    1
+}
+
+fn b(shared: Arc<Shared>) -> usize {
+    let first_b = shared.b.lock().unwrap();
+    shared.sb.release();
+    shared.sa.acquire();
+
+    // Release b before acquiring the locks in the common a-then-b order.
+    drop(first_b);
+    let first_a = shared.a.lock().unwrap();
+    let second_b = shared.b.lock().unwrap();
+    shared.flag.fetch_add(1, Ordering::SeqCst);
+
+    drop(second_b);
+    drop(first_a);
+    1
+}
+
+fn bystander(progress: Arc<AtomicUsize>) {
+    loop {
+        progress.fetch_add(1, Ordering::Relaxed);
+        thread::yield_now();
+    }
+}
+
+fn main() {
+    let shared = Arc::new(Shared {
+        a: Mutex::new(()),
+        b: Mutex::new(()),
+        sa: Semaphore::new(),
+        sb: Semaphore::new(),
+        flag: AtomicUsize::new(0),
+    });
+
+    let progress = Arc::new(AtomicUsize::new(0));
+    let bystander_progress = Arc::clone(&progress);
+    let _bystander_handle = thread::spawn(move || bystander(bystander_progress));
+
+    // Ensure the bystander has started making progress before starting the workers.
+    while progress.load(Ordering::Relaxed) == 0 {
+        thread::yield_now();
+    }
+
+    let shared_a = Arc::clone(&shared);
+    let worker_a = thread::spawn(move || a(shared_a));
+
+    let shared_b = Arc::clone(&shared);
+    let worker_b = thread::spawn(move || b(shared_b));
+
+    let result_a = worker_a.join().unwrap();
+    let result_b = worker_b.join().unwrap();
+
+    println!("DONE a={result_a} b={result_b}");
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

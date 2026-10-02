@@ -1,0 +1,82 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. A main task starts a sender role and a receiver role that run at the same time, and both roles occasionally use one shared lock.
+R2. The two roles exchange a value over a channel that requires both roles to meet.
+R3. No role may wait on the channel while holding the shared lock that the other role needs.
+R4. Every schedule and interleaving must terminate with the sender and the receiver both finished.
+R5. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): s, r.
+- Shared resources: ch1 (channel), ch2 (channel).
+
+
+Current program:
+```rust
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn s(ch1_tx: SyncSender<usize>, ch2_rx: Receiver<usize>, shared: Arc<Mutex<usize>>) {
+    {
+        let mut value = shared.lock().expect("shared lock poisoned");
+        *value += 1;
+    } // Release the lock before waiting on either channel.
+
+    ch1_tx.send(42).expect("receiver exited");
+    let reply = ch2_rx.recv().expect("receiver exited");
+
+    {
+        let mut value = shared.lock().expect("shared lock poisoned");
+        *value += reply;
+    }
+}
+
+fn r(ch1_rx: Receiver<usize>, ch2_tx: SyncSender<usize>, shared: Arc<Mutex<usize>>) {
+    {
+        let mut value = shared.lock().expect("shared lock poisoned");
+        *value += 1;
+    } // Release the lock before waiting on either channel.
+
+    let received = ch1_rx.recv().expect("sender exited");
+
+    {
+        let mut value = shared.lock().expect("shared lock poisoned");
+        *value += received;
+    } // Release the lock before the rendezvous send.
+
+    ch2_tx.send(received).expect("sender exited");
+}
+
+fn main() {
+    let ch1 = sync_channel::<usize>(0);
+    let ch2 = sync_channel::<usize>(0);
+    let (ch1_tx, ch1_rx) = ch1;
+    let (ch2_tx, ch2_rx) = ch2;
+
+    let shared = Arc::new(Mutex::new(0));
+
+    let s_shared = Arc::clone(&shared);
+    let s_handle = thread::spawn(move || s(ch1_tx, ch2_rx, s_shared));
+
+    let r_shared = Arc::clone(&shared);
+    let r_handle = thread::spawn(move || r(ch1_rx, ch2_tx, r_shared));
+
+    s_handle.join().expect("sender thread panicked");
+    r_handle.join().expect("receiver thread panicked");
+
+    println!("DONE done=1");
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

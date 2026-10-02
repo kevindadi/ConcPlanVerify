@@ -1,0 +1,31 @@
+use std::sync::Mutex;
+use std::thread;
+
+fn w1(a: &Mutex<()>, b: &Mutex<()>) {
+    let _a_guard = a.lock().unwrap();
+    let _b_guard = b.lock().unwrap();
+
+    // Work is performed while both mutexes are held.
+}
+
+fn w2(a: &Mutex<()>, b: &Mutex<()>) {
+    let _a_guard = a.lock().unwrap();
+    let _b_guard = b.lock().unwrap();
+
+    // Work is performed while both mutexes are held.
+}
+
+fn main() {
+    let a = Mutex::new(());
+    let b = Mutex::new(());
+
+    thread::scope(|scope| {
+        let h1 = scope.spawn(|| w1(&a, &b));
+        let h2 = scope.spawn(|| w2(&a, &b));
+
+        h1.join().unwrap();
+        h2.join().unwrap();
+    });
+
+    println!("DONE done=1");
+}

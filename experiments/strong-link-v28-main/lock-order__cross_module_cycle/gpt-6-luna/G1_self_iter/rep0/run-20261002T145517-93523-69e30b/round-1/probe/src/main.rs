@@ -1,0 +1,39 @@
+#![allow(non_snake_case, non_upper_case_globals)]
+
+use std::sync::Mutex;
+
+mod first {
+    use std::sync::Mutex;
+
+    pub static a: Mutex<()> = Mutex::new(());
+
+    pub fn t1() {
+        let _a = a.lock().unwrap();
+        let _b = crate::second::b.lock().unwrap();
+
+        std::hint::black_box((&*_a, &*_b));
+    }
+}
+
+mod second {
+    use std::sync::Mutex;
+
+    pub static b: Mutex<()> = Mutex::new(());
+
+    pub fn t2() {
+        let _a = crate::first::a.lock().unwrap();
+        let _b = b.lock().unwrap();
+
+        std::hint::black_box((&*_a, &*_b));
+    }
+}
+
+fn main() {
+    let t1 = std::thread::spawn(first::t1);
+    let t2 = std::thread::spawn(second::t2);
+
+    t1.join().unwrap();
+    t2.join().unwrap();
+
+    println!("DONE done=1");
+}

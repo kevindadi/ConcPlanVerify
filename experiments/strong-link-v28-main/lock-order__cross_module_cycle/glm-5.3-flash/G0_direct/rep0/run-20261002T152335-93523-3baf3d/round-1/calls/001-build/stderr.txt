@@ -1,0 +1,44 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20261002T152335-93523-3baf3d/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0382]: use of moved value: `_work`
+  --> src/main.rs:33:14
+   |
+29 |         let _work = gb;
+   |             ----- move occurs because `_work` has type `std::sync::MutexGuard<'_, ()>`, which does not implement the `Copy` trait
+...
+32 |         drop(_work);
+   |              ----- value moved here
+33 |         drop(_work);
+   |              ^^^^^ value used here after move
+
+error[E0382]: use of moved value: `_work`
+  --> src/main.rs:56:14
+   |
+52 |         let _work = gb;
+   |             ----- move occurs because `_work` has type `std::sync::MutexGuard<'_, ()>`, which does not implement the `Copy` trait
+...
+55 |         drop(_work);
+   |              ----- value moved here
+56 |         drop(_work);
+   |              ^^^^^ value used here after move
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`

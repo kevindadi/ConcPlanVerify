@@ -1,0 +1,52 @@
+// R1: main starts one outer worker.
+// R2: outer starts a nested group of two inner tasks (x1, x2).
+// R3: each inner task takes mutex a and mutex b and holds both at the same time.
+// R4: both inner tasks take the mutexes in the same order (a, then b) — no wait cycle.
+// R5: outer completes only after both inner tasks have finished (joined).
+// R6: every schedule terminates — locks are always released, no cycle, all threads joined.
+// R7: prints exactly `DONE done=1` and exits.
+
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    // Shared resources: a (lock), b (lock).
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    // R1: main task starts the outer worker.
+    let outer = {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        thread::spawn(move || {
+            let mut inner_handles = Vec::new();
+
+            // R2: outer starts a nested group of two inner tasks: x1 and x2.
+            for _inner in 0..2 {
+                let a = Arc::clone(&a);
+                let b = Arc::clone(&b);
+                inner_handles.push(thread::spawn(move || {
+                    // R4: same lock order (a then b) in every inner task — no cycle.
+                    let guard_a = a.lock().unwrap();
+                    let guard_b = b.lock().unwrap();
+
+                    // R3: both mutexes are held at the same time here.
+                    let _held_both = (&guard_a, &guard_b);
+
+                    // Guards drop at end of scope: b released first, then a (reverse order).
+                }));
+            }
+
+            // R5: outer completes only after both inner tasks have finished.
+            for handle in inner_handles {
+                handle.join().unwrap();
+            }
+        })
+    };
+
+    // R1/R5: main waits for the outer worker to complete.
+    outer.join().unwrap();
+
+    // R7: print exactly this line, then exit.
+    println!("DONE done=1");
+}

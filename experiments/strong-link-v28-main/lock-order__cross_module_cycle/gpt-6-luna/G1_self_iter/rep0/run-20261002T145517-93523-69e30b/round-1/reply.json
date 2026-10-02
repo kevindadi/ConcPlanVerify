@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\n#![allow(non_snake_case, non_upper_case_globals)]\n\nuse std::sync::Mutex;\n\nmod first {\n    use std::sync::Mutex;\n\n    pub static a: Mutex<()> = Mutex::new(());\n\n    pub fn t1() {\n        let _a = a.lock().unwrap();\n        let _b = crate::second::b.lock().unwrap();\n\n        std::hint::black_box((&*_a, &*_b));\n    }\n}\n\nmod second {\n    use std::sync::Mutex;\n\n    pub static b: Mutex<()> = Mutex::new(());\n\n    pub fn t2() {\n        let _a = crate::first::a.lock().unwrap();\n        let _b = b.lock().unwrap();\n\n        std::hint::black_box((&*_a, &*_b));\n    }\n}\n\nfn main() {\n    let t1 = std::thread::spawn(first::t1);\n    let t2 = std::thread::spawn(second::t2);\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

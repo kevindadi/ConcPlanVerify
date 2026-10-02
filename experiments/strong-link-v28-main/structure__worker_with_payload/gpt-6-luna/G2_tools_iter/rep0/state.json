@@ -1,0 +1,12 @@
+{
+  "fingerprint": "24ac39c8bc3e6f897f86a03c15ac3a14a616b6c037017ce928c1d57311cee648",
+  "calls": [
+    {
+      "system": "Revise the Rust program using the tool feedback.",
+      "user": "Specification:\n# Requirements\n\nR1. A main task starts a group of two workers. [U]\nR2. Each worker takes a shared mutex, calls a sequential helper routine that performs only local computation, then updates a shared counter while still holding the mutex. [U]\nR3. Each worker releases the mutex it took before it finishes. [U]\nR4. At most one worker may hold the shared mutex at any moment.\nR5. A worker that cannot take a held mutex waits until it becomes free.\nR6. Every schedule and interleaving of the workers must terminate.\nR7. Both workers complete.\nR8. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2, compute.\n- Shared resources: m (lock), acc (shared variable).\n\n\nOutput the complete Rust program.",
+      "response": "```rust\nuse std::sync::atomic::{AtomicU64, Ordering};\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nstruct Shared {\n    m: Mutex<()>,\n    acc: AtomicU64,\n}\n\nfn compute() -> u64 {\n    (1..=100).sum()\n}\n\nfn w1(shared: Arc<Shared>) {\n    let guard = shared.m.lock().expect(\"mutex poisoned\");\n    let local = compute();\n    shared.acc.fetch_add(local, Ordering::Relaxed);\n    drop(guard);\n}\n\nfn w2(shared: Arc<Shared>) {\n    let guard = shared.m.lock().expect(\"mutex poisoned\");\n    let local = compute();\n    shared.acc.fetch_add(local, Ordering::Relaxed);\n    drop(guard);\n}\n\nfn main() {\n    let shared = Arc::new(Shared {\n        m: Mutex::new(()),\n        acc: AtomicU64::new(0),\n    });\n\n    let w1_handle = {\n        let shared = Arc::clone(&shared);\n        thread::spawn(move || w1(shared))\n    };\n    let w2_handle = {\n        let shared = Arc::clone(&shared);\n        thread::spawn(move || w2(shared))\n    };\n\n    w1_handle.join().expect(\"w1 panicked\");\n    w2_handle.join().expect(\"w2 panicked\");\n\n    assert_eq!(shared.acc.load(Ordering::Relaxed), 10_100);\n    println!(\"DONE done=1\");\n}\n```",
+      "response_model": "gpt-6-luna",
+      "snapshot_sha256": "4e83f625a64ba4b399e70920891cb73bb926f1d27dec28609a88063534fc9043"
+    }
+  ]
+}

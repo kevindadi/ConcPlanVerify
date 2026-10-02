@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\n// Shared counter c: declared to range from zero to two, starts at zero.\nstruct C(u8);\n\nfn main() {\n    // m is the mutual-exclusion lock guarding c.\n    let m = Arc::new(Mutex::new(C(0)));\n\n    // Supervising task: launch worker w1.\n    let m_w1 = Arc::clone(&m);\n    let w1 = thread::spawn(move || {\n        // Hold the lock whenever reading or writing c.\n        let mut guard = m_w1.lock().unwrap();\n        // Add one only if the value stays within the required upper limit (1).\n        if guard.0 + 1 <= 1 {\n            guard.0 += 1;\n        }\n        // Lock released when guard goes out of scope.\n    });\n\n    // Supervising task: launch worker w2.\n    let m_w2 = Arc::clone(&m);\n    let w2 = thread::spawn(move || {\n        // Hold the lock whenever reading or writing c.\n        let mut guard = m_w2.lock().unwrap();\n        // Add one only if the value stays within the required upper limit (1).\n        if guard.0 + 1 <= 1 {\n            guard.0 += 1;\n        }\n        // Lock released when guard goes out of scope.\n    });\n\n    // Supervising task: wait for both workers to finish.\n    w1.join().unwrap();\n    w2.join().unwrap();\n\n    // In every reachable state c never exceeds 1, so the final value is 1.\n    let done = m.lock().unwrap().0;\n    println!(\"DONE done={}\", done);\n}\n```"
+}

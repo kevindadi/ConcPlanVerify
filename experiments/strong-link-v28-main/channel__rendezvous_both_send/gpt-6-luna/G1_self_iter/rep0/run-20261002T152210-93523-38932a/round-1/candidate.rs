@@ -1,0 +1,23 @@
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::thread;
+
+fn s1(ch: SyncSender<()>) {
+    ch.send(()).unwrap();
+}
+
+fn r(ch: Receiver<()>) {
+    ch.recv().unwrap();
+}
+
+fn main() {
+    let ch = sync_channel::<()>(0);
+    let (sender, receiver) = ch;
+
+    let s1_task = thread::spawn(move || s1(sender));
+    let r_task = thread::spawn(move || r(receiver));
+
+    s1_task.join().unwrap();
+    r_task.join().unwrap();
+
+    println!("DONE done=1");
+}

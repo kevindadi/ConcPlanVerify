@@ -1,0 +1,43 @@
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc, Mutex,
+};
+use std::thread;
+
+fn compute() -> usize {
+    (1..=10).sum()
+}
+
+fn w1(m: Arc<Mutex<()>>, acc: Arc<AtomicUsize>) {
+    let guard = m.lock().unwrap();
+    acc.fetch_add(compute(), Ordering::SeqCst);
+    drop(guard);
+}
+
+fn w2(m: Arc<Mutex<()>>, acc: Arc<AtomicUsize>) {
+    let guard = m.lock().unwrap();
+    acc.fetch_add(compute(), Ordering::SeqCst);
+    drop(guard);
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(()));
+    let acc = Arc::new(AtomicUsize::new(0));
+
+    let t1 = thread::spawn({
+        let m = Arc::clone(&m);
+        let acc = Arc::clone(&acc);
+        move || w1(m, acc)
+    });
+
+    let t2 = thread::spawn({
+        let m = Arc::clone(&m);
+        let acc = Arc::clone(&acc);
+        move || w2(m, acc)
+    });
+
+    t1.join().unwrap();
+    t2.join().unwrap();
+
+    println!("DONE done=1");
+}

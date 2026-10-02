@@ -1,0 +1,45 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E401",
+      "severity": "warning",
+      "message": "spawn handle 'hby' has no matching join",
+      "location": "main::main.s3",
+      "path": "modules[0].functions[0].body[2]",
+      "fix_hint": "add join on this handle, or use a scope statement (implicit join_all)"
+    },
+    {
+      "code": "E114",
+      "severity": "warning",
+      "message": "function 'bystander' ends at 's1' without an explicit return/goto/branch/switch; control falls off the end, which is an implicit return",
+      "location": "main::bystander",
+      "path": "modules[0].functions[3]",
+      "fix_hint": "add an explicit return, or rely on the documented implicit return"
+    },
+    {
+      "code": "E602",
+      "severity": "error",
+      "message": "function 'bystander' has a path ending at 's1' without return",
+      "location": "main::bystander.s1",
+      "path": "modules[0].functions[3].body[0]",
+      "fix_hint": "add a return statement at the end of this path"
+    },
+    {
+      "code": "E922",
+      "severity": "error",
+      "message": "spawn('main::bystander') targets a function with modeled parameters; concurrent activations share one slot — pass inputs through a resource",
+      "location": "main::main.s3",
+      "path": "modules[0].functions[0].body[2]",
+      "fix_hint": "set the callee's parameters to \"modeled\": false and communicate via a Var, Atomic, or Channel"
+    },
+    {
+      "code": "E924",
+      "severity": "error",
+      "message": "spawn('main::bystander') has 1 argument(s), but 'main::bystander' has 0 unmodeled parameter(s)",
+      "location": "main::main.s3",
+      "path": "modules[0].functions[0].body[2]",
+      "fix_hint": "pass one codegen argument per unmodeled parameter, or omit args"
+    }
+  ]
+}

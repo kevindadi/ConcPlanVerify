@@ -1,0 +1,64 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. A main task starts one outer worker. [U]
+R2. The outer worker starts a nested group of two inner tasks. [U]
+R3. Each inner task takes mutex A and mutex B and, at some point, holds both of them at the same time.
+R4. The two inner tasks take the mutexes in the same order so that no wait cycle can form.
+R5. The outer worker completes, and it only completes after both inner tasks have finished.
+R6. Every schedule and interleaving of the tasks must terminate.
+R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): outer, x1, x2.
+- Shared resources: a (lock), b (lock).
+
+
+Current program:
+```rust
+use std::sync::Mutex;
+use std::thread;
+
+fn x1(a: &Mutex<()>, b: &Mutex<()>) {
+    let _a = a.lock().unwrap();
+    let _b = b.lock().unwrap();
+}
+
+fn x2(a: &Mutex<()>, b: &Mutex<()>) {
+    let _a = a.lock().unwrap();
+    let _b = b.lock().unwrap();
+}
+
+fn outer(a: &Mutex<()>, b: &Mutex<()>) {
+    thread::scope(|scope| {
+        let x1_worker = scope.spawn(|| x1(a, b));
+        let x2_worker = scope.spawn(|| x2(a, b));
+
+        x1_worker.join().unwrap();
+        x2_worker.join().unwrap();
+    });
+}
+
+fn main() {
+    let a = Mutex::new(());
+    let b = Mutex::new(());
+
+    thread::scope(|scope| {
+        let outer_worker = scope.spawn(|| outer(&a, &b));
+        outer_worker.join().unwrap();
+    });
+
+    println!("DONE done=1");
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

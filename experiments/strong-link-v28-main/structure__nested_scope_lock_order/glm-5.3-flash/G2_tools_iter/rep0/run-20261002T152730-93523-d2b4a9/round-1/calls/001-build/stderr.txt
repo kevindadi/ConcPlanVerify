@@ -1,0 +1,67 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20261002T152730-93523-d2b4a9/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0433]: cannot find module or crate `tokio` in this scope
+ --> src/main.rs:2:5
+  |
+2 | use tokio::sync::Mutex;
+  |     ^^^^^ use of unresolved module or unlinked crate `tokio`
+  |
+  = help: if you wanted to use a crate named `tokio`, use `cargo add tokio` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `tokio` in this scope
+  --> src/main.rs:39:3
+   |
+39 | #[tokio::main]
+   |   ^^^^^ use of unresolved module or unlinked crate `tokio`
+
+error[E0433]: cannot find module or crate `tokio` in this scope
+  --> src/main.rs:30:14
+   |
+30 |     let h1 = tokio::spawn(inner_task("x1", a.clone(), b.clone()));
+   |              ^^^^^ use of unresolved module or unlinked crate `tokio`
+   |
+   = help: if you wanted to use a crate named `tokio`, use `cargo add tokio` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `tokio` in this scope
+  --> src/main.rs:31:14
+   |
+31 |     let h2 = tokio::spawn(inner_task("x2", a.clone(), b.clone()));
+   |              ^^^^^ use of unresolved module or unlinked crate `tokio`
+   |
+   = help: if you wanted to use a crate named `tokio`, use `cargo add tokio` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `tokio` in this scope
+  --> src/main.rs:44:24
+   |
+44 |     let outer_handle = tokio::spawn(outer(a, b));
+   |                        ^^^^^ use of unresolved module or unlinked crate `tokio`
+   |
+   = help: if you wanted to use a crate named `tokio`, use `cargo add tokio` to add it to your `Cargo.toml`
+
+error[E0752]: `main` function is not allowed to be `async`
+  --> src/main.rs:40:1
+   |
+40 | async fn main() {
+   | ^^^^^^^^^^^^^^^ `main` function is not allowed to be `async`
+
+Some errors have detailed explanations: E0433, E0752.
+For more information about an error, try `rustc --explain E0433`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 6 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`

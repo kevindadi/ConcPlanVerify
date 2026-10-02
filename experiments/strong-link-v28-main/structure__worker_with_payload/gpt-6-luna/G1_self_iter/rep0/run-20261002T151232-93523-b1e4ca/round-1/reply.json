@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nstruct Counter {\n    acc: usize,\n}\n\nfn compute() {\n    let result = (0..1_000).fold(0usize, |sum, n| sum.wrapping_add(n));\n    std::hint::black_box(result);\n}\n\nfn w1(m: Arc<Mutex<Counter>>) {\n    let mut guard = m.lock().unwrap();\n    compute();\n    guard.acc += 1;\n    drop(guard);\n}\n\nfn w2(m: Arc<Mutex<Counter>>) {\n    let mut guard = m.lock().unwrap();\n    compute();\n    guard.acc += 1;\n    drop(guard);\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(Counter { acc: 0 }));\n\n    let h1 = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || w1(m))\n    };\n    let h2 = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || w2(m))\n    };\n\n    h1.join().unwrap();\n    h2.join().unwrap();\n\n    assert_eq!(m.lock().unwrap().acc, 2);\n    println!(\"DONE done=1\");\n}\n```"
+}
