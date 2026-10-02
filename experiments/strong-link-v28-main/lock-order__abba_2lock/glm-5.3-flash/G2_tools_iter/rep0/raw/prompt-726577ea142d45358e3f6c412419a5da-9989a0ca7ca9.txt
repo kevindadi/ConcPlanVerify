@@ -1,0 +1,102 @@
+Revise the Rust program using the tool feedback.
+
+Specification:
+# Requirements
+
+R1. The design contains one main thread and two worker threads.
+R2. Both worker threads share the same two locks, and neither lock may be held by more than one worker at a time.
+R3. Each worker must hold both locks at the same time while it performs its critical work.
+R4. A worker that finds a lock busy must wait for it to become free and then continue.
+R5. It must never be possible for the two workers to leave each other waiting forever, each holding one lock and needing the other.
+R6. The main thread starts both workers and only finishes after both workers have finished.
+R7. Every worker must release each lock it holds before it finishes.
+R8. Every possible schedule or interleaving of the workers must terminate.
+R9. The program must print exactly the line `DONE t1=1 t2=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): t1, t2.
+- Shared resources: a (lock), b (lock).
+
+
+Current program:
+```rust
+// Design notes:
+// - Two worker threads: t1 and t2. Two shared locks: a and b.
+// - Deadlock (R5) is prevented by a global lock ordering: EVERY worker
+//   acquires lock `a` before lock `b`, never the reverse. With a
+//   consistent ordering, a cyclic wait (each worker holding one lock
+//   and waiting for the other) is impossible, so every interleaving
+//   terminates (R8).
+// - Mutex::lock() blocks while the lock is busy and resumes once it is
+//   free, satisfying R4.
+// - Each worker holds both locks simultaneously during its critical
+//   work (R3), and the lock guards are dropped (released) before the
+//   worker finishes (R7).
+// - The main thread spawns both workers and joins them, finishing only
+//   after both have finished (R1, R6).
+
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    // Shared locks a and b (R2: shared by both workers; a Mutex can be
+    // held by at most one thread at a time).
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    // Completion flags, read by the main thread after joining.
+    let done_t1 = Arc::new(Mutex::new(0u32));
+    let done_t2 = Arc::new(Mutex::new(0u32));
+
+    // ---- Worker t1 ----
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let d1 = Arc::clone(&done_t1);
+    let handle_t1 = thread::spawn(move || {
+        // Always lock in the same order: a, then b (deadlock-free, R5).
+        let _guard_a = a1.lock().unwrap(); // waits while busy (R4)
+        let _guard_b = b1.lock().unwrap(); // waits while busy (R4)
+
+        // Critical work: both locks are held at the same time here (R3).
+        // (Locks a and b are exclusively held by this worker right now.)
+
+        // Guards are dropped here at end of scope, releasing both
+        // locks before the worker finishes (R7).
+        *d1.lock().unwrap() = 1;
+    });
+
+    // ---- Worker t2 ----
+    let a2 = Arc::clone(&a);
+    let b2 = Arc::clone(&b);
+    let d2 = Arc::clone(&done_t2);
+    let handle_t2 = thread::spawn(move || {
+        // Same lock order: a, then b (deadlock-free, R5).
+        let _guard_a = a2.lock().unwrap(); // waits while busy (R4)
+        let _guard_b = b2.lock().unwrap(); // waits while busy (R4)
+
+        // Critical work: both locks are held at the same time here (R3).
+
+        // Both locks released before finishing (R7).
+        *d2.lock().unwrap() = 1;
+    });
+
+    // Main thread waits for both workers to finish (R6).
+    handle_t1.join().unwrap();
+    handle_t2.join().unwrap();
+
+    let t1 = *done_t1.lock().unwrap();
+    let t2 = *done_t2.lock().unwrap();
+
+    // Exactly the required output line (R9).
+    println!("DONE t1={} t2={}", t1, t2);
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": {"argv": ["cargo", "test", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__abba_2lock/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T132754-73155-a6c384/round-1/calls/002-test", "exit_code": 0, "extra": {"argv_sha256": "8e615d2aad20860403428fb5dcedf89db3bab84bcbadf0dac86cea4b52e92a0c", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__abba_2lock/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T132754-73155-a6c384/round-1/calls/002-test/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__abba_2lock/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T132754-73155-a6c384/round-1/calls/002-test/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__abba_2lock/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T132754-73155-a6c384/round-1/calls/002-test/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__abba_2lock/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T132754-73155-a6c384/round-1/calls/002-test/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__abba_2lock/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T132754-73155-a6c384/round-1/calls/002-test/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__abba_2lock/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T132754-73155-a6c384/round-1/calls/002-test/wall_ms.txt"}, "stderr_sha256": "1ff5e15dc4ed9e799a22329595d7891cb196c3cbb8e711d194e4e4cc127f8d60", "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd", "timed_out": false, "tool": "test", "wall_ms": 493}, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__abba_2lock/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T132754-73155-a6c384/round-1/calls/001-build", "exit_code": 0, "extra": {"argv_sha256": "bc79441a1887082b9be980b5305eb844b1a439465e695c283aff153c2d473026", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__abba_2lock/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T132754-73155-a6c384/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__abba_2lock/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T132754-73155-a6c384/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__abba_2lock/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T132754-73155-a6c384/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__abba_2lock/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T132754-73155-a6c384/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__abba_2lock/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T132754-73155-a6c384/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/lock-order__abba_2lock/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T132754-73155-a6c384/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "1ff5e15dc4ed9e799a22329595d7891cb196c3cbb8e711d194e4e4cc127f8d60", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 254}, "build_ok": true, "lockbud_detected": true, "lockbud_status": "detected", "miri_detected": false, "miri_statuses": ["clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean"]}
+
+Output the complete corrected Rust program.

@@ -1,0 +1,109 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.
+R2. Both worker threads share one counting permit pool that begins with exactly one permit.
+R3. A worker must hold a permit while it performs its work, so the two workers never work at the same time.
+R4. Each worker acquires one permit, performs its work, and must release that permit before it finishes.
+R5. While a worker waits for the permit, the worker holding it must remain able to release it so the waiting worker can eventually proceed.
+R6. Every possible schedule and interleaving of the two workers must terminate.
+R7. The program must print exactly the line `DONE permits=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2.
+- Shared resources: s (semaphore).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+
+/// Counting permit pool (semaphore) shared by w1 and w2.
+struct Semaphore {
+    permits: Mutex<usize>,
+    available: Condvar,
+}
+
+impl Semaphore {
+    fn new(n: usize) -> Self {
+        Semaphore {
+            permits: Mutex::new(n),
+            available: Condvar::new(),
+        }
+    }
+
+    /// Block until a permit is available, then take it.
+    /// The waiter sleeps (does not spin), so the current holder
+    /// remains able to run and release (R5).
+    fn acquire(&self) {
+        let mut count = self.permits.lock().expect("permits mutex poisoned");
+        while *count == 0 {
+            // wait() atomically releases the mutex and sleeps;
+            // re-check on every wakeup (spurious or real).
+            count = self.available.wait(count).expect("permits mutex poisoned");
+        }
+        *count -= 1;
+    }
+
+    /// Return one permit and wake a waiting worker, if any.
+    fn release(&self) {
+        let mut count = self.permits.lock().expect("permits mutex poisoned");
+        *count += 1;
+        // At most one worker can be waiting, but notify_all is
+        // harmless and robust to future changes.
+        self.available.notify_all();
+    }
+
+    fn count(&self) -> usize {
+        *self.permits.lock().expect("permits mutex poisoned")
+    }
+}
+
+/// Worker body: acquire one permit, do the work, release it
+/// before finishing (R3, R4). Release happens even if the
+/// work section panics, so no permit can leak (R6).
+fn worker(name: &'static str, s: &Semaphore) {
+    s.acquire();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        // --- work section: only one worker is ever here ---
+        println!("{name} working");
+    }));
+    s.release();
+    if let Err(_panic) = result {
+        // Propagate after releasing, so the supervisor still observes it.
+        std::panic::resume_unwind(_panic);
+    }
+}
+
+fn main() {
+    // Supervising task: launches w1 and w2 and waits for both (R1).
+    // One shared pool starting with exactly one permit (R2).
+    let s = Arc::new(Semaphore::new(1));
+
+    let s1 = Arc::clone(&s);
+    let s2 = Arc::clone(&s);
+
+    let h1 = std::thread::spawn(move || worker("w1", &s1));
+    let h2 = std::thread::spawn(move || worker("w2", &s2));
+
+    // Join both workers: every schedule terminates (R6), because
+    // the blocked waiter never prevents the holder from releasing.
+    h1.join().expect("w1 panicked");
+    h2.join().expect("w2 panicked");
+
+    // Read the count only after both releases are complete,
+    // so the printed value is deterministic (R7).
+    println!("DONE permits={}", s.count());
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

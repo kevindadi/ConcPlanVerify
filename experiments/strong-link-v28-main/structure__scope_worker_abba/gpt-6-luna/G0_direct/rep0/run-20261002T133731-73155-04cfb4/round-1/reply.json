@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\n\ntype Shared = Arc<(Mutex<()>, Mutex<()>)>;\n\nfn w1(shared: Shared) {\n    let (a, b) = &*shared;\n    let a_guard = a.lock().unwrap();\n    let b_guard = b.lock().unwrap();\n\n    drop(b_guard);\n    drop(a_guard);\n}\n\nfn w2(shared: Shared) {\n    let (a, b) = &*shared;\n    let a_guard = a.lock().unwrap();\n    let b_guard = b.lock().unwrap();\n\n    drop(b_guard);\n    drop(a_guard);\n}\n\nfn main() {\n    let shared: Shared = Arc::new((Mutex::new(()), Mutex::new(())));\n\n    let worker1 = {\n        let shared = Arc::clone(&shared);\n        std::thread::spawn(move || w1(shared))\n    };\n    let worker2 = {\n        let shared = Arc::clone(&shared);\n        std::thread::spawn(move || w2(shared))\n    };\n\n    worker1.join().unwrap();\n    worker2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

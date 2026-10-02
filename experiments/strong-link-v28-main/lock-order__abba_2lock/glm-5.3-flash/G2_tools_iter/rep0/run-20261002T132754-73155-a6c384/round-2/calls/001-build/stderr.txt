@@ -1,0 +1,70 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20261002T132754-73155-a6c384/round-2/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0308]: mismatched types
+  --> src/main.rs:66:29
+   |
+66 |         let mut d = acquire(&d1);
+   |                     ------- ^^^ expected `&Mutex<()>`, found `&Arc<Mutex<u32>>`
+   |                     |
+   |                     arguments to this function are incorrect
+   |
+   = note: expected reference `&Mutex<()>`
+              found reference `&Arc<Mutex<u32>>`
+note: function defined here
+  --> src/main.rs:24:4
+   |
+24 | fn acquire(m: &Mutex<()>) -> MutexGuard<'_, ()> {
+   |    ^^^^^^^ -------------
+
+error[E0308]: mismatched types
+  --> src/main.rs:67:14
+   |
+67 |         *d = 1;
+   |         --   ^ expected `()`, found integer
+   |         |
+   |         expected due to the type of this binding
+
+error[E0308]: mismatched types
+  --> src/main.rs:86:29
+   |
+86 |         let mut d = acquire(&d2);
+   |                     ------- ^^^ expected `&Mutex<()>`, found `&Arc<Mutex<u32>>`
+   |                     |
+   |                     arguments to this function are incorrect
+   |
+   = note: expected reference `&Mutex<()>`
+              found reference `&Arc<Mutex<u32>>`
+note: function defined here
+  --> src/main.rs:24:4
+   |
+24 | fn acquire(m: &Mutex<()>) -> MutexGuard<'_, ()> {
+   |    ^^^^^^^ -------------
+
+error[E0308]: mismatched types
+  --> src/main.rs:87:14
+   |
+87 |         *d = 1;
+   |         --   ^ expected `()`, found integer
+   |         |
+   |         expected due to the type of this binding
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 4 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`

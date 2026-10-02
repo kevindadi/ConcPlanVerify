@@ -1,0 +1,59 @@
+Revise the Rust program using the tool feedback.
+
+Specification:
+# Requirements
+
+R1. A main task starts a worker task and waits for that worker to finish, then begins the same start-and-wait cycle again. [U]
+R2. The worker task performs no shared work and shares no mutexes or counters with the main task. [U]
+R3. Each started worker is waited for exactly once before the next worker is started.
+R4. No task ever waits for a worker that cannot finish, so no execution stalls.
+R5. Every schedule and interleaving must terminate.
+R6. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): worker.
+
+
+Current program:
+```rust
+// Cargo.toml:
+//   [dependencies]
+//   tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+use tokio::task::JoinHandle;
+
+// R2: the worker performs no shared work and shares no mutexes or
+// counters with the main task. It touches no shared state at all.
+async fn worker() {
+    // no shared work
+}
+
+#[tokio::main]
+async fn main() {
+    // R1: main starts a worker, waits for it to finish, then begins the
+    // same start-and-wait cycle again.
+    for _ in 0..2 {
+        // R3: each worker is started and then awaited exactly once,
+        // before the next worker is started.
+        let handle: JoinHandle<()> = tokio::spawn(worker());
+
+        // R4/R5: the worker body is empty and cannot fail or block, so
+        // it always finishes and every await terminates — no schedule
+        // or interleaving can stall.
+        handle.await.expect("worker task failed");
+    }
+
+    // R6: print exactly one line, then exit.
+    let done = 1;
+    println!("DONE done={}", done);
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": null, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/structure__spawn_join_loop_finite/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T140708-73155-e5a19a/round-1/calls/001-build", "exit_code": 101, "extra": {"argv_sha256": "51f0941e85fd825ba428a6603614ff58b90f9127f928631f655b9cc5387dd08c", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/structure__spawn_join_loop_finite/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T140708-73155-e5a19a/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/structure__spawn_join_loop_finite/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T140708-73155-e5a19a/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/structure__spawn_join_loop_finite/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T140708-73155-e5a19a/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/structure__spawn_join_loop_finite/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T140708-73155-e5a19a/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/structure__spawn_join_loop_finite/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T140708-73155-e5a19a/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28-main/structure__spawn_join_loop_finite/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T140708-73155-e5a19a/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "ba5c3ccf24064025fdf773f126e5fb90e7b19ab1ee564c74a1e0d86f678a4063", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 186}, "build_ok": false, "lockbud_detected": false, "lockbud_status": "lockbud_unavailable", "miri_detected": false, "miri_statuses": []}
+
+Output the complete corrected Rust program.

@@ -1,0 +1,43 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+const C_MAX: u8 = 2;
+
+struct Counter {
+    c: u8, // Invariant: 0 <= c <= C_MAX.
+}
+
+struct Shared {
+    m: Mutex<Counter>,
+}
+
+fn w1(shared: Arc<Shared>) {
+    let mut guard = shared.m.lock().unwrap();
+    let next = guard.c.checked_add(1).unwrap();
+    assert!(next <= C_MAX);
+    guard.c = next;
+}
+
+fn w2(shared: Arc<Shared>) {
+    let mut guard = shared.m.lock().unwrap();
+    let next = guard.c.checked_add(1).unwrap();
+    assert!(next <= C_MAX);
+    guard.c = next;
+}
+
+fn main() {
+    let shared = Arc::new(Shared {
+        m: Mutex::new(Counter { c: 0 }),
+    });
+
+    let shared_for_w1 = Arc::clone(&shared);
+    let shared_for_w2 = Arc::clone(&shared);
+
+    let handle_w1 = thread::spawn(move || w1(shared_for_w1));
+    let handle_w2 = thread::spawn(move || w2(shared_for_w2));
+
+    handle_w1.join().unwrap();
+    handle_w2.join().unwrap();
+
+    println!("DONE done=1");
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\n// c is constrained to the declared range 0..=2.\nconst DECLARED_MAX: u8 = 2;\n// Workers use the stricter limit so c can never exceed one.\nconst EFFECTIVE_MAX: u8 = 1;\n\nstruct Counter(u8);\n\nimpl Counter {\n    fn zero() -> Self {\n        Self(0)\n    }\n\n    fn value(&self) -> u8 {\n        self.0\n    }\n\n    fn increment_if_below(&mut self, upper: u8) {\n        assert!(upper <= DECLARED_MAX);\n        assert!(self.0 <= DECLARED_MAX);\n\n        if self.0 < upper {\n            self.0 += 1;\n        }\n    }\n}\n\nstruct Shared {\n    c: Counter,\n}\n\nfn worker(m: Arc<Mutex<Shared>>) {\n    let mut shared = m.lock().expect(\"mutex poisoned\");\n    shared.c.increment_if_below(EFFECTIVE_MAX);\n}\n\nfn w1(m: Arc<Mutex<Shared>>) {\n    worker(m);\n}\n\nfn w2(m: Arc<Mutex<Shared>>) {\n    worker(m);\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(Shared { c: Counter::zero() }));\n\n    let m1 = Arc::clone(&m);\n    let t1 = thread::spawn(move || w1(m1));\n\n    let m2 = Arc::clone(&m);\n    let t2 = thread::spawn(move || w2(m2));\n\n    t1.join().expect(\"w1 panicked\");\n    t2.join().expect(\"w2 panicked\");\n\n    let done = m.lock().expect(\"mutex poisoned\").c.value();\n    println!(\"DONE done={done}\");\n}\n```"
+}

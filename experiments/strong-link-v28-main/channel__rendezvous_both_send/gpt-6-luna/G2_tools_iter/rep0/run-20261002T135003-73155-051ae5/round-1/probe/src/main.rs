@@ -1,0 +1,23 @@
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::thread;
+
+fn s1(ch: SyncSender<()>) {
+    ch.send(()).expect("receiver failed");
+}
+
+fn r(ch: Receiver<()>) {
+    ch.recv().expect("sender failed");
+}
+
+fn main() {
+    let ch = sync_channel::<()>(0);
+    let (ch_sender, ch_receiver) = ch;
+
+    let sender = thread::spawn(move || s1(ch_sender));
+    let receiver = thread::spawn(move || r(ch_receiver));
+
+    sender.join().expect("sender task panicked");
+    receiver.join().expect("receiver task panicked");
+
+    println!("DONE done=1");
+}

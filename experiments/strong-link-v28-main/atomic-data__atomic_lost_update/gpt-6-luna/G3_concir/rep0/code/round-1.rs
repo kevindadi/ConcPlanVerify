@@ -1,0 +1,54 @@
+use std::sync::atomic::{AtomicI32, Ordering};
+use std::thread;
+
+static c: AtomicI32 = AtomicI32::new(0);
+
+fn w1() {
+    loop {
+        let expected = c.load(Ordering::SeqCst);
+        let desired = expected + 1;
+        let observed = match c.compare_exchange(
+            expected,
+            desired,
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+        ) {
+            Ok(_) => expected,
+            Err(actual) => actual,
+        };
+
+        if observed == expected {
+            return;
+        }
+    }
+}
+
+fn w2() {
+    loop {
+        let expected = c.load(Ordering::SeqCst);
+        let desired = expected + 1;
+        let observed = match c.compare_exchange(
+            expected,
+            desired,
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+        ) {
+            Ok(_) => expected,
+            Err(actual) => actual,
+        };
+
+        if observed == expected {
+            return;
+        }
+    }
+}
+
+fn main() {
+    let t1 = thread::spawn(move || w1());
+    let t2 = thread::spawn(move || w2());
+
+    t1.join().unwrap();
+    t2.join().unwrap();
+
+    println!("DONE done=1");
+}

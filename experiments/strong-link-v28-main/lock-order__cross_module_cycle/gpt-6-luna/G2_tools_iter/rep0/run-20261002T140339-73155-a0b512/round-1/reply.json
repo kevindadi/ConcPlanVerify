@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nmod first {\n    use std::sync::Mutex;\n\n    // The first module owns resource a.\n    #[allow(non_upper_case_globals)]\n    pub static a: Mutex<()> = Mutex::new(());\n\n    pub fn t1() {\n        // t1 also depends on resource b, owned by the second module.\n        let guard_a = a.lock().unwrap();\n        let guard_b = crate::second::b.lock().unwrap();\n\n        // Work while holding both resources.\n        drop(guard_b);\n        drop(guard_a);\n    }\n}\n\nmod second {\n    use std::sync::Mutex;\n\n    // The second module owns resource b.\n    #[allow(non_upper_case_globals)]\n    pub static b: Mutex<()> = Mutex::new(());\n\n    pub fn t2() {\n        // t2 also depends on resource a, owned by the first module.\n        // Both tasks acquire resources in the same order: a, then b.\n        let guard_a = crate::first::a.lock().unwrap();\n        let guard_b = b.lock().unwrap();\n\n        // Work while holding both resources.\n        drop(guard_b);\n        drop(guard_a);\n    }\n}\n\nfn main() {\n    let t1 = std::thread::spawn(first::t1);\n    let t2 = std::thread::spawn(second::t2);\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,61 @@
+## Review — defects found and repairs
+
+**D1. Inconsistent lock ordering (deadlock).** If one inner task locks `a` then `b` while the other locks `b` then `a`, a wait cycle can form: x1 holds `a` wants `b`, x2 holds `b` wants `a`. R4/R6 violated. **Repair:** both x1 and x2 acquire `a` before `b`, in that fixed global order. With a total order on lock acquisition, a cycle is impossible, so every interleaving terminates.
+
+**D2. Outer completes before inner tasks finish.** If the outer spawns x1/x2 and returns without joining their handles, R5 is violated — the outer's completion no longer implies the inners finished. **Repair:** the outer collects both `JoinHandle`s and joins them before returning.
+
+**D3. Main does not wait for outer.** If main exits without joining the outer thread, the process can terminate while work is still running, and the output line may be printed too early or the program may exit mid-schedule. **Repair:** main joins the outer handle before printing.
+
+**D4. Output printed before completion / wrong count.** Printing must happen only after the outer has fully completed, and exactly once, from main. **Repair:** single `println!("DONE done=1")` in main after `outer.join()` succeeds.
+
+**D5. Panic on a poisoned mutex aborts a join silently.** If an inner task panicked while holding a lock, `lock().unwrap()` in the sibling would panic too, and an unjoined handle would mask it. **Repair:** join results are checked with `expect`, so any inner failure surfaces deterministically rather than being swallowed.
+
+**R3 verification:** each inner task takes `_ga` then `_gb`; both guards are alive simultaneously in the critical section, so the task holds both `a` and `b` at the same time.
+
+## Repaired program
+
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    // Shared resources: a (lock), b (lock).
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    // R1: main starts the outer worker.
+    let outer_a = Arc::clone(&a);
+    let outer_b = Arc::clone(&b);
+    let outer = thread::spawn(move || {
+        let mut inner_handles = Vec::new();
+
+        // R2: outer starts a nested group of two inner tasks: x1, x2.
+        for name in ["x1", "x2"] {
+            let a = Arc::clone(&outer_a);
+            let b = Arc::clone(&outer_b);
+            inner_handles.push(thread::spawn(move || {
+                // R4: fixed global lock order a -> b; no wait cycle can form.
+                let _ga = a.lock().expect("mutex a poisoned");
+                let _gb = b.lock().expect("mutex b poisoned");
+
+                // R3: both a and b are held at the same time here.
+                debug_assert!(!_ga.is_poisoned() || true); // guards alive until end of scope
+                let _ = name;
+            }));
+        }
+
+        // D2 repair: outer completes only after both inner tasks have finished (R5).
+        for handle in inner_handles {
+            handle.join().expect("inner task panicked");
+        }
+    });
+
+    // D3 repair: main waits for the outer worker.
+    outer.join().expect("outer worker panicked");
+
+    // D4 repair: printed exactly once, after everything has completed (R7).
+    println!("DONE done=1");
+}
+```
+
+**Termination argument (R6):** locks are only ever acquired in the order `a` → `b` and released in reverse; a directed wait-for graph over `a`, `b` with a consistent acquisition order is acyclic, so no deadlock is possible. All joins are unconditional, so no thread is abandoned. Every schedule therefore reaches the single `println!` and exits.

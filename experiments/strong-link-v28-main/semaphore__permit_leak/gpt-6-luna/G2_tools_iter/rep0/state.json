@@ -1,0 +1,12 @@
+{
+  "fingerprint": "167e031dd52647c8877c16bae95d8fb83c3aceb65c5dde6f01635c1fcebc8c91",
+  "calls": [
+    {
+      "system": "Revise the Rust program using the tool feedback.",
+      "user": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.\nR2. Both worker threads share one counting permit pool that begins with exactly one permit.\nR3. A worker must hold a permit while it performs its work, so the two workers never work at the same time.\nR4. Each worker acquires one permit, performs its work, and must release that permit before it finishes.\nR5. While a worker waits for the permit, the worker holding it must remain able to release it so the waiting worker can eventually proceed.\nR6. Every possible schedule and interleaving of the two workers must terminate.\nR7. The program must print exactly the line `DONE permits=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2.\n- Shared resources: s (semaphore).\n\n\nOutput the complete Rust program.",
+      "response": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\n\nstruct Semaphore {\n    permits: Mutex<usize>,\n    available: Condvar,\n}\n\nimpl Semaphore {\n    fn new(permits: usize) -> Self {\n        Self {\n            permits: Mutex::new(permits),\n            available: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            permits = self.available.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        *permits += 1;\n        self.available.notify_one();\n    }\n}\n\nfn w1(s: Arc<Semaphore>) {\n    s.acquire();\n    let _work = ();\n    s.release();\n}\n\nfn w2(s: Arc<Semaphore>) {\n    s.acquire();\n    let _work = ();\n    s.release();\n}\n\nfn main() {\n    let s = Arc::new(Semaphore::new(1));\n\n    let worker1 = {\n        let s = Arc::clone(&s);\n        std::thread::spawn(move || w1(s))\n    };\n    let worker2 = {\n        let s = Arc::clone(&s);\n        std::thread::spawn(move || w2(s))\n    };\n\n    worker1.join().unwrap();\n    worker2.join().unwrap();\n\n    println!(\"DONE permits={}\", *s.permits.lock().unwrap());\n}\n```",
+      "response_model": "gpt-6-luna",
+      "snapshot_sha256": "0048c3ebb2e2b87993a5f35d20aba845e51785ffcddac96c4656c75c7597835f"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...0261002T133704-73155-c5a855/round-1/probe/target/miri/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+warning: extern crate `concir_sync` is unused in crate `cir_arm_probe`
+  |
+  = help: remove the dependency or add `use concir_sync as _;` to the crate root
+  = note: requested on the command line with `--force-warn unused-crate-dependencies`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:56:73
+   |
+56 | fn notifier(m: Arc<Mutex<bool>>, cv: Arc<Condvar>, g12: Arc<Semaphore>, gN: Arc<Semaphore>) {
+   |                                                                         ^^ help: convert the identifier to snake case: `g_n`
+   |
+   = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:73:9
+   |
+73 |     let gN = Arc::new(Semaphore::new(0));
+   |         ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:89:26
+   |
+89 |         let (m, cv, g12, gN) =
+   |                          ^^ help: convert the identifier to snake case: `g_n`
+
+warning: 4 warnings emitted
+

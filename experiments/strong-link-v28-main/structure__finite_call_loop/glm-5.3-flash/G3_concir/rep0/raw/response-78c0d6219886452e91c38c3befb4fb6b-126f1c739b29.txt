@@ -1,0 +1,44 @@
+```json
+{
+  "program": "sequential_helper_calls",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {"resources": [], "functions": ["main", "helper"]},
+      "requires": {"resources": [], "functions": []},
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "helper",
+          "kind": "normal",
+          "locals": [
+            {"name": "work", "type": "Int", "modeled": true, "init": 0}
+          ],
+          "body": [
+            {"sid": "s1", "kind": "assign_local", "target": "work", "expr": "work + 1"},
+            {"sid": "s2", "kind": "return", "value": "work"}
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "locals": [
+            {"name": "done", "type": "Int", "modeled": true, "init": 0},
+            {"name": "r1", "type": "Int", "modeled": true, "init": 0},
+            {"name": "r2", "type": "Int", "modeled": true, "init": 0}
+          ],
+          "body": [
+            {"sid": "s1", "kind": "call", "func": "main::helper", "args": [], "dst": "r1"},
+            {"sid": "s2", "kind": "call", "func": "main::helper", "args": [], "dst": "r2"},
+            {"sid": "s3", "kind": "assign_local", "target": "done", "expr": "1"},
+            {"sid": "s4", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```

@@ -1,0 +1,99 @@
+## Defect analysis (what a naive version gets wrong)
+
+Before the fix, three classic concurrency defects violate the spec:
+
+1. **Holding the guard lock across the work (violates R5).** If the "semaphore" is just a `Mutex` that the worker keeps locked while doing its work, no other thread can even touch the semaphore state, so a waiting worker can never be woken and a holder can never release. The permit state must be guarded by a short-lived lock, released before the work runs.
+2. **Releasing without notifying (violates R4/R5).** Incrementing the permit count under a mutex but never calling `notify_one` leaves a blocked waiter asleep forever — a lost-wakeup deadlock on some schedules.
+3. **`if` instead of `while` around the wait (violates R6).** Condvars are subject to spurious wakeups; a single `if *count == 0 { wait }` can let a thread proceed with zero permits. The wait must be re-checked in a loop.
+
+The repaired program below uses a proper counting semaphore: a `Mutex<u32>` permit count plus a `Condvar`, with the lock held only for the instant of acquire/release — never during the worker's critical section.
+
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+/// Counting semaphore: `permits` permits, guarded by a mutex that is
+/// held only while reading/updating the count — never while a worker
+/// performs its work (R5).
+struct Semaphore {
+    permits: Mutex<u32>,
+    cond: Condvar,
+}
+
+impl Semaphore {
+    fn new(n: u32) -> Self {
+        Semaphore {
+            permits: Mutex::new(n),
+            cond: Condvar::new(),
+        }
+    }
+
+    /// Acquire one permit, blocking until one is available.
+    fn acquire(&self) {
+        // Lock is taken only for the check/decrement, then dropped.
+        let mut count = self.permits.lock().unwrap();
+        // `while`, not `if`: re-check after every wakeup so spurious
+        // wakeups and racing releasers cannot let us run with 0 permits (R6).
+        while *count == 0 {
+            // wait() atomically releases the mutex and sleeps, so a
+            // permit holder can still acquire the lock and release (R5).
+            count = self.cond.wait(count).unwrap();
+        }
+        *count -= 1;
+        // Mutex guard dropped here — before any work is done.
+    }
+
+    /// Release one permit and wake a waiting worker, if any.
+    fn release(&self) {
+        let mut count = self.permits.lock().unwrap();
+        *count += 1;
+        // Notify while holding the lock: no lost wakeup between the
+        // count increment and the waiter's re-check (R4, R5).
+        self.cond.notify_one();
+    }
+}
+
+fn worker(name: &'static str, s: Arc<Semaphore>) {
+    s.acquire();
+    // Critical section: at most two workers are here simultaneously (R4).
+    // The semaphore's internal mutex is NOT held here (R5).
+    println!("{} working", name);
+    s.release();
+    // Worker finishes after releasing (R3).
+}
+
+fn main() {
+    // Shared permit pool with exactly two permits (R2).
+    let s = Arc::new(Semaphore::new(2));
+
+    // Supervising task: launch w1, w2, w3 and wait for all of them (R1).
+    let s1 = Arc::clone(&s);
+    let s2 = Arc::clone(&s);
+    let s3 = Arc::clone(&s);
+
+    let h1 = thread::spawn(move || worker("w1", s1));
+    let h2 = thread::spawn(move || worker("w2", s2));
+    let h3 = thread::spawn(move || worker("w3", s3));
+
+    // Joining all three guarantees every schedule terminates (R6):
+    // a waiting worker is always woken by a holder's release+notify,
+    // and the supervisor never exits before the workers do.
+    h1.join().unwrap();
+    h2.join().unwrap();
+    h3.join().unwrap();
+
+    // All workers finished; the run is done.
+    let done = 1;
+    println!("DONE done={}", done); // exactly `DONE done=1` (R7)
+}
+```
+
+### Why every requirement holds
+
+- **R1:** `main` is the supervisor; it spawns the three workers and joins each handle.
+- **R2:** One `Arc<Semaphore>` initialized with `2` is shared by all workers.
+- **R3:** Each worker calls `acquire`, does its work, then `release`, then returns.
+- **R4:** `acquire` decrements only from a nonzero count, so at most two workers are inside the critical section; the third blocks in `cond.wait` until a `release` increments and notifies.
+- **R5:** The permit mutex is never held during work; `wait` releases it while sleeping, and `release` locks, increments, and notifies — a holder can always release a waiter to progress.
+- **R6:** The `while` re-check defeats spurious wakeups; `notify_one` on every release defeats lost wakeups; joining all threads means no schedule can leave a worker stranded.
+- **R7:** After all joins, the program prints exactly `DONE done=1` and exits.

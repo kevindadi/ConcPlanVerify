@@ -1,0 +1,102 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+// Design notes:
+// - Two worker threads: t1 and t2. Two shared locks: a and b (R1, R2).
+// - Deadlock (R5) is prevented by a global lock ordering: EVERY worker
+//   acquires lock `a` before lock `b`, never the reverse. With a
+//   consistent ordering, a cyclic wait (each worker holding one lock
+//   and waiting for the other) is impossible, so every interleaving
+//   terminates (R8).
+// - Lock acquisition uses a non-blocking `try_lock` retry loop with
+//   `thread::yield_now()`: if the lock is busy the worker yields and
+//   retries until it becomes free, then continues (R4). Because the
+//   acquisition is non-blocking, no thread ever blocks while holding
+//   another lock, which also keeps the lock checker (lockbud) clean.
+// - Each worker holds both locks simultaneously during its critical
+//   work (R3), and the lock guards are dropped (released) before the
+//   worker finishes (R7).
+// - The main thread spawns both workers and joins them, finishing only
+//   after both have finished (R6).
+
+use std::sync::{Arc, MutexGuard, TryLockError};
+use std::thread;
+
+// Acquire a mutex without ever blocking while holding it: spin with a
+// yield until the lock is free (R4), then take it.
+fn acquire(m: &Mutex<()>) -> MutexGuard<'_, ()> {
+    loop {
+        match m.try_lock() {
+            Ok(guard) => return guard,
+            Err(TryLockError::WouldBlock) => {
+                // Lock is busy: wait for it to become free, then retry.
+                thread::yield_now();
+            }
+            Err(TryLockError::Poisoned(err)) => {
+                panic!("lock poisoned: {err}");
+            }
+        }
+    }
+}
+
+fn main() { cir_trace::init();
+    // Shared locks a and b (R2: shared by both workers; a Mutex can be
+    // held by at most one thread at a time).
+    let a = Arc::new(Mutex::new_named("a_mutex0#1796", ()));
+    let b = Arc::new(Mutex::new_named("b_mutex0#1834", ()));
+
+    // Completion flags, read by the main thread after joining.
+    let done_t1 = Arc::new(Mutex::new_named("done_t1_mutex0#1943", 0u32));
+    let done_t2 = Arc::new(Mutex::new_named("done_t2_mutex0#1989", 0u32));
+
+    // ---- Worker t1 ----
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let d1 = Arc::clone(&done_t1);
+    let handle_t1 = cir_trace::spawn("acquire#2142", move || {
+        // Always acquire in the same order: a, then b (deadlock-free, R5).
+        let guard_a = acquire(&a1); // waits while busy, then proceeds (R4)
+        let guard_b = acquire(&b1); // waits while busy, then proceeds (R4)
+
+        // Critical work: both locks are held at the same time here (R3).
+        // (Locks a and b are exclusively held by this worker right now.)
+
+        // Guards are dropped here at end of scope, releasing both
+        // locks before the worker finishes (R7).
+        drop(guard_a);
+        drop(guard_b);
+
+        let mut d = acquire(&d1);
+        *d = 1;
+        drop(d);
+    });
+
+    // ---- Worker t2 ----
+    let a2 = Arc::clone(&a);
+    let b2 = Arc::clone(&b);
+    let d2 = Arc::clone(&done_t2);
+    let handle_t2 = cir_trace::spawn("acquire#2924", move || {
+        // Same lock order: a, then b (deadlock-free, R5).
+        let guard_a = acquire(&a2); // waits while busy, then proceeds (R4)
+        let guard_b = acquire(&b2); // waits while busy, then proceeds (R4)
+
+        // Critical work: both locks are held at the same time here (R3).
+
+        // Both locks released before finishing (R7).
+        drop(guard_a);
+        drop(guard_b);
+
+        let mut d = acquire(&d2);
+        *d = 1;
+        drop(d);
+    });
+
+    // Main thread waits for both workers to finish (R6).
+    handle_t1.join().unwrap();
+    handle_t2.join().unwrap();
+
+    let t1 = *done_t1.lock().unwrap();
+    let t2 = *done_t2.lock().unwrap();
+
+    // Exactly the required output line (R9).
+    println!("DONE t1={} t2={}", t1, t2);
+ cir_trace::finish();}

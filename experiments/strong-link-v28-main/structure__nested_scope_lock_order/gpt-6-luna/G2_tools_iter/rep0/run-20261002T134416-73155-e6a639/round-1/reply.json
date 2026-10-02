@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn x1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {\n    let _a_guard = a.lock().unwrap();\n    let _b_guard = b.lock().unwrap();\n}\n\nfn x2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {\n    let _a_guard = a.lock().unwrap();\n    let _b_guard = b.lock().unwrap();\n}\n\nfn outer(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {\n    let x1_a = Arc::clone(&a);\n    let x1_b = Arc::clone(&b);\n    let x2_a = Arc::clone(&a);\n    let x2_b = Arc::clone(&b);\n\n    let task_x1 = thread::spawn(move || x1(x1_a, x1_b));\n    let task_x2 = thread::spawn(move || x2(x2_a, x2_b));\n\n    task_x1.join().unwrap();\n    task_x2.join().unwrap();\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let worker = thread::spawn(move || outer(a, b));\n    worker.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

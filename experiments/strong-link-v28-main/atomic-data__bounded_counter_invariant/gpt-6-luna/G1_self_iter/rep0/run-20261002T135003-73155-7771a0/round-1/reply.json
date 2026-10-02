@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\n#[derive(Clone, Copy)]\nenum Counter {\n    Zero,\n    One,\n    Two,\n}\n\nimpl Counter {\n    fn increment(&mut self) {\n        *self = match *self {\n            Counter::Zero => Counter::One,\n            Counter::One => Counter::Two,\n            Counter::Two => unreachable!(\"the counter cannot exceed two\"),\n        };\n    }\n}\n\nfn w1(c: Arc<Mutex<Counter>>) {\n    let mut m = c.lock().expect(\"counter lock poisoned\");\n    m.increment();\n}\n\nfn w2(c: Arc<Mutex<Counter>>) {\n    let mut m = c.lock().expect(\"counter lock poisoned\");\n    m.increment();\n}\n\nfn main() {\n    let c = Arc::new(Mutex::new(Counter::Zero));\n\n    let c1 = Arc::clone(&c);\n    let c2 = Arc::clone(&c);\n\n    let h1 = thread::spawn(move || w1(c1));\n    let h2 = thread::spawn(move || w2(c2));\n\n    h1.join().expect(\"w1 panicked\");\n    h2.join().expect(\"w2 panicked\");\n\n    println!(\"DONE done=1\");\n}\n```"
+}

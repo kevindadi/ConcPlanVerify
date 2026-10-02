@@ -1,0 +1,141 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. A main task starts three worker roles that share a single permit, and each role may have up to two activations running at once. [U]
+R2. Each activation holds the single permit while it does its work and releases it afterwards. [U]
+R3. At most one activation may hold the permit at any moment.
+R4. An activation that cannot obtain the permit waits until the permit becomes available.
+R5. Every schedule and interleaving must terminate.
+R6. All three worker roles complete.
+R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2, w3.
+- Shared resources: s (semaphore).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+struct State {
+    next_ticket: u64,
+    serving: u64,
+}
+
+struct Semaphore {
+    state: Mutex<State>,
+    changed: Condvar,
+}
+
+struct Permit<'a> {
+    semaphore: &'a Semaphore,
+}
+
+impl Semaphore {
+    fn new() -> Self {
+        Self {
+            state: Mutex::new(State {
+                next_ticket: 0,
+                serving: 0,
+            }),
+            changed: Condvar::new(),
+        }
+    }
+
+    fn acquire(&self) -> Permit<'_> {
+        let mut state = self.state.lock().unwrap();
+        let ticket = state.next_ticket;
+        state.next_ticket += 1;
+
+        while state.serving != ticket {
+            state = self.changed.wait(state).unwrap();
+        }
+
+        drop(state);
+        Permit { semaphore: self }
+    }
+}
+
+impl Drop for Permit<'_> {
+    fn drop(&mut self) {
+        let mut state = self.semaphore.state.lock().unwrap();
+        state.serving += 1;
+        drop(state);
+        self.semaphore.changed.notify_all();
+    }
+}
+
+fn activation(s: &Semaphore) {
+    let _permit = s.acquire();
+
+    // Finite work performed while holding the permit.
+    for _ in 0..1000 {
+        std::hint::spin_loop();
+    }
+}
+
+fn run_role(s: Arc<Semaphore>) {
+    let first = {
+        let s = Arc::clone(&s);
+        thread::spawn(move || activation(&s))
+    };
+    let second = {
+        let s = Arc::clone(&s);
+        thread::spawn(move || activation(&s))
+    };
+
+    let first_result = first.join();
+    let second_result = second.join();
+
+    first_result.expect("activation panicked");
+    second_result.expect("activation panicked");
+}
+
+fn w1(s: Arc<Semaphore>) {
+    run_role(s);
+}
+
+fn w2(s: Arc<Semaphore>) {
+    run_role(s);
+}
+
+fn w3(s: Arc<Semaphore>) {
+    run_role(s);
+}
+
+fn main() {
+    let s = Arc::new(Semaphore::new());
+
+    let h1 = {
+        let s = Arc::clone(&s);
+        thread::spawn(move || w1(s))
+    };
+    let h2 = {
+        let s = Arc::clone(&s);
+        thread::spawn(move || w2(s))
+    };
+    let h3 = {
+        let s = Arc::clone(&s);
+        thread::spawn(move || w3(s))
+    };
+
+    h1.join().expect("w1 panicked");
+    h2.join().expect("w2 panicked");
+    h3.join().expect("w3 panicked");
+
+    println!("DONE done=1");
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

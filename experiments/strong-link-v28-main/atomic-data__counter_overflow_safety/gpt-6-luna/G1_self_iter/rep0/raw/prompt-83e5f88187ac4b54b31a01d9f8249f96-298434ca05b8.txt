@@ -1,0 +1,91 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.
+R2. Both worker threads share a single integer counter that is declared to range from zero to two and starts at zero.
+R3. Each worker adds one to the shared counter only when doing so keeps the value within the required upper limit.
+R4. A worker must hold the mutual-exclusion lock whenever it reads or writes the shared counter, so the two workers never update it at the same time.
+R5. In every state that can occur, the counter never exceeds one, even though its declared range allows up to two.
+R6. Every possible schedule and interleaving of the two workers must terminate.
+R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2.
+- Shared resources: m (lock), c (shared variable).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+// c is constrained to the declared range 0..=2.
+const DECLARED_MAX: u8 = 2;
+// Workers use the stricter limit so c can never exceed one.
+const EFFECTIVE_MAX: u8 = 1;
+
+struct Counter(u8);
+
+impl Counter {
+    fn zero() -> Self {
+        Self(0)
+    }
+
+    fn value(&self) -> u8 {
+        self.0
+    }
+
+    fn increment_if_below(&mut self, upper: u8) {
+        assert!(upper <= DECLARED_MAX);
+        assert!(self.0 <= DECLARED_MAX);
+
+        if self.0 < upper {
+            self.0 += 1;
+        }
+    }
+}
+
+struct Shared {
+    c: Counter,
+}
+
+fn worker(m: Arc<Mutex<Shared>>) {
+    let mut shared = m.lock().expect("mutex poisoned");
+    shared.c.increment_if_below(EFFECTIVE_MAX);
+}
+
+fn w1(m: Arc<Mutex<Shared>>) {
+    worker(m);
+}
+
+fn w2(m: Arc<Mutex<Shared>>) {
+    worker(m);
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(Shared { c: Counter::zero() }));
+
+    let m1 = Arc::clone(&m);
+    let t1 = thread::spawn(move || w1(m1));
+
+    let m2 = Arc::clone(&m);
+    let t2 = thread::spawn(move || w2(m2));
+
+    t1.join().expect("w1 panicked");
+    t2.join().expect("w2 panicked");
+
+    let done = m.lock().expect("mutex poisoned").c.value();
+    println!("DONE done={done}");
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

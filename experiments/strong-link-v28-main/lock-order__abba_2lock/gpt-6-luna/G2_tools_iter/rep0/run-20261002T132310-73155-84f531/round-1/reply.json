@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{\n    atomic::{AtomicUsize, Ordering},\n    Arc, Mutex,\n};\nuse std::thread;\n\nfn t1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>, count: Arc<AtomicUsize>) {\n    let _a_guard = a.lock().unwrap();\n    let _b_guard = b.lock().unwrap();\n    count.fetch_add(1, Ordering::SeqCst);\n}\n\nfn t2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>, count: Arc<AtomicUsize>) {\n    let _a_guard = a.lock().unwrap();\n    let _b_guard = b.lock().unwrap();\n    count.fetch_add(1, Ordering::SeqCst);\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n    let t1_count = Arc::new(AtomicUsize::new(0));\n    let t2_count = Arc::new(AtomicUsize::new(0));\n\n    let worker_t1 = {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        let count = Arc::clone(&t1_count);\n        thread::spawn(move || t1(a, b, count))\n    };\n\n    let worker_t2 = {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        let count = Arc::clone(&t2_count);\n        thread::spawn(move || t2(a, b, count))\n    };\n\n    worker_t1.join().unwrap();\n    worker_t2.join().unwrap();\n\n    println!(\n        \"DONE t1={} t2={}\",\n        t1_count.load(Ordering::SeqCst),\n        t2_count.load(Ordering::SeqCst)\n    );\n}\n```"
+}

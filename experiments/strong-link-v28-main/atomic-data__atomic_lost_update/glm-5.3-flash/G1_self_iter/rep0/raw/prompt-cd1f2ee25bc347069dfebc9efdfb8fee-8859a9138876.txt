@@ -1,0 +1,88 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.
+R2. Both worker threads share a single atomic counter that starts at zero.
+R3. Each worker adds exactly one to the shared counter, so once both have finished the counter equals two.
+R4. Each worker updates the counter with an atomic read-modify-write retry loop, so a competing update can never be silently lost.
+R5. A failed update attempt must be retried rather than abandoned, so every worker's increment eventually takes effect.
+R6. From every state that can occur, it must remain possible for the counter to still reach two.
+R7. Each increment appears to happen in a single indivisible step, so no partial update is ever observable.
+R8. Every possible schedule and interleaving of the two workers must terminate.
+R9. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2.
+- Shared resources: c (atomic counter).
+
+
+Current program:
+```rust
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::thread;
+
+// Shared resource: c (atomic counter), starts at zero (R2).
+static C: AtomicUsize = AtomicUsize::new(0);
+
+// Worker body shared by w1 and w2.
+// R4/R5: atomic read-modify-write retry loop; a failed attempt is
+// retried, never abandoned, so every increment eventually lands.
+// R7: compare_exchange is a single indivisible step — no partial
+// update is ever observable.
+// R8: the loop always terminates: each successful CAS is permanent
+// (values only ever increase by 1), so retries are finite.
+fn worker() {
+    loop {
+        let cur = C.load(Ordering::Acquire);
+        let next = cur + 1;
+        match C.compare_exchange_weak(
+            cur,
+            next,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_) => break,   // increment took effect indivisibly
+            Err(_) => continue, // lost the race or spurious failure: retry
+        }
+    }
+}
+
+// R1: main is the supervising task; it launches w1 and w2 and waits
+// for both to finish.
+fn main() {
+    let w1 = thread::Builder::new()
+        .name("w1".to_string())
+        .spawn(worker)
+        .expect("failed to spawn w1");
+
+    let w2 = thread::Builder::new()
+        .name("w2".to_string())
+        .spawn(worker)
+        .expect("failed to spawn w2");
+
+    // Wait for both workers (R1). Joining both also guarantees every
+    // possible interleaving terminates before we proceed (R8).
+    w1.join().expect("w1 panicked");
+    w2.join().expect("w2 panicked");
+
+    // R3/R6: both increments have taken effect, so c == 2 here, and
+    // from every reachable state the counter could still reach 2
+    // (failed CAS attempts are retried, never abandoned).
+    debug_assert_eq!(C.load(Ordering::Acquire), 2);
+
+    // R9: print exactly this line, then exit.
+    println!("DONE done=1");
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nconst C_MAX: u8 = 2;\n\nstruct Counter {\n    c: u8, // Invariant: 0 <= c <= C_MAX.\n}\n\nstruct Shared {\n    m: Mutex<Counter>,\n}\n\nfn w1(shared: Arc<Shared>) {\n    let mut guard = shared.m.lock().unwrap();\n    let next = guard.c.checked_add(1).unwrap();\n    assert!(next <= C_MAX);\n    guard.c = next;\n}\n\nfn w2(shared: Arc<Shared>) {\n    let mut guard = shared.m.lock().unwrap();\n    let next = guard.c.checked_add(1).unwrap();\n    assert!(next <= C_MAX);\n    guard.c = next;\n}\n\nfn main() {\n    let shared = Arc::new(Shared {\n        m: Mutex::new(Counter { c: 0 }),\n    });\n\n    let shared_for_w1 = Arc::clone(&shared);\n    let shared_for_w2 = Arc::clone(&shared);\n\n    let handle_w1 = thread::spawn(move || w1(shared_for_w1));\n    let handle_w2 = thread::spawn(move || w2(shared_for_w2));\n\n    handle_w1.join().unwrap();\n    handle_w2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

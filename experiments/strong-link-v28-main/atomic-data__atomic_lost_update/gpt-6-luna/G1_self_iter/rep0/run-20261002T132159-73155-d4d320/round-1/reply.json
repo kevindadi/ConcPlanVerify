@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::thread;\n\nfn increment(c: &AtomicUsize) {\n    let mut observed = c.load(Ordering::SeqCst);\n\n    loop {\n        match c.compare_exchange(\n            observed,\n            observed + 1,\n            Ordering::SeqCst,\n            Ordering::SeqCst,\n        ) {\n            Ok(_) => break,\n            Err(actual) => observed = actual,\n        }\n    }\n}\n\nfn w1(c: &AtomicUsize) {\n    increment(c);\n}\n\nfn w2(c: &AtomicUsize) {\n    increment(c);\n}\n\nfn main() {\n    let c = AtomicUsize::new(0);\n\n    thread::scope(|s| {\n        let t1 = s.spawn(|| w1(&c));\n        let t2 = s.spawn(|| w2(&c));\n\n        let r1 = t1.join();\n        let r2 = t2.join();\n        r1.unwrap();\n        r2.unwrap();\n    });\n\n    assert_eq!(c.load(Ordering::SeqCst), 2);\n    println!(\"DONE done=1\");\n}\n```"
+}

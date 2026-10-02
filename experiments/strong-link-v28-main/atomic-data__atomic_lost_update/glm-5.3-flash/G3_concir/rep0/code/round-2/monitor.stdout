@@ -1,0 +1,74 @@
+{
+  "binary_sha256": "2b59d7df842dde2ac2e275080c61c64d41a0a5e723eb1e0f2f4e5376a4d67694",
+  "bounded": true,
+  "events": 306,
+  "git_rev": "a35dc867d6327c772d48bd7c0473a6606fcc467a",
+  "properties": [
+    {
+      "detail": "decided by behavior (hang/timeout) and Miri",
+      "id": "no-deadlock",
+      "kind": "deadlock_free",
+      "req": [
+        "R4",
+        "R5",
+        "R8"
+      ],
+      "source": "properties",
+      "status": "deferred"
+    },
+    {
+      "detail": "property main::c: expected value 2; no value event observed for carrier main::c (unsupported binding or missing observation)",
+      "id": "both-increments",
+      "kind": "always_reachable",
+      "req": [
+        "R2",
+        "R3",
+        "R6"
+      ],
+      "source": "properties",
+      "status": "unsupported"
+    },
+    {
+      "id": "main::w1 completes",
+      "kind": "reachable",
+      "req": [
+        "R1",
+        "R8"
+      ],
+      "source": "preserved",
+      "status": "PASS_bounded"
+    },
+    {
+      "id": "main::w2 completes",
+      "kind": "reachable",
+      "req": [
+        "R1",
+        "R8"
+      ],
+      "source": "preserved",
+      "status": "PASS_bounded"
+    },
+    {
+      "detail": "property main::c: expected value 2; no value event observed for carrier main::c (unsupported binding or missing observation)",
+      "id": "main::c == 2",
+      "kind": "reachable",
+      "req": [
+        "R3",
+        "R6",
+        "R7"
+      ],
+      "source": "preserved",
+      "status": "unsupported"
+    }
+  ],
+  "resource_map": {
+    "c#1216": null,
+    "w1#1338": "main::w1",
+    "w2#1462": "main::w2"
+  },
+  "status": "ok",
+  "traces": 32,
+  "unmapped_resources": [
+    "c#1216"
+  ]
+}

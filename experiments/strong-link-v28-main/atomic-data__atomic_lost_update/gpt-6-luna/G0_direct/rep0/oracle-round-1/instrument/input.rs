@@ -1,0 +1,45 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::thread;
+
+fn increment(c: &AtomicUsize) {
+    let mut current = c.load(Ordering::Relaxed);
+
+    loop {
+        match c.compare_exchange(
+            current,
+            current + 1,
+            Ordering::SeqCst,
+            Ordering::Relaxed,
+        ) {
+            Ok(_) => return,
+            Err(actual) => current = actual,
+        }
+    }
+}
+
+fn w1(c: Arc<AtomicUsize>) {
+    increment(&c);
+}
+
+fn w2(c: Arc<AtomicUsize>) {
+    increment(&c);
+}
+
+fn main() {
+    let c = Arc::new(AtomicUsize::new(0));
+
+    let t1 = {
+        let c = Arc::clone(&c);
+        thread::spawn(move || w1(c))
+    };
+    let t2 = {
+        let c = Arc::clone(&c);
+        thread::spawn(move || w2(c))
+    };
+
+    t1.join().unwrap();
+    t2.join().unwrap();
+
+    println!("DONE done=1");
+}

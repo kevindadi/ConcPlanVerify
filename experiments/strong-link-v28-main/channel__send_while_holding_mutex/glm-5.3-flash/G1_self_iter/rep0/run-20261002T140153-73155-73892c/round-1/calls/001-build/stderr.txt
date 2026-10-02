@@ -1,0 +1,46 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20261002T140153-73155-73892c/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0425]: cannot find function `ch1_rx_placeholder` in this scope
+  --> src/main.rs:46:34
+   |
+46 |         let (rx1, tx2) = ch1_zip(ch1_rx_placeholder(), ch2); // placeholder, replaced below
+   |                                  ^^^^^^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `ch1_zip` in this scope
+  --> src/main.rs:46:26
+   |
+46 |         let (rx1, tx2) = ch1_zip(ch1_rx_placeholder(), ch2); // placeholder, replaced below
+   |                          ^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `ch1_recv_side` in this scope
+  --> src/main.rs:56:33
+   |
+56 |         let (_tx_unused, rx1) = ch1_recv_side();
+   |                                 ^^^^^^^^^^^^^ not found in this scope
+
+error[E0425]: cannot find function `ch2_send_side` in this scope
+  --> src/main.rs:57:33
+   |
+57 |         let (tx2, _rx_unused) = ch2_send_side();
+   |                                 ^^^^^^^^^^^^^ not found in this scope
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 4 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`

@@ -1,0 +1,52 @@
+use std::sync::atomic::{AtomicI32, Ordering};
+use std::thread;
+
+// Shared resource: c (atomic counter), starts at zero.
+static C: AtomicI32 = AtomicI32::new(0);
+
+// CIR function: main::atomic_add_one
+// write_shared { expr: "c + 1", resource: "main::c" }
+// Encoded as an atomic read-modify-write retry loop: a failed
+// compare_exchange is retried, never abandoned, so the increment
+// always takes effect and is indivisible.
+fn atomic_add_one() {
+    loop {
+        let current = C.load(Ordering::SeqCst);
+        match C.compare_exchange(
+            current,
+            current + 1,
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+        ) {
+            Ok(_) => break,
+            Err(_) => {
+                // Failed update attempt: retry rather than abandon.
+                continue;
+            }
+        }
+    }
+}
+
+// CIR function: main::w1
+fn w1() {
+    atomic_add_one();
+}
+
+// CIR function: main::w2
+fn w2() {
+    atomic_add_one();
+}
+
+fn main() {
+    // Entry scope: spawn w1 (handle h1), spawn w2 (handle h2),
+    // then join both.
+    let h1 = thread::spawn(move || w1());
+    let h2 = thread::spawn(move || w2());
+
+    h1.join().expect("w1 panicked");
+    h2.join().expect("w2 panicked");
+
+    // After joins, read shared state only to print the terminal line.
+    let _final_value = C.load(Ordering::SeqCst);
+    println!("DONE done=1");
+}

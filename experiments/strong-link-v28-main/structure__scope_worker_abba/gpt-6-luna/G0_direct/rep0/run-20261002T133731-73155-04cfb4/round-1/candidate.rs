@@ -1,0 +1,39 @@
+use std::sync::{Arc, Mutex};
+
+type Shared = Arc<(Mutex<()>, Mutex<()>)>;
+
+fn w1(shared: Shared) {
+    let (a, b) = &*shared;
+    let a_guard = a.lock().unwrap();
+    let b_guard = b.lock().unwrap();
+
+    drop(b_guard);
+    drop(a_guard);
+}
+
+fn w2(shared: Shared) {
+    let (a, b) = &*shared;
+    let a_guard = a.lock().unwrap();
+    let b_guard = b.lock().unwrap();
+
+    drop(b_guard);
+    drop(a_guard);
+}
+
+fn main() {
+    let shared: Shared = Arc::new((Mutex::new(()), Mutex::new(())));
+
+    let worker1 = {
+        let shared = Arc::clone(&shared);
+        std::thread::spawn(move || w1(shared))
+    };
+    let worker2 = {
+        let shared = Arc::clone(&shared);
+        std::thread::spawn(move || w2(shared))
+    };
+
+    worker1.join().unwrap();
+    worker2.join().unwrap();
+
+    println!("DONE done=1");
+}
