@@ -1,0 +1,15 @@
+use std::thread;
+
+fn worker() {}
+
+fn main() {
+    let mut i = 0;
+
+    while i < 2 {
+        let worker_handle = thread::spawn(move || worker());
+        worker_handle.join().unwrap();
+        i = i + 1;
+    }
+
+    println!("DONE done=1");
+}

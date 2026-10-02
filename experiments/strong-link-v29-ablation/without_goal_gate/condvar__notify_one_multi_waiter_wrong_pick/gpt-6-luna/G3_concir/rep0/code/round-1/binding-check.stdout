@@ -1,0 +1,62 @@
+{
+  "attributes": [
+    {
+      "construction_site": "885",
+      "evidence": "literal_initial",
+      "expected": "semaphore_initial",
+      "expected_capacity": 0,
+      "observed": 2,
+      "observed_capacity": 2,
+      "reason": "initial count of the used construction differs from the CIR",
+      "resource_id": "main::g12",
+      "runtime": "g12_semaphore0#885",
+      "status": "mismatch"
+    },
+    {
+      "construction_site": "917",
+      "evidence": "literal_initial",
+      "expected": "semaphore_initial",
+      "expected_capacity": 0,
+      "observed": 2,
+      "observed_capacity": 2,
+      "reason": "initial count of the used construction differs from the CIR",
+      "resource_id": "main::gN",
+      "runtime": "gN_semaphore0#917",
+      "status": "mismatch"
+    }
+  ],
+  "scope": "identity, channel-capacity attributes, and uncovered sync are separate; a conforming finite trace does not override a capacity conflict or an unknown capacity",
+  "uncovered_sync": [],
+  "unresolved": {},
+  "verified": {
+    "cv_condvar0#852": {
+      "cir": "main::cv",
+      "rule": "exact"
+    },
+    "g12_semaphore0#885": {
+      "cir": "main::g12",
+      "rule": "used-construction"
+    },
+    "gN_semaphore0#917": {
+      "cir": "main::gN",
+      "rule": "used-construction"
+    },
+    "m_mutex0#808": {
+      "cir": "main::m",
+      "rule": "exact"
+    },
+    "notifier#1412": {
+      "cir": "main::notifier",
+      "rule": "spawn-entry"
+    },
+    "w1#1056": {
+      "cir": "main::w1",
+      "rule": "spawn-entry"
+    },
+    "w2#1230": {
+      "cir": "main::w2",
+      "rule": "spawn-entry"
+    }
+  },
+  "violated": {}
+}

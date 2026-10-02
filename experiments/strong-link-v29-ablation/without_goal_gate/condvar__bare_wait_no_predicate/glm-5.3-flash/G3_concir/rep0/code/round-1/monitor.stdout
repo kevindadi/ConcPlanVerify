@@ -1,0 +1,77 @@
+{
+  "binary_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47",
+  "bounded": true,
+  "events": 574,
+  "git_rev": "a35dc867d6327c772d48bd7c0473a6606fcc467a",
+  "properties": [
+    {
+      "detail": "decided by behavior (hang/timeout) and Miri",
+      "id": "no-deadlock",
+      "kind": "deadlock_free",
+      "req": [
+        "R6",
+        "R7"
+      ],
+      "source": "properties",
+      "status": "deferred"
+    },
+    {
+      "id": "ready-set",
+      "kind": "reachability",
+      "req": [
+        "R3",
+        "R4",
+        "R8",
+        "R9"
+      ],
+      "source": "properties",
+      "status": "PASS_bounded"
+    },
+    {
+      "id": "main::waiter completes",
+      "kind": "reachable",
+      "req": [
+        "R1",
+        "R4",
+        "R5",
+        "R6",
+        "R7",
+        "R9"
+      ],
+      "source": "preserved",
+      "status": "PASS_bounded"
+    },
+    {
+      "id": "main::notifier completes",
+      "kind": "reachable",
+      "req": [
+        "R1",
+        "R3",
+        "R7"
+      ],
+      "source": "preserved",
+      "status": "PASS_bounded"
+    },
+    {
+      "id": "main::ready == True",
+      "kind": "reachable",
+      "req": [
+        "R3",
+        "R8"
+      ],
+      "source": "preserved",
+      "status": "PASS_bounded"
+    }
+  ],
+  "resource_map": {
+    "cv_condvar0#473": null,
+    "m_mutex0#429": "main::m",
+    "notifier#752": "main::notifier",
+    "waiter#578": "main::waiter"
+  },
+  "status": "ok",
+  "traces": 32,
+  "unmapped_resources": [
+    "cv_condvar0#473"
+  ]
+}

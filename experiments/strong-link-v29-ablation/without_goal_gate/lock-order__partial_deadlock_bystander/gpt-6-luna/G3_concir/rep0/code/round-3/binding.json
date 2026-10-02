@@ -1,0 +1,69 @@
+{
+  "mapping": {
+    "a#1364": "main::a",
+    "b#1566": "main::b",
+    "bystander#1643": "main::bystander"
+  },
+  "provenance": {
+    "mapping": {
+      "a#1364": "main::a",
+      "b#1566": "main::b",
+      "bystander#1643": "main::bystander"
+    },
+    "ambiguous": [
+      {
+        "rust": "lock_a_mutex0#950",
+        "candidates": [],
+        "reason": "no structural evidence",
+        "site": "950"
+      },
+      {
+        "rust": "lock_b_mutex0#992",
+        "candidates": [],
+        "reason": "no structural evidence",
+        "site": "992"
+      },
+      {
+        "rust": "sa_semaphore0#1071",
+        "reason": "semaphore initial value must come from the single construction that is acquired or released",
+        "site": "1071",
+        "used_constructions": 0
+      },
+      {
+        "rust": "sb_semaphore0#1149",
+        "reason": "semaphore initial value must come from the single construction that is acquired or released",
+        "site": "1149",
+        "used_constructions": 0
+      }
+    ],
+    "violated": {},
+    "source": "rust-cli",
+    "attributes": [
+      {
+        "construction_site": null,
+        "evidence": "absent",
+        "expected": "semaphore_initial",
+        "expected_capacity": 0,
+        "observed": null,
+        "observed_capacity": null,
+        "reason": "no used semaphore construction is bound to this CIR resource",
+        "resource_id": "main::sa",
+        "runtime": null,
+        "status": "unknown"
+      },
+      {
+        "construction_site": null,
+        "evidence": "absent",
+        "expected": "semaphore_initial",
+        "expected_capacity": 0,
+        "observed": null,
+        "observed_capacity": null,
+        "reason": "no used semaphore construction is bound to this CIR resource",
+        "resource_id": "main::sb",
+        "runtime": null,
+        "status": "unknown"
+      }
+    ],
+    "uncovered_sync": []
+  }
+}

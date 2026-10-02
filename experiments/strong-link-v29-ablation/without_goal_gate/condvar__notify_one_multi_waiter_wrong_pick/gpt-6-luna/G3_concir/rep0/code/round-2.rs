@@ -1,0 +1,83 @@
+use concir_sync::Semaphore;
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+fn w1(m: Arc<Mutex<bool>>, cv: Arc<Condvar>, g12: Arc<Semaphore>, gN: Arc<Semaphore>) {
+    let mut proceed = m.lock().unwrap();
+
+    // The available Semaphore API represents a release by returning an acquired permit.
+    let permit = g12.acquire();
+    permit.release();
+
+    while !*proceed {
+        proceed = cv.wait(proceed).unwrap();
+    }
+
+    drop(proceed);
+    drop(gN.acquire());
+}
+
+fn w2(m: Arc<Mutex<bool>>, cv: Arc<Condvar>, g12: Arc<Semaphore>, gN: Arc<Semaphore>) {
+    let mut proceed = m.lock().unwrap();
+
+    // The available Semaphore API represents a release by returning an acquired permit.
+    let permit = g12.acquire();
+    permit.release();
+
+    while !*proceed {
+        proceed = cv.wait(proceed).unwrap();
+    }
+
+    drop(proceed);
+    drop(gN.acquire());
+}
+
+fn notifier(m: Arc<Mutex<bool>>, cv: Arc<Condvar>, g12: Arc<Semaphore>, gN: Arc<Semaphore>) {
+    drop(g12.acquire());
+    drop(g12.acquire());
+
+    let mut proceed = m.lock().unwrap();
+    *proceed = true;
+    cv.notify_all();
+    drop(proceed);
+
+    let permit = gN.acquire();
+    permit.release();
+    let permit = gN.acquire();
+    permit.release();
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(false));
+    let cv = Arc::new(Condvar::new());
+    let g12 = Semaphore::new(2);
+    let gN = Semaphore::new(2);
+
+    let w1_handle = {
+        let m = Arc::clone(&m);
+        let cv = Arc::clone(&cv);
+        let g12 = Arc::clone(&g12);
+        let gN = Arc::clone(&gN);
+        thread::spawn(move || w1(m, cv, g12, gN))
+    };
+    let w2_handle = {
+        let m = Arc::clone(&m);
+        let cv = Arc::clone(&cv);
+        let g12 = Arc::clone(&g12);
+        let gN = Arc::clone(&gN);
+        thread::spawn(move || w2(m, cv, g12, gN))
+    };
+    let notifier_handle = {
+        let m = Arc::clone(&m);
+        let cv = Arc::clone(&cv);
+        let g12 = Arc::clone(&g12);
+        let gN = Arc::clone(&gN);
+        thread::spawn(move || notifier(m, cv, g12, gN))
+    };
+
+    w1_handle.join().unwrap();
+    w2_handle.join().unwrap();
+    notifier_handle.join().unwrap();
+
+    println!("DONE waiters=0");
+}

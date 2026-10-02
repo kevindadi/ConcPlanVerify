@@ -1,0 +1,66 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_goal_gate/lock-order__partial_deadlock_bystander/gpt-6-luna/G3_concir/rep0/code/round-1/source-proj)
+error[E0618]: expected function, found `Arc<std::sync::Mutex<{integer}>>`
+  --> src/main.rs:65:31
+   |
+ 5 | / fn a(
+ 6 | |     a: Arc<Mutex<i32>>,
+ 7 | |     b: Arc<Mutex<()>>,
+ 8 | |     sa_seed: Permit,
+ 9 | |     sb: Arc<Semaphore>,
+10 | | ) {
+   | |_- this function of the same name is available here, but it's shadowed by the local binding
+...
+62 |           let a = Arc::clone(&a);
+   |               - `a` has type `Arc<std::sync::Mutex<{integer}>>`
+...
+65 |           thread::spawn(move || a(a, b, sa_seed, sb))
+   |                                 ^-------------------
+   |                                 |
+   |                                 call expression requires function
+
+error[E0618]: expected function, found `Arc<std::sync::Mutex<()>>`
+  --> src/main.rs:72:31
+   |
+25 | / fn b(
+26 | |     a: Arc<Mutex<i32>>,
+27 | |     b: Arc<Mutex<()>>,
+28 | |     sa: Arc<Semaphore>,
+29 | |     sb_seed: Permit,
+30 | | ) {
+   | |_- this function of the same name is available here, but it's shadowed by the local binding
+...
+70 |           let b = Arc::clone(&b);
+   |               - `b` has type `Arc<std::sync::Mutex<()>>`
+71 |           let sa = Arc::clone(&sa);
+72 |           thread::spawn(move || b(a, b, sa, sb_seed))
+   |                                 ^-------------------
+   |                                 |
+   |                                 call expression requires function
+
+error[E0596]: cannot borrow `a_guard` as mutable, as it is not declared as mutable
+  --> src/main.rs:20:6
+   |
+20 |     *a_guard = 1;
+   |      ^^^^^^^ cannot borrow as mutable
+   |
+help: consider changing this to be mutable
+   |
+18 |     let mut a_guard = a.lock().unwrap();
+   |         +++
+
+error[E0596]: cannot borrow `a_guard` as mutable, as it is not declared as mutable
+  --> src/main.rs:37:6
+   |
+37 |     *a_guard = 1;
+   |      ^^^^^^^ cannot borrow as mutable
+   |
+help: consider changing this to be mutable
+   |
+32 |     let mut a_guard = a.lock().unwrap();
+   |         +++
+
+Some errors have detailed explanations: E0596, E0618.
+For more information about an error, try `rustc --explain E0596`.
+error: could not compile `probe` (bin "probe") due to 4 previous errors

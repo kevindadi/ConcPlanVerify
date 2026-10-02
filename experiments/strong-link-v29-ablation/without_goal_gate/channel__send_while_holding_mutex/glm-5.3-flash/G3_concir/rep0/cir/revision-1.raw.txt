@@ -1,0 +1,93 @@
+```json
+{
+  "program": "rendezvous_exchange",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": ["ch1", "ch2", "m"],
+        "functions": ["main", "s", "r"]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "ch1",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        },
+        {
+          "name": "ch2",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 0
+        },
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "s",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {"name": "got", "type": "Int", "modeled": true, "init": 0}
+          ],
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s2", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s3", "kind": "channel_send", "channel": "main::ch1", "value": "1"},
+            {"sid": "s4", "kind": "channel_recv", "channel": "main::ch2", "dst": "got"},
+            {"sid": "s5", "kind": "return"}
+          ]
+        },
+        {
+          "name": "r",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {"name": "got", "type": "Int", "modeled": true, "init": 0}
+          ],
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "main::m"},
+            {"sid": "s2", "kind": "mutex_unlock", "resource": "main::m"},
+            {"sid": "s3", "kind": "channel_recv", "channel": "main::ch1", "dst": "got"},
+            {"sid": "s4", "kind": "channel_send", "channel": "main::ch2", "value": "1"},
+            {"sid": "s5", "kind": "return"}
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "scope", "funcs": ["main::s", "main::r"]},
+            {"sid": "s2", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+Design notes (not part of the CIR):
+
+- **R1**: `main` starts `main::s` and `main::r` together via a structured `scope` (spawn + join of both), and each role briefly acquires and releases the one shared lock `m` before touching the channels. The `m` mutex was not named among the exact entity names, so it is declared in the same module as `ch1`/`ch2` and used as the single shared lock.
+- **R2**: The exchange happens over the two rendezvous channels (`ch1` and `ch2`, both with `capacity` 0): the sender meets the receiver on `ch1` (s sends, r receives) and again on `ch2` (r sends, s receives), so both roles participate in both rendezvous points.
+- **R3**: Both `s` and `r` release `m` (sids `s2`) **before** any `channel_send`/`channel_recv`. Since a rendezvous send or receive blocks until the peer arrives, neither role can block on a channel while holding the lock the other role needs. The lock is only ever held outside the channel operations, and it is always released on the straight-line path (no lock acquisition can be skipped or held across a wait).
+- **R4**: `main::main` uses `scope`, so it returns only after both `s` and `r` have returned. Each role is straight-line code with a reachable `return`; the only blocking points are the two rendezvous pairs, which are symmetric (s's send on `ch1` matches r's recv on `ch1`; r's send on `ch2` matches s's recv on `ch2`), so every interleaving terminates with both roles finished.
+- **R5 [U]**: The exact `DONE done=1` line is a formatting/output concern marked `[U]`; it is emitted by the later Rust implementation of the roles' completion, not encoded as a CIR call (there is no builtin printing statement in CIR).

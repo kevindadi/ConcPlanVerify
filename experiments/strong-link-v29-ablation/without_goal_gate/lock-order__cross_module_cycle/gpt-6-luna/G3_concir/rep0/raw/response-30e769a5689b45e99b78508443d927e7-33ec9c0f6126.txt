@@ -1,0 +1,38 @@
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn t1(a: Arc<Mutex<()>>) {
+    let a_guard = a.lock().unwrap();
+    let b_guard = other::b.lock().unwrap();
+    drop(b_guard);
+    drop(a_guard);
+}
+
+mod other {
+    use std::sync::{Arc, Mutex};
+
+    pub static b: Mutex<()> = Mutex::new(());
+
+    pub fn t2(a: Arc<Mutex<()>>) {
+        let a_guard = a.lock().unwrap();
+        let b_guard = b.lock().unwrap();
+        drop(b_guard);
+        drop(a_guard);
+    }
+}
+
+fn main() {
+    let a = Arc::new(Mutex::new(()));
+    let t1_a = Arc::clone(&a);
+    let t2_a = Arc::clone(&a);
+
+    let handle1 = thread::spawn(move || t1(t1_a));
+    let handle2 = thread::spawn(move || other::t2(t2_a));
+
+    handle1.join().unwrap();
+    handle2.join().unwrap();
+
+    println!("DONE done=1");
+}
+```

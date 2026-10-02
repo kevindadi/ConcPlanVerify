@@ -1,0 +1,52 @@
+use concir_sync::Semaphore;
+use std::sync::Arc;
+use std::thread;
+
+fn w1(s: &Arc<Semaphore>) {
+    let permit = s.acquire();
+    let mut work: i32 = 0;
+    work = work + 1;
+    let _ = work;
+    permit.release();
+}
+
+fn w2(s: &Arc<Semaphore>) {
+    let permit = s.acquire();
+    let mut work: i32 = 0;
+    work = work + 1;
+    let _ = work;
+    permit.release();
+}
+
+fn w3(s: &Arc<Semaphore>) {
+    let permit = s.acquire();
+    let mut work: i32 = 0;
+    work = work + 1;
+    let _ = work;
+    permit.release();
+}
+
+fn main() {
+    let s = Semaphore::new(1);
+
+    let s1 = Arc::clone(&s);
+    let h1 = thread::spawn(move || {
+        w1(&s1);
+    });
+
+    let s2 = Arc::clone(&s);
+    let h2 = thread::spawn(move || {
+        w2(&s2);
+    });
+
+    let s3 = Arc::clone(&s);
+    let h3 = thread::spawn(move || {
+        w3(&s3);
+    });
+
+    h1.join().expect("w1 panicked");
+    h2.join().expect("w2 panicked");
+    h3.join().expect("w3 panicked");
+
+    println!("DONE done=1");
+}
