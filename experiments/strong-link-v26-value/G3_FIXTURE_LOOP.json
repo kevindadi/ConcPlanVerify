@@ -1,0 +1,584 @@
+{
+  "manual_fixture": true,
+  "not_an_llm_result": true,
+  "rounds": {
+    "atomic": {
+      "round1_wrong": {
+        "action": "repair",
+        "category": "candidate_error",
+        "status": "requirement_failure",
+        "feedback": "monitor requirement not satisfied on both-increments (not_observed), main::c == 2 (not_observed)",
+        "ledger_reasons": [
+          "monitor requirement not satisfied on both-increments (not_observed), main::c == 2 (not_observed)"
+        ],
+        "monitor": {
+          "status": "ok",
+          "properties": [
+            [
+              "no-deadlock",
+              "deferred"
+            ],
+            [
+              "both-increments",
+              "not_observed"
+            ],
+            [
+              "main::w1 completes",
+              "PASS_bounded"
+            ],
+            [
+              "main::w2 completes",
+              "PASS_bounded"
+            ],
+            [
+              "main::c == 2",
+              "not_observed"
+            ]
+          ]
+        },
+        "conform": {
+          "traces": 32,
+          "statuses": {
+            "conformant": 32
+          },
+          "conformant": 32,
+          "violations": [],
+          "first_violation": null
+        },
+        "monitor_has_value": true,
+        "conform_has_value": false,
+        "source_sha256": "8f5c93c51245de544949fae6c43fea5515de3f43449a8c8ef0644fd98773eec5",
+        "cir_sha256": "ff033934f8268b3d9491949980a51ad32af61aea0a987f1a9891fbd26c977ef5",
+        "contract_sha256": "989006ad5869078f9728e51cff2759d01fef579b04fe9a15e51dc9a1c8e94334",
+        "backend_sha256": "8ee39f82f91fd7ba4cff16370f76d2c95008563f1ef1f740164f8b3ce7a0350a",
+        "instrument_sha256": "81f401f01ca0844768000086985e65aa8e9295cd640db1febd2a14b8bb48b1a0",
+        "evidence_path": null
+      },
+      "round2_correct": {
+        "action": "accept",
+        "category": "accepted",
+        "status": "accepted",
+        "feedback": "",
+        "ledger_reasons": [],
+        "monitor": {
+          "status": "ok",
+          "properties": [
+            [
+              "no-deadlock",
+              "deferred"
+            ],
+            [
+              "both-increments",
+              "PASS_bounded"
+            ],
+            [
+              "main::w1 completes",
+              "PASS_bounded"
+            ],
+            [
+              "main::w2 completes",
+              "PASS_bounded"
+            ],
+            [
+              "main::c == 2",
+              "PASS_bounded"
+            ]
+          ]
+        },
+        "conform": {
+          "traces": 32,
+          "statuses": {
+            "conformant": 32
+          },
+          "conformant": 32,
+          "violations": [],
+          "first_violation": null
+        },
+        "monitor_has_value": true,
+        "conform_has_value": false,
+        "source_sha256": "b8558196a8f1a6a6a34aa48a411541735f8c509e10c3c44af2e0f960228c22d2",
+        "cir_sha256": "ff033934f8268b3d9491949980a51ad32af61aea0a987f1a9891fbd26c977ef5",
+        "contract_sha256": "989006ad5869078f9728e51cff2759d01fef579b04fe9a15e51dc9a1c8e94334",
+        "backend_sha256": "8ee39f82f91fd7ba4cff16370f76d2c95008563f1ef1f740164f8b3ce7a0350a",
+        "instrument_sha256": "81f401f01ca0844768000086985e65aa8e9295cd640db1febd2a14b8bb48b1a0",
+        "evidence_path": null
+      },
+      "repaired": true,
+      "value_kept_in_monitor": true,
+      "value_dropped_from_conform": true
+    },
+    "bare": {
+      "round1_wrong": {
+        "action": "repair",
+        "category": "candidate_error",
+        "status": "explicit_failure",
+        "feedback": "Conformance violation at event 1: observed mutex_unlock:main::m, expected one of ['condvar_notify:main::cv', 'mutex_lock:main::m']. The synchronization operations are out of the design's order; replay the CIR statements in order. [detail: no enabled model step matches mutex_unlock on \"main::m\" at event 1]",
+        "ledger_reasons": [
+          "independent conformance violation on a resolved resource"
+        ],
+        "monitor": {
+          "status": "ok",
+          "properties": [
+            [
+              "no-deadlock",
+              "deferred"
+            ],
+            [
+              "ready-set",
+              "not_observed"
+            ],
+            [
+              "main::waiter completes",
+              "PASS_bounded"
+            ],
+            [
+              "main::notifier completes",
+              "PASS_bounded"
+            ],
+            [
+              "main::ready == True",
+              "not_observed"
+            ]
+          ]
+        },
+        "conform": {
+          "traces": 32,
+          "statuses": {
+            "violation": 29,
+            "conformant": 3
+          },
+          "conformant": 3,
+          "violations": [
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            },
+            {
+              "status": "violation",
+              "got": "mutex_unlock:main::m",
+              "resource": "main::m",
+              "event_index": 1,
+              "expected": [
+                "condvar_notify:main::cv",
+                "mutex_lock:main::m"
+              ],
+              "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+              "kind": "violation"
+            }
+          ],
+          "first_violation": {
+            "binary_sha256": "8ee39f82f91fd7ba4cff16370f76d2c95008563f1ef1f740164f8b3ce7a0350a",
+            "coverage": {
+              "sids_seen": 0,
+              "sids_total": 7
+            },
+            "detail": "no enabled model step matches mutex_unlock on \"main::m\" at event 1",
+            "event_index": 1,
+            "events": 5,
+            "expected": [
+              "condvar_notify:main::cv",
+              "mutex_lock:main::m"
+            ],
+            "git_rev": "a35dc867d6327c772d48bd7c0473a6606fcc467a",
+            "got": "mutex_unlock:main::m",
+            "post_join_main_ops": [],
+            "status": "violation",
+            "wrapper_ops": []
+          }
+        },
+        "monitor_has_value": true,
+        "conform_has_value": false,
+        "source_sha256": "d8d94432d5797a53499ba7f504dada546a02deb9b79b5f1bcdb056712216f6d4",
+        "cir_sha256": "557c5829bc342b1bb58b6a3e22ed1db07fe95c70eb8f60b0d9b008228783b3af",
+        "contract_sha256": "9917c289d3138a759f2c7be2606e95afc8e5091e096f4bb5f6805d58abede4ea",
+        "backend_sha256": "8ee39f82f91fd7ba4cff16370f76d2c95008563f1ef1f740164f8b3ce7a0350a",
+        "instrument_sha256": "81f401f01ca0844768000086985e65aa8e9295cd640db1febd2a14b8bb48b1a0",
+        "evidence_path": null
+      },
+      "round2_correct": {
+        "action": "accept",
+        "category": "accepted",
+        "status": "accepted",
+        "feedback": "",
+        "ledger_reasons": [],
+        "monitor": {
+          "status": "ok",
+          "properties": [
+            [
+              "no-deadlock",
+              "deferred"
+            ],
+            [
+              "ready-set",
+              "PASS_bounded"
+            ],
+            [
+              "main::waiter completes",
+              "PASS_bounded"
+            ],
+            [
+              "main::notifier completes",
+              "PASS_bounded"
+            ],
+            [
+              "main::ready == True",
+              "PASS_bounded"
+            ]
+          ]
+        },
+        "conform": {
+          "traces": 32,
+          "statuses": {
+            "conformant": 32
+          },
+          "conformant": 32,
+          "violations": [],
+          "first_violation": null
+        },
+        "monitor_has_value": true,
+        "conform_has_value": false,
+        "source_sha256": "819d0c8a35034d0f76f8226fabfffe67c635199b7b1c7b4d6b38e35bde64b952",
+        "cir_sha256": "557c5829bc342b1bb58b6a3e22ed1db07fe95c70eb8f60b0d9b008228783b3af",
+        "contract_sha256": "9917c289d3138a759f2c7be2606e95afc8e5091e096f4bb5f6805d58abede4ea",
+        "backend_sha256": "8ee39f82f91fd7ba4cff16370f76d2c95008563f1ef1f740164f8b3ce7a0350a",
+        "instrument_sha256": "81f401f01ca0844768000086985e65aa8e9295cd640db1febd2a14b8bb48b1a0",
+        "evidence_path": null
+      },
+      "repaired": true,
+      "value_kept_in_monitor": true,
+      "value_dropped_from_conform": true
+    }
+  }
+}

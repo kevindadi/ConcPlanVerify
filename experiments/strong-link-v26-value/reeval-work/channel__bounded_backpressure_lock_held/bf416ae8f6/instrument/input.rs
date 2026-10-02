@@ -1,0 +1,50 @@
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
+
+fn sender(ch: mpsc::SyncSender<u8>, m: Arc<Mutex<usize>>) {
+    ch.send(1).unwrap();
+
+    {
+        let mut shared = m.lock().unwrap();
+        *shared += 1;
+    } // Release m before the next channel operation.
+
+    ch.send(2).unwrap(); // Waits if ch is still full.
+
+    {
+        let mut shared = m.lock().unwrap();
+        *shared += 1;
+    }
+}
+
+fn receiver(ch: mpsc::Receiver<u8>, m: Arc<Mutex<usize>>) {
+    let _first = ch.recv().unwrap(); // Waits if ch is empty.
+
+    {
+        let mut shared = m.lock().unwrap();
+        *shared += 1;
+    } // Release m before the next channel operation.
+
+    let _second = ch.recv().unwrap();
+
+    {
+        let mut shared = m.lock().unwrap();
+        *shared += 1;
+    }
+}
+
+fn main() {
+    let (ch_sender, ch_receiver) = mpsc::sync_channel(1);
+    let m = Arc::new(Mutex::new(0));
+
+    let sender_m = Arc::clone(&m);
+    let sender_thread = thread::spawn(move || sender(ch_sender, sender_m));
+
+    let receiver_m = Arc::clone(&m);
+    let receiver_thread = thread::spawn(move || receiver(ch_receiver, receiver_m));
+
+    sender_thread.join().unwrap();
+    receiver_thread.join().unwrap();
+
+    println!("DONE done=1");
+}
