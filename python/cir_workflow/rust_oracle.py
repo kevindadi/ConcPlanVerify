@@ -8,8 +8,8 @@ Pipeline per artifact:
 3. native runs (and optionally Miri seeds) each write one ``cir_trace``
    stream under ``CIR_TRACE_OUT``;
 4. ``concir-backend monitor`` checks the contract against the observed states;
-5. resource names are auto-mapped to contract FQNs by kind and declaration
-   order (reference CIR), then requirement coverage is computed.
+5. the shared Rust binding checker establishes resource identities against
+   the reference CIR; unresolved objects are never paired by declaration order.
 
 The result is a *bounded* verdict; the model arm (`G3_concir`) stays the
 exhaustive one.
@@ -65,7 +65,11 @@ def auto_mapping(
     contract: dict[str, Any],
     cir: dict[str, Any],
 ) -> tuple[dict[str, str], dict[str, Any]]:
-    """Map runtime resource names to contract FQNs by kind and declaration order."""
+    """Legacy mapping retained for historical diagnostics only.
+
+    New evaluations use the same structural Rust binding checker as G3. This
+    helper does not establish identity and must not score a new experiment.
+    """
     refs: list[str] = []
     functions: list[str] = []
     _collect_contract_refs(contract, refs, functions)
@@ -202,6 +206,7 @@ def evaluate(
     binary: Path | str | None = None,
     instrument_binary: Path | str | None = None,
     run_timeout: float = 30.0,
+    binding_binary: Path | str | None = None,
 ) -> dict[str, Any]:
     contract = json.loads(Path(contract_path).read_text(encoding="utf-8"))
     cir = json.loads(Path(reference_cir_path).read_text(encoding="utf-8"))
@@ -228,13 +233,25 @@ def evaluate(
     result["behavior_ok"] = behavior_ok
     result["hang"] = hang
 
-    mapping, provenance = auto_mapping(wrapped["resources"], contract, cir)
+    from .binding import bind
+    binding = bind(work_dir / "instrument/resources.json", reference_cir_path,
+                   binary=binding_binary)
+    raw_binding = binding.pop("_raw_stdout", None)
+    (work_dir / "binding-check.stdout").write_text(
+        raw_binding if isinstance(raw_binding, str) else json.dumps(binding), encoding="utf-8")
+    mapping = {name: row["cir"] for name, row in (binding.get("verified") or {}).items()
+               if isinstance(row, dict) and isinstance(row.get("cir"), str)}
+    provenance = {"source": "rust-cli", "policy": "structural-binding-v1",
+                  "unresolved": binding.get("unresolved") or {},
+                  "violated": binding.get("violated") or {},
+                  "attributes": binding.get("attributes") or []}
+    result["binding"] = binding
     (work_dir / "mapping.json").write_text(
         json.dumps({"mapping": mapping, "provenance": provenance}, indent=2) + "\n",
         encoding="utf-8")
     report = bounded_monitor.run_monitor(
         contract_path, traces_dir, resources=work_dir / "instrument/resources.json",
-        mapping=work_dir / "mapping.json", binary=binary)
+        mapping=work_dir / "mapping.json", program=reference_cir_path, binary=binary)
     result["monitor"] = report
     result["mapping"] = mapping
     result["mapping_provenance"] = provenance

@@ -20,7 +20,9 @@ class BindingUnavailable(RuntimeError):
 
 
 def default_binary() -> Path:
-    return REPO.parent / "ConcIR/target/release/bind_check"
+    import os
+    explicit = os.environ.get("CONCIR_BIND_CHECK")
+    return Path(explicit).expanduser().resolve() if explicit else REPO.parent / "ConcIR/target/release/bind_check"
 
 
 def bind(resources_path: Path | str, cir_path: Path | str, *,

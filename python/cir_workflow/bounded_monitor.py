@@ -56,6 +56,7 @@ def run_monitor(
     *,
     resources: str | Path | None = None,
     mapping: str | Path | None = None,
+    program: str | Path | None = None,
     binary: str | Path | None = None,
     timeout: float = 180.0,
 ) -> dict[str, Any]:
@@ -68,6 +69,8 @@ def run_monitor(
         argv += ["--resources", str(resources)]
     if mapping is not None:
         argv += ["--mapping", str(mapping)]
+    if program is not None:
+        argv += ["--program", str(program)]
     proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
     if not proc.stdout.strip():
         raise RuntimeError(f"monitor produced no output (exit {proc.returncode}): "

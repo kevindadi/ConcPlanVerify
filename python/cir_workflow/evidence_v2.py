@@ -674,7 +674,7 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
         reasons.append("independent conformance violation on a resolved resource")
     elif binding_ev["ok"] and attributes == "mismatch":
         verdict = "attribute_conflict"
-        reasons.append("channel capacity conflicts with the CIR resource; "
+        reasons.append("resource attributes conflict with the CIR resource; "
                        "a conforming finite trace does not override it")
     elif requirement_failed:
         verdict = "requirement_failure"
@@ -706,7 +706,7 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
         elif identity["relevant_unresolved"]:
             reasons.append("relevant identity bindings unresolved")
         if attributes == "unknown":
-            reasons.append("channel capacity is unknown; it is not treated as a match")
+            reasons.append("resource attributes are unknown; they are not treated as a match")
         if not monitor_ev["ok"]:
             reasons.append(f"monitor evidence {monitor_ev['reason']}")
         if functional_claim_invalid:

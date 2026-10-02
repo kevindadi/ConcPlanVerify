@@ -1,0 +1,280 @@
+{
+  "binary_sha256": "87cbb6fef69caf25119d81455129e19ca284160f2e9d0e9ffdd357415c5ec883",
+  "instrument_sha256": "12ace61b31d2e2e0b719a0e4555df2ed4d264f4458c1289a7587ebd00d9e1abc",
+  "evaluator": "rust_oracle.evaluate n_native=32 miri_seeds=0",
+  "cases": [
+    {
+      "case": "atomic_pos",
+      "category": "positive",
+      "expected_var_eq": "PASS_bounded",
+      "observed_var_eq": "PASS_bounded",
+      "match": true,
+      "built": true,
+      "behavior_ok": true,
+      "hang": false,
+      "limitations": [
+        "atomics: value events for simple path receivers (`c.load`/`c.compare_exchange`); complex receivers and non-integer atomics stay unsupported"
+      ],
+      "source_sha256": "b8558196a8f1a6a6a34aa48a411541735f8c509e10c3c44af2e0f960228c22d2",
+      "contract_sha256": "989006ad5869078f9728e51cff2759d01fef579b04fe9a15e51dc9a1c8e94334",
+      "cir_sha256": "ff033934f8268b3d9491949980a51ad32af61aea0a987f1a9891fbd26c977ef5",
+      "var_eq_properties": {
+        "both-increments": {
+          "status": "PASS_bounded",
+          "detail": null
+        },
+        "main::w1 completes": {
+          "status": "PASS_bounded",
+          "detail": null
+        },
+        "main::w2 completes": {
+          "status": "PASS_bounded",
+          "detail": null
+        },
+        "main::c == 2": {
+          "status": "PASS_bounded",
+          "detail": null
+        }
+      },
+      "coverage_statuses": {
+        "R1": "PASS_bounded",
+        "R2": "PASS_bounded",
+        "R3": "PASS_bounded",
+        "R4": "PASS_bounded",
+        "R5": "PASS_bounded",
+        "R6": "PASS_bounded",
+        "R7": "PASS_bounded",
+        "R8": "PASS_bounded",
+        "R9": "unverifiable"
+      },
+      "guarantee": "bounded witness over 32 native runs; not a proof over all schedules"
+    },
+    {
+      "case": "atomic_neg_print",
+      "category": "negative",
+      "expected_var_eq": "not_observed",
+      "observed_var_eq": "not_observed",
+      "match": true,
+      "built": true,
+      "behavior_ok": true,
+      "hang": false,
+      "limitations": [
+        "atomics: value events for simple path receivers (`c.load`/`c.compare_exchange`); complex receivers and non-integer atomics stay unsupported"
+      ],
+      "source_sha256": "8f5c93c51245de544949fae6c43fea5515de3f43449a8c8ef0644fd98773eec5",
+      "contract_sha256": "989006ad5869078f9728e51cff2759d01fef579b04fe9a15e51dc9a1c8e94334",
+      "cir_sha256": "ff033934f8268b3d9491949980a51ad32af61aea0a987f1a9891fbd26c977ef5",
+      "var_eq_properties": {
+        "both-increments": {
+          "status": "not_observed",
+          "detail": "property main::c: expected value 2; observed [0@c:value#1, 1@c:value#2] (carrier main::c); make the stored value reach 2"
+        },
+        "main::w1 completes": {
+          "status": "PASS_bounded",
+          "detail": null
+        },
+        "main::w2 completes": {
+          "status": "PASS_bounded",
+          "detail": null
+        },
+        "main::c == 2": {
+          "status": "not_observed",
+          "detail": "property main::c: expected value 2; observed [0@c:value#1, 1@c:value#2] (carrier main::c); make the stored value reach 2"
+        }
+      },
+      "coverage_statuses": {
+        "R1": "PASS_bounded",
+        "R2": "not_observed",
+        "R3": "not_observed",
+        "R4": "PASS_bounded",
+        "R5": "PASS_bounded",
+        "R6": "not_observed",
+        "R7": "not_observed",
+        "R8": "PASS_bounded",
+        "R9": "unverifiable"
+      },
+      "guarantee": "bounded witness over 32 native runs; not a proof over all schedules"
+    },
+    {
+      "case": "atomic_unknown_field",
+      "category": "unknown",
+      "expected_var_eq": "unsupported",
+      "observed_var_eq": "unsupported",
+      "match": true,
+      "built": true,
+      "behavior_ok": true,
+      "hang": false,
+      "limitations": [
+        "atomics: value events for simple path receivers (`c.load`/`c.compare_exchange`); complex receivers and non-integer atomics stay unsupported"
+      ],
+      "source_sha256": "b7fbf3524e84cb6d7e20bc5fc012d8d16df66dd45c347792782c7254ee82c157",
+      "contract_sha256": "989006ad5869078f9728e51cff2759d01fef579b04fe9a15e51dc9a1c8e94334",
+      "cir_sha256": "ff033934f8268b3d9491949980a51ad32af61aea0a987f1a9891fbd26c977ef5",
+      "var_eq_properties": {
+        "both-increments": {
+          "status": "unsupported",
+          "detail": "property main::c: expected value 2; no value event observed for carrier main::c (unsupported binding or missing observation)"
+        },
+        "main::w1 completes": {
+          "status": "PASS_bounded",
+          "detail": null
+        },
+        "main::w2 completes": {
+          "status": "not_observed",
+          "detail": null
+        },
+        "main::c == 2": {
+          "status": "unsupported",
+          "detail": "property main::c: expected value 2; no value event observed for carrier main::c (unsupported binding or missing observation)"
+        }
+      },
+      "coverage_statuses": {
+        "R1": "not_observed",
+        "R2": "unsupported",
+        "R3": "unsupported",
+        "R4": "PASS_bounded",
+        "R5": "PASS_bounded",
+        "R6": "unsupported",
+        "R7": "unsupported",
+        "R8": "not_observed",
+        "R9": "unverifiable"
+      },
+      "guarantee": "bounded witness over 32 native runs; not a proof over all schedules"
+    },
+    {
+      "case": "bare_pos",
+      "category": "positive",
+      "expected_var_eq": "PASS_bounded",
+      "observed_var_eq": "PASS_bounded",
+      "match": true,
+      "built": true,
+      "behavior_ok": true,
+      "hang": false,
+      "limitations": [],
+      "source_sha256": "819d0c8a35034d0f76f8226fabfffe67c635199b7b1c7b4d6b38e35bde64b952",
+      "contract_sha256": "9917c289d3138a759f2c7be2606e95afc8e5091e096f4bb5f6805d58abede4ea",
+      "cir_sha256": "557c5829bc342b1bb58b6a3e22ed1db07fe95c70eb8f60b0d9b008228783b3af",
+      "var_eq_properties": {
+        "ready-set": {
+          "status": "PASS_bounded",
+          "detail": null
+        },
+        "main::waiter completes": {
+          "status": "PASS_bounded",
+          "detail": null
+        },
+        "main::notifier completes": {
+          "status": "PASS_bounded",
+          "detail": null
+        },
+        "main::ready == True": {
+          "status": "PASS_bounded",
+          "detail": null
+        }
+      },
+      "coverage_statuses": {
+        "R1": "PASS_bounded",
+        "R2": "unverifiable",
+        "R3": "PASS_bounded",
+        "R4": "PASS_bounded",
+        "R5": "PASS_bounded",
+        "R6": "PASS_bounded",
+        "R7": "PASS_bounded",
+        "R8": "PASS_bounded",
+        "R9": "PASS_bounded",
+        "R10": "unverifiable"
+      },
+      "guarantee": "bounded witness over 32 native runs; not a proof over all schedules"
+    },
+    {
+      "case": "bare_neg_print",
+      "category": "negative",
+      "expected_var_eq": "not_observed",
+      "observed_var_eq": "not_observed",
+      "match": true,
+      "built": true,
+      "behavior_ok": true,
+      "hang": false,
+      "limitations": [],
+      "source_sha256": "d8d94432d5797a53499ba7f504dada546a02deb9b79b5f1bcdb056712216f6d4",
+      "contract_sha256": "9917c289d3138a759f2c7be2606e95afc8e5091e096f4bb5f6805d58abede4ea",
+      "cir_sha256": "557c5829bc342b1bb58b6a3e22ed1db07fe95c70eb8f60b0d9b008228783b3af",
+      "var_eq_properties": {
+        "ready-set": {
+          "status": "not_observed",
+          "detail": "property main::ready: expected value 1; observed [0@m_mutex0#444:value#1, 0@m_mutex0#444:value#2, 0@m_mutex0#444:value#3, 0@m_mutex0#444:value#4] (carrier main::m); make the stored value reach 1"
+        },
+        "main::waiter completes": {
+          "status": "PASS_bounded",
+          "detail": null
+        },
+        "main::notifier completes": {
+          "status": "PASS_bounded",
+          "detail": null
+        },
+        "main::ready == True": {
+          "status": "not_observed",
+          "detail": "property main::ready: expected value 1; observed [0@m_mutex0#444:value#1, 0@m_mutex0#444:value#2, 0@m_mutex0#444:value#3, 0@m_mutex0#444:value#4] (carrier main::m); make the stored value reach 1"
+        }
+      },
+      "coverage_statuses": {
+        "R1": "PASS_bounded",
+        "R2": "unverifiable",
+        "R3": "not_observed",
+        "R4": "not_observed",
+        "R5": "PASS_bounded",
+        "R6": "PASS_bounded",
+        "R7": "PASS_bounded",
+        "R8": "not_observed",
+        "R9": "not_observed",
+        "R10": "unverifiable"
+      },
+      "guarantee": "bounded witness over 32 native runs; not a proof over all schedules"
+    },
+    {
+      "case": "bare_shadow_other_mutex",
+      "category": "shadow",
+      "expected_var_eq": "not_observed",
+      "observed_var_eq": "not_observed",
+      "match": true,
+      "built": true,
+      "behavior_ok": true,
+      "hang": false,
+      "limitations": [],
+      "source_sha256": "04f228905053085f5bb9bd47746642a3ee425dd063d81ed68a0564dcdddf0788",
+      "contract_sha256": "9917c289d3138a759f2c7be2606e95afc8e5091e096f4bb5f6805d58abede4ea",
+      "cir_sha256": "557c5829bc342b1bb58b6a3e22ed1db07fe95c70eb8f60b0d9b008228783b3af",
+      "var_eq_properties": {
+        "ready-set": {
+          "status": "not_observed",
+          "detail": "property main::ready: expected value 1; observed [0@m_mutex0#598:value#1, 0@m_mutex0#598:value#2, 0@m_mutex0#598:value#3, 0@m_mutex0#598:value#4] (carrier main::m); make the stored value reach 1"
+        },
+        "main::waiter completes": {
+          "status": "PASS_bounded",
+          "detail": null
+        },
+        "main::notifier completes": {
+          "status": "PASS_bounded",
+          "detail": null
+        },
+        "main::ready == True": {
+          "status": "not_observed",
+          "detail": "property main::ready: expected value 1; observed [0@m_mutex0#598:value#1, 0@m_mutex0#598:value#2, 0@m_mutex0#598:value#3, 0@m_mutex0#598:value#4] (carrier main::m); make the stored value reach 1"
+        }
+      },
+      "coverage_statuses": {
+        "R1": "PASS_bounded",
+        "R2": "unverifiable",
+        "R3": "not_observed",
+        "R4": "not_observed",
+        "R5": "PASS_bounded",
+        "R6": "PASS_bounded",
+        "R7": "PASS_bounded",
+        "R8": "not_observed",
+        "R9": "not_observed",
+        "R10": "unverifiable"
+      },
+      "guarantee": "bounded witness over 32 native runs; not a proof over all schedules"
+    }
+  ]
+}
