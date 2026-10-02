@@ -1,0 +1,39 @@
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
+
+fn sender(ch: mpsc::SyncSender<i32>, m: Arc<Mutex<usize>>) {
+    for value in [1, 2] {
+        {
+            let mut count = m.lock().unwrap();
+            *count += 1;
+        } // Release m before sending, which may wait.
+        ch.send(value).unwrap();
+    }
+}
+
+fn receiver(ch: mpsc::Receiver<i32>, m: Arc<Mutex<usize>>) {
+    for _ in 0..2 {
+        let _value = ch.recv().unwrap(); // May wait, but does not hold m.
+        let mut count = m.lock().unwrap();
+        *count += 1;
+    }
+}
+
+fn main() {
+    let (tx, rx) = mpsc::sync_channel(1);
+    let m = Arc::new(Mutex::new(0));
+
+    let sender_handle = {
+        let m = Arc::clone(&m);
+        thread::spawn(move || sender(tx, m))
+    };
+    let receiver_handle = {
+        let m = Arc::clone(&m);
+        thread::spawn(move || receiver(rx, m))
+    };
+
+    sender_handle.join().unwrap();
+    receiver_handle.join().unwrap();
+
+    println!("DONE done=1");
+}

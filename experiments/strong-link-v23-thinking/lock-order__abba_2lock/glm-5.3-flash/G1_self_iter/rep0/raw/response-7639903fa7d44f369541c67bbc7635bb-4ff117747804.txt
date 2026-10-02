@@ -1,0 +1,55 @@
+I reviewed the program against each requirement:
+
+- **R1** — one main thread plus two spawned workers (`t1`, `t2`). ✔
+- **R2** — `Mutex` guarantees each lock is held by at most one worker at a time. ✔
+- **R3** — both guards are alive simultaneously during the critical section. ✔
+- **R4** — `lock()` blocks until the lock is free, then continues. ✔
+- **R5** — both workers acquire locks in the same global order (`a`, then `b`), so the circular-wait condition for deadlock can never arise. ✔
+- **R6** — main calls `join()` on both handles before printing. ✔
+- **R7** — guards are dropped at scope end, before the closure returns. ✔
+- **R8** — with a consistent lock order and blocking acquisition, every interleaving terminates. ✔
+- **R9** — exactly one `println!` producing `DONE t1=1 t2=1`. ✔
+
+No concurrency defects were found: the lock-ordering discipline is already correct, there is no `try_lock` retry loop that could spin or fail, and no lock is released early or reordered. The program is correct as written; here it is unchanged:
+
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    // Shared resources: lock `a` and lock `b`.
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    // Worker t1
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let handle_t1 = thread::spawn(move || {
+        // Global lock order: a, then b. Blocking lock waits if busy (R4).
+        let _guard_a = a1.lock().unwrap();
+        let _guard_b = b1.lock().unwrap();
+
+        // Critical work while holding BOTH locks (R3).
+        // Guards drop here at scope end: both locks released before
+        // the worker finishes (R7).
+    });
+
+    // Worker t2
+    let a2 = Arc::clone(&a);
+    let b2 = Arc::clone(&b);
+    let handle_t2 = thread::spawn(move || {
+        // Same global lock order: a, then b — no circular wait possible (R5, R8).
+        let _guard_a = a2.lock().unwrap();
+        let _guard_b = b2.lock().unwrap();
+
+        // Critical work while holding BOTH locks (R3).
+    });
+
+    // Main thread starts both workers and finishes only after both finish (R6).
+    handle_t1.join().expect("worker t1 panicked");
+    handle_t2.join().expect("worker t2 panicked");
+
+    // R9: exactly this line, then exit.
+    println!("DONE t1=1 t2=1");
+}
+```

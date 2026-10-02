@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\nuse std::sync::{mpsc, Arc, Mutex};\nuse std::thread;\n\nfn sender(ch: mpsc::SyncSender<i32>, m: Arc<Mutex<usize>>) {\n    for value in [1, 2] {\n        {\n            let mut count = m.lock().unwrap();\n            *count += 1;\n        } // Release m before sending, which may wait.\n        ch.send(value).unwrap();\n    }\n}\n\nfn receiver(ch: mpsc::Receiver<i32>, m: Arc<Mutex<usize>>) {\n    for _ in 0..2 {\n        let _value = ch.recv().unwrap(); // May wait, but does not hold m.\n        let mut count = m.lock().unwrap();\n        *count += 1;\n    }\n}\n\nfn main() {\n    let (tx, rx) = mpsc::sync_channel(1);\n    let m = Arc::new(Mutex::new(0));\n\n    let sender_handle = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || sender(tx, m))\n    };\n    let receiver_handle = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || receiver(rx, m))\n    };\n\n    sender_handle.join().unwrap();\n    receiver_handle.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn t1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) -> i32 {\n    let _a = a.lock().unwrap();\n    let _b = b.lock().unwrap();\n\n    1\n}\n\nfn t2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) -> i32 {\n    let _a = a.lock().unwrap();\n    let _b = b.lock().unwrap();\n\n    1\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let handle1 = thread::spawn(move || t1(a1, b1));\n\n    let a2 = Arc::clone(&a);\n    let b2 = Arc::clone(&b);\n    let handle2 = thread::spawn(move || t2(a2, b2));\n\n    let result1 = handle1.join().unwrap();\n    let result2 = handle2.join().unwrap();\n\n    println!(\"DONE t1={} t2={}\", result1, result2);\n}\n```"
+}
