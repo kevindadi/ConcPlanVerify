@@ -476,6 +476,14 @@ def evaluate_candidate(source: str, cir_path: Path, contract_path: Path, out_dir
                  for p in payload.get("properties", []) if isinstance(p, dict) and "id" in p}
         result["_model_props"] = props
         result["_model_complete"] = payload.get("complete")
+        # Exploration limits are recorded separately from a semantic FAIL so the
+        # audit can tell "not decided within the pre-registered bounds" from
+        # "observed violation". No bound is raised here.
+        result["model_complete"] = payload.get("complete")
+        result["model_states_explored"] = payload.get("states_explored")
+        result["model_transitions_explored"] = payload.get("transitions_explored")
+        result["model_boundary_events"] = payload.get("boundary_events") or []
+        result["model_unsupported"] = payload.get("unsupported") or []
     elif cir_props is not None:
         # An explicit frozen explore payload may be supplied only together with
         # a raw file written by the caller. The checker output is not rebuilt here.
