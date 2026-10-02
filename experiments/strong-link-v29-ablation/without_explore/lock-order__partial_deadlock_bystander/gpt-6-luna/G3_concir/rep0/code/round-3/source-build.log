@@ -1,0 +1,74 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/lock-order__partial_deadlock_bystander/gpt-6-luna/G3_concir/rep0/code/round-3/source-proj)
+error[E0618]: expected function, found `Arc<std::sync::Mutex<bool>>`
+  --> src/main.rs:73:13
+   |
+ 5 | / fn a<F>(
+ 6 | |     a: Arc<Mutex<bool>>,
+ 7 | |     b: Arc<Mutex<()>>,
+ 8 | |     sa: Arc<Semaphore>,
+...  |
+12 | | where
+13 | |     F: FnOnce(),
+   | |________________- this function of the same name is available here, but it's shadowed by the local binding
+...
+68 |           let a = Arc::clone(&a_lock);
+   |               - `a` has type `Arc<std::sync::Mutex<bool>>`
+...
+73 |               a(
+   |               ^- help: consider using a semicolon here to finish the statement: `;`
+   |  _____________|
+   | |
+74 | |                 a,
+75 | |                 b,
+76 | |                 sa,
+77 | |                 sb,
+78 | |                 move || permit_sa.release(),
+79 | |             )
+   | |_____________- call expression requires function
+
+error[E0618]: expected function, found `Arc<std::sync::Mutex<()>>`
+  --> src/main.rs:89:13
+   |
+28 | / fn b<F>(
+29 | |     a: Arc<Mutex<bool>>,
+30 | |     b: Arc<Mutex<()>>,
+31 | |     sa: Arc<Semaphore>,
+...  |
+35 | | where
+36 | |     F: FnOnce(),
+   | |________________- this function of the same name is available here, but it's shadowed by the local binding
+...
+85 |           let b = Arc::clone(&b_lock);
+   |               - `b` has type `Arc<std::sync::Mutex<()>>`
+...
+89 |               b(
+   |               ^- help: consider using a semicolon here to finish the statement: `;`
+   |  _____________|
+   | |
+90 | |                 a,
+91 | |                 b,
+92 | |                 sa,
+93 | |                 sb,
+94 | |                 move || permit_sb.release(),
+95 | |             )
+   | |_____________- call expression requires function
+
+warning: unused variable: `sa`
+ --> src/main.rs:8:5
+  |
+8 |     sa: Arc<Semaphore>,
+  |     ^^ help: if this is intentional, prefix it with an underscore: `_sa`
+  |
+  = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `sb`
+  --> src/main.rs:32:5
+   |
+32 |     sb: Arc<Semaphore>,
+   |     ^^ help: if this is intentional, prefix it with an underscore: `_sb`
+
+For more information about this error, try `rustc --explain E0618`.
+warning: `probe` (bin "probe") generated 2 warnings
+error: could not compile `probe` (bin "probe") due to 2 previous errors; 2 warnings emitted

@@ -1,0 +1,63 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/structure__nested_scope_lock_order/glm-5.3-flash/G3_concir/rep0/code/round-1/source-proj)
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:24:28
+   |
+18 | fn outer(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {
+   |          - this move could be avoided by cloning the original `Arc`, which is inexpensive
+19 |     let h1 = thread::spawn(move || {
+   |                            ------- value moved into closure here
+20 |         let a = a.clone();
+   |                 - variable moved due to use in closure
+...
+24 |     let h2 = thread::spawn(move || {
+   |                            ^^^^^^^ value used here after move
+25 |         let a = a.clone();
+   |                 - use occurs due to use in closure
+   |
+   = note: consider using `Arc::clone`
+help: consider cloning the value before moving it into the closure
+   |
+19 ~     let value = a.clone();
+20 ~     let h1 = thread::spawn(move || {
+21 ~         let a = value.clone();
+   |
+
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:24:28
+   |
+18 | fn outer(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {
+   |                             - this move could be avoided by cloning the original `Arc`, which is inexpensive
+19 |     let h1 = thread::spawn(move || {
+   |                            ------- value moved into closure here
+20 |         let a = a.clone();
+21 |         let b = b.clone();
+   |                 - variable moved due to use in closure
+...
+24 |     let h2 = thread::spawn(move || {
+   |                            ^^^^^^^ value used here after move
+25 |         let a = a.clone();
+26 |         let b = b.clone();
+   |                 - use occurs due to use in closure
+   |
+   = note: consider using `Arc::clone`
+help: consider cloning the value before moving it into the closure
+   |
+19 ~     let value = b.clone();
+20 ~     let h1 = thread::spawn(move || {
+21 |         let a = a.clone();
+22 ~         let b = value.clone();
+   |
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `probe` (bin "probe") due to 2 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning

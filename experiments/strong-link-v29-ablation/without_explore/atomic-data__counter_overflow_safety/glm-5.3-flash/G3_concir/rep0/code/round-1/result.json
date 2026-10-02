@@ -1,0 +1,1509 @@
+{
+  "cell": "atomic-data/counter_overflow_safety",
+  "protocol": "strong-link-v6",
+  "source_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/source.rs",
+  "cir_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/cir/revision-3.cir.json",
+  "contract_path": "/Users/kevin/local-repos/ConcPlanVerify/benchmarks/families/atomic-data/counter_overflow_safety/contract.json",
+  "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+  "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+  "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+  "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47",
+  "instrument_sha256": "120f8c10a5ae10e00998f3aed43879c107ee8c6153b754e4f078884cda3b2118",
+  "binding_sha256": "0e010254839293731e4515ce898b0b2370f01f7545de2470b6b22ba1121e1206",
+  "cir_has_sync": true,
+  "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+  "n_runs": 32,
+  "stages": {
+    "source_build": "ok",
+    "instrument": "ok",
+    "instrumented_build": "ok",
+    "binding": "ok"
+  },
+  "limitations": [
+    "atomics: value events for simple path receivers (`c.load`/`c.compare_exchange`); complex receivers and non-integer atomics stay unsupported"
+  ],
+  "candidate_kind": "online",
+  "round_no": 1,
+  "functional": {
+    "status": "not_run",
+    "reason": "no_functional_spec",
+    "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+    "test_id": null,
+    "expected": null,
+    "raw_stdout": null,
+    "supports": []
+  },
+  "artifacts": [
+    {
+      "role": "source",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/source.rs",
+      "sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "cir",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/cir/revision-3.cir.json",
+      "sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "contract",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/benchmarks/families/atomic-data/counter_overflow_safety/contract.json",
+      "sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "model_check",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/explore.stdout",
+      "sha256": "267f72c16862c2280701ab72e178ff3944e982c22e4c238baaa181f102d371d7",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-000.jsonl",
+      "sha256": "ff0e135e9414dd79156e629677b704d4fac7c6337d09c3eed62b0428cc184c44",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-001.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-002.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-003.jsonl",
+      "sha256": "ff0e135e9414dd79156e629677b704d4fac7c6337d09c3eed62b0428cc184c44",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-004.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-005.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-006.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-007.jsonl",
+      "sha256": "ff0e135e9414dd79156e629677b704d4fac7c6337d09c3eed62b0428cc184c44",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-008.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-009.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-010.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-011.jsonl",
+      "sha256": "ff0e135e9414dd79156e629677b704d4fac7c6337d09c3eed62b0428cc184c44",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-012.jsonl",
+      "sha256": "ff0e135e9414dd79156e629677b704d4fac7c6337d09c3eed62b0428cc184c44",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-013.jsonl",
+      "sha256": "ff0e135e9414dd79156e629677b704d4fac7c6337d09c3eed62b0428cc184c44",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-014.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-015.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-016.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-017.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-018.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-019.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-020.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-021.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-022.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-023.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-024.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-025.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-026.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-027.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-028.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-029.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-030.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "execution",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-031.jsonl",
+      "sha256": "ec3df4460ce620f31c848639bddc9cf7b29e023915893dfcc3d7f06e149879f5",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "binding_check",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/binding-check.stdout",
+      "sha256": "1ad57361a5639b3e12439b018540531f42fd46f6da3ca7247fed116f498a4f5e",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-000.jsonl",
+      "sha256": "bbff5226a206f51a20643bd5c864c36409ce144962f576671cb34a680e3b30a8",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-001.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-002.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-003.jsonl",
+      "sha256": "bbff5226a206f51a20643bd5c864c36409ce144962f576671cb34a680e3b30a8",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-004.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-005.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-006.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-007.jsonl",
+      "sha256": "bbff5226a206f51a20643bd5c864c36409ce144962f576671cb34a680e3b30a8",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-008.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-009.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-010.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-011.jsonl",
+      "sha256": "bbff5226a206f51a20643bd5c864c36409ce144962f576671cb34a680e3b30a8",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-012.jsonl",
+      "sha256": "bbff5226a206f51a20643bd5c864c36409ce144962f576671cb34a680e3b30a8",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-013.jsonl",
+      "sha256": "bbff5226a206f51a20643bd5c864c36409ce144962f576671cb34a680e3b30a8",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-014.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-015.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-016.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-017.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-018.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-019.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-020.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-021.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-022.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-023.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-024.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-025.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-026.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-027.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-028.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-029.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-030.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "projection",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-031.jsonl",
+      "sha256": "64e46d9de7c04c9729d980e06bd679e94bdc59cdafa9db79fa4176186772413f",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "conform_check",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-check.json",
+      "sha256": "3c2339d5b35e0455e41954c6939d9a45a8f493f6418e5d07f90d43687a10a314",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    },
+    {
+      "role": "monitor",
+      "path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/monitor.stdout",
+      "sha256": "2e48482aacd04318347d12d90d8d36e77342107ac22990b0705a4305818d9e26",
+      "binds": {
+        "acquisition_id": "da2bbc50e8253be48c014550e51b51b55d14103a6f83c48f5c7aae1d35d05752",
+        "source_sha256": "6dd2f6de4a694e20af05330b185044caf85186f001456694031fa1b46607e2ad",
+        "cir_sha256": "b27c8d71fbe458189c28160c8571555020c332078c9b2354b892b4e06210fea7",
+        "contract_sha256": "4019ae2cc2fc8ea6c5ddce2ce63bbab1311a36722b7772f54f781a0cf75067a0",
+        "backend_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47"
+      }
+    }
+  ],
+  "model_complete": true,
+  "model_states_explored": 48,
+  "model_transitions_explored": 67,
+  "model_boundary_events": [],
+  "model_unsupported": [],
+  "source_build_log": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/source-build.log",
+  "resources": [
+    {
+      "display": "m_mutex0",
+      "kind": "Mutex",
+      "name": "m_mutex0#504",
+      "site": "504"
+    },
+    {
+      "display": "w1",
+      "entry": "w1",
+      "kind": "Spawn",
+      "name": "w1#627",
+      "site": "627",
+      "unique_entry": true
+    },
+    {
+      "display": "w2",
+      "entry": "w2",
+      "kind": "Spawn",
+      "name": "w2#741",
+      "site": "741",
+      "unique_entry": true
+    },
+    {
+      "display": "c",
+      "kind": "Atomic",
+      "name": "c#526",
+      "site": "526"
+    }
+  ],
+  "runs_started": 32,
+  "runs_completed": 32,
+  "hang": false,
+  "raw_events": 384,
+  "binding": {
+    "mapping": {
+      "c#526": "main::c",
+      "m_mutex0#504": "main::m",
+      "w1#627": "main::w1",
+      "w2#741": "main::w2"
+    },
+    "ambiguous": [],
+    "violated": {},
+    "source": "rust-cli",
+    "attributes": [],
+    "uncovered_sync": []
+  },
+  "projected_events": 128,
+  "conform": {
+    "traces": 32,
+    "statuses": {
+      "conformant": 32
+    },
+    "conformant": 32,
+    "violations": [],
+    "first_violation": null
+  },
+  "monitor": {
+    "status": "ok",
+    "properties": [
+      [
+        "no-deadlock",
+        "deferred"
+      ],
+      [
+        "counter-bound",
+        "PASS_bounded"
+      ],
+      [
+        "main::w1 completes",
+        "PASS_bounded"
+      ],
+      [
+        "main::w2 completes",
+        "PASS_bounded"
+      ]
+    ]
+  },
+  "ledger": {
+    "cell": "atomic-data/counter_overflow_safety",
+    "historical_acceptance": false,
+    "current_evaluation": "satisfied_bounded",
+    "model": {
+      "complete": true,
+      "required": [
+        "counter-bound",
+        "main::w1 completes",
+        "main::w2 completes",
+        "no-deadlock"
+      ],
+      "missing_properties": [],
+      "non_pass_properties": [],
+      "evidence_ok": true,
+      "verified": true
+    },
+    "identity": {
+      "verified": 4,
+      "unresolved": 0,
+      "violated": 0,
+      "relevant_unresolved": false,
+      "declaration_error": false,
+      "evidence_ok": true
+    },
+    "trace": {
+      "state": "observed_conformant",
+      "raw_statuses": {
+        "conformant": 32
+      },
+      "traces": 32,
+      "projected_events": 128,
+      "binding_gap": false,
+      "independent_violation": false,
+      "violations": [],
+      "evidence_ok": true
+    },
+    "run": {
+      "state": "completed",
+      "started": 32,
+      "completed": 32,
+      "hang": false
+    },
+    "hashes": {
+      "verified": true,
+      "missing_roles": [],
+      "candidate_mismatch": [],
+      "identity_ok": true,
+      "roles": [
+        "binding_check",
+        "cir",
+        "conform_check",
+        "contract",
+        "execution",
+        "model_check",
+        "monitor",
+        "projection",
+        "source"
+      ],
+      "detail": {
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/source.rs": {
+          "role": "source",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/cir/revision-3.cir.json": {
+          "role": "cir",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/benchmarks/families/atomic-data/counter_overflow_safety/contract.json": {
+          "role": "contract",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/explore.stdout": {
+          "role": "model_check",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-000.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-001.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-002.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-003.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-004.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-005.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-006.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-007.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-008.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-009.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-010.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-011.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-012.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-013.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-014.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-015.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-016.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-017.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-018.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-019.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-020.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-021.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-022.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-023.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-024.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-025.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-026.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-027.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-028.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-029.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-030.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/traces/native-031.jsonl": {
+          "role": "execution",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/binding-check.stdout": {
+          "role": "binding_check",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-000.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-001.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-002.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-003.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-004.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-005.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-006.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-007.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-008.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-009.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-010.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-011.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-012.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-013.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-014.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-015.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-016.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-017.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-018.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-019.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-020.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-021.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-022.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-023.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-024.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-025.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-026.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-027.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-028.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-029.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-030.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-traces/native-031.jsonl": {
+          "role": "projection",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/conform-check.json": {
+          "role": "conform_check",
+          "recorded": true,
+          "match": true
+        },
+        "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/monitor.stdout": {
+          "role": "monitor",
+          "recorded": true,
+          "match": true
+        }
+      }
+    },
+    "layers": {
+      "conformance": "observed_conformant",
+      "requirement": "inconclusive",
+      "functional": "not_run",
+      "run": "completed",
+      "binding": "verified",
+      "tool": "ok",
+      "model": "verified",
+      "attributes": "not_applicable",
+      "design_correspondence": "complete"
+    },
+    "properties": [
+      {
+        "property_id": "no-deadlock",
+        "kind": "deadlock_free",
+        "requirements": [
+          "R3",
+          "R4",
+          "R6"
+        ],
+        "model_verdict": "PASS",
+        "implementation_obligation": "no reachable deadlock; blocked/enabled relations preserved",
+        "checker_available": true,
+        "identity_relevant_verified": true,
+        "trace_state": "observed_conformant",
+        "independent_requirement_result": "deferred",
+        "obligation_state": "satisfied",
+        "guarantee": "bounded_observation"
+      },
+      {
+        "property_id": "counter-bound",
+        "kind": "safety",
+        "requirements": [
+          "R2",
+          "R5"
+        ],
+        "model_verdict": "PASS",
+        "implementation_obligation": "the forbidden state is never observed",
+        "checker_available": true,
+        "identity_relevant_verified": true,
+        "trace_state": "observed_conformant",
+        "independent_requirement_result": "PASS_bounded",
+        "obligation_state": "satisfied",
+        "guarantee": "bounded_observation"
+      },
+      {
+        "property_id": "main::w1 completes",
+        "kind": "reachable",
+        "requirements": [
+          "R1",
+          "R6"
+        ],
+        "model_verdict": "PASS",
+        "implementation_obligation": "the goal state is reached and observed",
+        "checker_available": true,
+        "identity_relevant_verified": true,
+        "trace_state": "observed_conformant",
+        "independent_requirement_result": "PASS_bounded",
+        "obligation_state": "satisfied",
+        "guarantee": "bounded_observation"
+      },
+      {
+        "property_id": "main::w2 completes",
+        "kind": "reachable",
+        "requirements": [
+          "R1",
+          "R6"
+        ],
+        "model_verdict": "PASS",
+        "implementation_obligation": "the goal state is reached and observed",
+        "checker_available": true,
+        "identity_relevant_verified": true,
+        "trace_state": "observed_conformant",
+        "independent_requirement_result": "PASS_bounded",
+        "obligation_state": "satisfied",
+        "guarantee": "bounded_observation"
+      }
+    ],
+    "all_obligations_satisfied": true,
+    "reasons": [],
+    "protocol": "strong-link-v6",
+    "evidence_grade": "bounded_satisfaction",
+    "delivery_status": "deliver_bounded",
+    "needs_human_review": false,
+    "needs_extra_check": false,
+    "functional": {
+      "status": "not_run",
+      "valid": false,
+      "reason": "no_functional_spec",
+      "evidence": null,
+      "evidence_path": null,
+      "supports": []
+    },
+    "design_correspondence": {
+      "identity": "established",
+      "attributes": "not_applicable",
+      "trace": "observed_conformant",
+      "uncovered_sync": [],
+      "modeled_projection_conformant": true,
+      "complete": true
+    }
+  },
+  "acceptance_policy": "ledger-v6-followup-v2",
+  "followup": {
+    "action": "accept",
+    "category": "accepted",
+    "status": "accepted",
+    "feedback": "",
+    "semantic_retry": false,
+    "protocol_retry": false
+  },
+  "evidence_path": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_explore/atomic-data__counter_overflow_safety/glm-5.3-flash/G3_concir/rep0/code/round-1/result.json",
+  "binding_assessment": {
+    "status": "sufficient",
+    "sufficient": true,
+    "ran": true,
+    "missing": []
+  }
+}

@@ -1,0 +1,54 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+use std::sync::{Arc};
+use std::thread;
+
+// Module m1 owns resource `a`; module m2 owns resource `b`.
+// Both tasks t1 and t2 require both resources (m1::a and m2::b).
+
+// Task t1 runs in module m1 and depends on m2::b (owned by module m2).
+fn t1(a: &Arc<Mutex<()>>, b: &Arc<Mutex<()>>) {
+    // Lock m1::a (owned by this module)
+    let guard_a = a.lock().unwrap();
+    // Lock m2::b (owned by the other module) while holding m1::a
+    let guard_b = b.lock().unwrap();
+    // Work while holding both resources
+    // Release m2::b
+    drop(guard_b);
+    // Release m1::a
+    drop(guard_a);
+}
+
+// Task t2 runs in module m2 and depends on m1::a (owned by module m1).
+fn t2(a: &Arc<Mutex<()>>, b: &Arc<Mutex<()>>) {
+    // Lock m1::a (owned by the other module)
+    let guard_a = a.lock().unwrap();
+    // Lock m2::b (owned by this module) while holding m1::a
+    let guard_b = b.lock().unwrap();
+    // Work while holding both resources
+    // Release m2::b
+    drop(guard_b);
+    // Release m1::a
+    drop(guard_a);
+}
+
+// Entry scope (m1::main): launches both tasks and finishes only after both finish.
+fn main() { crate::cir_trace::init();
+    // Shared resources: a owned by module m1, b owned by module m2.
+    let a = Arc::new(Mutex::new_named("a_mutex0#1218", ()));
+    let b = Arc::new(Mutex::new_named("b_mutex0#1256", ()));
+
+    let a_for_t1 = Arc::clone(&a);
+    let b_for_t1 = Arc::clone(&b);
+    let handle_t1 = crate::cir_trace::spawn("t1#1357", move || t1(&a_for_t1, &b_for_t1));
+
+    let a_for_t2 = Arc::clone(&a);
+    let b_for_t2 = Arc::clone(&b);
+    let handle_t2 = crate::cir_trace::spawn("t2#1497", move || t2(&a_for_t2, &b_for_t2));
+
+    // Join every spawned thread: main finishes only after both tasks finish.
+    handle_t1.join().unwrap();
+    handle_t2.join().unwrap();
+
+    println!("DONE done=1");
+ crate::cir_trace::finish();}

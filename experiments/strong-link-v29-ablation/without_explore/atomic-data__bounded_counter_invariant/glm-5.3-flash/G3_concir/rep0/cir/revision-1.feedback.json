@@ -1,0 +1,45 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E008",
+      "severity": "error",
+      "message": "var resource 'c' has invalid type 'Int'; expected Var or Atomic",
+      "path": "modules[0].resources[1].type",
+      "fix_hint": "use \"Var\" or \"Atomic\"",
+      "json_path": "modules[0].resources[1].type"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'c' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[0].body[2]",
+      "location": "main::w1.s3",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[0].body[2]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'c' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[1].body[2]",
+      "location": "main::w2.s3",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[1].body[2]"
+    }
+  ],
+  "expected_shapes": [
+    "sync resource `type` must be one of Mutex, Condvar, Semaphore, Channel",
+    "use \"Var\" or \"Atomic\"",
+    "use a value name of the matching type"
+  ],
+  "declared_functions": [
+    "main::w1",
+    "main::w2",
+    "main::main"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

@@ -1,0 +1,48 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+use std::sync::{Arc};
+
+// CIR function compute: sequential helper, only local computation.
+fn compute() -> i32 {
+    let mut tmp: i32 = 0; // local tmp, init 0
+    tmp = tmp + 1; // s1
+    tmp = tmp * 2; // s2
+    tmp // s3: return {"value": "tmp"}
+}
+
+// CIR function w1
+fn w1(m: &Mutex<i32>) {
+    let mut guard = m.lock().unwrap(); // s1: mutex_lock main::m (acc lives in m)
+    let _ = compute(); // s2: call main::compute (still holding m)
+    *guard = 1; // s3: write_shared main::acc = 1 (while holding m)
+    drop(guard); // s4: mutex_unlock main::m
+    // s5: return
+}
+
+// CIR function w2
+fn w2(m: &Mutex<i32>) {
+    let mut guard = m.lock().unwrap(); // s1: mutex_lock main::m (acc lives in m)
+    let _ = compute(); // s2: call main::compute (still holding m)
+    *guard = 1; // s3: write_shared main::acc = 1 (while holding m)
+    drop(guard); // s4: mutex_unlock main::m
+    // s5: return
+}
+
+fn main() { crate::cir_trace::init();
+    // CIR resources: m (Mutex) guards acc (Int, init 0), stored inside m.
+    let m: Arc<Mutex<i32>> = Arc::new(Mutex::new_named("m_mutex0#1043", 0));
+
+    // CIR entry scope: start workers w1 and w2.
+    let m1 = Arc::clone(&m);
+    let h1 = crate::cir_trace::spawn("w1#1144", move || w1(&m1));
+    let m2 = Arc::clone(&m);
+    let h2 = crate::cir_trace::spawn("w2#1223", move || w2(&m2));
+
+    h1.join().expect("w1 panicked");
+    h2.join().expect("w2 panicked");
+
+    // After joins: read shared state only to print the terminal line.
+    let acc = m.lock().unwrap();
+    let done = *acc;
+    println!("DONE done={}", done);
+ crate::cir_trace::finish();}

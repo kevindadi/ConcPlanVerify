@@ -1,0 +1,28 @@
+{
+  "valid": false,
+  "diagnostics": [
+    {
+      "code": "E703",
+      "severity": "error",
+      "message": "Atomic resource 'main::c' should not be in protection mapping",
+      "path": "modules[0].protection[0].var",
+      "fix_hint": "remove this protection entry; Atomic resources don't need lock protection"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'w1' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "location": "main::w1",
+      "path": "modules[0].functions[0]",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'w2' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "location": "main::w2",
+      "path": "modules[0].functions[1]",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var"
+    }
+  ]
+}

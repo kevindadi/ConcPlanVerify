@@ -1,0 +1,58 @@
+use std::sync::{Arc, Mutex};
+use std::sync::mpsc::sync_channel;
+use std::thread;
+
+fn sender(m: &Arc<Mutex<i32>>, ch_tx: &std::sync::mpsc::SyncSender<i32>) {
+    // s1/s2: lock and unlock main::m
+    let _guard = m.lock().unwrap();
+    drop(_guard);
+
+    // s3: send value 1
+    ch_tx.send(1).unwrap();
+
+    // s4/s5: lock and unlock main::m
+    let _guard = m.lock().unwrap();
+    drop(_guard);
+
+    // s6: send value 2 (blocks until receiver has taken value 1,
+    // since the channel holds at most one value)
+    ch_tx.send(2).unwrap();
+}
+
+fn receiver(m: &Arc<Mutex<i32>>, ch_rx: &std::sync::mpsc::Receiver<i32>) {
+    // s1/s2: lock and unlock main::m
+    let _guard = m.lock().unwrap();
+    drop(_guard);
+
+    // s3: receive first value (blocks while the channel is empty)
+    let _ = ch_rx.recv().unwrap();
+
+    // s4/s5: lock and unlock main::m
+    let _guard = m.lock().unwrap();
+    drop(_guard);
+
+    // s6: receive second value
+    let _ = ch_rx.recv().unwrap();
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(0));
+    let (ch_tx, ch_rx) = sync_channel(1);
+
+    let m_sender = Arc::clone(&m);
+    let ch_tx_sender = ch_tx.clone();
+    let sender_handle = thread::spawn(move || {
+        sender(&m_sender, &ch_tx_sender);
+    });
+
+    let m_receiver = Arc::clone(&m);
+    let receiver_handle = thread::spawn(move || {
+        receiver(&m_receiver, &ch_rx);
+    });
+
+    sender_handle.join().unwrap();
+    receiver_handle.join().unwrap();
+    drop(ch_tx);
+
+    println!("DONE done=1");
+}

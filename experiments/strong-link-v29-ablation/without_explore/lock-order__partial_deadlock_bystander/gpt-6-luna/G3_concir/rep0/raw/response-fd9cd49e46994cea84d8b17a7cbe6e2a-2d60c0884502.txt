@@ -1,0 +1,80 @@
+```rust
+use concir_sync::Semaphore;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn a(
+    a_lock: Arc<Mutex<bool>>,
+    b_lock: Arc<Mutex<()>>,
+    sa: Arc<Semaphore>,
+    sb: Arc<Semaphore>,
+) {
+    let guard = a_lock.lock().unwrap();
+    sa.acquire().release();
+    drop(guard);
+
+    sb.acquire().release();
+
+    let mut guard_a = a_lock.lock().unwrap();
+    let guard_b = b_lock.lock().unwrap();
+    *guard_a = true;
+    drop(guard_b);
+    drop(guard_a);
+}
+
+fn b(
+    a_lock: Arc<Mutex<bool>>,
+    b_lock: Arc<Mutex<()>>,
+    sa: Arc<Semaphore>,
+    sb: Arc<Semaphore>,
+) {
+    let guard = a_lock.lock().unwrap();
+    sb.acquire().release();
+    drop(guard);
+
+    sa.acquire().release();
+
+    let mut guard_a = a_lock.lock().unwrap();
+    let guard_b = b_lock.lock().unwrap();
+    *guard_a = true;
+    drop(guard_b);
+    drop(guard_a);
+}
+
+fn bystander() {
+    let mut i: i32 = 0;
+    loop {
+        i = i.wrapping_add(1);
+    }
+}
+
+fn main() {
+    let a_lock = Arc::new(Mutex::new(false));
+    let b_lock = Arc::new(Mutex::new(()));
+    let sa = Semaphore::new(0);
+    let sb = Semaphore::new(0);
+
+    let ha = {
+        let a_lock = Arc::clone(&a_lock);
+        let b_lock = Arc::clone(&b_lock);
+        let sa = Arc::clone(&sa);
+        let sb = Arc::clone(&sb);
+        thread::spawn(move || a(a_lock, b_lock, sa, sb))
+    };
+
+    let hb = {
+        let a_lock = Arc::clone(&a_lock);
+        let b_lock = Arc::clone(&b_lock);
+        let sa = Arc::clone(&sa);
+        let sb = Arc::clone(&sb);
+        thread::spawn(move || b(a_lock, b_lock, sa, sb))
+    };
+
+    let hby = thread::spawn(bystander);
+
+    ha.join().unwrap();
+    hb.join().unwrap();
+
+    println!("DONE a=1 b=1");
+}
+```

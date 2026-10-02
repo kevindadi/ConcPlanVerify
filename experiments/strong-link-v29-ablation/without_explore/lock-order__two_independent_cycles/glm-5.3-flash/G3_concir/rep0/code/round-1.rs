@@ -1,0 +1,60 @@
+use std::sync::{Arc, Mutex};
+
+fn t1(a: &Mutex<i32>, b: &Mutex<i32>) {
+    let _ga = a.lock().unwrap();
+    let _gb = b.lock().unwrap();
+    drop(_gb);
+    drop(_ga);
+}
+
+fn t2(a: &Mutex<i32>, b: &Mutex<i32>) {
+    let _ga = a.lock().unwrap();
+    let _gb = b.lock().unwrap();
+    drop(_gb);
+    drop(_ga);
+}
+
+fn t3(c: &Mutex<i32>, d: &Mutex<i32>) {
+    let _gc = c.lock().unwrap();
+    let _gd = d.lock().unwrap();
+    drop(_gd);
+    drop(_gc);
+}
+
+fn t4(c: &Mutex<i32>, d: &Mutex<i32>) {
+    let _gc = c.lock().unwrap();
+    let _gd = d.lock().unwrap();
+    drop(_gd);
+    drop(_gc);
+}
+
+fn main() {
+    let a = Arc::new(Mutex::new(0));
+    let b = Arc::new(Mutex::new(0));
+    let c = Arc::new(Mutex::new(0));
+    let d = Arc::new(Mutex::new(0));
+
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let h1 = std::thread::spawn(move || t1(&a1, &b1));
+
+    let a2 = Arc::clone(&a);
+    let b2 = Arc::clone(&b);
+    let h2 = std::thread::spawn(move || t2(&a2, &b2));
+
+    let c1 = Arc::clone(&c);
+    let d1 = Arc::clone(&d);
+    let h3 = std::thread::spawn(move || t3(&c1, &d1));
+
+    let c2 = Arc::clone(&c);
+    let d2 = Arc::clone(&d);
+    let h4 = std::thread::spawn(move || t4(&c2, &d2));
+
+    h1.join().unwrap();
+    h2.join().unwrap();
+    h3.join().unwrap();
+    h4.join().unwrap();
+
+    let done = *a.lock().unwrap();
+    println!("DONE done={}", done);
+}

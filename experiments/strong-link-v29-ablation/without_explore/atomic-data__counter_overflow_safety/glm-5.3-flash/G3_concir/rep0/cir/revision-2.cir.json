@@ -1,0 +1,162 @@
+{
+  "program": "two_workers_bounded_counter",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m",
+          "c"
+        ],
+        "functions": [
+          "main",
+          "w1",
+          "w2"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        },
+        {
+          "name": "c",
+          "kind": "var",
+          "type": "Atomic",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [
+        {
+          "var": "main::c",
+          "lock": "main::m"
+        }
+      ],
+      "functions": [
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "cur",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "cur"
+            },
+            {
+              "sid": "s3",
+              "kind": "branch",
+              "cond": "cur < 1",
+              "then": "s4",
+              "else": "s5"
+            },
+            {
+              "sid": "s4",
+              "kind": "atomic_store",
+              "resource": "main::c",
+              "value": "cur + 1"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "cur",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "cur"
+            },
+            {
+              "sid": "s3",
+              "kind": "branch",
+              "cond": "cur < 1",
+              "then": "s4",
+              "else": "s5"
+            },
+            {
+              "sid": "s4",
+              "kind": "atomic_store",
+              "resource": "main::c",
+              "value": "cur + 1"
+            },
+            {
+              "sid": "s5",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s6",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": [
+                "main::w1",
+                "main::w2"
+              ]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::Arc;
+use std::thread;
+
+fn w1(c: &AtomicI32) {
+    loop {
+        let t = c.load(Ordering::SeqCst);
+        let ok = c.compare_exchange(t, t + 1, Ordering::SeqCst, Ordering::SeqCst);
+        if ok.is_ok() {
+            break;
+        }
+    }
+}
+
+fn w2(c: &AtomicI32) {
+    loop {
+        let t = c.load(Ordering::SeqCst);
+        let ok = c.compare_exchange(t, t + 1, Ordering::SeqCst, Ordering::SeqCst);
+        if ok.is_ok() {
+            break;
+        }
+    }
+}
+
+fn main() {
+    let c = Arc::new(AtomicI32::new(0));
+
+    let c1 = Arc::clone(&c);
+    let h1 = thread::spawn(move || w1(&c1));
+
+    let c2 = Arc::clone(&c);
+    let h2 = thread::spawn(move || w2(&c2));
+
+    h1.join().expect("w1 panicked");
+    h2.join().expect("w2 panicked");
+
+    println!("DONE done=1");
+}

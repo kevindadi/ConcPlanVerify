@@ -1,0 +1,65 @@
+{
+  "mapping": {
+    "a#1232": "main::a",
+    "b#1464": "main::b",
+    "sa_semaphore0#1016": "main::sa",
+    "sb_semaphore0#1048": "main::sb"
+  },
+  "provenance": {
+    "mapping": {
+      "a#1232": "main::a",
+      "b#1464": "main::b",
+      "sa_semaphore0#1016": "main::sa",
+      "sb_semaphore0#1048": "main::sb"
+    },
+    "ambiguous": [
+      {
+        "rust": "_hby#1536",
+        "entry": null,
+        "reason": "thread entry is not unambiguous",
+        "site": "1536"
+      },
+      {
+        "rust": "a_lock_mutex0#936",
+        "candidates": [],
+        "reason": "no structural evidence",
+        "site": "936"
+      },
+      {
+        "rust": "b_lock_mutex0#982",
+        "candidates": [],
+        "reason": "no structural evidence",
+        "site": "982"
+      }
+    ],
+    "violated": {},
+    "source": "rust-cli",
+    "attributes": [
+      {
+        "construction_site": "1016",
+        "evidence": "literal_initial",
+        "expected": "semaphore_initial",
+        "expected_capacity": 0,
+        "observed": 1,
+        "observed_capacity": 1,
+        "reason": "initial count of the used construction differs from the CIR",
+        "resource_id": "main::sa",
+        "runtime": "sa_semaphore0#1016",
+        "status": "mismatch"
+      },
+      {
+        "construction_site": "1048",
+        "evidence": "literal_initial",
+        "expected": "semaphore_initial",
+        "expected_capacity": 0,
+        "observed": 1,
+        "observed_capacity": 1,
+        "reason": "initial count of the used construction differs from the CIR",
+        "resource_id": "main::sb",
+        "runtime": "sb_semaphore0#1048",
+        "status": "mismatch"
+      }
+    ],
+    "uncovered_sync": []
+  }
+}

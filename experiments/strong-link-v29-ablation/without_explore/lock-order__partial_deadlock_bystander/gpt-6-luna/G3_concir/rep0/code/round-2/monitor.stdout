@@ -1,0 +1,111 @@
+{
+  "binary_sha256": "bc4ea47ef9841b62637faef926ef94804b92a95c3ab39ee690f0e2cf08681e47",
+  "bounded": true,
+  "events": 0,
+  "git_rev": "a35dc867d6327c772d48bd7c0473a6606fcc467a",
+  "properties": [
+    {
+      "detail": "decided by behavior (hang/timeout) and Miri",
+      "id": "no-deadlock",
+      "kind": "deadlock_free",
+      "req": [
+        "R6",
+        "R9",
+        "R10",
+        "R11"
+      ],
+      "source": "properties",
+      "status": "deferred"
+    },
+    {
+      "detail": "no traces",
+      "id": "a-completes",
+      "kind": "always_reachable",
+      "req": [
+        "R6",
+        "R7",
+        "R11"
+      ],
+      "source": "properties",
+      "status": "not_observed"
+    },
+    {
+      "detail": "no traces",
+      "id": "b-completes",
+      "kind": "always_reachable",
+      "req": [
+        "R6",
+        "R8",
+        "R11"
+      ],
+      "source": "properties",
+      "status": "not_observed"
+    },
+    {
+      "detail": "no traces",
+      "id": "main::a completes",
+      "kind": "reachable",
+      "req": [
+        "R1",
+        "R7",
+        "R11"
+      ],
+      "source": "preserved",
+      "status": "not_observed"
+    },
+    {
+      "detail": "no traces",
+      "id": "main::b completes",
+      "kind": "reachable",
+      "req": [
+        "R1",
+        "R8",
+        "R11"
+      ],
+      "source": "preserved",
+      "status": "not_observed"
+    },
+    {
+      "detail": "no traces",
+      "id": "main::a holds [main::a, main::b] at once",
+      "kind": "reachable",
+      "req": [
+        "R3",
+        "R4",
+        "R5"
+      ],
+      "source": "preserved",
+      "status": "not_observed"
+    },
+    {
+      "detail": "no traces",
+      "id": "main::b holds [main::a, main::b] at once",
+      "kind": "reachable",
+      "req": [
+        "R3",
+        "R4",
+        "R5"
+      ],
+      "source": "preserved",
+      "status": "not_observed"
+    }
+  ],
+  "resource_map": {
+    "a#1270": "main::a",
+    "a_lock_mutex0#974": null,
+    "b#1502": "main::b",
+    "b_lock_mutex0#1020": null,
+    "hby#1573": null,
+    "sa_semaphore0#1054": null,
+    "sb_semaphore0#1086": null
+  },
+  "status": "ok",
+  "traces": 0,
+  "unmapped_resources": [
+    "a_lock_mutex0#974",
+    "b_lock_mutex0#1020",
+    "hby#1573",
+    "sa_semaphore0#1054",
+    "sb_semaphore0#1086"
+  ]
+}
