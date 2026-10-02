@@ -292,9 +292,36 @@ def _align_functions(module: dict[str, Any], ref_module: dict[str, Any]) -> list
             for old, new in mapping.items()]
 
 
+def _goal_flags(contract: dict[str, Any]) -> list[bool]:
+    """True for clauses whose goal/preservation controls acceptance."""
+    flags: list[bool] = []
+    for clause in contract.get("properties", []) or []:
+        flags.append(clause.get("goal") is not None)
+    for clause in contract.get("preserved", []) or []:
+        flags.append(clause.get("goal") is not None)
+    return flags
+
+
+def _safety_only_pass(contract: dict[str, Any], explore) -> bool:
+    """Without the goal/preservation gate, accept on the non-goal (safety)
+    properties only. Goal/preservation results are still computed and reported,
+    but do not control build acceptance."""
+    if explore.complete is not True:
+        return False
+    flags = _goal_flags(contract)
+    props = (explore.payload or {}).get("properties", [])
+    for index, is_goal in enumerate(flags):
+        if is_goal:
+            continue
+        outcome = props[index].get("outcome") if index < len(props) else None
+        if outcome != "PASS":
+            return False
+    return True
+
+
 def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
            k: int = 4, prompt_asset: str | None = None,
-           with_codegen: bool = True) -> dict[str, Any]:
+           with_codegen: bool = True, ablation: dict | None = None) -> dict[str, Any]:
     from .concir_client import ConcirClient
     from .json_utils import extract_json
     from .normalize import normalize as normalize_program
@@ -308,6 +335,7 @@ def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
     backend = ConcirClient(str(binary), workdir=out_dir / "calls", timeout=60.0)
     provider = CirGenProvider(llm_client)
     contract = task.contract
+    ablation = dict(ablation or {})
 
     record: dict[str, Any] = {"arm": "G3_concir", "task": task.id,
                               "accepted": False, "status": "generation_failed",
@@ -380,12 +408,27 @@ def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
             round_info["decision"] = "unsupported"
             record["status"] = "unsupported"
             break
+        if ablation.get("without_explore"):
+            # Systematic CVN exploration is off: accept on schema/static + support
+            # only. No safety/goal conclusion is invented as PASS; the independent
+            # evaluator still runs later.
+            round_info["decision"] = "accepted_static"
+            round_info["explore"] = "not_run"
+            record["model"] = {"outcome": "not_run", "complete": None}
+            record["accepted"] = True
+            record["status"] = "accepted"
+            accepted_path = program_path
+            break
         explore = backend.explore(program_path, task.contract_path, "petri")
         round_info["explore"] = explore.outcome
         record["model"] = {"outcome": explore.outcome, "complete": explore.complete}
         record["coverage"] = model_coverage(contract, explore.payload.get("properties", []),
                                             task.requirements, task.unverifiable)
-        if explore.outcome == "PASS" and explore.complete is True:
+        if ablation.get("without_goal_gate"):
+            accepted_now = _safety_only_pass(contract, explore)
+        else:
+            accepted_now = explore.outcome == "PASS" and explore.complete is True
+        if accepted_now:
             round_info["decision"] = "accepted"
             record["accepted"] = True
             record["status"] = "accepted"
@@ -411,7 +454,11 @@ def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
         elif same_sig:
             stagnation = ("The same counterexample persists; the structure it names "
                           "did not change. Modify those statements directly. ")
-        if explore.outcome == "INVALID":
+        if ablation.get("without_diagnostics"):
+            # Pass/fail only: keep the check and the attempt budget, but return no
+            # counterexample, slice or error content. No blind resampling.
+            feedback = "The design did not pass the check. Revise it."
+        elif explore.outcome == "INVALID":
             feedback = (stagnation
                         + "The design cannot be evaluated against the contract because "
                         "it does not use the entity names given in the requirements "
@@ -430,12 +477,18 @@ def run_g3(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
     cir_path = Path(record["cir_path"]) if record.get("cir_path") else None
     if cir_path is None or not cir_path.is_file():
         return record
-    explore = _explore(binary, cir_path, task.contract_path)
-    record["model"] = {"outcome": explore.get("outcome"),
-                       "complete": explore.get("complete")}
-    record["coverage"] = model_coverage(
-        task.contract, explore.get("properties", []), task.requirements,
-        task.unverifiable)
+    if ablation.get("without_explore"):
+        # No exploration was run; do not invent a verdict or coverage.
+        explore = {"outcome": "not_run", "complete": None, "properties": []}
+        record["model"] = {"outcome": "not_run", "complete": None}
+        record["coverage"] = None
+    else:
+        explore = _explore(binary, cir_path, task.contract_path)
+        record["model"] = {"outcome": explore.get("outcome"),
+                           "complete": explore.get("complete")}
+        record["coverage"] = model_coverage(
+            task.contract, explore.get("properties", []), task.requirements,
+            task.unverifiable)
     # codegen + build + conform + behavior on the accepted CIR (ablation arm)
     if with_codegen and record["accepted"] and explore.get("outcome") == "PASS":
         try:
@@ -969,10 +1022,11 @@ def code_stage_view(code: dict[str, Any] | None) -> dict[str, Any]:
 
 
 def run_g3_v2(llm_client, binary: Path, task: GenTask, out_dir: Path, *,
-              k_cir: int = 4, k_code: int = 3, instrument_binary=None) -> dict[str, Any]:
+              k_cir: int = 4, k_code: int = 3, instrument_binary=None,
+              ablation: dict | None = None) -> dict[str, Any]:
     """§1: verified CIR, then LLM-generated Rust post-verified by tools."""
     cir_rec = run_g3(llm_client, binary, task, out_dir / "cir", k=k_cir,
-                     with_codegen=False)
+                     with_codegen=False, ablation=ablation)
     rounds = list(cir_rec.get("rounds", []))
     for rnd in rounds:
         rnd["stage"] = "cir"

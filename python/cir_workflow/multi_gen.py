@@ -96,6 +96,7 @@ def matrix_from_config(config: dict) -> list[dict]:
                         "cell_cap": int((config.get("cell_caps") or CELL_CAPS)[arm]),
                         "round_cap": int((config.get("rounds") or ROUND_CAPS)[arm]),
                         "g3_code_cap": int(config.get("g3_code_rounds") or G3_CODE_ROUND_CAP),
+                        "ablation": dict(config.get("ablation") or {}),
                     })
     return cells
 
@@ -465,7 +466,8 @@ def run_one_cell(cell: dict, client, task, out_dir: Path, *, binary: Path,
         record = run_g3_v2(client, binary, task, out_dir,
                            k_cir=int(cell.get("round_cap", 3)),
                            k_code=int(cell.get("g3_code_cap", 3)),
-                           instrument_binary=instrument)
+                           instrument_binary=instrument,
+                           ablation=cell.get("ablation"))
         record["model_pass_is_not_rf"] = True
         return record
     mode, internal, k = ARM_MODE[arm]
@@ -644,8 +646,11 @@ def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tas
             return reason
 
         first_wave_tasks = set(config.get("first_wave_tasks") or [first_task])
-        first_wave = [cell for cell in ordered if cell["task"] in first_wave_tasks]
-        rest = [cell for cell in ordered if cell["task"] not in first_wave_tasks]
+        only_rep0 = bool(config.get("first_wave_rep0"))
+        first_wave = [cell for cell in ordered
+                      if cell["task"] in first_wave_tasks
+                      and (not only_rep0 or cell["rep"] == 0)]
+        rest = [cell for cell in ordered if cell not in first_wave]
         if live:
             reason = _consume(first_wave)
             if reason == "infrastructure_error" or any(item["status"] == "infrastructure_error" for item in results):
