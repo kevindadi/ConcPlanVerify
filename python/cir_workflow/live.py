@@ -404,6 +404,7 @@ class DeepSeekFlashClient:
         timeout: float = DEFAULT_TIMEOUT,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         max_transport_retries: int = MAX_TRANSPORT_RETRIES,
+        thinking: dict[str, Any] | None = None,
     ) -> None:
         assert_allowed_model(ALLOWED_PROVIDER, ALLOWED_MODEL)
         if not api_key:
@@ -416,6 +417,8 @@ class DeepSeekFlashClient:
         self.timeout = float(timeout)
         self.max_tokens = int(max_tokens)
         self.max_transport_retries = max(0, int(max_transport_retries))
+        # None keeps the historical default (thinking explicitly disabled).
+        self.thinking = dict(thinking) if thinking else None
         self._sdk = sdk_client
 
     # ---- SDK -------------------------------------------------------------
@@ -433,13 +436,14 @@ class DeepSeekFlashClient:
         return self._sdk
 
     def _request_kwargs(self, messages: list[dict[str, str]]) -> dict[str, Any]:
+        thinking = self.thinking or {"thinking": dict(THINKING_DISABLED["thinking"])}
         return {
             "model": ALLOWED_MODEL,
             "messages": messages,
             "temperature": 0.0,
             "max_tokens": self.max_tokens,
             "stream": False,
-            "extra_body": {"thinking": dict(THINKING_DISABLED["thinking"])},
+            "extra_body": thinking,
         }
 
     def complete(self, system_prompt: str, user_prompt: str) -> LiveChatOutcome:

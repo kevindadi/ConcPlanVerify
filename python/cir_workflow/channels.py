@@ -77,7 +77,7 @@ def build_client(spec: ModelSpec, *, budget: Any, evidence_dir: Path | str,
         from .live import DeepSeekFlashClient
         return DeepSeekFlashClient(api_key=api_key, budget=budget,
                                    evidence_dir=evidence_dir, timeout=timeout,
-                                   max_tokens=max_tokens)
+                                   max_tokens=max_tokens, thinking=thinking)
     if spec.channel == "dashscope-direct":
         from .direct import DirectChatClient
         return DirectChatClient(api_key=api_key,
