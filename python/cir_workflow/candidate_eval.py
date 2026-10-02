@@ -176,6 +176,31 @@ def _acquisition_id(parts: dict) -> str:
     return hashlib.sha256(blob).hexdigest()
 
 
+def _adaptation_feedback(ledger, result: dict) -> str | None:
+    """A safe, CIR-preserving encoding-adaptation request.
+
+    Only when the identity is resolved (a binding exists) but the runtime cannot
+    observe a required value/attribute. Returns non-empty feedback so the code
+    stage gets a real repair round; it never accepts and never loosens a gate.
+    """
+    unsupported = [p.property_id for p in getattr(ledger, "properties", [])
+                   if p.independent_requirement_result in ("unsupported", "unmapped")]
+    if not unsupported:
+        return None
+    if not (result.get("binding") or {}).get("mapping"):
+        return None
+    ids = ", ".join(unsupported)
+    return (
+        "Representation adaptation required for: " + ids + ". The CIR identity is "
+        "resolved but the runtime cannot observe the required value/attribute. Expose "
+        "the protected variable as a primitive stored through its declared lock (or as "
+        "a directly observable field), and keep the exact CIR synchronization "
+        "operations, protection relation and thread completion obligations unchanged. "
+        "Do not change the requirements or the contract. This is an encoding change; "
+        "the program will be re-compiled, re-bound, re-run and re-checked."
+    )
+
+
 def decide_followup(ledger: ReexecutionLedger, result: dict) -> dict[str, Any]:
     """Map a ledger to the next action. Repair feedback is never empty."""
 
@@ -262,12 +287,16 @@ def decide_followup(ledger: ReexecutionLedger, result: dict) -> dict[str, Any]:
                 "semantic_retry": False, "protocol_retry": True}
     if ledger.delivery_status == "withhold_capability" or any(
             "unsupported" in reason for reason in ledger.reasons):
-        return _capability()
+        fb = _adaptation_feedback(ledger, result)
+        return (_repair("candidate_error", "representation_adaptation", fb)
+                if fb else _capability())
     if ledger.delivery_status == "withhold_tool" or \
             any(reason.startswith("evidence_invalid") for reason in ledger.reasons):
         return {"action": "stop", "category": "tool_failure", "status": "evidence_invalid",
                 "feedback": "", "semantic_retry": False, "protocol_retry": False}
-    return _capability()
+    fb = _adaptation_feedback(ledger, result)
+    return (_repair("candidate_error", "representation_adaptation", fb)
+            if fb else _capability())
 
 
 def _repair(category: str, status: str, feedback: str) -> dict[str, Any]:
