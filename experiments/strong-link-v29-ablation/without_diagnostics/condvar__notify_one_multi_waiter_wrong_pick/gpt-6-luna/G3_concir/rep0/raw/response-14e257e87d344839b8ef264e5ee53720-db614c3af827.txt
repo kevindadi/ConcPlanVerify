@@ -1,0 +1,51 @@
+```rust
+use concir_sync::Semaphore;
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+fn w1(m: Arc<Mutex<bool>>, cv: Arc<Condvar>) {
+    let mut proceed = m.lock().unwrap();
+    while !*proceed {
+        proceed = cv.wait(proceed).unwrap();
+    }
+}
+
+fn w2(m: Arc<Mutex<bool>>, cv: Arc<Condvar>) {
+    let mut proceed = m.lock().unwrap();
+    while !*proceed {
+        proceed = cv.wait(proceed).unwrap();
+    }
+}
+
+fn notifier(m: Arc<Mutex<bool>>, cv: Arc<Condvar>) {
+    let mut proceed = m.lock().unwrap();
+    *proceed = true;
+    cv.notify_all();
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(false));
+    let cv = Arc::new(Condvar::new());
+    let g12 = Semaphore::new(0);
+    let gN = Semaphore::new(0);
+
+    let w1_m = Arc::clone(&m);
+    let w1_cv = Arc::clone(&cv);
+    let t1 = thread::spawn(move || w1(w1_m, w1_cv));
+
+    let w2_m = Arc::clone(&m);
+    let w2_cv = Arc::clone(&cv);
+    let t2 = thread::spawn(move || w2(w2_m, w2_cv));
+
+    let notifier_m = Arc::clone(&m);
+    let notifier_cv = Arc::clone(&cv);
+    let tn = thread::spawn(move || notifier(notifier_m, notifier_cv));
+
+    t1.join().unwrap();
+    t2.join().unwrap();
+    tn.join().unwrap();
+
+    let _ = (g12, gN);
+    println!("DONE waiters=0");
+}
+```

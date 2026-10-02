@@ -1,0 +1,88 @@
+use concir_sync::Semaphore;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn a(
+    a_lock: Arc<Mutex<i32>>,
+    b_lock: Arc<Mutex<()>>,
+    sa: Arc<Semaphore>,
+    sb: Arc<Semaphore>,
+) {
+    // Hold the initial sa permit so it can be released at the CIR signal.
+    let sa_permit = sa.acquire();
+
+    let a_guard = a_lock.lock().unwrap();
+    sa_permit.release();
+    drop(a_guard);
+
+    let _sb_permit = sb.acquire();
+
+    let mut a_guard = a_lock.lock().unwrap();
+    let _b_guard = b_lock.lock().unwrap();
+    *a_guard += 1;
+    drop(_b_guard);
+    drop(a_guard);
+}
+
+fn b(
+    a_lock: Arc<Mutex<i32>>,
+    b_lock: Arc<Mutex<()>>,
+    sa: Arc<Semaphore>,
+    sb: Arc<Semaphore>,
+) {
+    // Hold the initial sb permit so it can be released at the CIR signal.
+    let sb_permit = sb.acquire();
+
+    let _sa_permit = sa.acquire();
+    let a_guard = a_lock.lock().unwrap();
+    sb_permit.release();
+    drop(a_guard);
+
+    let mut a_guard = a_lock.lock().unwrap();
+    let _b_guard = b_lock.lock().unwrap();
+    *a_guard += 1;
+    drop(_b_guard);
+    drop(a_guard);
+}
+
+fn bystander() {
+    let mut i = 0;
+    loop {
+        if i < 0 {
+            return;
+        }
+        i = 1;
+        i = 0;
+    }
+}
+
+fn main() {
+    let a_lock = Arc::new(Mutex::new(0));
+    let b_lock = Arc::new(Mutex::new(()));
+    let sa = Semaphore::new(1);
+    let sb = Semaphore::new(1);
+
+    let ha = {
+        let a_lock = Arc::clone(&a_lock);
+        let b_lock = Arc::clone(&b_lock);
+        let sa = Arc::clone(&sa);
+        let sb = Arc::clone(&sb);
+        thread::spawn(move || a(a_lock, b_lock, sa, sb))
+    };
+
+    let hb = {
+        let a_lock = Arc::clone(&a_lock);
+        let b_lock = Arc::clone(&b_lock);
+        let sa = Arc::clone(&sa);
+        let sb = Arc::clone(&sb);
+        thread::spawn(move || b(a_lock, b_lock, sa, sb))
+    };
+
+    let _hby = thread::spawn(move || bystander());
+
+    ha.join().unwrap();
+    hb.join().unwrap();
+
+    let a_guard = a_lock.lock().unwrap();
+    println!("DONE a={} b=1", *a_guard);
+}

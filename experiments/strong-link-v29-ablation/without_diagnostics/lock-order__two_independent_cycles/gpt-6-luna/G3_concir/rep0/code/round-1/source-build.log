@@ -1,0 +1,126 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_diagnostics/lock-order__two_independent_cycles/gpt-6-luna/G3_concir/rep0/code/round-1/source-proj)
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:39:28
+   |
+33 |     let a = Arc::new(Mutex::new(()));
+   |         - this move could be avoided by cloning the original `Arc`, which is inexpensive
+...
+38 |     let h1 = thread::spawn(move || t1(a, b));
+   |                            -------    - variable moved due to use in closure
+   |                            |
+   |                            value moved into closure here
+39 |     let h2 = thread::spawn(move || t2(a, b));
+   |                            ^^^^^^^    - use occurs due to use in closure
+   |                            |
+   |                            value used here after move
+   |
+   = note: consider using `Arc::clone`
+note: consider changing this parameter type in function `t1` to borrow instead if owning the value isn't necessary
+  --> src/main.rs:4:10
+   |
+ 4 | fn t1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {
+   |    --    ^^^^^^^^^^^^^^ this parameter takes ownership of the value
+   |    |
+   |    in this function
+help: consider cloning the value before moving it into the closure
+   |
+38 ~     let value = a.clone();
+39 ~     let h1 = thread::spawn(move || t1(value, b));
+   |
+
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:39:28
+   |
+34 |     let b = Arc::new(Mutex::new(()));
+   |         - this move could be avoided by cloning the original `Arc`, which is inexpensive
+...
+38 |     let h1 = thread::spawn(move || t1(a, b));
+   |                            -------       - variable moved due to use in closure
+   |                            |
+   |                            value moved into closure here
+39 |     let h2 = thread::spawn(move || t2(a, b));
+   |                            ^^^^^^^       - use occurs due to use in closure
+   |                            |
+   |                            value used here after move
+   |
+   = note: consider using `Arc::clone`
+note: consider changing this parameter type in function `t1` to borrow instead if owning the value isn't necessary
+  --> src/main.rs:4:29
+   |
+ 4 | fn t1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {
+   |    -- in this function      ^^^^^^^^^^^^^^ this parameter takes ownership of the value
+help: consider cloning the value before moving it into the closure
+   |
+38 ~     let value = b.clone();
+39 ~     let h1 = thread::spawn(move || t1(a, value));
+   |
+
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:41:28
+   |
+35 |     let c = Arc::new(Mutex::new(()));
+   |         - this move could be avoided by cloning the original `Arc`, which is inexpensive
+...
+40 |     let h3 = thread::spawn(move || t3(c, d));
+   |                            -------    - variable moved due to use in closure
+   |                            |
+   |                            value moved into closure here
+41 |     let h4 = thread::spawn(move || t4(c, d));
+   |                            ^^^^^^^    - use occurs due to use in closure
+   |                            |
+   |                            value used here after move
+   |
+   = note: consider using `Arc::clone`
+note: consider changing this parameter type in function `t3` to borrow instead if owning the value isn't necessary
+  --> src/main.rs:18:10
+   |
+18 | fn t3(c: Arc<Mutex<()>>, d: Arc<Mutex<()>>) {
+   |    --    ^^^^^^^^^^^^^^ this parameter takes ownership of the value
+   |    |
+   |    in this function
+help: consider cloning the value before moving it into the closure
+   |
+40 ~     let value = c.clone();
+41 ~     let h3 = thread::spawn(move || t3(value, d));
+   |
+
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:41:28
+   |
+36 |     let d = Arc::new(Mutex::new(()));
+   |         - this move could be avoided by cloning the original `Arc`, which is inexpensive
+...
+40 |     let h3 = thread::spawn(move || t3(c, d));
+   |                            -------       - variable moved due to use in closure
+   |                            |
+   |                            value moved into closure here
+41 |     let h4 = thread::spawn(move || t4(c, d));
+   |                            ^^^^^^^       - use occurs due to use in closure
+   |                            |
+   |                            value used here after move
+   |
+   = note: consider using `Arc::clone`
+note: consider changing this parameter type in function `t3` to borrow instead if owning the value isn't necessary
+  --> src/main.rs:18:29
+   |
+18 | fn t3(c: Arc<Mutex<()>>, d: Arc<Mutex<()>>) {
+   |    -- in this function      ^^^^^^^^^^^^^^ this parameter takes ownership of the value
+help: consider cloning the value before moving it into the closure
+   |
+40 ~     let value = d.clone();
+41 ~     let h3 = thread::spawn(move || t3(c, value));
+   |
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `probe` (bin "probe") due to 4 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning

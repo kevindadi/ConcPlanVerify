@@ -1,0 +1,91 @@
+use concir_sync::Semaphore;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+struct Shared {
+    flag: i32,
+}
+
+fn a(
+    a: Arc<Mutex<Shared>>,
+    b: Arc<Mutex<()>>,
+    sa: Arc<Semaphore>,
+    sb: Arc<Semaphore>,
+    sa_permit: concir_sync::Permit,
+) {
+    let a_guard = a.lock().unwrap();
+    sa_permit.release();
+    drop(a_guard);
+
+    let _sb_permit = sb.acquire();
+
+    let mut a_guard = a.lock().unwrap();
+    let _b_guard = b.lock().unwrap();
+    a_guard.flag += 1;
+    drop(_b_guard);
+    drop(a_guard);
+}
+
+fn b(
+    a: Arc<Mutex<Shared>>,
+    b: Arc<Mutex<()>>,
+    sa: Arc<Semaphore>,
+    sb: Arc<Semaphore>,
+    sb_permit: concir_sync::Permit,
+) {
+    let _sa_permit = sa.acquire();
+    let a_guard = a.lock().unwrap();
+    sb_permit.release();
+    drop(a_guard);
+
+    let mut a_guard = a.lock().unwrap();
+    let _b_guard = b.lock().unwrap();
+    a_guard.flag += 1;
+    drop(_b_guard);
+    drop(a_guard);
+}
+
+fn bystander() {
+    let mut i = 0;
+    loop {
+        if i < 0 {
+            return;
+        }
+        i = 1;
+        i = 0;
+    }
+}
+
+fn main() {
+    let a = Arc::new(Mutex::new(Shared { flag: 0 }));
+    let b = Arc::new(Mutex::new(()));
+    let sa = Semaphore::new(1);
+    let sb = Semaphore::new(1);
+
+    let sa_permit = sa.try_acquire().unwrap();
+    let sb_permit = sb.try_acquire().unwrap();
+
+    let ha = {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        let sa = Arc::clone(&sa);
+        let sb = Arc::clone(&sb);
+        thread::spawn(move || a(a, b, sa, sb, sa_permit))
+    };
+
+    let hb = {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        let sa = Arc::clone(&sa);
+        let sb = Arc::clone(&sb);
+        thread::spawn(move || b(a, b, sa, sb, sb_permit))
+    };
+
+    let _hby = thread::spawn(move || bystander());
+
+    ha.join().unwrap();
+    hb.join().unwrap();
+
+    let guard = a.lock().unwrap();
+    println!("DONE a={} b=1", guard.flag);
+}

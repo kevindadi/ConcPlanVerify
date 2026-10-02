@@ -1,0 +1,48 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_diagnostics/semaphore__throttle_n_permits/glm-5.3-flash/G3_concir/rep0/code/round-1/source-proj)
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:27:28
+   |
+25 |     let s = Semaphore::new(2);
+   |         - this move could be avoided by cloning the original `Arc`, which is inexpensive
+26 |     let h1 = thread::spawn(move || w1(&s));
+   |                            -------     - variable moved due to use in closure
+   |                            |
+   |                            value moved into closure here
+27 |     let h2 = thread::spawn(move || w2(&s));
+   |                            ^^^^^^^     - use occurs due to use in closure
+   |                            |
+   |                            value used here after move
+   |
+   = note: consider using `Arc::clone`
+help: consider cloning the value before moving it into the closure
+   |
+26 ~     let value = s.clone();
+27 ~     let h1 = thread::spawn(move || w1(&value));
+   |
+
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:28:28
+   |
+25 |     let s = Semaphore::new(2);
+   |         - this move could be avoided by cloning the original `Arc`, which is inexpensive
+26 |     let h1 = thread::spawn(move || w1(&s));
+27 |     let h2 = thread::spawn(move || w2(&s));
+   |                            -------     - variable moved due to use in closure
+   |                            |
+   |                            value moved into closure here
+28 |     let h3 = thread::spawn(move || w3(&s));
+   |                            ^^^^^^^     - use occurs due to use in closure
+   |                            |
+   |                            value used here after move
+   |
+   = note: consider using `Arc::clone`
+help: consider cloning the value before moving it into the closure
+   |
+27 ~     let value = s.clone();
+28 ~     let h2 = thread::spawn(move || w2(&value));
+   |
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `probe` (bin "probe") due to 2 previous errors

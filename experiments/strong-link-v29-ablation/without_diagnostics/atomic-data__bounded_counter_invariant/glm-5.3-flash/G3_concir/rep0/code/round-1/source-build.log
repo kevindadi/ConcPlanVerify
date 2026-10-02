@@ -1,0 +1,36 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/without_diagnostics/atomic-data__bounded_counter_invariant/glm-5.3-flash/G3_concir/rep0/code/round-1/source-proj)
+error[E0596]: cannot borrow `guard` as mutable, as it is not declared as mutable
+  --> src/main.rs:10:6
+   |
+10 |     *guard = c + 1;
+   |      ^^^^^ cannot borrow as mutable
+   |
+help: consider changing this to be mutable
+   |
+ 6 |     let mut guard = m.lock().unwrap();
+   |         +++
+
+error[E0596]: cannot borrow `guard` as mutable, as it is not declared as mutable
+  --> src/main.rs:21:6
+   |
+21 |     *guard = c + 1;
+   |      ^^^^^ cannot borrow as mutable
+   |
+help: consider changing this to be mutable
+   |
+17 |     let mut guard = m.lock().unwrap();
+   |         +++
+
+For more information about this error, try `rustc --explain E0596`.
+error: could not compile `probe` (bin "probe") due to 2 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning
