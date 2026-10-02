@@ -1,0 +1,48 @@
+{
+  "mapping": {
+    "cv_condvar0#1761": "main::cv",
+    "g12_semaphore0#1794": "main::g12",
+    "m_mutex0#1695": "main::m",
+    "notifier#2369": "main::notifier",
+    "w1#1975": "main::w1",
+    "w2#2172": "main::w2"
+  },
+  "provenance": {
+    "source": "rust-cli",
+    "policy": "structural-binding-v1",
+    "unresolved": {
+      "g_n_semaphore0#1827": {
+        "candidates": [],
+        "reason": "used semaphore construction does not match exactly one CIR semaphore",
+        "site": "1827"
+      }
+    },
+    "violated": {},
+    "attributes": [
+      {
+        "construction_site": "1794",
+        "evidence": "literal_initial",
+        "expected": "semaphore_initial",
+        "expected_capacity": 0,
+        "observed": 0,
+        "observed_capacity": 0,
+        "reason": "initial count of the used construction matches the CIR",
+        "resource_id": "main::g12",
+        "runtime": "g12_semaphore0#1794",
+        "status": "match"
+      },
+      {
+        "construction_site": null,
+        "evidence": "absent",
+        "expected": "semaphore_initial",
+        "expected_capacity": 0,
+        "observed": null,
+        "observed_capacity": null,
+        "reason": "no used semaphore construction is bound to this CIR resource",
+        "resource_id": "main::gN",
+        "runtime": null,
+        "status": "unknown"
+      }
+    ]
+  }
+}

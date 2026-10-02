@@ -1,0 +1,33 @@
+mod cir_trace;
+// Verified ConcIR design: sequential_calls
+// module main provides functions: main, helper
+// main::main: call main::helper; call main::helper; return
+// main::helper: return
+
+// CIR function main::helper -> Rust fn helper.
+// Its body is a single return statement, so the function does no work
+// and touches no shared state (R2: no mutexes, counters, or other
+// shared state exist in the design; the CIR declares no resources).
+fn helper() {
+    // CIR sid s1: return
+}
+
+// CIR function main::main -> Rust fn main.
+// The entry scope names no threads to spawn (the CIR body contains only
+// call statements, no spawn), so both auxiliary invocations are plain
+// calls executed by the main task itself.
+fn main() { crate::cir_trace::init();
+    // CIR sid s1: call main::helper
+    // R3: this call runs to completion before the next call begins,
+    // because a plain call is synchronous.
+    helper();
+
+    // CIR sid s2: call main::helper (the same call sequence begins again)
+    helper();
+
+    // CIR sid s3: return
+    // R4: there are no spawned threads and no blocking primitives, so
+    // every schedule/interleaving trivially terminates.
+    // R5: print the exact required terminal line.
+    println!("DONE done=1");
+ crate::cir_trace::finish();}

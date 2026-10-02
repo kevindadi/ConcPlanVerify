@@ -1,0 +1,47 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-ablation/full/lock-order__partial_deadlock_bystander/gpt-6-luna/G3_concir/rep0/code/round-3/source-proj)
+error[E0597]: `sa` does not live long enough
+   --> src/main.rs:72:21
+    |
+ 69 |     let sa = Semaphore::new(1);
+    |         -- binding `sa` declared here
+...
+ 72 |     let permit_sa = sa.try_acquire().unwrap();
+    |                     ^^ borrowed value does not live long enough
+...
+ 79 |         thread::spawn(move || a(a_lock, b_lock, sb, move || permit_sa.release()))
+    |         ------------------------------------------------------------------------- argument requires that `sa` is borrowed for `'static`
+...
+ 96 | }
+    | - `sa` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `sb` does not live long enough
+   --> src/main.rs:73:21
+    |
+ 70 |     let sb = Semaphore::new(1);
+    |         -- binding `sb` declared here
+...
+ 73 |     let permit_sb = sb.try_acquire().unwrap();
+    |                     ^^ borrowed value does not live long enough
+...
+ 86 |         thread::spawn(move || b(a_lock, b_lock, sa, move || permit_sb.release()))
+    |         ------------------------------------------------------------------------- argument requires that `sb` is borrowed for `'static`
+...
+ 96 | }
+    | - `sb` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+For more information about this error, try `rustc --explain E0597`.
+error: could not compile `probe` (bin "probe") due to 2 previous errors

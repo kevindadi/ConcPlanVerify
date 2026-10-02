@@ -1,0 +1,90 @@
+```json
+{
+  "program": "two_modules_two_locks",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {"resources": [], "functions": ["main", "t1", "t2"]},
+      "requires": {"resources": ["mod1::a", "mod2::b"], "functions": ["mod1::t1", "mod2::t2"]},
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "scope", "funcs": ["main::t1", "main::t2"]},
+            {"sid": "s2", "kind": "return"}
+          ]
+        },
+        {
+          "name": "t1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "call", "func": "mod1::t1"},
+            {"sid": "s2", "kind": "return"}
+          ]
+        },
+        {
+          "name": "t2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "call", "func": "mod2::t2"},
+            {"sid": "s2", "kind": "return"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mod1",
+      "provides": {"resources": ["a"], "functions": ["t1"]},
+      "requires": {"resources": ["mod2::b"], "functions": []},
+      "resources": [
+        {"name": "a", "kind": "sync", "type": "Mutex", "mode": "Sync"}
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "t1",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "mod1::a"},
+            {"sid": "s2", "kind": "mutex_lock", "resource": "mod2::b"},
+            {"sid": "s3", "kind": "mutex_unlock", "resource": "mod2::b"},
+            {"sid": "s4", "kind": "mutex_unlock", "resource": "mod1::a"},
+            {"sid": "s5", "kind": "return"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mod2",
+      "provides": {"resources": ["b"], "functions": ["t2"]},
+      "requires": {"resources": ["mod1::a"], "functions": []},
+      "resources": [
+        {"name": "b", "kind": "sync", "type": "Mutex", "mode": "Sync"}
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "t2",
+          "kind": "normal",
+          "form": "closure",
+          "body": [
+            {"sid": "s1", "kind": "mutex_lock", "resource": "mod1::a"},
+            {"sid": "s2", "kind": "mutex_lock", "resource": "mod2::b"},
+            {"sid": "s3", "kind": "mutex_unlock", "resource": "mod2::b"},
+            {"sid": "s4", "kind": "mutex_unlock", "resource": "mod1::a"},
+            {"sid": "s5", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```

@@ -1,0 +1,17 @@
+use std::thread;
+
+fn worker() {
+    // The worker performs no shared work and shares no mutexes or counters.
+}
+
+fn main() {
+    // First start-and-wait cycle.
+    let w1 = thread::spawn(move || worker());
+    w1.join().expect("worker thread 1 panicked");
+
+    // Second start-and-wait cycle.
+    let w2 = thread::spawn(move || worker());
+    w2.join().expect("worker thread 2 panicked");
+
+    println!("DONE done=1");
+}

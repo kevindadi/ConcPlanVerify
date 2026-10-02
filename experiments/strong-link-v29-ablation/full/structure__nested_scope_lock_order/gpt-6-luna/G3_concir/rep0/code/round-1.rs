@@ -1,0 +1,34 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn x1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {
+    let _a_guard = a.lock().unwrap();
+    let b_guard = b.lock().unwrap();
+    drop(b_guard);
+    drop(_a_guard);
+}
+
+fn x2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {
+    let _a_guard = a.lock().unwrap();
+    let b_guard = b.lock().unwrap();
+    drop(b_guard);
+    drop(_a_guard);
+}
+
+fn outer(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {
+    let x1_thread = thread::spawn(move || x1(a.clone(), b.clone()));
+    let x2_thread = thread::spawn(move || x2(a, b));
+
+    x1_thread.join().unwrap();
+    x2_thread.join().unwrap();
+}
+
+fn main() {
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    let outer_thread = thread::spawn(move || outer(a, b));
+    outer_thread.join().unwrap();
+
+    println!("DONE done=1");
+}
