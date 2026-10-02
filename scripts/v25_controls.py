@@ -36,7 +36,7 @@ CASES = [
     ("bare_pos", REAL_BARE, BARE, "positive", "PASS_bounded"),
     ("bare_neg_print", CTRL / "bare_neg_print.rs", BARE, "negative", "not_observed"),
     ("bare_shadow_other_mutex", CTRL / "bare_shadow_other_mutex.rs", BARE, "shadow", "not_observed"),
-    ("bare_struct_mutex", CTRL / "bare_struct_mutex.rs", BARE, "unknown", "unsupported"),
+    ("bare_struct_mutex", CTRL / "bare_struct_mutex.rs", BARE, "positive", "PASS_bounded"),
 ]
 
 
