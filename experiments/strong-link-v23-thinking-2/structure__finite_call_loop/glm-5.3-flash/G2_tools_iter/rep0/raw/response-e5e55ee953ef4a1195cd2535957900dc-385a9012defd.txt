@@ -1,0 +1,37 @@
+```rust
+// Auxiliary routine: `helper`.
+// It touches no mutexes, counters, globals, or any other shared state,
+// so no two tasks can ever contend for a resource (R2).
+// It always runs to completion and terminates (R4).
+fn helper() {
+    // No shared state, no blocking, no loops: trivially terminates.
+}
+
+fn main() {
+    // R1: the main task calls the auxiliary routine...
+    {
+        let handle = std::thread::spawn(helper);
+        // R3: wait until this call has run to completion
+        // before starting the next call.
+        handle.join().expect("helper task panicked");
+    }
+
+    // R1: ...and then begins the same call sequence again.
+    {
+        let handle = std::thread::spawn(helper);
+        // R3: each auxiliary call completes before the next one starts.
+        handle.join().expect("helper task panicked");
+    }
+
+    // R5: print exactly the required line, then exit.
+    println!("DONE done=1");
+}
+```
+
+**How the requirements are met:**
+
+- **R1** — `main` calls `helper` (as a spawned task) and then performs the identical call sequence a second time.
+- **R2** — `helper` is a pure function with no parameters, no globals, no mutexes, no counters; the only synchronization is the `join`, which is a one-shot handoff, not a contended resource. No two tasks ever contend.
+- **R3** — `main` blocks on `join()` after each spawn, so each auxiliary call fully completes before the next call begins.
+- **R4** — `helper` terminates unconditionally, and `main` performs a fixed, finite sequence of two joined calls followed by a print; every schedule terminates.
+- **R5** — The program prints exactly `DONE done=1` and exits.

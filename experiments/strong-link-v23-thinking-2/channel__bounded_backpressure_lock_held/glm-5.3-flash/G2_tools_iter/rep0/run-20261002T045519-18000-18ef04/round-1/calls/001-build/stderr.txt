@@ -1,0 +1,55 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20261002T045519-18000-18ef04/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0308]: mismatched types
+    --> src/main.rs:29:41
+     |
+  29 |                 i * *guard.signum().max(&1) // derive value under the lock
+     |                                     --- ^^ expected `i32`, found `&{integer}`
+     |                                     |
+     |                                     arguments to this method are incorrect
+     |
+help: the return type of this call is `&{integer}` due to the type of the argument passed
+    --> src/main.rs:29:22
+     |
+  29 |                 i * *guard.signum().max(&1) // derive value under the lock
+     |                      ^^^^^^^^^^^^^^^^^^^--^
+     |                                         |
+     |                                         this argument influences the return type of `max`
+note: method defined here
+    --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cmp.rs:1097:8
+     |
+1097 |     fn max(self, other: Self) -> Self
+     |        ^^^
+help: consider removing the borrow
+     |
+  29 -                 i * *guard.signum().max(&1) // derive value under the lock
+  29 +                 i * *guard.signum().max(1) // derive value under the lock
+     |
+
+error[E0614]: type `i32` cannot be dereferenced
+  --> src/main.rs:29:21
+   |
+29 |                 i * *guard.signum().max(&1) // derive value under the lock
+   |                     ^^^^^^^^^^^^^^^^^^^^^^^ can't be dereferenced
+
+Some errors have detailed explanations: E0308, E0614.
+For more information about an error, try `rustc --explain E0308`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 2 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`

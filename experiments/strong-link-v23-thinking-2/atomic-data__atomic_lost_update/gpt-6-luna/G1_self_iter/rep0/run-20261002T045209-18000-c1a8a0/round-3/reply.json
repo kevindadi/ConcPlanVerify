@@ -1,0 +1,7 @@
+{
+  "round": 3,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "The program already satisfies the stated concurrency requirements: each worker retries its atomic compare-and-exchange until its increment succeeds, and `main` joins both workers before checking the counter and printing the required line. `Relaxed` ordering is sufficient because the counter is the only shared state.\n\n```rust\nuse std::sync::{\n    atomic::{AtomicUsize, Ordering},\n    Arc,\n};\nuse std::thread;\n\nfn increment(c: &AtomicUsize) {\n    let mut current = c.load(Ordering::Relaxed);\n\n    loop {\n        match c.compare_exchange(\n            current,\n            current + 1,\n            Ordering::Relaxed,\n            Ordering::Relaxed,\n        ) {\n            Ok(_) => return,\n            Err(actual) => current = actual,\n        }\n    }\n}\n\nfn w1(c: Arc<AtomicUsize>) {\n    increment(&c);\n}\n\nfn w2(c: Arc<AtomicUsize>) {\n    increment(&c);\n}\n\nfn main() {\n    let c = Arc::new(AtomicUsize::new(0));\n\n    let h1 = {\n        let c = Arc::clone(&c);\n        thread::spawn(move || w1(c))\n    };\n    let h2 = {\n        let c = Arc::clone(&c);\n        thread::spawn(move || w2(c))\n    };\n\n    h1.join().expect(\"w1 panicked\");\n    h2.join().expect(\"w2 panicked\");\n\n    assert_eq!(c.load(Ordering::Relaxed), 2);\n    println!(\"DONE done=1\");\n}\n```"
+}

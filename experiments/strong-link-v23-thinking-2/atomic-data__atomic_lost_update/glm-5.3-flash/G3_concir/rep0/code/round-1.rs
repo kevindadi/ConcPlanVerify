@@ -1,0 +1,63 @@
+use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+// Shared resources of the design:
+//   m : Mutex (sync resource)
+//   c : shared counter (var protected by m), starts at 0
+// The counter is represented atomically so that each increment is a single
+// indivisible read-modify-write step; the mutex m is taken around the update
+// exactly as the design's critical section prescribes.
+
+fn w1(m: Arc<Mutex<()>>, c: Arc<AtomicIsize>) {
+    // mutex_lock main::m
+    let _guard = m.lock().unwrap();
+    // retry loop: read c, write c = old + 1 as one atomic RMW step
+    let mut old;
+    loop {
+        old = c.load(Ordering::SeqCst);
+        match c.compare_exchange(old, old + 1, Ordering::SeqCst, Ordering::SeqCst) {
+            Ok(_) => break,
+            Err(_) => continue, // failed attempt is retried, never abandoned
+        }
+    }
+    // mutex_unlock main::m (guard drops at end of scope)
+    drop(_guard);
+}
+
+fn w2(m: Arc<Mutex<()>>, c: Arc<AtomicIsize>) {
+    // mutex_lock main::m
+    let _guard = m.lock().unwrap();
+    // retry loop: read c, write c = old + 1 as one atomic RMW step
+    let mut old;
+    loop {
+        old = c.load(Ordering::SeqCst);
+        match c.compare_exchange(old, old + 1, Ordering::SeqCst, Ordering::SeqCst) {
+            Ok(_) => break,
+            Err(_) => continue, // failed attempt is retried, never abandoned
+        }
+    }
+    // mutex_unlock main::m (guard drops at end of scope)
+    drop(_guard);
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(()));
+    let c = Arc::new(AtomicIsize::new(0));
+
+    // spawn main::w1
+    let m1 = Arc::clone(&m);
+    let c1 = Arc::clone(&c);
+    let h1 = thread::spawn(move || w1(m1, c1));
+
+    // spawn main::w2
+    let m2 = Arc::clone(&m);
+    let c2 = Arc::clone(&c);
+    let h2 = thread::spawn(move || w2(m2, c2));
+
+    // join; join
+    h1.join().unwrap();
+    h2.join().unwrap();
+
+    println!("DONE done=1");
+}
