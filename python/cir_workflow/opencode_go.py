@@ -38,7 +38,7 @@ class OpenCodeOutcome:
 
 class OpenCodeGoClient:
     def __init__(self, *, api_key: str, budget, evidence_dir: Path | str,
-                 model: str, timeout: float = 90.0, max_tokens: int = 4096,
+                 model: str, timeout: float = 90.0, max_tokens: int | None = 4096,
                  temperature: float = 0.0, reasoning_effort: str | None = None,
                  extra_body: dict | None = None, thinking: dict | None = None) -> None:
         from openai import OpenAI
@@ -138,8 +138,10 @@ class OpenCodeGoClient:
         started = time.monotonic()
         kwargs: dict[str, Any] = {
             "model": self.model, "messages": messages,
-            "temperature": self.temperature, "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
         }
+        if self.max_tokens is not None:
+            kwargs["max_tokens"] = self.max_tokens
         extra_body = dict(self.extra_body or {})
         if self.thinking:
             for key, value in self.thinking.items():
@@ -190,7 +192,7 @@ class OpenCodeGoResponsesClient:
     """
 
     def __init__(self, *, api_key: str, budget, evidence_dir: Path | str,
-                 model: str, timeout: float = 90.0, max_tokens: int = 4096,
+                 model: str, timeout: float = 90.0, max_tokens: int | None = 4096,
                  temperature: float = 0.0, thinking: dict | None = None) -> None:
         from openai import OpenAI
 
@@ -231,8 +233,10 @@ class OpenCodeGoResponsesClient:
         started = time.monotonic()
         kwargs: dict[str, Any] = {
             "model": self.model, "instructions": system_prompt,
-            "input": user_prompt, "max_output_tokens": self.max_tokens,
+            "input": user_prompt,
         }
+        if self.max_tokens is not None:
+            kwargs["max_output_tokens"] = self.max_tokens
         if self.thinking:
             if "reasoning" in self.thinking:
                 kwargs["reasoning"] = self.thinking["reasoning"]

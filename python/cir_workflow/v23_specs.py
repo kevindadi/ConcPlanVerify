@@ -6,7 +6,7 @@ from __future__ import annotations
 from .transport import ModelSpec
 
 PROVIDERS = {"qwen3.8-flash": "qwen", "gpt-6-luna": "openai",
-             "glm-5.3-flash": "zhipu"}
+             "glm-5.3-flash": "zhipu", "deepseek-flash": "deepseek"}
 
 
 def config_spec(entry: dict) -> ModelSpec:

@@ -29,6 +29,19 @@ from cir_workflow.multi_gen import SharedCounterBudget, execute_matrix, load_con
 from cir_workflow.transport import CHANNELS, ModelSpec  # noqa: E402
 from cir_workflow.v23_specs import config_spec  # noqa: E402
 
+# Pre-warm the OpenAI SDK imports on the main thread. Under concurrency several
+# cell threads would otherwise import the same submodule at once and deadlock on
+# the import lock (_DeadlockError: _ModuleLock('openai.resources...')).
+try:
+    import openai  # noqa: F401
+    import openai.resources.chat.completions  # noqa: F401
+except Exception:  # noqa: BLE001 - offline runs need no SDK
+    pass
+try:
+    import openai.resources.responses  # noqa: F401
+except Exception:  # noqa: BLE001
+    pass
+
 BINARY = Path(os.environ.get("CONCIR_BACKEND", str(REPO.parent / "ConcIR/target/release/concir-backend"))).resolve()
 INSTRUMENT = Path(os.environ.get("CONCIR_INSTRUMENT", str(REPO.parent / "ConcIR/target/release/concir-instrument"))).resolve()
 OUT = Path(os.environ.get("V23_OUT", str(REPO / "experiments/strong-link-v23-thinking"))).resolve()
@@ -62,7 +75,7 @@ def preflight(config: dict, out_dir: Path) -> list[str]:
         try:
             client = build_inner(entry, spec, capped,
                                  out_dir / "preflight" / spec.model_id,
-                                 timeout=180, max_tokens=int(entry["max_output_tokens"]))
+                                 timeout=180, max_tokens=(int(entry["max_output_tokens"]) if entry.get("max_output_tokens") else None))
             outcome = client.complete("Reply with the single word pong.", "pong")
             record = {
                 "model_id": spec.model_id, "channel": spec.channel,
@@ -175,7 +188,7 @@ def main() -> int:
         entry = entries[spec.model_id]
         return build_inner(entry, spec, budget, out_dir / "transport" / spec.model_id,
                            timeout=float(entry.get("request_timeout_seconds", 180)),
-                           max_tokens=int(entry["max_output_tokens"]))
+                           max_tokens=(int(entry["max_output_tokens"]) if entry.get("max_output_tokens") else None))
 
     result = execute_matrix(live_config, OUT, client_factory=factory, tasks_by_id=tasks,
                             binary=BINARY, instrument=INSTRUMENT, live=True,

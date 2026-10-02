@@ -64,7 +64,7 @@ def _require_cursor_model(api_key: str, model_id: str) -> None:
 
 
 def build_client(spec: ModelSpec, *, budget: Any, evidence_dir: Path | str,
-                 api_key: str, timeout: float = 90.0, max_tokens: int = 4096,
+                 api_key: str, timeout: float = 90.0, max_tokens: int | None = 4096,
                  thinking: dict | None = None):
     """Construct the inner client for a model, or raise ChannelUnavailable."""
 

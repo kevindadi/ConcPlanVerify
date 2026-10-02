@@ -402,7 +402,7 @@ class DeepSeekFlashClient:
         evidence_dir: Path,
         sdk_client: Any | None = None,
         timeout: float = DEFAULT_TIMEOUT,
-        max_tokens: int = DEFAULT_MAX_TOKENS,
+        max_tokens: int | None = DEFAULT_MAX_TOKENS,
         max_transport_retries: int = MAX_TRANSPORT_RETRIES,
         thinking: dict[str, Any] | None = None,
     ) -> None:
@@ -415,7 +415,7 @@ class DeepSeekFlashClient:
         self.evidence_dir.mkdir(parents=True, exist_ok=True)
         self.log_path = self.evidence_dir / "llm_requests.jsonl"
         self.timeout = float(timeout)
-        self.max_tokens = int(max_tokens)
+        self.max_tokens = int(max_tokens) if max_tokens is not None else None
         self.max_transport_retries = max(0, int(max_transport_retries))
         # None keeps the historical default (thinking explicitly disabled).
         self.thinking = dict(thinking) if thinking else None
@@ -437,14 +437,17 @@ class DeepSeekFlashClient:
 
     def _request_kwargs(self, messages: list[dict[str, str]]) -> dict[str, Any]:
         thinking = self.thinking or {"thinking": dict(THINKING_DISABLED["thinking"])}
-        return {
+        kwargs = {
             "model": ALLOWED_MODEL,
             "messages": messages,
             "temperature": 0.0,
-            "max_tokens": self.max_tokens,
             "stream": False,
             "extra_body": thinking,
         }
+        if self.max_tokens is not None:
+            kwargs["max_tokens"] = self.max_tokens
+        self.last_request_params = {k: v for k, v in kwargs.items() if k != "messages"}
+        return kwargs
 
     def complete(self, system_prompt: str, user_prompt: str) -> LiveChatOutcome:
         assert_allowed_model(ALLOWED_PROVIDER, ALLOWED_MODEL)

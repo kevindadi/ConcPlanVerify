@@ -623,7 +623,7 @@ def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tas
                 recoverable = name in {
                     "APIConnectionError", "APITimeoutError", "RateLimitError",
                     "InternalServerError", "TransientLlmError", "HardTimeoutError",
-                    "ModelIdentityError",
+                    "ModelIdentityError", "EmptyResponseError",
                 }
                 return {"cell": cell,
                         "status": "transport_error" if recoverable else "infrastructure_error",
@@ -643,8 +643,9 @@ def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tas
                         reason = "budget_exhausted"
             return reason
 
-        first_wave = [cell for cell in ordered if cell["task"] == first_task]
-        rest = [cell for cell in ordered if cell["task"] != first_task]
+        first_wave_tasks = set(config.get("first_wave_tasks") or [first_task])
+        first_wave = [cell for cell in ordered if cell["task"] in first_wave_tasks]
+        rest = [cell for cell in ordered if cell["task"] not in first_wave_tasks]
         if live:
             reason = _consume(first_wave)
             if reason == "infrastructure_error" or any(item["status"] == "infrastructure_error" for item in results):

@@ -350,6 +350,28 @@ class MatrixV23Tests(unittest.TestCase):
         self.assertIsNone(result["stop"])
         self.assertEqual(len(seen), 12)  # 3 models x 4 arms, all attempted
 
+    def test_empty_response_is_recoverable_and_continues(self):
+        class EmptyResponseError(Exception):
+            pass
+
+        tasks = {t.id: t for t in load_gen_tasks(REPO)}
+
+        def factory(spec, cell, budget, out_dir):
+            return _Mock(spec, budget)
+
+        def runner(cell, client, task, out_dir):
+            if cell["arm"] == "G3_concir":
+                raise EmptyResponseError("model returned empty content")
+            return {"accepted": True}
+
+        with tempfile.TemporaryDirectory() as td:
+            result = execute_matrix(_config(["atomic-data/atomic_lost_update"]),
+                                    Path(td), client_factory=factory, tasks_by_id=tasks,
+                                    binary=Path("missing"), stage_runner=runner)
+        statuses = {i["cell"]["arm"]: i["status"] for i in result["cells"]}
+        self.assertEqual(statuses["G3_concir"], "transport_error")
+        self.assertIsNone(result["stop"])
+
     def test_cell_cap_exhaustion_does_not_stop_batch(self):
         tasks = {t.id: t for t in load_gen_tasks(REPO)}
 
