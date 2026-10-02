@@ -1,0 +1,56 @@
+{
+  "attributes": [
+    {
+      "construction_site": null,
+      "evidence": "unresolved_endpoint",
+      "expected": "bounded",
+      "expected_capacity": 1,
+      "observed": null,
+      "observed_capacity": null,
+      "reason": "no single traced construction for this endpoint",
+      "resource_id": "main::ch",
+      "runtime": "ch_rx",
+      "status": "unknown"
+    },
+    {
+      "construction_site": "1344",
+      "evidence": "param_from_call",
+      "expected": "bounded",
+      "expected_capacity": 1,
+      "observed": "bounded",
+      "observed_capacity": 1,
+      "reason": "source bounded matches CIR bounded",
+      "resource_id": "main::ch",
+      "runtime": "ch_tx",
+      "status": "match"
+    }
+  ],
+  "scope": "identity, channel-capacity attributes, and uncovered sync are separate; a conforming finite trace does not override a capacity conflict or an unknown capacity",
+  "uncovered_sync": [],
+  "unresolved": {
+    "done_mutex0#1263": {
+      "candidates": [],
+      "reason": "no structural evidence",
+      "site": "1263"
+    }
+  },
+  "verified": {
+    "ch_rx": {
+      "cir": "main::ch",
+      "rule": "channel-name"
+    },
+    "ch_tx": {
+      "cir": "main::ch",
+      "rule": "channel-name"
+    },
+    "receiver#1536": {
+      "cir": "main::receiver",
+      "rule": "spawn-entry"
+    },
+    "sender#1426": {
+      "cir": "main::sender",
+      "rule": "spawn-entry"
+    }
+  },
+  "violated": {}
+}

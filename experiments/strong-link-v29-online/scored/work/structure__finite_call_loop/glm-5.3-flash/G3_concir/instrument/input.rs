@@ -1,0 +1,16 @@
+// ConcIR design: sequential_calls
+// main::main calls main::helper twice, then returns.
+
+fn helper() {
+    // main::helper body: return {}
+}
+
+fn main() {
+    // main::main body:
+    // s1: call main::helper
+    helper();
+    // s2: call main::helper
+    helper();
+    // s3: return
+    println!("DONE done=1");
+}
