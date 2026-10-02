@@ -29,8 +29,8 @@ from cir_workflow.multi_gen import SharedCounterBudget, execute_matrix, load_con
 from cir_workflow.transport import CHANNELS, ModelSpec  # noqa: E402
 from cir_workflow.v23_specs import config_spec  # noqa: E402
 
-BINARY = Path("/Users/kevin/local-repos/ConcIR/target/release/concir-backend")
-INSTRUMENT = Path("/Users/kevin/local-repos/ConcIR/target/release/concir-instrument")
+BINARY = Path(os.environ.get("CONCIR_BACKEND", str(REPO.parent / "ConcIR/target/release/concir-backend"))).resolve()
+INSTRUMENT = Path(os.environ.get("CONCIR_INSTRUMENT", str(REPO.parent / "ConcIR/target/release/concir-instrument"))).resolve()
 OUT = Path(os.environ.get("V23_OUT", str(REPO / "experiments/strong-link-v23-thinking"))).resolve()
 # Deviation D-1: the OpenCode gateway reset concurrent Qwen thinking connections,
 # so Qwen calls are serialized per model; global concurrency stays 3.
@@ -145,6 +145,14 @@ def main() -> int:
     config = load_config(config_path)
     if "--dry-run" in sys.argv:
         return _dry_run(config)
+    from cir_workflow.binding import default_binary
+    from cir_workflow.multi_gen import run_pin_error, workflow_fingerprint
+    workflow = {"workflow_sha256": workflow_fingerprint(BINARY, INSTRUMENT, default_binary()),
+                "config_sha256": config.get("_sha256")}
+    pin_error = run_pin_error(OUT, workflow)
+    if pin_error:
+        print(json.dumps({"stop": "protocol_stop", "error": pin_error, "new_requests": 0}))
+        return 2
     OUT.mkdir(parents=True, exist_ok=True)
     if "--skip-preflight" in sys.argv:
         pf = OUT / "PREFLIGHT.json"
@@ -178,13 +186,20 @@ def main() -> int:
              "accepted": (item.get("record") or {}).get("accepted"),
              "record_status": (item.get("record") or {}).get("status")}
             for item in result["cells"]]
+    from collections import Counter
+    from cir_workflow.multi_gen import matrix_from_config
+    planned_cells = len(matrix_from_config(config))
+    unfinished = Counter(item["status"] for item in slim if item["status"] != "executed")
+    complete = not unfinished and not blocked and len(slim) == planned_cells
     summary = {"real_requests": result["real_requests"], "stop": result["stop"],
-               "blocked_models": blocked, "cells": slim}
+               "blocked_models": blocked, "cells": slim, "matrix_complete": complete, "planned_cells": planned_cells,
+               "unfinished_by_status": dict(unfinished)}
     (OUT / "SUMMARY.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"stop": result["stop"], "real_requests": result["real_requests"],
                       "executed": sum(1 for i in slim if i["status"] == "executed"),
+                      "matrix_complete": complete, "unfinished_by_status": dict(unfinished),
                       "blocked": blocked}))
-    return 0
+    return 0 if complete else 3
 
 
 if __name__ == "__main__":

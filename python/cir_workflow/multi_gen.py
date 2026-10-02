@@ -176,6 +176,44 @@ def cell_directory(out_dir: Path, cell: dict) -> Path:
             / f"rep{cell['rep']}")
 
 
+def run_pin_error(out_dir: Path, workflow: dict) -> str | None:
+    """Read-only guard usable before preflight as well as before cell scheduling."""
+    path = out_dir / "WORKFLOW.json"
+    if path.is_file():
+        try:
+            pinned = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            pinned = None
+        return None if pinned == workflow else "workflow_fingerprint_mismatch"
+    if any(out_dir.glob("*/*/G*/rep*/state.json")) or any(out_dir.glob("*/*/G*/rep*/cache.json")):
+        return "workflow_unversioned; use a new output directory"
+    return None
+
+
+def workflow_fingerprint(*tool_paths: Path | None) -> str:
+    """Pin evaluator and prompt contents, plus the actual tool binaries.
+
+    Do not resume a frozen run after changing these inputs. This digest is
+    independent of API keys, output paths, and scheduler-only deviations.
+    """
+    import os
+    root = Path(__file__).resolve().parents[2]
+    assets = sorted((root / "python/cir_workflow").glob("*.py"))
+    assets += sorted((root / "prompts").glob("*.md"))
+    assets += sorted(p for p in (root / "runtime").rglob("*.rs")
+                     if "target" not in p.relative_to(root / "runtime").parts)
+    assets += sorted(p for p in (root / "runtime").rglob("Cargo.toml")
+                     if "target" not in p.relative_to(root / "runtime").parts)
+    rows = [(str(p.relative_to(root)), hashlib.sha256(p.read_bytes()).hexdigest())
+            for p in assets]
+    rows.append(("CIR_PROMPT_VERSION", os.environ.get("CIR_PROMPT_VERSION", "v3")))
+    for index, path in enumerate(tool_paths):
+        p = Path(path) if path is not None else None
+        rows.append((f"tool:{index}", hashlib.sha256(p.read_bytes()).hexdigest()
+                     if p is not None and p.is_file() else None))
+    return _sha_text(json.dumps(rows, sort_keys=True))
+
+
 def send_fingerprint(spec, cell: dict, config: dict, raw) -> str:
     from .channels import _public_send_record
     from .transport import CHANNELS
@@ -187,6 +225,7 @@ def send_fingerprint(spec, cell: dict, config: dict, raw) -> str:
         "task": cell["task"], "arm": cell["arm"], "rep": cell["rep"],
         "config": config.get("_sha256"),
         "protocol": protocol,
+        "workflow": config.get("_workflow_sha256") or workflow_fingerprint(),
     }, sort_keys=True, default=str))
 
 
@@ -360,7 +399,10 @@ class GenerationProvider:
         else:
             user = (f"Specification:\n{request.requirements}\n\n"
                     f"Current program:\n```rust\n{request.previous_candidate}\n```\n\n"
-                    "Fix concurrency defects and output the complete program.")
+                    f"Self-review instructions:\n{request.feedback or ''}\n\n"
+                    "Review the current program against the requirements. "
+                    "If you find a justified defect, output the complete corrected Rust program. "
+                    "If no further defect is found, reply exactly NO_ISSUES.")
         outcome = self.client.complete(system, user)
         self.calls.append({"attempt": request.attempt, "model": getattr(outcome, "response_model", None)})
         usage = getattr(outcome, "usage", None)
@@ -448,6 +490,9 @@ def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tas
                    model_concurrency: dict | None = None) -> dict:
     if not config["models"]:
         return {"cells": [], "calls": 0, "stop": "empty_matrix", "real_requests": 0}
+    config = dict(config)
+    from .binding import default_binary
+    config["_workflow_sha256"] = workflow_fingerprint(binary, instrument, default_binary())
     cells = matrix_from_config(config)
     if not cells:
         return {"cells": [], "calls": 0, "stop": "empty_matrix", "real_requests": 0}
@@ -456,6 +501,27 @@ def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tas
     out_dir.mkdir(parents=True, exist_ok=True)
     lock = acquire_coordinator(out_dir / "coordinator.lock")
     try:
+        # Reject changed or unversioned partial runs before scheduling *any*
+        # cell. A per-cell check alone can still send pending cells from a new
+        # workflow while other threads discover old cached fingerprints.
+        workflow_path = out_dir / "WORKFLOW.json"
+        workflow = {"workflow_sha256": config["_workflow_sha256"],
+                    "config_sha256": config.get("_sha256")}
+        pin_error = run_pin_error(out_dir, workflow)
+        if pin_error:
+            budget_file = out_dir / "budget.json"
+            try:
+                used = json.loads(budget_file.read_text()).get("requests_used", 0) if budget_file.is_file() else 0
+            except (OSError, ValueError):
+                used = None
+            blocked = [{"cell": cell, "status": "protocol_stop" if index == 0 else "not_started",
+                        "error": pin_error, "record": {}, "calls": 0}
+                       for index, cell in enumerate(ordered)]
+            return {"cells": blocked, "calls": 0, "stop": "protocol_stop",
+                    "real_requests": used if live else 0, "order_seed": seed,
+                    "first_wave_task": first_task, "first_wave_cells": 0}
+        if not workflow_path.is_file():
+            workflow_path.write_text(json.dumps(workflow, sort_keys=True, indent=2) + "\n", encoding="utf-8")
         budget_path = out_dir / "budget.json"
         shared = LiveBudget(budget_path, max_requests=int(config.get("global_physical_cap", 800)),
                             max_seconds=float(config.get("wall_seconds", 12 * 3600)))
@@ -517,6 +583,9 @@ def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tas
                         "record": {"accepted": cached.get("accepted"),
                                    "status": cached.get("record_status")},
                         "calls": 0}
+            if cached or (state_path.is_file() and saved.get("calls") and saved.get("fingerprint") != fingerprint):
+                return {"cell": cell, "status": "protocol_stop", "error": "workflow_fingerprint_mismatch",
+                        "record": {}, "calls": 0}
             wrapped = SnapshotClient(raw, cell_dir / "state.json", fingerprint)
             from .audit import AuditLog
             audited = AuditedClient(
@@ -583,7 +652,7 @@ def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tas
                 for pending in rest:
                     results.append({"cell": pending, "status": "not_started", "error": stop,
                                     "record": {}, "calls": 0})
-            elif reason == "budget_exhausted":
+            elif reason in {"budget_exhausted", "protocol_stop"}:
                 stop = reason
                 for pending in rest:
                     results.append({"cell": pending, "status": "not_started", "error": stop,
@@ -594,7 +663,7 @@ def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tas
                     width = int(config.get("concurrency") or 3)
                     reason = _consume(rest[index:index + width])
                     index += width
-                    if reason == "budget_exhausted":
+                    if reason in {"budget_exhausted", "protocol_stop", "infrastructure_error"}:
                         stop = reason
                         for pending in rest[index:]:
                             results.append({"cell": pending, "status": "not_started", "error": stop,
@@ -606,7 +675,7 @@ def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tas
                 width = int(config.get("concurrency") or 3)
                 reason = _consume(ordered[index:index + width])
                 index += width
-                if reason == "budget_exhausted":
+                if reason in {"budget_exhausted", "protocol_stop", "infrastructure_error"}:
                     stop = reason
                     for pending in ordered[index:]:
                         results.append({"cell": pending, "status": "not_started", "error": stop,
