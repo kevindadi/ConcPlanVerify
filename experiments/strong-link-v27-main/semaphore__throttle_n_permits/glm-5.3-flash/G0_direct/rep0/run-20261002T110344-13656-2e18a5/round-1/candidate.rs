@@ -1,0 +1,65 @@
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+use std::time::Duration;
+
+// s: a counting permit pool shared by w1, w2, w3.
+struct Semaphore {
+    permits: Mutex<usize>,
+    cv: Condvar,
+}
+
+impl Semaphore {
+    fn new(initial: usize) -> Self {
+        Semaphore {
+            permits: Mutex::new(initial),
+            cv: Condvar::new(),
+        }
+    }
+
+    fn acquire(&self) {
+        let mut count = self.permits.lock().unwrap();
+        while *count == 0 {
+            // Wait until a holder releases a permit (R5).
+            count = self.cv.wait(count).unwrap();
+        }
+        *count -= 1;
+    }
+
+    fn release(&self) {
+        let mut count = self.permits.lock().unwrap();
+        *count += 1;
+        self.cv.notify_one();
+    }
+}
+
+// Worker body: acquire one permit, do work, release, finish (R3).
+fn worker(name: &'static str, s: &Semaphore) {
+    s.acquire();
+    // Simulate work while holding the permit.
+    thread::sleep(Duration::from_millis(50));
+    s.release();
+    let _ = name; // role name kept for design traceability
+}
+
+fn main() {
+    // s begins with exactly two permits (R2).
+    let s = Arc::new(Semaphore::new(2));
+
+    // Supervising task launches w1, w2, w3 and waits for all (R1).
+    let s1 = Arc::clone(&s);
+    let w1 = thread::spawn(move || worker("w1", &s1));
+
+    let s2 = Arc::clone(&s);
+    let w2 = thread::spawn(move || worker("w2", &s2));
+
+    let s3 = Arc::clone(&s);
+    let w3 = thread::spawn(move || worker("w3", &s3));
+
+    w1.join().unwrap();
+    w2.join().unwrap();
+    w3.join().unwrap();
+
+    // At most two workers ever held permits simultaneously (R4);
+    // every interleaving terminates (R6).
+    println!("DONE done=1");
+}

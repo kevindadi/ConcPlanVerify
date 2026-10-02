@@ -1,0 +1,88 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. The design contains two modules, where one module owns the first shared resource and the other module owns the second shared resource.
+R2. One task runs in the first module and another task runs in the second module, and both tasks need both resources.
+R3. Each task must declare that it depends on the resource owned by the other module.
+R4. Each task must hold both resources at the same time while it performs its work.
+R5. It must never be possible for the two tasks to leave each other waiting forever, each holding one resource and needing the other.
+R6. Every task must release each resource it holds before it finishes.
+R7. A starting thread launches both tasks and only finishes after both tasks have finished.
+R8. Both tasks must finish even though they run in different modules.
+R9. Every possible schedule or interleaving must terminate.
+R10. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): t1, t2.
+- Shared resources: a (lock), b (lock).
+
+
+Current program:
+```rust
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::thread;
+
+static WORK: AtomicUsize = AtomicUsize::new(0);
+
+mod first {
+    use std::sync::Mutex;
+
+    pub static a: Mutex<()> = Mutex::new(());
+
+    // t1 depends on b, which is owned by the other module.
+    pub fn t1(b: &'static Mutex<()>) {
+        // Both tasks acquire locks in the same order: a, then b.
+        let a_guard = a.lock().unwrap_or_else(|e| e.into_inner());
+        let b_guard = b.lock().unwrap_or_else(|e| e.into_inner());
+
+        super::WORK.fetch_add(1, super::Ordering::Relaxed);
+
+        drop(b_guard);
+        drop(a_guard);
+    }
+}
+
+mod second {
+    use std::sync::Mutex;
+
+    pub static b: Mutex<()> = Mutex::new(());
+
+    // t2 depends on a, which is owned by the other module.
+    pub fn t2(a: &'static Mutex<()>) {
+        // Use the same lock order as t1 to prevent deadlock.
+        let a_guard = a.lock().unwrap_or_else(|e| e.into_inner());
+        let b_guard = b.lock().unwrap_or_else(|e| e.into_inner());
+
+        super::WORK.fetch_add(1, super::Ordering::Relaxed);
+
+        drop(b_guard);
+        drop(a_guard);
+    }
+}
+
+fn main() {
+    let t1 = thread::spawn(|| first::t1(&second::b));
+    let t2 = thread::spawn(|| second::t2(&first::a));
+
+    t1.join().unwrap();
+    t2.join().unwrap();
+
+    let done = if WORK.load(Ordering::Relaxed) == 2 {
+        1
+    } else {
+        0
+    };
+    println!("DONE done={done}");
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

@@ -1,0 +1,45 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20261002T095345-13656-20e69d/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+warning: static variable `a` should have an upper case name
+ --> src/main.rs:9:16
+  |
+9 |     pub static a: Mutex<()> = Mutex::new(());
+  |                ^
+  |
+  = note: `#[warn(non_upper_case_globals)]` (part of `#[warn(nonstandard_style)]`) on by default
+help: convert the identifier to upper case
+  |
+9 -     pub static a: Mutex<()> = Mutex::new(());
+9 +     pub static A: Mutex<()> = Mutex::new(());
+  |
+
+warning: static variable `b` should have an upper case name
+  --> src/main.rs:27:16
+   |
+27 |     pub static b: Mutex<()> = Mutex::new(());
+   |                ^
+   |
+help: convert the identifier to upper case
+   |
+27 -     pub static b: Mutex<()> = Mutex::new(());
+27 +     pub static B: Mutex<()> = Mutex::new(());
+   |
+
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`

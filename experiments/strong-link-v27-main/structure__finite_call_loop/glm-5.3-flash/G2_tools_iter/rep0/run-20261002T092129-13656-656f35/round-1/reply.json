@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\n// R1: The main task calls the auxiliary routine `helper`, then begins the\n//     same call sequence again (a second identical call).\n// R2: `helper` shares no mutexes, counters, or other state with the main\n//     task — there is no shared state at all, so no two tasks contend.\n// R3: Each call to `helper` runs to completion before the next call starts,\n//     because the calls are plain sequential function calls.\n// R4: There is a single task and no concurrency, so every schedule (the\n//     only one) terminates.\n// R5: The program prints exactly `DONE done=1` and exits.\n\nfn helper() {\n    // Auxiliary routine: self-contained, touches no shared state.\n}\n\nfn main() {\n    // First call sequence.\n    helper();\n\n    // Begin the same call sequence again.\n    helper();\n\n    // R5: exact required output.\n    println!(\"DONE done=1\");\n}\n```"
+}

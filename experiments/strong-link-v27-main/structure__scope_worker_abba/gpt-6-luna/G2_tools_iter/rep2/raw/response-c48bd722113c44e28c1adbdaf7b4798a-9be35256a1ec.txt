@@ -1,0 +1,36 @@
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn w1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {
+    let _guard_a = a.lock().unwrap();
+    let _guard_b = b.lock().unwrap();
+}
+
+fn w2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {
+    let _guard_a = a.lock().unwrap();
+    let _guard_b = b.lock().unwrap();
+}
+
+fn main() {
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    let worker1 = {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        thread::spawn(move || w1(a, b))
+    };
+
+    let worker2 = {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        thread::spawn(move || w2(a, b))
+    };
+
+    worker1.join().unwrap();
+    worker2.join().unwrap();
+
+    println!("DONE done=1");
+}
+```

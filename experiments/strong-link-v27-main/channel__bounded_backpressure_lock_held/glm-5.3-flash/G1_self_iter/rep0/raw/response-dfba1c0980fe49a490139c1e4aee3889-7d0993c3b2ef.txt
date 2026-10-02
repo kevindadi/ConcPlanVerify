@@ -1,0 +1,61 @@
+# Analysis of Defects and Repairs
+
+**Defect 1 (violates R5):** A naive version locks `m` and then calls `ch.send(...)`/`ch.recv(...)` while holding the guard. Since the channel has capacity 1, the sender blocks on the second send while holding `m`, and the receiver blocks forever trying to lock `m` before it can receive — deadlock. **Repair:** every channel operation happens strictly outside any `MutexGuard` scope; the guard is dropped before touching `ch`.
+
+**Defect 2 (violates R7):** An unbounded channel (`mpsc::channel`) lets the sender push both values immediately, so the second value can be sent before the first is taken. **Repair:** use `sync_channel(1)` — a capacity-1 channel whose `send` blocks while full, so the second send cannot complete until the receiver has taken the first value (satisfies R4 for the sender too; `recv` blocking on empty satisfies R4 for the receiver).
+
+**Defect 3 (violates R6/R8):** If either thread panics or the lock is poisoned mid-schedule, `unwrap` cascades and the program never prints `DONE done=1`. **Repair:** the lock is only ever held for short, non-panicking critical sections, never across a blocking channel wait, so every interleaving terminates and both threads are joined before printing.
+
+**Defect 4 (violates R2):** The shared lock must actually be needed by *both* roles. Here the sender touches `m` before each send, and the receiver uses `m` to publish the final `done` flag — so both roles contend for `m`, but never while blocked on `ch`.
+
+```rust
+use std::sync::mpsc::sync_channel;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    // m: shared lock guarding the done flag (both roles use it).
+    // ch: channel with capacity 1 (at most one value in flight).
+    let m = Arc::new(Mutex::new(0u32));
+    let (ch_tx, ch_rx) = sync_channel::<u32>(1);
+
+    // ---- sender role ----
+    let m_for_sender = Arc::clone(&m);
+    let sender = thread::spawn(move || {
+        // Use the shared lock, but release it BEFORE waiting on the
+        // channel (R5). The capacity-1 channel blocks this second send
+        // until the receiver has taken the first value (R4, R7).
+        for value in [1u32, 2] {
+            {
+                let mut guard = m_for_sender.lock().unwrap();
+                *guard = guard.wrapping_add(0); // brief, non-panicking critical section
+            } // guard dropped here: lock is NOT held during ch.send
+            ch_tx.send(value).unwrap();
+        }
+    });
+
+    // ---- receiver role ----
+    let m_for_receiver = Arc::clone(&m);
+    let receiver = thread::spawn(move || {
+        // Take two values in order (R3). recv blocks while the channel
+        // is empty (R4) and is called WITHOUT holding m (R5).
+        let _first = ch_rx.recv().unwrap();
+        let _second = ch_rx.recv().unwrap();
+
+        // Publish completion under the shared lock, after all channel
+        // waits are finished.
+        let mut guard = m_for_receiver.lock().unwrap();
+        *guard = 1;
+    });
+
+    // R1/R6: wait for both roles to finish before reporting.
+    sender.join().unwrap();
+    receiver.join().unwrap();
+
+    let done = *m.lock().unwrap();
+    // R8: exactly one line, then exit.
+    println!("DONE done={}", done);
+}
+```
+
+**Why every schedule terminates (R6):** The only blocking operations are `send` (blocks only while a value is untaken) and `recv` (blocks only while empty). Neither is ever executed while holding `m`, and neither role ever waits on `m` while the other waits on `ch` — the lock is acquired only after the corresponding channel wait has completed. Therefore no circular wait exists, both threads make progress in any interleaving, and the program prints exactly `DONE done=1` and exits.

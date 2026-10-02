@@ -1,0 +1,67 @@
+# Analysis
+
+**Defects to avoid (and how the repair is justified):**
+
+1. **Lost wakeup (violates R5):** A naive waiter that checks the flag *without* the lock, or waits unconditionally, can miss a signal issued before it starts waiting. **Repair:** the waiter checks `ready` *while holding the lock* and only waits when `ready == false` (a `while` loop, not `if`), so a signal that arrives before the wait is absorbed by the flag check — R4, R5, R6.
+
+2. **Flag written without the lock (violates R2, R7):** Writing `ready` outside the mutex creates a data race and can reorder the write after the signal. **Repair:** the notifier sets `ready = true` *while holding the lock*, then signals, then releases — R3, R6, R7.
+
+3. **Signaling without the lock / before the write (violates R6):** Signaling before setting the flag lets a woken waiter re-check and go back to sleep with the flag still false. **Repair:** set flag first, then `notify_one` — R6.
+
+4. **Holding the lock while blocked (violates R7):** `Condvar::wait` in Rust atomically releases the mutex while blocked and reacquires it on wake, so the waiter does not hold `m` while blocked — R7.
+
+5. **Spurious wakeups (violates R4, R8):** A single `if` check can exit the wait spuriously. **Repair:** re-check the flag after *every* wake in a `while` loop — R4, R8.
+
+6. **Termination in every interleaving (R8, R9):** Because the flag is monotonic (`false → true`, written under the lock) and the waiter only waits while the flag is false, every schedule terminates: if the notifier runs first, the waiter sees `ready == true` and never waits; if the waiter waits first, the notifier's signal wakes it and the re-check succeeds.
+
+7. **Output (R10):** Main joins both threads, then prints exactly `DONE ready=true` — no other output.
+
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+fn main() {
+    // R2: one lock (m), one condition variable (cv), one boolean flag (ready) guarded by m.
+    let shared = Arc::new((Mutex::new(false), Condvar::new()));
+
+    let waiter_shared = Arc::clone(&shared);
+    let waiter = thread::spawn(move || {
+        let (m, cv) = &*waiter_shared;
+        // R4, R7: check the flag while holding the lock; wait only while it is false.
+        // R4: re-check after every wake (while-loop guards against spurious wakeups).
+        // R7: wait atomically releases m while blocked and reacquires it on wake.
+        let mut ready = m.lock().unwrap();
+        while !*ready {
+            ready = cv.wait(ready).unwrap();
+        }
+        // `ready` (the MutexGuard) is dropped here, releasing the lock.
+    });
+
+    let notifier_shared = Arc::clone(&shared);
+    let notifier = thread::spawn(move || {
+        let (m, cv) = &*notifier_shared;
+        // R3, R6, R7: set the flag to true while holding the lock,
+        // then signal, then release the lock.
+        let mut ready = m.lock().unwrap();
+        *ready = true;
+        cv.notify_one();
+        drop(ready); // release the lock
+    });
+
+    // R1: waiter and notifier run concurrently; join both so every schedule terminates (R8).
+    waiter.join().unwrap();
+    notifier.join().unwrap();
+
+    // R9, R10: the flag is true in every schedule; print exactly this line and exit.
+    let (m, _cv) = &*shared;
+    let ready = *m.lock().unwrap();
+    println!("DONE ready={}", ready);
+}
+```
+
+**Why every interleaving terminates (R8, R9):**
+- *Notifier first:* it sets `ready = true` under the lock and signals (no one is waiting — the signal is simply lost, which is fine). The waiter then acquires the lock, sees `ready == true`, skips the wait entirely, and finishes.
+- *Waiter first:* it sees `ready == false`, waits (releasing `m`). The notifier sets `ready = true` under the lock, signals; the waiter wakes, re-checks under the reacquired lock, sees `true`, and exits the loop.
+- *Spurious wake:* the `while` loop re-checks and waits again until the flag is true.
+
+In all cases both threads finish, `ready` is `true`, and the program prints exactly `DONE ready=true`.

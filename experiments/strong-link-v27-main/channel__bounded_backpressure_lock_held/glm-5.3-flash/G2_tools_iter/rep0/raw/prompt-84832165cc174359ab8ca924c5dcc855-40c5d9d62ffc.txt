@@ -1,0 +1,98 @@
+Revise the Rust program using the tool feedback.
+
+Specification:
+# Requirements
+
+R1. A main task starts a sender role and a receiver role that run at the same time.
+R2. The two roles communicate through a channel that can hold at most one value, and both roles occasionally need one shared lock. [U]
+R3. The sender passes two values in order and the receiver takes two values, so both roles can finish.
+R4. When the channel is full the sender waits before it sends again, and when the channel is empty the receiver waits before it takes.
+R5. No role may wait on the channel while holding the shared lock that the other role needs.
+R6. Every schedule and interleaving must terminate with the sender and the receiver both finished.
+R7. The sender must not pass its second value before the receiver has taken the first, because the channel holds only one value.
+R8. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): sender, receiver.
+- Shared resources: m (lock), ch (channel).
+
+
+Current program:
+```rust
+//! Sender/receiver over a capacity-1 channel (`ch`) with one shared lock (`m`).
+//!
+//! Design notes (mapping to requirements):
+//! - R1: `main` spawns the `sender` and `receiver` threads; they run concurrently.
+//! - R2: `ch` is a `sync_channel(1)` (holds at most one value); `m` is the single
+//!   shared `Mutex` both roles use for their brief critical sections.
+//! - R3: sender passes 1 then 2; receiver takes two values; both threads then end.
+//! - R4/R7: `sync_channel(1)` makes `send` block while the channel is full, so the
+//!   sender cannot pass its second value before the receiver has taken the first,
+//!   and `recv` blocks while the channel is empty.
+//! - R5: each role releases `m` (end of the inner block) *before* blocking on the
+//!   channel, so no role ever waits on `ch` while holding `m`.
+//! - R6: no lock is held across a channel wait and the channel is FIFO with
+//!   capacity 1, so every interleaving terminates.
+//! - R8: after both threads are joined, exactly one line `DONE done=1` is printed.
+
+use std::sync::mpsc::sync_channel;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    // m: the one shared lock (protects the delivery log).
+    // ch: the channel, capacity 1.
+    let m: Arc<Mutex<Vec<i32>>> = Arc::new(Mutex::new(Vec::new()));
+    let (tx, rx) = sync_channel::<i32>(1);
+
+    // ---- sender role ----
+    let sender_m = Arc::clone(&m);
+    let sender = thread::spawn(move || {
+        for v in 1..=2 {
+            {
+                // Brief critical section under m; the guard is dropped at the
+                // end of this block, BEFORE any wait on the channel (R5).
+                let mut log = sender_m.lock().unwrap();
+                log.push(-v); // record "about to send v"
+            }
+            // Blocks while ch is full, without holding m (R4, R5, R7).
+            tx.send(v).unwrap();
+        }
+    });
+
+    // ---- receiver role ----
+    let receiver_m = Arc::clone(&m);
+    let receiver = thread::spawn(move || {
+        for _ in 0..2 {
+            // Blocks while ch is empty, without holding m (R4, R5).
+            let v = rx.recv().unwrap();
+            {
+                // Brief critical section under m; released immediately.
+                let mut log = receiver_m.lock().unwrap();
+                log.push(v); // record "took v"
+            }
+        }
+    });
+
+    // R1/R3: wait for both roles to finish.
+    sender.join().unwrap();
+    receiver.join().unwrap();
+
+    // R8: verify both values were delivered in order, then print the line.
+    let done = {
+        let log = m.lock().unwrap();
+        let received: Vec<i32> = log.iter().copied().filter(|v| *v > 0).collect();
+        if received == [1, 2] { 1 } else { 0 }
+    };
+    println!("DONE done={done}");
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": {"argv": ["cargo", "test", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092649-13656-c02dc2/round-1/calls/002-test", "exit_code": 0, "extra": {"argv_sha256": "b6bbf096bc483843a07d2333874586ae70ddb01b5a67aadfb2df0f33f50cded7", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092649-13656-c02dc2/round-1/calls/002-test/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092649-13656-c02dc2/round-1/calls/002-test/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092649-13656-c02dc2/round-1/calls/002-test/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092649-13656-c02dc2/round-1/calls/002-test/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092649-13656-c02dc2/round-1/calls/002-test/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092649-13656-c02dc2/round-1/calls/002-test/wall_ms.txt"}, "stderr_sha256": "cb8199e2ac7baa1f324203b870b9d20635aa10d003d58274c8bd2b1b6dfc3505", "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd", "timed_out": false, "tool": "test", "wall_ms": 921}, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092649-13656-c02dc2/round-1/calls/001-build", "exit_code": 0, "extra": {"argv_sha256": "f4809b86acac821d4e29b67102733273c793696e5a6f3d6534a58dec2e38999f", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092649-13656-c02dc2/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092649-13656-c02dc2/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092649-13656-c02dc2/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092649-13656-c02dc2/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092649-13656-c02dc2/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/channel__bounded_backpressure_lock_held/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092649-13656-c02dc2/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "cb8199e2ac7baa1f324203b870b9d20635aa10d003d58274c8bd2b1b6dfc3505", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 413}, "build_ok": true, "lockbud_detected": true, "lockbud_status": "detected", "miri_detected": false, "miri_statuses": ["clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean"]}
+
+Output the complete corrected Rust program.

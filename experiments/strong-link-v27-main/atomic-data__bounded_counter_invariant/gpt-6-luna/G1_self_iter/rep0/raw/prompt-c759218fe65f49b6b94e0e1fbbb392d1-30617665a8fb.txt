@@ -1,0 +1,62 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.
+R2. Both worker threads share a single integer counter that is declared to range from zero to two and starts at zero.
+R3. Each worker adds exactly one to the shared counter while it holds the mutual-exclusion lock.
+R4. A worker must hold the mutual-exclusion lock whenever it reads or writes the shared counter, so the two workers never update it at the same time.
+R5. In every state that can occur, the counter value stays within its declared range from zero to two.
+R6. Every possible schedule and interleaving of the two workers must terminate.
+R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2.
+- Shared resources: m (lock), c (shared variable).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn w1(m: Arc<Mutex<u8>>) {
+    let mut c = m.lock().unwrap();
+    assert!(*c < 2);
+    *c += 1;
+}
+
+fn w2(m: Arc<Mutex<u8>>) {
+    let mut c = m.lock().unwrap();
+    assert!(*c < 2);
+    *c += 1;
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(0_u8));
+
+    let m1 = Arc::clone(&m);
+    let t1 = thread::spawn(move || w1(m1));
+
+    let m2 = Arc::clone(&m);
+    let t2 = thread::spawn(move || w2(m2));
+
+    let r1 = t1.join();
+    let r2 = t2.join();
+
+    r1.unwrap();
+    r2.unwrap();
+
+    println!("DONE done=1");
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

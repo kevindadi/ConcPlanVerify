@@ -1,0 +1,55 @@
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+fn main() {
+    // R2: one lock (m) and one condition variable (cv) guarding the boolean flag (ready)
+    let shared = Arc::new((Mutex::new(false), Condvar::new()));
+
+    // R1: main task starts the waiter and the notifier, which run at the same time
+    let waiter_shared = Arc::clone(&shared);
+    let notifier_shared = Arc::clone(&shared);
+
+    let waiter = thread::spawn(move || {
+        let (m, cv) = &*waiter_shared;
+
+        // R4: check the flag first, while holding the lock
+        let mut ready = m.lock().unwrap();
+
+        // R4/R6/R9: wait only while the flag is false; re-check after each wake;
+        // the lock is released while blocked and reacquired on wake
+        while !*ready {
+            ready = cv.wait(ready).unwrap();
+        }
+        // R9: only pass the wait once the flag is true
+    });
+
+    let notifier = thread::spawn(move || {
+        let (m, cv) = &*notifier_shared;
+
+        // R3: set the flag to true while holding the lock, signal, then release
+        let mut ready = m.lock().unwrap();
+        *ready = true;
+        cv.notify_one();
+        drop(ready); // release the lock
+    });
+
+    // R7: join both roles so every interleaving terminates with both finished
+    waiter.join().unwrap();
+    notifier.join().unwrap();
+
+    // R8/R10: the flag is true in every schedule; print exactly the required line
+    let (m, _) = &*shared;
+    let ready = *m.lock().unwrap();
+    println!("DONE ready={}", ready);
+}
+```
+
+Key points of the design:
+
+- **R2**: A single `Mutex` (`m`) and `Condvar` (`cv`) are shared via an `Arc` tuple; the mutex guards the boolean `ready`.
+- **R3**: The notifier acquires `m`, sets `ready = true`, calls `notify_one`, and releases the lock (via `drop`).
+- **R4**: The waiter checks `ready` under the lock and waits inside a `while !*ready` loop, so it re-checks the flag after every wake (protecting against spurious wakeups).
+- **R5**: Because the check happens before waiting under the same lock, if the notifier signals first, the waiter sees `ready == true` and never waits at all.
+- **R6**: `Condvar::wait` atomically releases the mutex while blocked, so the waiter never holds the lock while waiting, and never waits once the flag is true.
+- **R7/R8/R10**: Both threads are joined, guaranteeing termination in every interleaving with `ready == true`, and the program prints exactly `DONE ready=true`.

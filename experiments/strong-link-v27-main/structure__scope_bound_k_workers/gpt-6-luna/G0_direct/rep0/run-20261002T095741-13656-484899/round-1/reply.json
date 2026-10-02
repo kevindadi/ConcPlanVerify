@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn activation(s: Arc<Mutex<()>>) {\n    let _permit = s.lock().unwrap_or_else(|e| e.into_inner());\n\n    let work = (0..1_000u64).fold(0u64, |sum, n| sum.wrapping_add(n));\n    std::hint::black_box(work);\n}\n\nfn run_role(s: Arc<Mutex<()>>) {\n    let s1 = Arc::clone(&s);\n    let s2 = Arc::clone(&s);\n\n    let a1 = thread::spawn(move || activation(s1));\n    let a2 = thread::spawn(move || activation(s2));\n\n    a1.join().expect(\"activation panicked\");\n    a2.join().expect(\"activation panicked\");\n}\n\nfn w1(s: Arc<Mutex<()>>) {\n    run_role(s);\n}\n\nfn w2(s: Arc<Mutex<()>>) {\n    run_role(s);\n}\n\nfn w3(s: Arc<Mutex<()>>) {\n    run_role(s);\n}\n\nfn main() {\n    let s = Arc::new(Mutex::new(()));\n\n    let t1 = {\n        let s = Arc::clone(&s);\n        thread::spawn(move || w1(s))\n    };\n    let t2 = {\n        let s = Arc::clone(&s);\n        thread::spawn(move || w2(s))\n    };\n    let t3 = thread::spawn(move || w3(s));\n\n    t1.join().expect(\"w1 panicked\");\n    t2.join().expect(\"w2 panicked\");\n    t3.join().expect(\"w3 panicked\");\n\n    println!(\"DONE done=1\");\n}\n```"
+}

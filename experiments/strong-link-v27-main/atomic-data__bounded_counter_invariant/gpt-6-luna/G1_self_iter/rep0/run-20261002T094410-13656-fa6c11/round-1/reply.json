@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn w1(m: Arc<Mutex<u8>>) {\n    let mut c = m.lock().unwrap();\n    assert!(*c < 2);\n    *c += 1;\n}\n\nfn w2(m: Arc<Mutex<u8>>) {\n    let mut c = m.lock().unwrap();\n    assert!(*c < 2);\n    *c += 1;\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(0_u8));\n\n    let m1 = Arc::clone(&m);\n    let t1 = thread::spawn(move || w1(m1));\n\n    let m2 = Arc::clone(&m);\n    let t2 = thread::spawn(move || w2(m2));\n\n    let r1 = t1.join();\n    let r2 = t2.join();\n\n    r1.unwrap();\n    r2.unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

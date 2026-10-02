@@ -1,0 +1,101 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20261002T095035-13656-4ed9c0/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0277]: expected an `FnOnce()` closure, found `fn(Arc<std::sync::Mutex<()>>, Arc<std::sync::Mutex<()>>) {w1}`
+   --> src/main.rs:18:33
+    |
+ 18 |     let worker1 = thread::spawn(w1, Arc::clone(&a), Arc::clone(&b));
+    |                   ------------- ^^ expected an `FnOnce()` closure, found `fn(Arc<std::sync::Mutex<()>>, Arc<std::sync::Mutex<()>>) {w1}`
+    |                   |
+    |                   required by a bound introduced by this call
+    |
+    = help: the trait `FnOnce()` is not implemented for fn item `fn(Arc<std::sync::Mutex<()>>, Arc<std::sync::Mutex<()>>) {w1}`
+    = note: wrap the `fn(Arc<std::sync::Mutex<()>>, Arc<std::sync::Mutex<()>>) {w1}` in a closure with no arguments: `|| { /* code */ }`
+    = note: expected a closure taking 2 arguments, but one taking 0 arguments was given
+note: required by a bound in `spawn`
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:127:8
+    |
+125 | pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+    |        ----- required by a bound in this function
+126 | where
+127 |     F: FnOnce() -> T,
+    |        ^^^^^^^^^^^^^ required by this bound in `spawn`
+
+error[E0061]: this function takes 1 argument but 3 arguments were supplied
+   --> src/main.rs:18:19
+    |
+ 18 |     let worker1 = thread::spawn(w1, Arc::clone(&a), Arc::clone(&b));
+    |                   ^^^^^^^^^^^^^     --------------  -------------- unexpected argument #3 of type `Arc<std::sync::Mutex<()>>`
+    |                                     |
+    |                                     unexpected argument #2 of type `Arc<std::sync::Mutex<()>>`
+    |
+note: function defined here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:125:8
+    |
+125 | pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+    |        ^^^^^
+help: remove the extra arguments
+    |
+ 18 -     let worker1 = thread::spawn(w1, Arc::clone(&a), Arc::clone(&b));
+ 18 +     let worker1 = thread::spawn(w1);
+    |
+
+error[E0277]: expected an `FnOnce()` closure, found `fn(Arc<std::sync::Mutex<()>>, Arc<std::sync::Mutex<()>>) {w2}`
+   --> src/main.rs:19:33
+    |
+ 19 |     let worker2 = thread::spawn(w2, Arc::clone(&a), Arc::clone(&b));
+    |                   ------------- ^^ expected an `FnOnce()` closure, found `fn(Arc<std::sync::Mutex<()>>, Arc<std::sync::Mutex<()>>) {w2}`
+    |                   |
+    |                   required by a bound introduced by this call
+    |
+    = help: the trait `FnOnce()` is not implemented for fn item `fn(Arc<std::sync::Mutex<()>>, Arc<std::sync::Mutex<()>>) {w2}`
+    = note: wrap the `fn(Arc<std::sync::Mutex<()>>, Arc<std::sync::Mutex<()>>) {w2}` in a closure with no arguments: `|| { /* code */ }`
+    = note: expected a closure taking 2 arguments, but one taking 0 arguments was given
+note: required by a bound in `spawn`
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:127:8
+    |
+125 | pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+    |        ----- required by a bound in this function
+126 | where
+127 |     F: FnOnce() -> T,
+    |        ^^^^^^^^^^^^^ required by this bound in `spawn`
+
+error[E0061]: this function takes 1 argument but 3 arguments were supplied
+   --> src/main.rs:19:19
+    |
+ 19 |     let worker2 = thread::spawn(w2, Arc::clone(&a), Arc::clone(&b));
+    |                   ^^^^^^^^^^^^^     --------------  -------------- unexpected argument #3 of type `Arc<std::sync::Mutex<()>>`
+    |                                     |
+    |                                     unexpected argument #2 of type `Arc<std::sync::Mutex<()>>`
+    |
+note: function defined here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:125:8
+    |
+125 | pub fn spawn<F, T>(f: F) -> JoinHandle<T>
+    |        ^^^^^
+help: remove the extra arguments
+    |
+ 19 -     let worker2 = thread::spawn(w2, Arc::clone(&a), Arc::clone(&b));
+ 19 +     let worker2 = thread::spawn(w2);
+    |
+
+Some errors have detailed explanations: E0061, E0277.
+For more information about an error, try `rustc --explain E0061`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 4 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`

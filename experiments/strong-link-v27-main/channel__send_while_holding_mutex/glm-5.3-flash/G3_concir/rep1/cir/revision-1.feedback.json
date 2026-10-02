@@ -1,0 +1,82 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ch2' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[1].body[3]",
+      "location": "main::s.s4",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[1].body[3]"
+    },
+    {
+      "code": "E934",
+      "severity": "error",
+      "message": "'main::ch1' is a sync resource and cannot appear as a value",
+      "path": "modules[0].functions[2].body[2]",
+      "location": "main::r.s3",
+      "fix_hint": "use a value name of the matching type",
+      "json_path": "modules[0].functions[2].body[2]"
+    },
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::done'",
+      "path": "modules[0].functions[0].body[4]",
+      "location": "main::main.s5",
+      "fix_hint": "use a Var-typed resource",
+      "json_path": "modules[0].functions[0].body[4]"
+    },
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::ch1'",
+      "path": "modules[0].functions[1].body[2]",
+      "location": "main::s.s3",
+      "fix_hint": "use a Var-typed resource",
+      "json_path": "modules[0].functions[1].body[2]"
+    },
+    {
+      "code": "E308",
+      "severity": "error",
+      "message": "cannot read/write non-Var resource 'main::ch2'",
+      "path": "modules[0].functions[2].body[3]",
+      "location": "main::r.s4",
+      "fix_hint": "use a Var-typed resource",
+      "json_path": "modules[0].functions[2].body[3]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 's' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[1]",
+      "location": "main::s",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[1]"
+    },
+    {
+      "code": "E937",
+      "severity": "warning",
+      "message": "function 'r' is a spawn/async_call/scope target but has modeled locals or a modeled return; those slots are shared across activations",
+      "path": "modules[0].functions[2]",
+      "location": "main::r",
+      "fix_hint": "keep activation slots unmodeled, or publish concurrent values through a Var",
+      "json_path": "modules[0].functions[2]"
+    }
+  ],
+  "expected_shapes": [
+    "use a value name of the matching type",
+    "use a Var-typed resource",
+    "keep activation slots unmodeled, or publish concurrent values through a Var"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::s",
+    "main::r"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

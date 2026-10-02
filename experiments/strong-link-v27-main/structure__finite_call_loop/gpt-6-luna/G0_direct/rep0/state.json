@@ -1,0 +1,12 @@
+{
+  "fingerprint": "1e6fc9792f418dae8e897ddf872ac76aaa12f70c4752861889c1517e5a1c2ab9",
+  "calls": [
+    {
+      "system": "Write one Rust program from the requirements. Do not invent extra requirements.",
+      "user": "Specification:\n# Requirements\n\nR1. A main task calls an auxiliary routine and then begins the same call sequence again. [U]\nR2. The main task and the auxiliary routine share no mutexes, counters, or other shared state, so no two tasks contend for a resource.\nR3. Each auxiliary call runs to completion before the calling task starts the next call.\nR4. Every schedule and interleaving of the tasks must terminate.\nR5. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): helper.\n\n\nOutput the complete Rust program.",
+      "response": "```rust\nfn helper() {}\n\nfn main() {\n    helper();\n    helper();\n    println!(\"DONE done=1\");\n}\n```",
+      "response_model": "gpt-6-luna",
+      "snapshot_sha256": "e3430ac8394e012966b58ed1bba59f51d46d65b656296cc38ea5cf960715b11c"
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__notify_one_multi_waiter_wrong_pick/gpt-6-luna/G3_concir/rep1/code/round-3/source-proj)
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:52:28
+   |
+48 |         let m = Arc::clone(&m);
+   |             - this move could be avoided by cloning the original `Arc`, which is inexpensive
+49 |         let cv = Arc::clone(&cv);
+50 |         scope.spawn(move || w1(m, cv));
+   |                     -------    - variable moved due to use in closure
+   |                     |
+   |                     value moved into closure here
+51 |
+52 |         let m = Arc::clone(&m);
+   |                            ^^ value borrowed here after move
+   |
+   = note: consider using `Arc::clone`
+note: consider changing this parameter type in function `w1` to borrow instead if owning the value isn't necessary
+  --> src/main.rs:9:10
+   |
+ 9 | fn w1(m: Arc<Mutex<State>>, cv: Arc<Condvar>) {
+   |    --    ^^^^^^^^^^^^^^^^^ this parameter takes ownership of the value
+   |    |
+   |    in this function
+help: consider cloning the value before moving it into the closure
+   |
+50 ~         let value = m.clone();
+51 ~         scope.spawn(move || w1(value, cv));
+   |
+
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:53:29
+   |
+49 |         let cv = Arc::clone(&cv);
+   |             -- this move could be avoided by cloning the original `Arc`, which is inexpensive
+50 |         scope.spawn(move || w1(m, cv));
+   |                     -------       -- variable moved due to use in closure
+   |                     |
+   |                     value moved into closure here
+...
+53 |         let cv = Arc::clone(&cv);
+   |                             ^^^ value borrowed here after move
+   |
+   = note: consider using `Arc::clone`
+note: consider changing this parameter type in function `w1` to borrow instead if owning the value isn't necessary
+  --> src/main.rs:9:33
+   |
+ 9 | fn w1(m: Arc<Mutex<State>>, cv: Arc<Condvar>) {
+   |    -- in this function          ^^^^^^^^^^^^ this parameter takes ownership of the value
+help: consider cloning the value before moving it into the closure
+   |
+50 ~         let value = cv.clone();
+51 ~         scope.spawn(move || w1(m, value));
+   |
+
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:56:28
+   |
+52 |         let m = Arc::clone(&m);
+   |             - this move could be avoided by cloning the original `Arc`, which is inexpensive
+53 |         let cv = Arc::clone(&cv);
+54 |         scope.spawn(move || w2(m, cv));
+   |                     -------    - variable moved due to use in closure
+   |                     |
+   |                     value moved into closure here
+55 |
+56 |         let m = Arc::clone(&m);
+   |                            ^^ value borrowed here after move
+   |
+   = note: consider using `Arc::clone`
+note: consider changing this parameter type in function `w2` to borrow instead if owning the value isn't necessary
+  --> src/main.rs:19:10
+   |
+19 | fn w2(m: Arc<Mutex<State>>, cv: Arc<Condvar>) {
+   |    --    ^^^^^^^^^^^^^^^^^ this parameter takes ownership of the value
+   |    |
+   |    in this function
+help: consider cloning the value before moving it into the closure
+   |
+54 ~         let value = m.clone();
+55 ~         scope.spawn(move || w2(value, cv));
+   |
+
+error[E0382]: the type `Arc` does not implement `Copy`
+  --> src/main.rs:57:29
+   |
+53 |         let cv = Arc::clone(&cv);
+   |             -- this move could be avoided by cloning the original `Arc`, which is inexpensive
+54 |         scope.spawn(move || w2(m, cv));
+   |                     -------       -- variable moved due to use in closure
+   |                     |
+   |                     value moved into closure here
+...
+57 |         let cv = Arc::clone(&cv);
+   |                             ^^^ value borrowed here after move
+   |
+   = note: consider using `Arc::clone`
+note: consider changing this parameter type in function `w2` to borrow instead if owning the value isn't necessary
+  --> src/main.rs:19:33
+   |
+19 | fn w2(m: Arc<Mutex<State>>, cv: Arc<Condvar>) {
+   |    -- in this function          ^^^^^^^^^^^^ this parameter takes ownership of the value
+help: consider cloning the value before moving it into the closure
+   |
+54 ~         let value = cv.clone();
+55 ~         scope.spawn(move || w2(m, value));
+   |
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `probe` (bin "probe") due to 4 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning

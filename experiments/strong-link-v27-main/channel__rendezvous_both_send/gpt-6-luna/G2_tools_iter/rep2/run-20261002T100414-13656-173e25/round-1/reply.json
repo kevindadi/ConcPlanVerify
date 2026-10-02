@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "use std::sync::mpsc::{sync_channel, Receiver, SyncSender};\nuse std::thread;\n\nfn s1(ch: SyncSender<i32>) {\n    ch.send(1).unwrap();\n}\n\nfn r(ch: Receiver<i32>) -> i32 {\n    ch.recv().unwrap()\n}\n\nfn main() {\n    let ch = sync_channel::<i32>(0);\n    let (ch_sender, ch_receiver) = ch;\n\n    let sender = thread::spawn(move || s1(ch_sender));\n    let receiver = thread::spawn(move || r(ch_receiver));\n\n    sender.join().unwrap();\n    receiver.join().unwrap();\n\n    println!(\"DONE done=1\");\n}"
+}

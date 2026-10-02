@@ -1,0 +1,45 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::thread;
+
+// Shared resource: c (atomic counter), starts at zero.
+static C: AtomicUsize = AtomicUsize::new(0);
+
+// Worker w1: adds exactly one to c using an atomic read-modify-write retry loop.
+fn w1() {
+    loop {
+        let current = C.load(Ordering::Acquire);
+        // Single indivisible read-modify-write step; on failure, retry.
+        match C.compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Acquire) {
+            Ok(_) => break,
+            Err(_) => continue, // failed attempt is retried, never abandoned
+        }
+    }
+}
+
+// Worker w2: adds exactly one to c using an atomic read-modify-write retry loop.
+fn w2() {
+    loop {
+        let current = C.load(Ordering::Acquire);
+        // Single indivisible read-modify-write step; on failure, retry.
+        match C.compare_exchange_weak(current, current + 1, Ordering::AcqRel, Ordering::Acquire) {
+            Ok(_) => break,
+            Err(_) => continue, // failed attempt is retried, never abandoned
+        }
+    }
+}
+
+fn main() {
+    // Supervising task: launches w1 and w2, waits for both to finish.
+    let h1 = thread::spawn(w1);
+    let h2 = thread::spawn(w2);
+
+    h1.join().expect("w1 panicked");
+    h2.join().expect("w2 panicked");
+
+    // Both workers have finished; every increment took effect (c == 2).
+    let _ = Arc::new(()); // no extra shared state needed; c is a static atomic
+
+    // Required output, exactly this line, then exit.
+    println!("DONE done=1");
+}

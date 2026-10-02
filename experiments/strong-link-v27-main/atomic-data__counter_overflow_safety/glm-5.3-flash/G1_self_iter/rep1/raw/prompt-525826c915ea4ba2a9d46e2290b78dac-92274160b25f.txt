@@ -1,0 +1,81 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.
+R2. Both worker threads share a single integer counter that is declared to range from zero to two and starts at zero.
+R3. Each worker adds one to the shared counter only when doing so keeps the value within the required upper limit.
+R4. A worker must hold the mutual-exclusion lock whenever it reads or writes the shared counter, so the two workers never update it at the same time.
+R5. In every state that can occur, the counter never exceeds one, even though its declared range allows up to two.
+R6. Every possible schedule and interleaving of the two workers must terminate.
+R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2.
+- Shared resources: m (lock), c (shared variable).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+/// Shared counter `c`.
+/// Declared range: 0..=2 (fits in u8). Initial value: 0. (R2)
+struct C(u8);
+
+/// Worker body shared by w1 and w2.
+/// All reads and writes of `c` occur while holding the lock `m`. (R4)
+fn worker(_name: &'static str, m: &Arc<Mutex<C>>) {
+    let mut g = m.lock().unwrap();
+    // R3/R5: increment only if the result stays within the limit.
+    // The check and the write are one critical section, so no
+    // interleaving can push `c` above 1.
+    if g.0 < 1 {
+        g.0 += 1;
+    }
+    // If `c` is already 1, adding one would exceed the limit,
+    // so this worker leaves `c` unchanged and finishes. (R6)
+    // Lock is released here when `g` is dropped.
+}
+
+fn main() {
+    // m: the mutual-exclusion lock guarding c.
+    let m: Arc<Mutex<C>> = Arc::new(Mutex::new(C(0)));
+
+    // R1: supervising task launches w1 and w2 and waits for both.
+    let h1 = {
+        let m = Arc::clone(&m);
+        thread::Builder::new()
+            .name("w1".to_string())
+            .spawn(move || worker("w1", &m))
+            .unwrap()
+    };
+    let h2 = {
+        let m = Arc::clone(&m);
+        thread::Builder::new()
+            .name("w2".to_string())
+            .spawn(move || worker("w2", &m))
+            .unwrap()
+    };
+
+    h1.join().unwrap();
+    h2.join().unwrap();
+
+    // Read the final value under the lock (R4).
+    let done = m.lock().unwrap().0;
+
+    // R7: exactly one worker increments, so this prints `DONE done=1`.
+    println!("DONE done={}", done);
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

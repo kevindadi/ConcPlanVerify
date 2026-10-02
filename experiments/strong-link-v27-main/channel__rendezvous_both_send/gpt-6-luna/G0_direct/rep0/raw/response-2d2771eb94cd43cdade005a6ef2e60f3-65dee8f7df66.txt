@@ -1,0 +1,25 @@
+```rust
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::thread;
+
+fn s1(ch: SyncSender<()>) {
+    ch.send(()).expect("receiver task exited");
+}
+
+fn r(ch: Receiver<()>) {
+    ch.recv().expect("sender task exited");
+}
+
+fn main() {
+    let ch = sync_channel::<()>(0);
+    let (sender, receiver) = ch;
+
+    let r_handle = thread::spawn(move || r(receiver));
+    let s1_handle = thread::spawn(move || s1(sender));
+
+    s1_handle.join().expect("sender task panicked");
+    r_handle.join().expect("receiver task panicked");
+
+    println!("DONE done=1");
+}
+```

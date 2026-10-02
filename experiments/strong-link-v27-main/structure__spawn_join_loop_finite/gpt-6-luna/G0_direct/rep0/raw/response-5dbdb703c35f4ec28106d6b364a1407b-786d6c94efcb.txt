@@ -1,0 +1,14 @@
+```rust
+use std::thread;
+
+fn worker() {}
+
+fn main() {
+    for _ in 0..2 {
+        let handle = thread::spawn(worker);
+        handle.join().expect("worker thread panicked");
+    }
+
+    println!("DONE done=1");
+}
+```

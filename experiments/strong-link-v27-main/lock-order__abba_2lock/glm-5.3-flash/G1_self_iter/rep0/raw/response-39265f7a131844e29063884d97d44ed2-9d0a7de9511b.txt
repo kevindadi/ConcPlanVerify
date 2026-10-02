@@ -1,0 +1,61 @@
+## Defects found and repaired
+
+1. **Deadlock (violates R5/R8):** a naive version had `t1` lock `a` then `b`, while `t2` locked `b` then `a`. Interleaving could leave each worker holding one lock and waiting on the other forever. **Fix:** both workers acquire locks in a single fixed global order (`a`, then `b`). With a consistent ordering, a circular wait is impossible, so every schedule terminates.
+2. **Busy-wait / lost wakeup (violates R4):** a spin-loop with `try_lock` wastes CPU and can starve. **Fix:** `Mutex::lock()` blocks the worker until the lock is free, then it continues — exactly the required wait-then-proceed behavior.
+3. **Lock leaked past critical work (violates R3/R7):** holding a guard for the whole thread body keeps the lock held after the critical work. **Fix:** guards are scoped/dropped immediately after the critical section, so each lock is released before the worker finishes.
+4. **Unsynchronized result flags (violates R9):** plain `bool`/`usize` shared across threads is a data race (UB). **Fix:** `AtomicUsize` with `SeqCst` ordering; main reads them only after `join()`, so the values are final.
+
+## Program
+
+```rust
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+/// Critical section: acquires both locks in a fixed global order (a, then b),
+/// does the critical work while holding both, then releases both.
+fn worker(name: &'static str, a: &Mutex<()>, b: &Mutex<()>, flag: &AtomicUsize) {
+    // Fixed acquisition order for ALL workers => no circular wait => no deadlock (R5, R8).
+    let _ga = a.lock().unwrap(); // blocks until `a` is free, then proceeds (R4)
+    let _gb = b.lock().unwrap(); // blocks until `b` is free, then proceeds (R4)
+
+    // Critical work while holding BOTH locks (R3).
+    let _ = name;
+
+    drop(_gb); // release b (R7)
+    drop(_ga); // release a (R7)
+
+    flag.store(1, Ordering::SeqCst);
+}
+
+fn main() {
+    // Shared resources: two locks, one Arc each so both workers see the same locks (R2).
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    let t1_flag = Arc::new(AtomicUsize::new(0));
+    let t2_flag = Arc::new(AtomicUsize::new(0));
+
+    let mut handles = Vec::new();
+
+    for (name, flag) in [("t1", t1_flag.clone()), ("t2", t2_flag.clone())] {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        handles.push(thread::spawn(move || worker(name, &a, &b, &flag)));
+    }
+
+    // Main starts both workers and waits for both to finish (R6).
+    for h in handles {
+        h.join().unwrap();
+    }
+
+    // Both workers have finished; flags are final and race-free.
+    println!(
+        "DONE t1={} t2={}",
+        t1_flag.load(Ordering::SeqCst),
+        t2_flag.load(Ordering::SeqCst)
+    ); // R9
+}
+```
+
+**Why every requirement holds:** one main + two workers (R1); both workers share the same `Arc<Mutex>` pair, and a `Mutex` is held by at most one thread (R2); both guards are alive simultaneously during the critical work (R3); blocking `lock()` waits for a busy lock and continues (R4); identical lock order makes deadlock impossible, so all interleavings terminate (R5, R8); `join()` on both handles (R6); explicit `drop` of both guards before the worker returns (R7); output is exactly `DONE t1=1 t2=1` (R9).

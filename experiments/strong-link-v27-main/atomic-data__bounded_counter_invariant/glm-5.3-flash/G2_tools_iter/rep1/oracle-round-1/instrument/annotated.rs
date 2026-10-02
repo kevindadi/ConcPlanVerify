@@ -1,0 +1,35 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+use std::sync::{Arc};
+use std::thread;
+
+fn main() { cir_trace::init();
+    // Shared resources: m is the mutual-exclusion lock guarding c.
+    // c is the shared counter, declared to range from 0 to 2, starting at 0.
+    let m: Arc<Mutex<i32>> = Arc::new(Mutex::new_named("res_mutex0#250", 0));
+
+    let m_for_w1 = Arc::clone(&m);
+    let m_for_w2 = Arc::clone(&m);
+
+    // Supervising task (main) launches the two worker threads w1 and w2.
+    let w1 = cir_trace::spawn("w1#418", move || {
+        // Hold the lock for the entire read-modify-write of the shared counter.
+        let mut c = m_for_w1.lock().unwrap();
+        *c += 1;
+        // Lock released when c goes out of scope.
+    });
+
+    let w2 = cir_trace::spawn("w2#659", move || {
+        // Hold the lock for the entire read-modify-write of the shared counter.
+        let mut c = m_for_w2.lock().unwrap();
+        *c += 1;
+        // Lock released when c goes out of scope.
+    });
+
+    // Wait for both workers to finish.
+    w1.join().expect("w1 panicked");
+    w2.join().expect("w2 panicked");
+
+    // Print exactly the required line, then exit.
+    println!("DONE done=1");
+ cir_trace::finish();}

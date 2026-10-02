@@ -1,0 +1,23 @@
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::thread;
+
+fn s1(ch: SyncSender<i32>) {
+    ch.send(1).unwrap();
+}
+
+fn r(ch: Receiver<i32>) -> i32 {
+    ch.recv().unwrap()
+}
+
+fn main() {
+    let ch = sync_channel::<i32>(0);
+    let (ch_sender, ch_receiver) = ch;
+
+    let sender = thread::spawn(move || s1(ch_sender));
+    let receiver = thread::spawn(move || r(ch_receiver));
+
+    sender.join().unwrap();
+    receiver.join().unwrap();
+
+    println!("DONE done=1");
+}

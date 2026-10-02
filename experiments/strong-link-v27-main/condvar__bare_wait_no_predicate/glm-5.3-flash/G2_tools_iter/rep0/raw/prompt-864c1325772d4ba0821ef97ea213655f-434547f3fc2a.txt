@@ -1,0 +1,79 @@
+Revise the Rust program using the tool feedback.
+
+Specification:
+# Requirements
+
+R1. A main task starts a waiter role and a notifier role that run at the same time.
+R2. The waiter and the notifier share one lock and one condition variable, and the lock guards a boolean flag. [U]
+R3. The notifier sets the shared flag to true while holding the lock, signals the condition variable, and then releases the lock.
+R4. While holding the lock, the waiter checks the flag first, waits on the condition variable only while the flag is false, and re-checks the flag after each wake.
+R5. The waiter must complete even when the notifier signals before the waiter starts waiting.
+R6. The waiter must not wait on the condition variable while the flag is already true, and must not keep the lock while blocked.
+R7. Every schedule and interleaving of the two roles must terminate with both roles finished.
+R8. The shared flag becomes true in every schedule.
+R9. The waiter must not pass its wait until the flag is true.
+R10. The program must print exactly the line `DONE ready=true` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): waiter, notifier.
+- Shared resources: m (lock), cv (condition variable), ready (shared variable).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+fn main() {
+    // R2: one lock (m) and one condition variable (cv), guarding the boolean flag (ready).
+    let shared = Arc::new((Mutex::new(false), Condvar::new()));
+
+    // waiter role
+    let waiter = {
+        let m = Arc::clone(&shared.0);
+        let cv = Arc::clone(&shared.1);
+        thread::spawn(move || {
+            // R4: check the flag first while holding the lock.
+            let mut guard = m.lock().unwrap();
+            // R4/R6: wait only while the flag is false; re-check after each wake.
+            // R5: if the notifier already set the flag, we never enter wait.
+            // R6: cv.wait releases the lock while blocked, reacquires on wake.
+            while !*guard {
+                guard = cv.wait(guard).unwrap();
+            }
+            // R9: we only get here once ready is true.
+            // R10: print exactly the required line.
+            println!("DONE ready=true");
+        })
+    };
+
+    // notifier role
+    let notifier = {
+        let m = Arc::clone(&shared.0);
+        let cv = Arc::clone(&shared.1);
+        thread::spawn(move || {
+            // R3: set the flag while holding the lock...
+            let mut guard = m.lock().unwrap();
+            *guard = true;
+            // ...signal the condition variable while still holding the lock...
+            cv.notify_all();
+            // ...then release the lock.
+            drop(guard);
+        })
+    };
+
+    // R1: both roles run concurrently; R7: joining both guarantees termination
+    // on every interleaving (the predicate loop makes early signals safe).
+    waiter.join().unwrap();
+    notifier.join().unwrap();
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": null, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__bare_wait_no_predicate/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092513-13656-7755c1/round-1/calls/001-build", "exit_code": 101, "extra": {"argv_sha256": "e49c09f915eb33fe724be77dc3fe0c873c4a55edfb06b394eae45dfa620841d4", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__bare_wait_no_predicate/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092513-13656-7755c1/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__bare_wait_no_predicate/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092513-13656-7755c1/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__bare_wait_no_predicate/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092513-13656-7755c1/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__bare_wait_no_predicate/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092513-13656-7755c1/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__bare_wait_no_predicate/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092513-13656-7755c1/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__bare_wait_no_predicate/glm-5.3-flash/G2_tools_iter/rep0/run-20261002T092513-13656-7755c1/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "761eff18608caef1473a5d1434fd02b3945116454cd0aa9490339d1f4bd02312", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 498}, "build_ok": false, "lockbud_detected": false, "lockbud_status": "lockbud_unavailable", "miri_detected": false, "miri_statuses": []}
+
+Output the complete corrected Rust program.

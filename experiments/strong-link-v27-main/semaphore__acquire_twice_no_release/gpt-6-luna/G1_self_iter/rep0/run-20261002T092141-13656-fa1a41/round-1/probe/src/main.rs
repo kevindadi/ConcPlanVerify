@@ -1,0 +1,86 @@
+use std::sync::{Arc, Condvar, Mutex};
+
+struct State {
+    permits: usize,
+    next_ticket: u64,
+    serving: u64,
+}
+
+struct Semaphore {
+    state: Mutex<State>,
+    changed: Condvar,
+}
+
+struct Permit<'a> {
+    semaphore: &'a Semaphore,
+}
+
+impl Semaphore {
+    fn new(permits: usize) -> Self {
+        Self {
+            state: Mutex::new(State {
+                permits,
+                next_ticket: 0,
+                serving: 0,
+            }),
+            changed: Condvar::new(),
+        }
+    }
+
+    fn acquire(&self) -> Permit<'_> {
+        let mut state = self.state.lock().unwrap();
+        let ticket = state.next_ticket;
+        state.next_ticket += 1;
+
+        while ticket != state.serving || state.permits == 0 {
+            state = self.changed.wait(state).unwrap();
+        }
+
+        state.permits -= 1;
+        state.serving += 1;
+        self.changed.notify_all();
+
+        Permit { semaphore: self }
+    }
+
+    fn available(&self) -> usize {
+        self.state.lock().unwrap().permits
+    }
+}
+
+impl Drop for Permit<'_> {
+    fn drop(&mut self) {
+        let mut state = self.semaphore.state.lock().unwrap();
+        state.permits += 1;
+        self.semaphore.changed.notify_all();
+    }
+}
+
+fn w1(s: Arc<Semaphore>) {
+    for _ in 0..2 {
+        let _permit = s.acquire();
+        std::thread::yield_now();
+    }
+}
+
+fn w2(s: Arc<Semaphore>) {
+    for _ in 0..2 {
+        let _permit = s.acquire();
+        std::thread::yield_now();
+    }
+}
+
+fn main() {
+    let s = Arc::new(Semaphore::new(1));
+
+    let s1 = Arc::clone(&s);
+    let s2 = Arc::clone(&s);
+
+    let h1 = std::thread::spawn(move || w1(s1));
+    let h2 = std::thread::spawn(move || w2(s2));
+
+    h1.join().unwrap();
+    h2.join().unwrap();
+
+    println!("DONE done={}", s.available());
+}

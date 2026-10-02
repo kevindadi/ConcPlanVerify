@@ -1,0 +1,75 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20261002T101703-13656-afcb0c/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0433]: cannot find module or crate `tokio` in this scope
+  --> src/main.rs:17:5
+   |
+17 | use tokio::sync::{Mutex, Semaphore};
+   |     ^^^^^ use of unresolved module or unlinked crate `tokio`
+   |
+   = help: if you wanted to use a crate named `tokio`, use `cargo add tokio` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `tokio` in this scope
+  --> src/main.rs:19:3
+   |
+19 | #[tokio::main]
+   |   ^^^^^ use of unresolved module or unlinked crate `tokio`
+
+error[E0433]: cannot find module or crate `tokio` in this scope
+  --> src/main.rs:38:17
+   |
+38 |                 tokio::time::sleep(Duration::from_millis(1)).await;
+   |                 ^^^^^ use of unresolved module or unlinked crate `tokio`
+   |
+   = help: if you wanted to use a crate named `tokio`, use `cargo add tokio` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `tokio` in this scope
+  --> src/main.rs:35:9
+   |
+35 |         tokio::spawn(async move {
+   |         ^^^^^ use of unresolved module or unlinked crate `tokio`
+   |
+   = help: if you wanted to use a crate named `tokio`, use `cargo add tokio` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `tokio` in this scope
+  --> src/main.rs:53:9
+   |
+53 |         tokio::spawn(async move {
+   |         ^^^^^ use of unresolved module or unlinked crate `tokio`
+   |
+   = help: if you wanted to use a crate named `tokio`, use `cargo add tokio` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `tokio` in this scope
+  --> src/main.rs:81:9
+   |
+81 |         tokio::spawn(async move {
+   |         ^^^^^ use of unresolved module or unlinked crate `tokio`
+   |
+   = help: if you wanted to use a crate named `tokio`, use `cargo add tokio` to add it to your `Cargo.toml`
+
+error[E0752]: `main` function is not allowed to be `async`
+  --> src/main.rs:20:1
+   |
+20 | async fn main() {
+   | ^^^^^^^^^^^^^^^ `main` function is not allowed to be `async`
+
+Some errors have detailed explanations: E0433, E0752.
+For more information about an error, try `rustc --explain E0433`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 7 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`

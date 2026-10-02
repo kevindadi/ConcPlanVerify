@@ -1,0 +1,10 @@
+use std::thread;
+
+fn helper() {}
+
+fn main() {
+    thread::spawn(helper).join().unwrap();
+    thread::spawn(helper).join().unwrap();
+
+    println!("DONE done=1");
+}

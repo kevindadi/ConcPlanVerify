@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\n// R1: The main task calls the auxiliary routine `helper`, then begins the\n//     same call sequence again (a second identical call).\n// R2: `helper` and the main task share no mutexes, counters, or any other\n//     shared state — there is nothing for two tasks to contend over.\n// R3: Each call to `helper` runs to completion before the main task starts\n//     the next call, because the calls are sequential in `main`.\n// R4: There is no concurrency, no loops, and no blocking, so every\n//     schedule/interleaving trivially terminates.\n// R5: The program prints exactly `DONE done=1` and then exits.\n\n// Role: helper — the auxiliary routine.\n// It takes no arguments, touches no shared state, and returns normally.\nfn helper() {\n    // Runs to completion on every call; no side effects, no shared state.\n}\n\nfn main() {\n    // First call sequence: main task invokes the auxiliary routine.\n    helper();\n\n    // R1: the main task now begins the same call sequence again.\n    helper();\n\n    // R5: exactly one line of output, then the program exits.\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,51 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20261002T102137-13656-7c1841/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error[E0433]: cannot find module or crate `tokio` in this scope
+  --> src/main.rs:11:5
+   |
+11 | use tokio::task::JoinHandle;
+   |     ^^^^^ use of unresolved module or unlinked crate `tokio`
+   |
+   = help: if you wanted to use a crate named `tokio`, use `cargo add tokio` to add it to your `Cargo.toml`
+
+error[E0433]: cannot find module or crate `tokio` in this scope
+  --> src/main.rs:27:3
+   |
+27 | #[tokio::main]
+   |   ^^^^^ use of unresolved module or unlinked crate `tokio`
+
+error[E0433]: cannot find module or crate `tokio` in this scope
+  --> src/main.rs:21:34
+   |
+21 |     let handle: JoinHandle<()> = tokio::spawn(worker());
+   |                                  ^^^^^ use of unresolved module or unlinked crate `tokio`
+   |
+   = help: if you wanted to use a crate named `tokio`, use `cargo add tokio` to add it to your `Cargo.toml`
+
+error[E0752]: `main` function is not allowed to be `async`
+  --> src/main.rs:28:1
+   |
+28 | async fn main() {
+   | ^^^^^^^^^^^^^^^ `main` function is not allowed to be `async`
+
+Some errors have detailed explanations: E0433, E0752.
+For more information about an error, try `rustc --explain E0433`.
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 4 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`

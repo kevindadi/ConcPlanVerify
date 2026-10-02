@@ -1,0 +1,42 @@
+use std::sync::{
+    mpsc::{sync_channel, Receiver, SyncSender},
+    Arc, Mutex,
+};
+use std::thread;
+
+fn s(ch1: SyncSender<u32>, ch2: Receiver<u32>, lock: Arc<Mutex<()>>) {
+    {
+        let _guard = lock.lock().unwrap();
+    }
+
+    ch1.send(42).unwrap();
+    ch2.recv().unwrap();
+}
+
+fn r(ch1: Receiver<u32>, ch2: SyncSender<u32>, lock: Arc<Mutex<()>>) {
+    {
+        let _guard = lock.lock().unwrap();
+    }
+
+    let value = ch1.recv().unwrap();
+
+    {
+        let _guard = lock.lock().unwrap();
+    }
+
+    ch2.send(value).unwrap();
+}
+
+fn main() {
+    let (ch1_tx, ch1_rx) = sync_channel(0);
+    let (ch2_tx, ch2_rx) = sync_channel(0);
+    let lock = Arc::new(Mutex::new(()));
+
+    let s_handle = thread::spawn(move || s(ch1_tx, ch2_rx, Arc::clone(&lock)));
+    let r_handle = thread::spawn(move || r(ch1_rx, ch2_tx, lock));
+
+    s_handle.join().unwrap();
+    r_handle.join().unwrap();
+
+    println!("DONE done=1");
+}

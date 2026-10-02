@@ -1,0 +1,48 @@
+```rust
+use std::sync::{Mutex, OnceLock};
+
+static A: OnceLock<Mutex<()>> = OnceLock::new();
+static B: OnceLock<Mutex<()>> = OnceLock::new();
+static C: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn a() -> &'static Mutex<()> { A.get_or_init(|| Mutex::new(())) }
+fn b() -> &'static Mutex<()> { B.get_or_init(|| Mutex::new(())) }
+fn c() -> &'static Mutex<()> { C.get_or_init(|| Mutex::new(())) }
+
+fn t1() {
+    let mut work: i64 = 0;
+    let _ga = a().lock().unwrap();
+    let _gb = b().lock().unwrap();
+    work = work + 1;
+    drop(_gb);
+    drop(_ga);
+}
+
+fn t2() {
+    let mut work: i64 = 0;
+    let _gb = b().lock().unwrap();
+    let _gc = c().lock().unwrap();
+    work = work + 1;
+    drop(_gc);
+    drop(_gb);
+}
+
+fn t3() {
+    let mut work: i64 = 0;
+    let _ga = a().lock().unwrap();
+    let _gc = c().lock().unwrap();
+    work = work + 1;
+    drop(_gc);
+    drop(_ga);
+}
+
+fn main() {
+    let h1 = std::thread::spawn(t1);
+    let h2 = std::thread::spawn(t2);
+    let h3 = std::thread::spawn(t3);
+    h1.join().unwrap();
+    h2.join().unwrap();
+    h3.join().unwrap();
+    println!("DONE done=1");
+}
+```

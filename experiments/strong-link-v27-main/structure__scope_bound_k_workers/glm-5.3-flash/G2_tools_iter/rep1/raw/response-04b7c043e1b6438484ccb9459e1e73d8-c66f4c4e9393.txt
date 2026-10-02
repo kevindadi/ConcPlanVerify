@@ -1,0 +1,67 @@
+Looking at the requirements: a single shared permit (`s`) must be held by at most one activation at a time (R3), waiters must block until it's free (R4), and everything must terminate with all three roles completing (R5, R6). A `Mutex` gives exactly these semantics: `lock()` blocks until the permit is available, and the guard releases it on drop (R2). Each role runs two activations concurrently (R1). No output other than the final line is printed (R7).
+
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+// s: the shared single-permit semaphore.
+// Locking it acquires the permit; unlocking (guard drop) releases it.
+// The u32 counts how many activations have completed their work.
+
+fn activation(s: &Mutex<u32>) {
+    // R4: if the permit is held by another activation, this call blocks
+    // until it becomes available.
+    let mut permit = s.lock().unwrap();
+
+    // R2: we now hold the single permit; do the work while holding it.
+    *permit += 1;
+
+    // R2/R3: permit is released here when `permit` goes out of scope.
+}
+
+fn worker(s: Arc<Mutex<u32>>) {
+    // R1: each role may have up to two activations running at once.
+    let mut handles = Vec::new();
+    for _ in 0..2 {
+        let s = Arc::clone(&s);
+        handles.push(thread::spawn(move || activation(&s)));
+    }
+    for h in handles {
+        h.join().unwrap();
+    }
+}
+
+fn main() {
+    // Single permit shared by all roles.
+    let s = Arc::new(Mutex::new(0u32));
+
+    // R1: main task starts the three worker roles w1, w2, w3.
+    let mut roles = Vec::new();
+    for _ in 0..3 {
+        let s = Arc::clone(&s);
+        roles.push(thread::spawn(move || worker(s)));
+    }
+
+    // R5/R6: wait for all roles to finish; every activation terminates
+    // because the mutex guarantees the permit is eventually released.
+    for r in roles {
+        r.join().unwrap();
+    }
+
+    // Sanity check: all 6 activations (3 roles x 2) completed.
+    assert_eq!(*s.lock().unwrap(), 6);
+
+    // R7: print exactly this line, then exit.
+    println!("DONE done=1");
+}
+```
+
+**How it satisfies the requirements:**
+
+- **R1** — `main` spawns three role threads; each `worker` spawns two concurrent `activation` threads.
+- **R2** — each activation acquires the permit via `s.lock()`, does its work, and releases it when the lock guard drops at the end of the function.
+- **R3** — a `Mutex` permits only one lock holder at a time, so at most one activation holds the permit.
+- **R4** — `lock()` blocks until the current holder releases the permit.
+- **R5** — the mutex is never held indefinitely and is always released on scope exit, so no deadlock or livelock is possible; all threads terminate.
+- **R6** — `main` joins all three role threads, each of which joins its two activations, so all roles complete.
+- **R7** — the only output is the single line `DONE done=1`, after which the program exits.

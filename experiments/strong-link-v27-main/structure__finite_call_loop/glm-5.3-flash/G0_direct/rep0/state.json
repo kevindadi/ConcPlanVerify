@@ -1,0 +1,12 @@
+{
+  "fingerprint": "ce90e0837529f5ead9cfbd0b1e6f320a38a729b186c2dc4a8ee549c128119fc6",
+  "calls": [
+    {
+      "system": "Write one Rust program from the requirements. Do not invent extra requirements.",
+      "user": "Specification:\n# Requirements\n\nR1. A main task calls an auxiliary routine and then begins the same call sequence again. [U]\nR2. The main task and the auxiliary routine share no mutexes, counters, or other shared state, so no two tasks contend for a resource.\nR3. Each auxiliary call runs to completion before the calling task starts the next call.\nR4. Every schedule and interleaving of the tasks must terminate.\nR5. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): helper.\n\n\nOutput the complete Rust program.",
+      "response": "```rust\n// R1: The main task calls the auxiliary routine `helper`, then begins the\n//     same call sequence again (a second identical call).\n// R2: `helper` and the main task share no mutexes, counters, or any other\n//     shared state — there is nothing for two tasks to contend over.\n// R3: Each call to `helper` runs to completion before the main task starts\n//     the next call, because the calls are sequential in `main`.\n// R4: There is no concurrency, no loops, and no blocking, so every\n//     schedule/interleaving trivially terminates.\n// R5: The program prints exactly `DONE done=1` and then exits.\n\n// Role: helper — the auxiliary routine.\n// It takes no arguments, touches no shared state, and returns normally.\nfn helper() {\n    // Runs to completion on every call; no side effects, no shared state.\n}\n\nfn main() {\n    // First call sequence: main task invokes the auxiliary routine.\n    helper();\n\n    // R1: the main task now begins the same call sequence again.\n    helper();\n\n    // R5: exactly one line of output, then the program exits.\n    println!(\"DONE done=1\");\n}\n```",
+      "response_model": "glm-5.3-flash",
+      "snapshot_sha256": "bff5b00725bc56f98ab66666ee233d1bfbe5763509b823571c76d81cbb5e48ce"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn t1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {\n    let _a = a.lock().unwrap();\n    let _b = b.lock().unwrap();\n\n    // Critical work is performed while both locks are held.\n    std::hint::black_box(());\n}\n\nfn t2(b: Arc<Mutex<()>>, c: Arc<Mutex<()>>) {\n    let _b = b.lock().unwrap();\n    let _c = c.lock().unwrap();\n\n    std::hint::black_box(());\n}\n\nfn t3(a: Arc<Mutex<()>>, c: Arc<Mutex<()>>) {\n    let _a = a.lock().unwrap();\n    let _c = c.lock().unwrap();\n\n    std::hint::black_box(());\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n    let c = Arc::new(Mutex::new(()));\n\n    let worker1 = {\n        let (a, b) = (Arc::clone(&a), Arc::clone(&b));\n        thread::spawn(move || t1(a, b))\n    };\n    let worker2 = {\n        let (b, c) = (Arc::clone(&b), Arc::clone(&c));\n        thread::spawn(move || t2(b, c))\n    };\n    let worker3 = {\n        let (a, c) = (Arc::clone(&a), Arc::clone(&c));\n        thread::spawn(move || t3(a, c))\n    };\n\n    worker1.join().unwrap();\n    worker2.join().unwrap();\n    worker3.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

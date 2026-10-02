@@ -1,0 +1,58 @@
+## Review notes
+
+**Concurrency defects repaired (justified):**
+
+1. **Lost update (violates R4/R5/R6):** A naive `c.store(c.load() + 1)` is two separate steps; two workers can read the same value and one increment is silently lost, leaving the counter at 1 with no path back to 2. Repaired with an atomic read‑modify‑write retry loop (`compare_exchange_weak` + `continue` on failure), so a failed attempt is retried, never abandoned, and every increment eventually takes effect.
+2. **Partial observable state (violates R7):** The read‑modify‑write is now a single indivisible atomic operation; no interleaving can observe a "half" increment.
+3. **Termination (R8):** The retry loop only repeats when the observed value changed (or on a spurious `compare_exchange_weak` failure); each real retry means the other worker's increment landed, and since each worker performs exactly one increment, the loop terminates on every schedule. `main` joins both workers, so the supervisor waits for both (R1).
+
+**Unsatisfiable requirement flagged:** R9 `[U]` demands printing `DONE done=1`, which directly contradicts R3 ("once both have finished the counter equals two") and R5/R6. No correct program can satisfy both. I resolve this in favor of the concurrency requirements and print the true counter value, `DONE done=2`.
+
+## Program
+
+```rust
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::thread;
+
+// R2: shared atomic counter c, starts at zero.
+// R4/R5/R6/R7: each worker does an atomic read-modify-write retry loop;
+// a failed attempt is retried, never abandoned, so no update is lost
+// and every increment is a single indivisible step.
+fn worker(c: &AtomicUsize) {
+    loop {
+        let current = c.load(Ordering::Relaxed);
+        match c.compare_exchange_weak(
+            current,
+            current + 1,
+            Ordering::SeqCst,
+            Ordering::Relaxed,
+        ) {
+            Ok(_) => break,          // increment took effect atomically
+            Err(_) => continue,      // retry: competing update or spurious failure
+        }
+    }
+}
+
+fn main() {
+    // R1: supervising task launches two worker threads and waits for both.
+    let c = Arc::new(AtomicUsize::new(0));
+
+    let c1 = Arc::clone(&c);
+    let c2 = Arc::clone(&c);
+
+    let h1 = thread::spawn(move || worker(&c1)); // w1
+    let h2 = thread::spawn(move || worker(&c2)); // w2
+
+    h1.join().expect("w1 panicked");
+    h2.join().expect("w2 panicked");
+
+    // R3: both workers finished, so c == 2.
+    // R9 [U] is unsatisfiable as written (it demands done=1, contradicting R3);
+    // we print the actual, correct value.
+    let done = c.load(Ordering::SeqCst);
+    println!("DONE done={}", done);
+}
+```
+
+**Why every requirement holds:** the counter starts at 0 (R2); each of w1 and w2 performs exactly one successful atomic increment (R3, R4); failures are retried, never abandoned (R5); from any reachable state the remaining worker's CAS can still succeed, so reaching 2 is always possible (R6); the RMW is indivisible, so no partial update is observable (R7); the retry loop terminates under every interleaving because each retry corresponds to the other worker's progress, and there is exactly one increment per worker (R8); the supervisor joins both threads before printing and exiting (R1).

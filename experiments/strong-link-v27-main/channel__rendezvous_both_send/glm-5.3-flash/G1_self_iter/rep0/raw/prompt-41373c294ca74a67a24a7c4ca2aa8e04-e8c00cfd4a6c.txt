@@ -1,0 +1,66 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. A main task starts one sending task and one receiving task that run at the same time.
+R2. The two tasks communicate over a channel with no buffering, so a send and a take must meet to exchange the value.
+R3. The sender passes one value and the receiver takes one value, so both tasks finish.
+R4. No task may wait forever for a partner that never arrives.
+R5. Every schedule and interleaving must terminate with both tasks finished and no value left in the channel.
+R6. The channel is empty once both tasks have finished.
+R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): s1, r.
+- Shared resources: ch (channel).
+
+
+Current program:
+```rust
+use std::sync::mpsc::sync_channel;
+use std::thread;
+
+fn main() {
+    // R2: sync_channel(0) is a rendezvous channel — zero buffering.
+    // A send on `ch` blocks until a receiver takes, so the two tasks
+    // must meet to exchange the value.
+    let (ch_tx, ch_rx) = sync_channel::<i32>(0);
+
+    // R1: spawn both tasks before joining either, so they run concurrently.
+    let s1 = thread::spawn(move || {
+        // R3: sender passes exactly one value.
+        // R4: this blocks only until `r` takes; `r` is already running,
+        // so the wait is bounded by the rendezvous itself.
+        ch_tx.send(1).expect("s1: receiver disappeared");
+    });
+
+    let r = thread::spawn(move || {
+        // R3: receiver takes exactly one value and returns it.
+        // R4: blocks only until `s1` sends; `s1` is already running.
+        ch_rx.recv().expect("r: sender disappeared")
+    });
+
+    // R5: join both tasks so every interleaving terminates with both
+    // tasks finished before the program proceeds to print.
+    let s1_result = s1.join().expect("s1 panicked");
+    let value = r.join().expect("r panicked");
+
+    // R6: after the rendezvous, the channel holds nothing; dropping
+    // `ch_tx`/`ch_rx` at scope end leaves it empty.
+    let _ = s1_result;
+
+    // R7: print exactly `DONE done=1`.
+    let done = if value == 1 { 1 } else { 0 };
+    println!("DONE done={}", done);
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

@@ -1,0 +1,93 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__notify_one_multi_waiter_wrong_pick/gpt-6-luna/G3_concir/rep2/code/round-1/source-proj)
+error[E0597]: `g12` does not live long enough
+   --> src/main.rs:52:24
+    |
+ 49 |     let g12 = Semaphore::new(2);
+    |         --- binding `g12` declared here
+...
+ 52 |     let g12_permit_1 = g12.acquire();
+    |                        ^^^ borrowed value does not live long enough
+...
+ 61 |         thread::spawn(move || w1(m, cv, g12_permit_1, g_n))
+    |         --------------------------------------------------- argument requires that `g12` is borrowed for `'static`
+...
+ 83 | }
+    | - `g12` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `g12` does not live long enough
+   --> src/main.rs:53:24
+    |
+ 49 |     let g12 = Semaphore::new(2);
+    |         --- binding `g12` declared here
+...
+ 53 |     let g12_permit_2 = g12.acquire();
+    |                        ^^^ borrowed value does not live long enough
+...
+ 67 |         thread::spawn(move || w2(m, cv, g12_permit_2, g_n))
+    |         --------------------------------------------------- argument requires that `g12` is borrowed for `'static`
+...
+ 83 | }
+    | - `g12` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `g_n` does not live long enough
+   --> src/main.rs:54:24
+    |
+ 50 |       let g_n = Semaphore::new(2);
+    |           --- binding `g_n` declared here
+...
+ 54 |       let g_n_permit_1 = g_n.acquire();
+    |                          ^^^ borrowed value does not live long enough
+...
+ 73 | /         thread::spawn(move || {
+ 74 | |             notifier(m, cv, g12, g_n_permit_1, g_n_permit_2)
+ 75 | |         })
+    | |__________- argument requires that `g_n` is borrowed for `'static`
+...
+ 83 |   }
+    |   - `g_n` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `g_n` does not live long enough
+   --> src/main.rs:55:24
+    |
+ 50 |       let g_n = Semaphore::new(2);
+    |           --- binding `g_n` declared here
+...
+ 55 |       let g_n_permit_2 = g_n.acquire();
+    |                          ^^^ borrowed value does not live long enough
+...
+ 73 | /         thread::spawn(move || {
+ 74 | |             notifier(m, cv, g12, g_n_permit_1, g_n_permit_2)
+ 75 | |         })
+    | |__________- argument requires that `g_n` is borrowed for `'static`
+...
+ 83 |   }
+    |   - `g_n` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+For more information about this error, try `rustc --explain E0597`.
+error: could not compile `probe` (bin "probe") due to 4 previous errors

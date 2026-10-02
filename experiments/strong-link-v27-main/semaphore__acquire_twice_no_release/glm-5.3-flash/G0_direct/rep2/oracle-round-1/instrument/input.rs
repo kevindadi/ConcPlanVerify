@@ -1,0 +1,64 @@
+// Supervised workers w1 and w2 sharing a one-permit counting semaphore s.
+// Each worker acquires the permit, performs its work, and releases it,
+// repeating a fixed number of rounds. Because a worker always releases
+// before its next acquire, the permit count returns to its acquired
+// balance on every path, and every interleaving terminates.
+
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+struct Semaphore {
+    permits: Mutex<usize>,
+    cv: Condvar,
+}
+
+impl Semaphore {
+    fn new(initial: usize) -> Self {
+        Semaphore {
+            permits: Mutex::new(initial),
+            cv: Condvar::new(),
+        }
+    }
+
+    fn acquire(&self) {
+        let mut count = self.permits.lock().unwrap();
+        while *count == 0 {
+            // Waiting here only holds the semaphore's internal mutex,
+            // not the permit itself, so the current holder can still
+            // call release() and wake us.
+            count = self.cv.wait(count).unwrap();
+        }
+        *count -= 1;
+    }
+
+    fn release(&self) {
+        let mut count = self.permits.lock().unwrap();
+        *count += 1;
+        self.cv.notify_one();
+    }
+}
+
+fn worker(name: &'static str, s: Arc<Semaphore>, rounds: usize) {
+    for round in 0..rounds {
+        s.acquire(); // hold the permit while working
+        println!("{} working round {}", name, round);
+        s.release(); // release exactly once per acquire
+    }
+}
+
+fn main() {
+    // s begins with exactly one permit.
+    let s = Arc::new(Semaphore::new(1));
+
+    let s1 = Arc::clone(&s);
+    let w1 = thread::spawn(move || worker("w1", s1, 3));
+
+    let s2 = Arc::clone(&s);
+    let w2 = thread::spawn(move || worker("w2", s2, 3));
+
+    // Supervising task: wait for both workers to finish.
+    w1.join().unwrap();
+    w2.join().unwrap();
+
+    println!("DONE done=1");
+}

@@ -1,0 +1,64 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20261002T103424-13656-e47a24/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:32:67
+   |
+32 | fn w1(m: Arc<Mutex<bool>>, cv: Arc<Condvar>, g12: Arc<Semaphore>, gN: Arc<Semaphore>) {
+   |                                                                   ^^ help: convert the identifier to snake case: `g_n`
+   |
+   = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:42:67
+   |
+42 | fn w2(m: Arc<Mutex<bool>>, cv: Arc<Condvar>, g12: Arc<Semaphore>, gN: Arc<Semaphore>) {
+   |                                                                   ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:52:73
+   |
+52 | fn notifier(m: Arc<Mutex<bool>>, cv: Arc<Condvar>, g12: Arc<Semaphore>, gN: Arc<Semaphore>) {
+   |                                                                         ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:69:9
+   |
+69 |     let gN = Arc::new(Semaphore::new());
+   |         ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:72:26
+   |
+72 |         let (m, cv, g12, gN) = (m.clone(), cv.clone(), g12.clone(), gN.clone());
+   |                          ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:76:26
+   |
+76 |         let (m, cv, g12, gN) = (m.clone(), cv.clone(), g12.clone(), gN.clone());
+   |                          ^^ help: convert the identifier to snake case: `g_n`
+
+warning: variable `gN` should have a snake case name
+  --> src/main.rs:80:26
+   |
+80 |         let (m, cv, g12, gN) = (m.clone(), cv.clone(), g12.clone(), gN.clone());
+   |                          ^^ help: convert the identifier to snake case: `g_n`
+
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`

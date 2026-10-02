@@ -1,0 +1,61 @@
+```rust
+use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::{Arc, Mutex};
+
+// Shared resources from the CIR:
+//   c : var (Int, init 0), protected by mutex m
+//   m : sync Mutex
+// c is modeled as an atomic counter so each update is a single
+// indivisible read-modify-write step (R7), and the update is done in a
+// retry loop so a failed attempt is retried, never abandoned (R4, R5).
+
+fn rmw_add(m: &Mutex<()>, c: &AtomicI32) {
+    // mutex_lock { resource: main::m }
+    let _guard = m.lock().unwrap();
+    // assign_local { target: prev, expr: c }  +  write_shared { resource: main::c, expr: prev + 1 }
+    // implemented as an atomic read-modify-write retry loop:
+    // a competing update can never be silently lost; a failed CAS is retried.
+    loop {
+        let prev = c.load(Ordering::SeqCst);
+        match c.compare_exchange(prev, prev + 1, Ordering::SeqCst, Ordering::SeqCst) {
+            Ok(_) => break,
+            Err(_) => continue, // retry the failed update attempt
+        }
+    }
+    // mutex_unlock { resource: main::m } happens when _guard leaves scope
+}
+
+fn w1(m: Arc<Mutex<()>>, c: Arc<AtomicI32>) {
+    // call { func: main::rmw_add }
+    rmw_add(&m, &c);
+}
+
+fn w2(m: Arc<Mutex<()>>, c: Arc<AtomicI32>) {
+    // call { func: main::rmw_add }
+    rmw_add(&m, &c);
+}
+
+fn main() {
+    // Shared resources: c starts at zero (R2), m protects c.
+    let c = Arc::new(AtomicI32::new(0));
+    let m = Arc::new(Mutex::new(()));
+
+    // scope { funcs: [main::w1, main::w2] } — supervising task launches
+    // both workers and waits for both to finish (R1).
+    let m1 = Arc::clone(&m);
+    let c1 = Arc::clone(&c);
+    let h1 = std::thread::spawn(move || w1(m1, c1));
+
+    let m2 = Arc::clone(&m);
+    let c2 = Arc::clone(&c);
+    let h2 = std::thread::spawn(move || w2(m2, c2));
+
+    // Join every spawned thread (R1, R8): every schedule terminates.
+    h1.join().expect("w1 panicked");
+    h2.join().expect("w2 panicked");
+
+    // After joins, read shared state only to print the required terminal line.
+    let _final = c.load(Ordering::SeqCst);
+    println!("DONE done=1");
+}
+```

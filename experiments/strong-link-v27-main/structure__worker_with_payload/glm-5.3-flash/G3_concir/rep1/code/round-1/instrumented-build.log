@@ -1,0 +1,39 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/structure__worker_with_payload/glm-5.3-flash/G3_concir/rep1/code/round-1/proj)
+warning: unused import: `Condvar`
+ --> src/main.rs:2:30
+  |
+2 | use cir_trace::sync::{Mutex, Condvar};
+  |                              ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::thread`
+ --> src/main.rs:4:5
+  |
+4 | use std::thread;
+  |     ^^^^^^^^^^^
+
+warning: value assigned to `tmp` is never read
+  --> src/main.rs:8:19
+   |
+ 8 |     let mut tmp = 0;
+   |                   ^ this value is reassigned later and never used
+ 9 |     let mut res = 0;
+10 |     tmp = n;
+   |     ------- `tmp` is overwritten here before the previous value is read
+   |
+   = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `res` is never read
+  --> src/main.rs:9:19
+   |
+ 9 |     let mut res = 0;
+   |                   ^ this value is reassigned later and never used
+10 |     tmp = n;
+11 |     res = tmp + 1;
+   |     ------------- `res` is overwritten here before the previous value is read
+
+warning: `probe` (bin "probe") generated 4 warnings (run `cargo fix --bin "probe" -p probe` to apply 2 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.30s

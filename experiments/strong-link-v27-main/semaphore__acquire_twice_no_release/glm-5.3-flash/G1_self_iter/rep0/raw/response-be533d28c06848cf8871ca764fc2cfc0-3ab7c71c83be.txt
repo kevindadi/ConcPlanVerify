@@ -1,0 +1,102 @@
+# Repaired Program
+
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+// Shared resource: s — a counting permit pool (semaphore) starting with 1 permit.
+struct Semaphore {
+    permits: Mutex<usize>,
+    available: Condvar,
+}
+
+impl Semaphore {
+    fn new(initial: usize) -> Self {
+        Semaphore {
+            permits: Mutex::new(initial),
+            available: Condvar::new(),
+        }
+    }
+
+    // Block until a permit is available, then take it.
+    fn acquire(&self) {
+        let mut count = self.permits.lock().unwrap();
+        while *count == 0 {
+            // wait() atomically releases the mutex while blocked, so a
+            // permit holder can still lock the mutex and release (R5).
+            count = self.available.wait(count).unwrap();
+        }
+        *count -= 1;
+    }
+
+    // Return a permit and wake one waiter.
+    fn release(&self) {
+        let mut count = self.permits.lock().unwrap();
+        *count += 1;
+        drop(count); // unlock before notifying: woken thread never blocks on a held lock
+        self.available.notify_one();
+    }
+
+    fn count(&self) -> usize {
+        *self.permits.lock().unwrap()
+    }
+}
+
+// Worker role: acquires the permit, does its work, releases it.
+// Structured acquire/release with no early return, so every
+// acquisition path is matched by exactly one release (R4).
+fn worker(name: &'static str, s: Arc<Semaphore>, rounds: usize) {
+    for round in 0..rounds {
+        s.acquire();
+        // Critical section: only one worker can be here at a time (R3).
+        println!("{} working round {}", name, round);
+        s.release();
+    }
+}
+
+fn main() {
+    // Supervising task: launches w1 and w2, waits for both (R1).
+    let s = Arc::new(Semaphore::new(1)); // exactly one permit initially (R2)
+
+    let mut handles = Vec::new();
+    for name in ["w1", "w2"] {
+        let s = Arc::clone(&s);
+        handles.push(thread::spawn(move || worker(name, s, 2)));
+    }
+
+    for h in handles {
+        h.join().unwrap();
+    }
+
+    // All acquires were matched by releases, so the pool is back to 1.
+    let done = s.count();
+    println!("DONE done={}", done); // prints exactly: DONE done=1 (R7)
+}
+```
+
+# Concurrency Defects Repaired (with justification)
+
+1. **Waiting while holding the guard lock (violates R5, causes deadlock).**
+   A naive `Mutex`-only "semaphore" blocks a waiter on `lock()` while the holder needs that same lock to release. Fixed by using `Mutex<usize>` + `Condvar`: `Condvar::wait` atomically unlocks the mutex while the worker sleeps, so the current holder can always complete `release()` and the waiter can eventually proceed.
+
+2. **Lost wakeup / spurious-wakeup bug.**
+   A single `if` check after `wait` can miss wakeups or wake spuriously. Fixed with a `while *count == 0` loop, which re-checks the predicate on every wakeup — the standard correct condition-variable pattern.
+
+3. **Unbalanced acquire/release on early exit (violates R4).**
+   If a worker returned or panicked between acquire and release, the permit would leak and the other worker could starve forever (violating R6). Fixed by structuring the worker so acquire and release are adjacent in the same loop body with no early return between them; each worker performs exactly 2 acquire/release pairs, so the pool returns to 1.
+
+4. **Notifying while holding the lock (hazard, not deadlock).**
+   Calling `notify_one` before dropping the guard can wake a thread that then immediately blocks on the still-held mutex. Fixed by `drop(count)` before `notify_one()`, eliminating the unnecessary rendezvous and reducing contention.
+
+5. **Deadlock-freedom argument (R6).**
+   There is a single lock in the system, no lock is held while waiting on the condition variable, and no worker holds any resource while waiting for another. Every `acquire` is eventually matched by a `release` on the same thread, so the permit never leaks; both workers terminate on every interleaving, and `main` joins both before printing.
+
+**Output** (interleaving of the `working` lines may vary, but the final line is always exact):
+
+```
+w1 working round 0
+w1 working round 1
+w2 working round 0
+w2 working round 1
+DONE done=1
+```

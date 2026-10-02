@@ -1,0 +1,107 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.
+R2. Both worker threads share one counting permit pool that begins with exactly one permit.
+R3. A worker must hold a permit while it performs its work, so the two workers never work at the same time.
+R4. Each worker may acquire the permit more than once, and on every path it must release the permit exactly as many times as it acquired it before it finishes.
+R5. While a worker waits for a permit, the worker currently holding it must remain able to release it so the waiting worker can eventually proceed.
+R6. Every possible schedule and interleaving of the two workers must terminate.
+R7. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2.
+- Shared resources: s (semaphore).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+/// Counting permit pool (semaphore), starting with a fixed number of permits.
+struct Semaphore {
+    permits: Mutex<usize>,
+    available: Condvar,
+}
+
+impl Semaphore {
+    fn new(initial: usize) -> Self {
+        Semaphore {
+            permits: Mutex::new(initial),
+            available: Condvar::new(),
+        }
+    }
+
+    /// Blocks until a permit is available. The mutex is released while
+    /// waiting (Condvar::wait), so the current holder can always release.
+    fn acquire(&self) -> PermitGuard<'_> {
+        let mut permits = self.permits.lock().unwrap();
+        while *permits == 0 {
+            permits = self.available.wait(permits).unwrap();
+        }
+        *permits -= 1;
+        PermitGuard { sem: self }
+    }
+}
+
+struct PermitGuard<'a> {
+    sem: &'a Semaphore,
+}
+
+// RAII: the permit is released exactly once per acquisition on *every*
+// path, including early returns and panics (R4).
+impl Drop for PermitGuard<'_> {
+    fn drop(&mut self) {
+        let mut permits = self.sem.permits.lock().unwrap();
+        *permits += 1;
+        drop(permits);
+        // Wake a waiter so every schedule terminates (R5, R6).
+        self.sem.available.notify_one();
+    }
+}
+
+fn worker(s: &Arc<Semaphore>) {
+    // Each worker acquires the permit more than once (R4), and the two
+    // workers never hold it at the same time (R3). The guard is dropped
+    // at the end of each block before the next acquisition, so a worker
+    // never deadlocks against itself.
+    for _ in 0..2 {
+        let _permit = s.acquire();
+        // Hold permit while performing work (R3).
+        std::hint::black_box(42);
+    } // guard dropped here: release #1 and #2, exactly once each
+}
+
+fn main() {
+    // Shared counting permit pool with exactly one permit (R2).
+    let s = Arc::new(Semaphore::new(1));
+
+    // Supervising task launches both workers and waits for both (R1).
+    let h1 = {
+        let s = Arc::clone(&s);
+        thread::spawn(move || worker(&s)) // w1
+    };
+    let h2 = {
+        let s = Arc::clone(&s);
+        thread::spawn(move || worker(&s)) // w2
+    };
+
+    h1.join().expect("w1 panicked");
+    h2.join().expect("w2 panicked");
+
+    // Exactly one final line (R7).
+    println!("DONE done=1");
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

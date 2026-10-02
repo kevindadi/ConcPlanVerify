@@ -1,0 +1,126 @@
+Revise the Rust program using the tool feedback.
+
+Specification:
+# Requirements
+
+R1. A main task starts two waiter roles and one notifier role that run at the same time. [U]
+R2. Each waiter guards its own data with its own lock; the two waiters need not share one lock.
+R3. Each waiter must be notified before it proceeds, and the notifier must be able to wake every waiter without depending on a race between them.
+R4. A waiter must hold its own lock while it waits for the notification.
+R5. Each waiter must announce that it is about to wait before it blocks, so the notifier knows how many waits to expect.
+R6. The notifier must wait until both waiters have announced themselves before it wakes them.
+R7. When the notifier wakes the waiters it must hold each lock that a waiter needs in order to wake and finish.
+R8. The waking step must not leave any waiter blocked and must not depend on a race between the waiters.
+R9. Every schedule and interleaving must terminate with all roles finished.
+R10. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2, notifier.
+- Shared resources: m1 (lock), m2 (lock), cv (condition variable), ready (semaphore).
+
+
+Current program:
+```rust
+use std::sync::{
+    mpsc::{self, Receiver, SyncSender},
+    Arc, Condvar, Mutex,
+};
+use std::thread;
+
+// One shared notification resource with a wait queue for each lock.
+struct Cv {
+    w1: Condvar,
+    w2: Condvar,
+}
+
+fn w1(m1: Arc<Mutex<bool>>, cv: Arc<Cv>, ready: SyncSender<()>) {
+    let mut finished = m1.lock().unwrap();
+
+    // Announce while holding m1, before blocking.
+    ready.send(()).unwrap();
+
+    while !*finished {
+        finished = cv.w1.wait(finished).unwrap();
+    }
+}
+
+fn w2(m2: Arc<Mutex<bool>>, cv: Arc<Cv>, ready: SyncSender<()>) {
+    let mut finished = m2.lock().unwrap();
+
+    // Announce while holding m2, before blocking.
+    ready.send(()).unwrap();
+
+    while !*finished {
+        finished = cv.w2.wait(finished).unwrap();
+    }
+}
+
+fn notifier(
+    m1: Arc<Mutex<bool>>,
+    m2: Arc<Mutex<bool>>,
+    cv: Arc<Cv>,
+    ready: Receiver<()>,
+) {
+    // Consume both announcements before attempting to wake either waiter.
+    ready.recv().unwrap();
+    ready.recv().unwrap();
+
+    // Acquire both locks before changing state or notifying.
+    let mut finished1 = m1.lock().unwrap();
+    let mut finished2 = m2.lock().unwrap();
+
+    *finished1 = true;
+    *finished2 = true;
+
+    cv.w1.notify_all();
+    cv.w2.notify_all();
+}
+
+fn main() {
+    let m1 = Arc::new(Mutex::new(false));
+    let m2 = Arc::new(Mutex::new(false));
+    let cv = Arc::new(Cv {
+        w1: Condvar::new(),
+        w2: Condvar::new(),
+    });
+
+    // A bounded channel acts as a counting semaphore for the two announcements.
+    let (ready_tx, ready_rx) = mpsc::sync_channel(2);
+
+    let w1_handle = {
+        let m1 = Arc::clone(&m1);
+        let cv = Arc::clone(&cv);
+        let ready = ready_tx.clone();
+        thread::spawn(move || w1(m1, cv, ready))
+    };
+
+    let w2_handle = {
+        let m2 = Arc::clone(&m2);
+        let cv = Arc::clone(&cv);
+        let ready = ready_tx.clone();
+        thread::spawn(move || w2(m2, cv, ready))
+    };
+
+    let notifier_handle = {
+        let m1 = Arc::clone(&m1);
+        let m2 = Arc::clone(&m2);
+        let cv = Arc::clone(&cv);
+        thread::spawn(move || notifier(m1, m2, cv, ready_rx))
+    };
+
+    w1_handle.join().unwrap();
+    w2_handle.join().unwrap();
+    notifier_handle.join().unwrap();
+
+    println!("DONE done=1");
+}
+
+```
+
+Tool diagnostics:
+{"behavior_test": {"argv": ["cargo", "test", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__same_cv_different_locks/gpt-6-luna/G2_tools_iter/rep1/run-20261002T094410-13656-52c88d/round-1/calls/002-test", "exit_code": 0, "extra": {"argv_sha256": "94c0fbfdc2c776b75b5bc149bc0531e703ddced5f1a1ef5b07607bb91eae171b", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__same_cv_different_locks/gpt-6-luna/G2_tools_iter/rep1/run-20261002T094410-13656-52c88d/round-1/calls/002-test/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__same_cv_different_locks/gpt-6-luna/G2_tools_iter/rep1/run-20261002T094410-13656-52c88d/round-1/calls/002-test/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__same_cv_different_locks/gpt-6-luna/G2_tools_iter/rep1/run-20261002T094410-13656-52c88d/round-1/calls/002-test/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__same_cv_different_locks/gpt-6-luna/G2_tools_iter/rep1/run-20261002T094410-13656-52c88d/round-1/calls/002-test/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__same_cv_different_locks/gpt-6-luna/G2_tools_iter/rep1/run-20261002T094410-13656-52c88d/round-1/calls/002-test/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__same_cv_different_locks/gpt-6-luna/G2_tools_iter/rep1/run-20261002T094410-13656-52c88d/round-1/calls/002-test/wall_ms.txt"}, "stderr_sha256": "23a8e8205a8294d012c1d1604ff64859d795e040c98db70c52c1e481b235e800", "stdout_sha256": "df166913f47ff1f04202cae9b31df67ed272d692d99a0023a8117dc3029100dd", "timed_out": false, "tool": "test", "wall_ms": 493}, "build": {"argv": ["cargo", "build", "--offline", "--quiet"], "error": null, "evidence_dir": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__same_cv_different_locks/gpt-6-luna/G2_tools_iter/rep1/run-20261002T094410-13656-52c88d/round-1/calls/001-build", "exit_code": 0, "extra": {"argv_sha256": "27d47729ac7120e5247fbb85f9c518c1705d3cc1ae9c6832698bcbeaf9db231c", "env_sha256": "0f031a614230d9c771dde7abbe42cc735c3482df3ba54bdc9ba3364bc67f8b4c"}, "files": {"argv.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__same_cv_different_locks/gpt-6-luna/G2_tools_iter/rep1/run-20261002T094410-13656-52c88d/round-1/calls/001-build/argv.json", "env.json": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__same_cv_different_locks/gpt-6-luna/G2_tools_iter/rep1/run-20261002T094410-13656-52c88d/round-1/calls/001-build/env.json", "exit.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__same_cv_different_locks/gpt-6-luna/G2_tools_iter/rep1/run-20261002T094410-13656-52c88d/round-1/calls/001-build/exit.txt", "stderr.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__same_cv_different_locks/gpt-6-luna/G2_tools_iter/rep1/run-20261002T094410-13656-52c88d/round-1/calls/001-build/stderr.txt", "stdout.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__same_cv_different_locks/gpt-6-luna/G2_tools_iter/rep1/run-20261002T094410-13656-52c88d/round-1/calls/001-build/stdout.txt", "wall_ms.txt": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-main/condvar__same_cv_different_locks/gpt-6-luna/G2_tools_iter/rep1/run-20261002T094410-13656-52c88d/round-1/calls/001-build/wall_ms.txt"}, "stderr_sha256": "23a8e8205a8294d012c1d1604ff64859d795e040c98db70c52c1e481b235e800", "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "timed_out": false, "tool": "build", "wall_ms": 303}, "build_ok": true, "lockbud_detected": true, "lockbud_status": "detected", "miri_detected": false, "miri_statuses": ["clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean", "clean"]}
+
+Output the complete corrected Rust program.

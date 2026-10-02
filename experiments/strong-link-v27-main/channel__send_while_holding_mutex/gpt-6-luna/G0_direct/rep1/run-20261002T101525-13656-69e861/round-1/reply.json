@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_fail",
+  "raw_text": "```rust\nuse std::sync::{\n    mpsc::{sync_channel, Receiver, SyncSender},\n    Arc, Mutex,\n};\nuse std::thread;\n\nfn s(ch1: SyncSender<u32>, ch2: Receiver<u32>, lock: Arc<Mutex<()>>) {\n    {\n        let _guard = lock.lock().unwrap();\n    }\n\n    ch1.send(42).unwrap();\n    ch2.recv().unwrap();\n}\n\nfn r(ch1: Receiver<u32>, ch2: SyncSender<u32>, lock: Arc<Mutex<()>>) {\n    {\n        let _guard = lock.lock().unwrap();\n    }\n\n    let value = ch1.recv().unwrap();\n\n    {\n        let _guard = lock.lock().unwrap();\n    }\n\n    ch2.send(value).unwrap();\n}\n\nfn main() {\n    let (ch1_tx, ch1_rx) = sync_channel(0);\n    let (ch2_tx, ch2_rx) = sync_channel(0);\n    let lock = Arc::new(Mutex::new(()));\n\n    let s_handle = thread::spawn(move || s(ch1_tx, ch2_rx, Arc::clone(&lock)));\n    let r_handle = thread::spawn(move || r(ch1_rx, ch2_tx, lock));\n\n    s_handle.join().unwrap();\n    r_handle.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

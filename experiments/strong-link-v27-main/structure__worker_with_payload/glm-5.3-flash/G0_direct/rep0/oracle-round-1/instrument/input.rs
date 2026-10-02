@@ -1,0 +1,60 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+// Sequential helper routine: performs only local computation,
+// touches no shared state.
+fn compute(seed: u64) -> u64 {
+    let mut x = seed;
+    for _ in 0..1000 {
+        x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+    }
+    x
+}
+
+fn worker_body(m: &Mutex<u64>) {
+    // R5: if the mutex is held by the other worker, lock() waits here
+    // until it becomes free. R4: only one worker can be past this point.
+    let mut guard = m.lock().unwrap();
+
+    // R2: sequential helper, purely local computation.
+    let local = compute(7);
+    let _ = local;
+
+    // R2: update the shared counter while still holding the mutex.
+    *guard += 1;
+
+    // R3: release the mutex before finishing.
+    drop(guard);
+}
+
+fn w1(m: &Mutex<u64>) {
+    worker_body(m);
+}
+
+fn w2(m: &Mutex<u64>) {
+    worker_body(m);
+}
+
+fn main() {
+    // R1: main task starts a group of two workers sharing one mutex
+    // protecting the shared counter `acc`.
+    let m = Arc::new(Mutex::new(0u64));
+
+    let m1 = Arc::clone(&m);
+    let h1 = thread::spawn(move || w1(&m1));
+
+    let m2 = Arc::clone(&m);
+    let h2 = thread::spawn(move || w2(&m2));
+
+    // R6/R7: joining both workers guarantees every interleaving
+    // terminates and both workers complete.
+    h1.join().expect("w1 panicked");
+    h2.join().expect("w2 panicked");
+
+    // Both workers have incremented acc, so it equals 2.
+    let acc = m.lock().unwrap();
+    let done = if *acc == 2 { 1 } else { 0 };
+
+    // R8: print exactly this line, then exit.
+    println!("DONE done={}", done);
+}

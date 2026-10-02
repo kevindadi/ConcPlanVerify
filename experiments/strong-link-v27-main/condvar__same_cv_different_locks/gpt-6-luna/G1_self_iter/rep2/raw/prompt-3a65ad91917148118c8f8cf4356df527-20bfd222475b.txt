@@ -1,0 +1,121 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. A main task starts two waiter roles and one notifier role that run at the same time. [U]
+R2. Each waiter guards its own data with its own lock; the two waiters need not share one lock.
+R3. Each waiter must be notified before it proceeds, and the notifier must be able to wake every waiter without depending on a race between them.
+R4. A waiter must hold its own lock while it waits for the notification.
+R5. Each waiter must announce that it is about to wait before it blocks, so the notifier knows how many waits to expect.
+R6. The notifier must wait until both waiters have announced themselves before it wakes them.
+R7. When the notifier wakes the waiters it must hold each lock that a waiter needs in order to wake and finish.
+R8. The waking step must not leave any waiter blocked and must not depend on a race between the waiters.
+R9. Every schedule and interleaving must terminate with all roles finished.
+R10. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): w1, w2, notifier.
+- Shared resources: m1 (lock), m2 (lock), cv (condition variable), ready (semaphore).
+
+
+Current program:
+```rust
+use std::sync::{mpsc, Arc, Condvar, Mutex, MutexGuard};
+use std::thread;
+
+// Each condition variable is paired with exactly one mutex.
+struct Cv {
+    for_m1: Condvar,
+    for_m2: Condvar,
+}
+
+fn w1(m1: Arc<Mutex<bool>>, cv: Arc<Cv>, ready: mpsc::SyncSender<()>) {
+    let mut state = m1.lock().unwrap();
+    ready.send(()).unwrap(); // Announce before waiting.
+
+    while !*state {
+        state = cv.for_m1.wait(state).unwrap();
+    }
+}
+
+fn w2(m2: Arc<Mutex<bool>>, cv: Arc<Cv>, ready: mpsc::SyncSender<()>) {
+    let mut state = m2.lock().unwrap();
+    ready.send(()).unwrap(); // Announce before waiting.
+
+    while !*state {
+        state = cv.for_m2.wait(state).unwrap();
+    }
+}
+
+fn notifier(
+    m1: Arc<Mutex<bool>>,
+    m2: Arc<Mutex<bool>>,
+    cv: Arc<Cv>,
+    ready_rx: mpsc::Receiver<()>,
+) {
+    // Wait until both waiters have announced that they are about to wait.
+    ready_rx.recv().unwrap();
+    ready_rx.recv().unwrap();
+
+    // Acquiring these locks ensures each waiter has entered its condition-variable
+    // wait. Set both predicates and notify while holding both locks.
+    let mut state1 = m1.lock().unwrap();
+    let mut state2 = m2.lock().unwrap();
+
+    *state1 = true;
+    *state2 = true;
+    cv.for_m1.notify_all();
+    cv.for_m2.notify_all();
+}
+
+fn main() {
+    let m1 = Arc::new(Mutex::new(false));
+    let m2 = Arc::new(Mutex::new(false));
+    let cv = Arc::new(Cv {
+        for_m1: Condvar::new(),
+        for_m2: Condvar::new(),
+    });
+
+    // A capacity-two token channel serves as the ready semaphore.
+    let (ready, ready_rx) = mpsc::sync_channel(2);
+
+    let w1_handle = {
+        let m1 = Arc::clone(&m1);
+        let cv = Arc::clone(&cv);
+        let ready = ready.clone();
+        thread::spawn(move || w1(m1, cv, ready))
+    };
+
+    let w2_handle = {
+        let m2 = Arc::clone(&m2);
+        let cv = Arc::clone(&cv);
+        let ready = ready.clone();
+        thread::spawn(move || w2(m2, cv, ready))
+    };
+
+    drop(ready);
+
+    let notifier_handle = {
+        let m1 = Arc::clone(&m1);
+        let m2 = Arc::clone(&m2);
+        let cv = Arc::clone(&cv);
+        thread::spawn(move || notifier(m1, m2, cv, ready_rx))
+    };
+
+    w1_handle.join().unwrap();
+    w2_handle.join().unwrap();
+    notifier_handle.join().unwrap();
+
+    println!("DONE done=1");
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.
