@@ -72,6 +72,22 @@ def build_inner(entry: dict, spec: ModelSpec, budget, evidence_dir: Path, *, tim
     return HardTimeoutClient(inner, seconds=float(entry.get("hard_timeout_seconds", 300)))
 
 
+def _archive_partial_states(out_dir: Path) -> int:
+    """Archive `state.json` for cells that never finished (no cache.json).
+
+    A killed mid-cell run leaves a partial snapshot that cannot be replayed on
+    resume; archiving it lets that one cell start fresh while every completed
+    cell keeps its cache and fingerprint. Evidence is preserved, not deleted.
+    """
+    moved = 0
+    for state in out_dir.glob("*/*/*/*/state.json"):
+        cell = state.parent
+        if not (cell / "cache.json").is_file():
+            state.rename(cell / "state.partial.json")
+            moved += 1
+    return moved
+
+
 def preflight(config: dict, out_dir: Path) -> list[str]:
     """At most preflight_cap probes: identity, thinking params, usage fields."""
     budget = LiveBudget(out_dir / "budget.json", max_requests=int(config["global_physical_cap"]),
@@ -199,6 +215,9 @@ def main() -> int:
         return 2
     OUT.mkdir(parents=True, exist_ok=True)
     write_manifest(TOOLCHAIN, OUT / "TOOLCHAIN_MANIFEST.json")
+    archived = _archive_partial_states(OUT)
+    if archived:
+        print(json.dumps({"note": "archived partial cell states", "count": archived}))
     if "--skip-preflight" in sys.argv:
         pf = OUT / "PREFLIGHT.json"
         blocked = json.loads(pf.read_text())["blocked_models"] if pf.is_file() else []
