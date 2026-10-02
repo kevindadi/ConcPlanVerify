@@ -1,0 +1,74 @@
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+// Shared resource: s (semaphore) — a counting permit pool.
+struct Semaphore {
+    permits: Mutex<u32>,
+    available: Condvar,
+}
+
+impl Semaphore {
+    fn new(initial: u32) -> Self {
+        Semaphore {
+            permits: Mutex::new(initial),
+            available: Condvar::new(),
+        }
+    }
+
+    // Acquire one permit. While waiting, the mutex lock is released,
+    // so the worker currently holding a permit remains able to release it.
+    fn acquire(&self) {
+        let mut count = self.permits.lock().unwrap();
+        while *count == 0 {
+            count = self.available.wait(count).unwrap();
+        }
+        *count -= 1;
+    }
+
+    // Release one permit and wake a waiting worker (if any).
+    fn release(&self) {
+        let mut count = self.permits.lock().unwrap();
+        *count += 1;
+        self.available.notify_one();
+    }
+}
+
+// Worker role: acquires one permit, performs its work, releases the permit.
+fn worker(name: &'static str, s: Arc<Semaphore>) {
+    s.acquire();
+    // Critical section: hold the permit while performing the work,
+    // so w1 and w2 never work at the same time.
+    println!("{} working", name);
+    s.release();
+}
+
+fn main() {
+    // Supervising task: launches w1 and w2, waits for both to finish.
+    // The permit pool begins with exactly one permit.
+    let s = Arc::new(Semaphore::new(1));
+
+    let w1 = {
+        let s = Arc::clone(&s);
+        thread::spawn(move || worker("w1", s))
+    };
+    let w2 = {
+        let s = Arc::clone(&s);
+        thread::spawn(move || worker("w2", s))
+    };
+
+    w1.join().unwrap();
+    w2.join().unwrap();
+
+    println!("DONE permits=1");
+}
+```
+
+Notes on how the requirements are met:
+
+- **R1**: `main` is the supervising task; it spawns the two worker threads and calls `join()` on both.
+- **R2**: One `Semaphore` (named `s`), shared via `Arc`, initialized with exactly one permit.
+- **R3/R4**: Each worker (`w1`, `w2`) calls `acquire()` before its work and `release()` after, so the work sections are mutually exclusive and the permit is always returned.
+- **R5**: `Condvar::wait` atomically releases the mutex while blocking, so the permit holder can always complete `release()`, waking the waiting worker.
+- **R6**: The wait loop is the standard predicate-recheck pattern (guards against spurious wakeups), and every acquire is matched by exactly one release, so all interleavings terminate.
+- **R7**: After both joins complete, exactly `DONE permits=1` is printed and the program exits.

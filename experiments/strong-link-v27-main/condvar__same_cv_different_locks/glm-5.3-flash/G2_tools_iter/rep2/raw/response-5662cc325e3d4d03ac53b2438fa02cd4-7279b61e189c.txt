@@ -1,0 +1,124 @@
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+/// Counting semaphore used as `ready` (announced-waiter counter).
+struct Semaphore {
+    count: Mutex<usize>,
+    cv: Condvar,
+}
+
+impl Semaphore {
+    fn new(initial: usize) -> Self {
+        Semaphore {
+            count: Mutex::new(initial),
+            cv: Condvar::new(),
+        }
+    }
+
+    fn wait(&self) {
+        let mut count = self.count.lock().unwrap();
+        while *count == 0 {
+            count = self.cv.wait(count).unwrap();
+        }
+        *count -= 1;
+    }
+
+    fn post(&self) {
+        let mut count = self.count.lock().unwrap();
+        *count += 1;
+        self.cv.notify_one();
+    }
+}
+
+/// A waiter role: guards its own data with its own lock (R2),
+/// announces before blocking (R5), and holds its own lock while
+/// waiting on the shared condition variable (R4).
+fn waiter(m: Arc<Mutex<bool>>, cv: Arc<Condvar>, ready: Arc<Semaphore>) {
+    // Acquire this waiter's own lock.
+    let mut notified = m.lock().unwrap();
+
+    // R5: announce that we are about to wait, so the notifier
+    // knows how many waits to expect.
+    ready.post();
+
+    // R4: we hold our own lock while waiting; `cv.wait` atomically
+    // releases it while blocked and relocks it on wakeup.
+    while !*notified {
+        notified = cv.wait(notified).unwrap();
+    }
+
+    // Lock is released when `notified` is dropped; waiter finishes.
+}
+
+/// The notifier role: waits for both announcements (R6), then wakes
+/// every waiter while holding each lock a waiter needs (R7), without
+/// depending on a race between the waiters (R3, R8).
+fn notifier(
+    m1: Arc<Mutex<bool>>,
+    m2: Arc<Mutex<bool>>,
+    cv: Arc<Condvar>,
+    ready: Arc<Semaphore>,
+) {
+    // R6: block until both waiters have announced themselves.
+    ready.wait();
+    ready.wait();
+
+    // R7: take both locks. Because each waiter posted `ready` while
+    // still holding its own lock, acquiring the locks here guarantees
+    // both waiters are already blocked inside `cv.wait`.
+    let mut n1 = m1.lock().unwrap();
+    let mut n2 = m2.lock().unwrap();
+
+    *n1 = true;
+    *n2 = true;
+
+    // R3/R8: wake every waiter at once. Each waiter relocks its own
+    // distinct mutex on wakeup, so neither stays blocked and there is
+    // no race between them.
+    cv.notify_all();
+
+    // Release both locks so the woken waiters can relock and finish.
+    drop(n1);
+    drop(n2);
+}
+
+fn main() {
+    // Shared resources: m1, m2 (per-waiter locks), cv, ready.
+    let m1 = Arc::new(Mutex::new(false));
+    let m2 = Arc::new(Mutex::new(false));
+    let cv = Arc::new(Condvar::new());
+    let ready = Arc::new(Semaphore::new(0));
+
+    // R1: start two waiters and one notifier running concurrently.
+    let h1 = {
+        let (m, cv, ready) = (m1.clone(), cv.clone(), ready.clone());
+        thread::spawn(move || waiter(m, cv, ready))
+    };
+    let h2 = {
+        let (m, cv, ready) = (m2.clone(), cv.clone(), ready.clone());
+        thread::spawn(move || waiter(m, cv, ready))
+    };
+    let hn = {
+        let (m1, m2, cv, ready) = (m1.clone(), m2.clone(), cv.clone(), ready.clone());
+        thread::spawn(move || notifier(m1, m2, cv, ready))
+    };
+
+    // R9: join every role; every interleaving terminates.
+    h1.join().unwrap();
+    h2.join().unwrap();
+    hn.join().unwrap();
+
+    // R10: exactly one line of output.
+    println!("DONE done=1");
+}
+```
+
+Key points of the design:
+
+- **R1**: `main` spawns `w1`, `w2` (both running `waiter`) and `notifier` concurrently, then joins them.
+- **R2**: `w1` uses `m1`, `w2` uses `m2` — separate locks, no sharing required.
+- **R4**: each waiter calls `cv.wait` while holding its own mutex guard; the condvar atomically releases/relocks it.
+- **R5/R6**: each waiter posts the `ready` semaphore once before blocking; the notifier consumes two permits, so it only proceeds after both announcements.
+- **R7**: the notifier locks `m1` and `m2` before setting the flags and calling `notify_all`. Since each waiter posted `ready` while still holding its lock, the notifier can only acquire both locks after both waiters are truly blocked — so the wake cannot be missed and no waiter is left behind (R3, R8).
+- **R9/R10**: all threads terminate on every interleaving, and the only output is `DONE done=1`.
