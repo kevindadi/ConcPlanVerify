@@ -1,0 +1,7 @@
+fn helper() {}
+
+fn main() {
+    helper();
+    helper();
+    println!("DONE done=1");
+}

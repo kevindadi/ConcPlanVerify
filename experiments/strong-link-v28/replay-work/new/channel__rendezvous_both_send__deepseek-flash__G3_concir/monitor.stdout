@@ -1,0 +1,59 @@
+{
+  "binary_sha256": "21c30dd62c22c468ed164d293633b38c9879c7be0322fbbd1dd5546899d5aed9",
+  "bounded": true,
+  "events": 192,
+  "git_rev": "a35dc867d6327c772d48bd7c0473a6606fcc467a",
+  "properties": [
+    {
+      "detail": "decided by behavior (hang/timeout) and Miri",
+      "id": "no-deadlock",
+      "kind": "deadlock_free",
+      "req": [
+        "R2",
+        "R3",
+        "R4",
+        "R5"
+      ],
+      "source": "properties",
+      "status": "deferred"
+    },
+    {
+      "id": "main::s1 completes",
+      "kind": "reachable",
+      "req": [
+        "R1",
+        "R3",
+        "R5"
+      ],
+      "source": "preserved",
+      "status": "PASS_bounded"
+    },
+    {
+      "detail": "channel main::ch not observed",
+      "id": "the channel is drained",
+      "kind": "reachable",
+      "req": [
+        "R1",
+        "R2",
+        "R3",
+        "R5",
+        "R6"
+      ],
+      "source": "preserved",
+      "status": "unmapped"
+    }
+  ],
+  "resource_map": {
+    "r#314": null,
+    "rx": null,
+    "s1#270": "main::s1",
+    "tx": null
+  },
+  "status": "ok",
+  "traces": 32,
+  "unmapped_resources": [
+    "r#314",
+    "rx",
+    "tx"
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "binary_sha256": "21c30dd62c22c468ed164d293633b38c9879c7be0322fbbd1dd5546899d5aed9",
+  "bounded": true,
+  "events": 384,
+  "git_rev": "a35dc867d6327c772d48bd7c0473a6606fcc467a",
+  "properties": [
+    {
+      "detail": "decided by behavior (hang/timeout) and Miri",
+      "id": "no-deadlock",
+      "kind": "deadlock_free",
+      "req": [
+        "R5",
+        "R6",
+        "R8",
+        "R9"
+      ],
+      "source": "properties",
+      "status": "deferred"
+    },
+    {
+      "id": "main::t1 completes",
+      "kind": "reachable",
+      "req": [
+        "R2",
+        "R7",
+        "R8"
+      ],
+      "source": "preserved",
+      "status": "not_observed"
+    },
+    {
+      "id": "other::t2 completes",
+      "kind": "reachable",
+      "req": [
+        "R2",
+        "R7",
+        "R8"
+      ],
+      "source": "preserved",
+      "status": "not_observed"
+    },
+    {
+      "id": "main::t1 holds [main::a, other::b] at once",
+      "kind": "reachable",
+      "req": [
+        "R1",
+        "R3",
+        "R4"
+      ],
+      "source": "preserved",
+      "status": "PASS_bounded"
+    },
+    {
+      "id": "other::t2 holds [main::a, other::b] at once",
+      "kind": "reachable",
+      "req": [
+        "R1",
+        "R3",
+        "R4"
+      ],
+      "source": "preserved",
+      "status": "PASS_bounded"
+    }
+  ],
+  "resource_map": {
+    "a_mutex0": "main::a",
+    "b_mutex0": "other::b",
+    "t1#673": null,
+    "t2#723": null
+  },
+  "status": "ok",
+  "traces": 32,
+  "unmapped_resources": [
+    "t1#673",
+    "t2#723"
+  ]
+}

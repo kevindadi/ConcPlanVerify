@@ -1,0 +1,73 @@
+{
+  "mapping": {
+    "a_mutex0#318": "main::a",
+    "b_mutex0#432": "main::b"
+  },
+  "provenance": {
+    "mapping": {
+      "a_mutex0#318": "main::a",
+      "b_mutex0#432": "main::b"
+    },
+    "ambiguous": [
+      {
+        "rust": "forget#1536",
+        "entry": "forget",
+        "reason": "thread entry is not unambiguous",
+        "site": "1536"
+      },
+      {
+        "rust": "forget#2295",
+        "entry": "forget",
+        "reason": "thread entry is not unambiguous",
+        "site": "2295"
+      },
+      {
+        "rust": "hby#3011",
+        "entry": null,
+        "reason": "thread entry is not unambiguous",
+        "site": "3011"
+      },
+      {
+        "rust": "sa_ref_semaphore0#1051",
+        "reason": "semaphore initial value must come from the single construction that is acquired or released",
+        "site": "1051",
+        "used_constructions": 0
+      },
+      {
+        "rust": "sb_ref_semaphore0#1133",
+        "reason": "semaphore initial value must come from the single construction that is acquired or released",
+        "site": "1133",
+        "used_constructions": 0
+      }
+    ],
+    "violated": {},
+    "source": "rust-cli",
+    "attributes": [
+      {
+        "construction_site": null,
+        "evidence": "absent",
+        "expected": "semaphore_initial",
+        "expected_capacity": 0,
+        "observed": null,
+        "observed_capacity": null,
+        "reason": "no used semaphore construction is bound to this CIR resource",
+        "resource_id": "main::sa",
+        "runtime": null,
+        "status": "unknown"
+      },
+      {
+        "construction_site": null,
+        "evidence": "absent",
+        "expected": "semaphore_initial",
+        "expected_capacity": 0,
+        "observed": null,
+        "observed_capacity": null,
+        "reason": "no used semaphore construction is bound to this CIR resource",
+        "resource_id": "main::sb",
+        "runtime": null,
+        "status": "unknown"
+      }
+    ],
+    "uncovered_sync": []
+  }
+}

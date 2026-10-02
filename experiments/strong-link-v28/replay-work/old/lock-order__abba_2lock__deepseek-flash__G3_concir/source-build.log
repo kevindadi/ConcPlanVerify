@@ -1,0 +1,32 @@
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28/replay-work/old/lock-order__abba_2lock__deepseek-flash__G3_concir/source-proj)
+warning: value assigned to `tmp` is never read
+  --> src/main.rs:7:24
+   |
+ 7 |     let mut tmp: i32 = 0;
+   |                        ^ this value is reassigned later and never used
+...
+12 |     tmp = 1;
+   |     ------- `tmp` is overwritten here before the previous value is read
+   |
+   = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `tmp` is never read
+  --> src/main.rs:23:24
+   |
+23 |     let mut tmp: i32 = 0;
+   |                        ^ this value is reassigned later and never used
+...
+28 |     tmp = 1;
+   |     ------- `tmp` is overwritten here before the previous value is read
+
+warning: `probe` (bin "probe") generated 2 warnings
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.11s

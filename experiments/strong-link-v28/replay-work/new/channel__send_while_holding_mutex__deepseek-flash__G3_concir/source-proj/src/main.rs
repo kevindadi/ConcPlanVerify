@@ -1,0 +1,50 @@
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+// CIR function main::s — sender role.
+fn s(lock: Arc<Mutex<i32>>, tx1: SyncSender<i32>, rx2: Receiver<i32>) {
+    // mutex_lock main::lock; write_shared main::done = 1; mutex_unlock main::lock
+    {
+        let mut done = lock.lock().unwrap();
+        *done = 1;
+    }
+    // channel_send main::ch1 (rendezvous)
+    tx1.send(42).unwrap();
+    // channel_recv main::ch2 -> ack
+    let _ack: i32 = rx2.recv().unwrap();
+}
+
+// CIR function main::r — receiver role.
+fn r(lock: Arc<Mutex<i32>>, rx1: Receiver<i32>, tx2: SyncSender<i32>) {
+    // mutex_lock main::lock; write_shared main::done = 1; mutex_unlock main::lock
+    {
+        let mut done = lock.lock().unwrap();
+        *done = 1;
+    }
+    // channel_recv main::ch1 -> v
+    let _v: i32 = rx1.recv().unwrap();
+    // channel_send main::ch2 (rendezvous)
+    tx2.send(1).unwrap();
+}
+
+fn main() {
+    // `done` is protected by `lock`.
+    let lock = Arc::new(Mutex::new(0i32));
+
+    // ch1 and ch2 are rendezvous channels (capacity 0).
+    let (tx1, rx1) = sync_channel::<i32>(0);
+    let (tx2, rx2) = sync_channel::<i32>(0);
+
+    let lock_s = Arc::clone(&lock);
+    let s_handle = thread::spawn(move || s(lock_s, tx1, rx2));
+
+    let lock_r = Arc::clone(&lock);
+    let r_handle = thread::spawn(move || r(lock_r, rx1, tx2));
+
+    s_handle.join().unwrap();
+    r_handle.join().unwrap();
+
+    let done = *lock.lock().unwrap();
+    println!("DONE done={}", done);
+}
