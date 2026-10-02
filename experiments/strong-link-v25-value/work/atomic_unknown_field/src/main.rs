@@ -17,10 +17,10 @@ fn w1(s: Arc<S>) {
     }
 }
 
-fn main() { cir_trace::init();
+fn main() { crate::cir_trace::init();
     let s = Arc::new(S { c: AtomicI32::new(0) });
     let s1 = Arc::clone(&s);
-    let h = cir_trace::spawn("w1#699", move || w1(s1));
+    let h = crate::cir_trace::spawn("w1#699", move || w1(s1));
     h.join().unwrap();
     println!("DONE done=1");
- cir_trace::finish();}
+ crate::cir_trace::finish();}

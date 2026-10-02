@@ -12,8 +12,8 @@ fn b() {
     let c = AtomicUsize::new(5);
     c.store(9, Ordering::SeqCst);
 }
-fn main() { cir_trace::init();
+fn main() { crate::cir_trace::init();
     a();
     b();
     println!("DONE done=1");
- cir_trace::finish();}
+ crate::cir_trace::finish();}

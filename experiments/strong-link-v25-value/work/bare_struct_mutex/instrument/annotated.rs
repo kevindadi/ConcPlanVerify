@@ -7,16 +7,16 @@ use std::thread;
 
 struct S { ready: bool }
 
-fn main() { cir_trace::init();
+fn main() { crate::cir_trace::init();
     let m = Arc::new(Mutex::new_observed("m_mutex0#263", S { ready: false }, __cir_obs_S));
     let m2 = Arc::clone(&m);
-    let h = cir_trace::spawn("h#330", move || {
+    let h = crate::cir_trace::spawn("h#330", move || {
         let mut g = m2.lock().unwrap();
         g.ready = true;
     });
     h.join().unwrap();
     let _ = m.lock().unwrap().ready;
     println!("DONE ready=true");
- cir_trace::finish();}
+ crate::cir_trace::finish();}
 
-fn __cir_obs_S(v: &S, r: &str) { cir_trace::record_value(&format!("{}::ready", r), v.ready as i64); }
+fn __cir_obs_S(v: &S, r: &str) { crate::cir_trace::record_value(&format!("{}::ready", r), v.ready as i64); }

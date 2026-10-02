@@ -12,16 +12,16 @@ fn notifier(m: Arc<Mutex<bool>>, cv: Arc<Condvar>) {
     let _ready = m.lock().unwrap();
     cv.notify_one();
 }
-fn main() { cir_trace::init();
+fn main() { crate::cir_trace::init();
     let m = Arc::new(Mutex::new_named("m_mutex0#444", false));
     let cv = Arc::new(Condvar::new_named("cv_condvar0#488"));
     let m1 = Arc::clone(&m);
     let c1 = Arc::clone(&cv);
-    let w = cir_trace::spawn("waiter#567", move || waiter(m1, c1));
+    let w = crate::cir_trace::spawn("waiter#567", move || waiter(m1, c1));
     let m2 = Arc::clone(&m);
     let c2 = Arc::clone(&cv);
-    let n = cir_trace::spawn("notifier#677", move || notifier(m2, c2));
+    let n = crate::cir_trace::spawn("notifier#677", move || notifier(m2, c2));
     w.join().unwrap();
     n.join().unwrap();
     println!("DONE ready=true");
- cir_trace::finish();}
+ crate::cir_trace::finish();}
