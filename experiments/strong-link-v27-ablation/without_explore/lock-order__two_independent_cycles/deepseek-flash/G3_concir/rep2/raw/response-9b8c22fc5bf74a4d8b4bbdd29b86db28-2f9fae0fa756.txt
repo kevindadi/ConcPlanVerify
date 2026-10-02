@@ -1,0 +1,54 @@
+```rust
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+    let c = Arc::new(Mutex::new(()));
+    let d = Arc::new(Mutex::new(()));
+
+    let t1 = {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        thread::spawn(move || {
+            let _ga = a.lock().unwrap();
+            let _gb = b.lock().unwrap();
+        })
+    };
+
+    let t2 = {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        thread::spawn(move || {
+            let _ga = a.lock().unwrap();
+            let _gb = b.lock().unwrap();
+        })
+    };
+
+    let t3 = {
+        let c = Arc::clone(&c);
+        let d = Arc::clone(&d);
+        thread::spawn(move || {
+            let _gc = c.lock().unwrap();
+            let _gd = d.lock().unwrap();
+        })
+    };
+
+    let t4 = {
+        let c = Arc::clone(&c);
+        let d = Arc::clone(&d);
+        thread::spawn(move || {
+            let _gc = c.lock().unwrap();
+            let _gd = d.lock().unwrap();
+        })
+    };
+
+    t1.join().unwrap();
+    t2.join().unwrap();
+    t3.join().unwrap();
+    t4.join().unwrap();
+
+    println!("DONE done=1");
+}
+```

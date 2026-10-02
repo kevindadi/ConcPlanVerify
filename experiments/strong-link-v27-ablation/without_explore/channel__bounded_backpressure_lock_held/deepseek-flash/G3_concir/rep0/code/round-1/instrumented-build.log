@@ -1,0 +1,18 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-ablation/without_explore/channel__bounded_backpressure_lock_held/deepseek-flash/G3_concir/rep0/code/round-1/proj)
+error: this file contains an unclosed delimiter
+  --> src/main.rs:55:24
+   |
+ 3 | use std::sync::{Arc, mpsc::{sync_channel, SyncSender, Receiver};use crate::cir_trace::sync::{Mutex};
+   |                - unclosed delimiter
+...
+36 | fn main() { cir_trace::init();
+   |           - this delimiter might not be properly closed...
+...
+55 |  cir_trace::finish();}
+   |                      -^
+   |                      |
+   |                      ...as it matches this but it has different indentation
+
+error: could not compile `probe` (bin "probe") due to 1 previous error

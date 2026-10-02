@@ -1,0 +1,117 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-ablation/without_explore/condvar__notify_one_multi_waiter_wrong_pick/deepseek-flash/G3_concir/rep1/code/round-2/source-proj)
+error[E0597]: `g12` does not live long enough
+   --> src/main.rs:18:18
+    |
+ 15 |       let g12 = Semaphore::new(2);
+    |           --- binding `g12` declared here
+...
+ 18 |       let p12_w1 = g12.acquire();
+    |                    ^^^ borrowed value does not live long enough
+...
+ 26 |       let w1 = std::thread::spawn(move || {
+    |  ______________-
+ 27 | |         let mut guard = m1.lock().unwrap(); // mutex_lock main::m
+ 28 | |         p12_w1.release();                   // semaphore_release main::g12
+ 29 | |         guard = cv1.wait(guard).unwrap();   // condvar_wait main::cv on main::m
+ 30 | |         drop(guard);                        // mutex_unlock main::m
+ 31 | |         pN_w1.release();                    // semaphore_release main::gN
+ 32 | |     });
+    | |______- argument requires that `g12` is borrowed for `'static`
+...
+ 71 |   }
+    |   - `g12` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `gN` does not live long enough
+   --> src/main.rs:19:17
+    |
+ 16 |       let gN = Semaphore::new(2);
+    |           -- binding `gN` declared here
+...
+ 19 |       let pN_w1 = gN.acquire();
+    |                   ^^ borrowed value does not live long enough
+...
+ 26 |       let w1 = std::thread::spawn(move || {
+    |  ______________-
+ 27 | |         let mut guard = m1.lock().unwrap(); // mutex_lock main::m
+ 28 | |         p12_w1.release();                   // semaphore_release main::g12
+ 29 | |         guard = cv1.wait(guard).unwrap();   // condvar_wait main::cv on main::m
+ 30 | |         drop(guard);                        // mutex_unlock main::m
+ 31 | |         pN_w1.release();                    // semaphore_release main::gN
+ 32 | |     });
+    | |______- argument requires that `gN` is borrowed for `'static`
+...
+ 71 |   }
+    |   - `gN` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `g12` does not live long enough
+   --> src/main.rs:20:18
+    |
+ 15 |       let g12 = Semaphore::new(2);
+    |           --- binding `g12` declared here
+...
+ 20 |       let p12_w2 = g12.acquire();
+    |                    ^^^ borrowed value does not live long enough
+...
+ 37 |       let w2 = std::thread::spawn(move || {
+    |  ______________-
+ 38 | |         let mut guard = m2.lock().unwrap(); // mutex_lock main::m
+ 39 | |         p12_w2.release();                   // semaphore_release main::g12
+ 40 | |         guard = cv2.wait(guard).unwrap();   // condvar_wait main::cv on main::m
+ 41 | |         drop(guard);                        // mutex_unlock main::m
+ 42 | |         pN_w2.release();                    // semaphore_release main::gN
+ 43 | |     });
+    | |______- argument requires that `g12` is borrowed for `'static`
+...
+ 71 |   }
+    |   - `g12` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `gN` does not live long enough
+   --> src/main.rs:21:17
+    |
+ 16 |       let gN = Semaphore::new(2);
+    |           -- binding `gN` declared here
+...
+ 21 |       let pN_w2 = gN.acquire();
+    |                   ^^ borrowed value does not live long enough
+...
+ 37 |       let w2 = std::thread::spawn(move || {
+    |  ______________-
+ 38 | |         let mut guard = m2.lock().unwrap(); // mutex_lock main::m
+ 39 | |         p12_w2.release();                   // semaphore_release main::g12
+ 40 | |         guard = cv2.wait(guard).unwrap();   // condvar_wait main::cv on main::m
+ 41 | |         drop(guard);                        // mutex_unlock main::m
+ 42 | |         pN_w2.release();                    // semaphore_release main::gN
+ 43 | |     });
+    | |______- argument requires that `gN` is borrowed for `'static`
+...
+ 71 |   }
+    |   - `gN` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+For more information about this error, try `rustc --explain E0597`.
+error: could not compile `probe` (bin "probe") due to 4 previous errors

@@ -1,0 +1,56 @@
+use concir_sync::Semaphore;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+struct Shared {
+    flag: i32,
+}
+
+fn main() {
+    let a = Arc::new(Mutex::new(Shared { flag: 0 }));
+    let b = Arc::new(Mutex::new(()));
+    let sa = Semaphore::new(0);
+    let sb = Semaphore::new(0);
+
+    let a1 = Arc::clone(&a);
+    let b1 = Arc::clone(&b);
+    let sa1 = Arc::clone(&sa);
+    let sb1 = Arc::clone(&sb);
+    let ha = thread::spawn(move || {
+        let mut a_guard = a1.lock().unwrap();
+        sb1.release();
+        let permit_sa = sa1.acquire();
+        std::mem::forget(permit_sa);
+        let b_guard = b1.lock().unwrap();
+        a_guard.flag = 1;
+        drop(b_guard);
+        drop(a_guard);
+    });
+
+    let a2 = Arc::clone(&a);
+    let b2 = Arc::clone(&b);
+    let sa2 = Arc::clone(&sa);
+    let sb2 = Arc::clone(&sb);
+    let hb = thread::spawn(move || {
+        let permit_sb = sb2.acquire();
+        std::mem::forget(permit_sb);
+        let b_guard1 = b2.lock().unwrap();
+        sa2.release();
+        drop(b_guard1);
+        let mut a_guard = a2.lock().unwrap();
+        let b_guard2 = b2.lock().unwrap();
+        a_guard.flag = 1;
+        drop(b_guard2);
+        drop(a_guard);
+    });
+
+    let _hby = thread::spawn(move || {
+        let mut tick = 0;
+        tick = 1;
+    });
+
+    ha.join().unwrap();
+    hb.join().unwrap();
+
+    println!("DONE a=1 b=1");
+}

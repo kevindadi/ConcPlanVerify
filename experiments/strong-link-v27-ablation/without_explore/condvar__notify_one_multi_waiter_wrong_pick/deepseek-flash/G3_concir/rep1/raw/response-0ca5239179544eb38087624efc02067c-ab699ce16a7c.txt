@@ -1,0 +1,55 @@
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use concir_sync::Semaphore;
+
+fn main() {
+    let m = Arc::new(Mutex::new(()));
+    let cv = Arc::new(Condvar::new());
+    let g12 = Semaphore::new(0);
+    let gN = Semaphore::new(0);
+
+    let m1 = Arc::clone(&m);
+    let cv1 = Arc::clone(&cv);
+    let g12_1 = Arc::clone(&g12);
+    let gN_1 = Arc::clone(&gN);
+    let w1 = std::thread::spawn(move || {
+        let mut guard = m1.lock().unwrap();
+        g12_1.release();
+        let _guard = cv1.wait(guard).unwrap();
+        drop(_guard);
+        gN_1.release();
+    });
+
+    let m2 = Arc::clone(&m);
+    let cv2 = Arc::clone(&cv);
+    let g12_2 = Arc::clone(&g12);
+    let gN_2 = Arc::clone(&gN);
+    let w2 = std::thread::spawn(move || {
+        let mut guard = m2.lock().unwrap();
+        g12_2.release();
+        let _guard = cv2.wait(guard).unwrap();
+        drop(_guard);
+        gN_2.release();
+    });
+
+    let m3 = Arc::clone(&m);
+    let cv3 = Arc::clone(&cv);
+    let g12_3 = Arc::clone(&g12);
+    let gN_3 = Arc::clone(&gN);
+    let notifier = std::thread::spawn(move || {
+        let _p1 = g12_3.acquire();
+        let _p2 = g12_3.acquire();
+        let _guard = m3.lock().unwrap();
+        cv3.notify_all();
+        drop(_guard);
+        let _p3 = gN_3.acquire();
+        let _p4 = gN_3.acquire();
+    });
+
+    w1.join().unwrap();
+    w2.join().unwrap();
+    notifier.join().unwrap();
+
+    println!("DONE waiters=0");
+}
+```

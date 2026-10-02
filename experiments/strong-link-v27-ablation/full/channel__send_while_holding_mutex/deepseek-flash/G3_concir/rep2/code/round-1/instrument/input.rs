@@ -1,0 +1,38 @@
+use std::sync::mpsc::sync_channel;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    // `done` is protected by `lock`.
+    let lock = Arc::new(Mutex::new(0i32));
+
+    // ch1 and ch2 are rendezvous (capacity 0) channels.
+    let (tx1, rx1) = sync_channel::<i32>(0);
+    let (tx2, rx2) = sync_channel::<i32>(0);
+
+    let lock_s = Arc::clone(&lock);
+    let s = thread::spawn(move || {
+        {
+            let mut guard = lock_s.lock().unwrap();
+            *guard = 1;
+        }
+        tx1.send(42).unwrap();
+        let _ack: i32 = rx2.recv().unwrap();
+    });
+
+    let lock_r = Arc::clone(&lock);
+    let r = thread::spawn(move || {
+        {
+            let mut guard = lock_r.lock().unwrap();
+            *guard = 1;
+        }
+        let _v: i32 = rx1.recv().unwrap();
+        tx2.send(1).unwrap();
+    });
+
+    s.join().unwrap();
+    r.join().unwrap();
+
+    let done = *lock.lock().unwrap();
+    println!("DONE done={}", done);
+}

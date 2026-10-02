@@ -1,0 +1,105 @@
+{
+  "binary_sha256": "e0c7e3d122f2f08fd7483f248e9c263102d81964c8219b8a126b84d43cb41c0e",
+  "bounded": true,
+  "events": 608,
+  "git_rev": "a35dc867d6327c772d48bd7c0473a6606fcc467a",
+  "properties": [
+    {
+      "detail": "decided by behavior (hang/timeout) and Miri",
+      "id": "no-deadlock",
+      "kind": "deadlock_free",
+      "req": [
+        "R6",
+        "R9",
+        "R10",
+        "R11"
+      ],
+      "source": "properties",
+      "status": "deferred"
+    },
+    {
+      "id": "a-completes",
+      "kind": "always_reachable",
+      "req": [
+        "R6",
+        "R7",
+        "R11"
+      ],
+      "source": "properties",
+      "status": "not_observed"
+    },
+    {
+      "id": "b-completes",
+      "kind": "always_reachable",
+      "req": [
+        "R6",
+        "R8",
+        "R11"
+      ],
+      "source": "properties",
+      "status": "not_observed"
+    },
+    {
+      "id": "main::a completes",
+      "kind": "reachable",
+      "req": [
+        "R1",
+        "R7",
+        "R11"
+      ],
+      "source": "preserved",
+      "status": "not_observed"
+    },
+    {
+      "id": "main::b completes",
+      "kind": "reachable",
+      "req": [
+        "R1",
+        "R8",
+        "R11"
+      ],
+      "source": "preserved",
+      "status": "not_observed"
+    },
+    {
+      "id": "main::a holds [main::a, main::b] at once",
+      "kind": "reachable",
+      "req": [
+        "R3",
+        "R4",
+        "R5"
+      ],
+      "source": "preserved",
+      "status": "PASS_bounded"
+    },
+    {
+      "id": "main::b holds [main::a, main::b] at once",
+      "kind": "reachable",
+      "req": [
+        "R3",
+        "R4",
+        "R5"
+      ],
+      "source": "preserved",
+      "status": "PASS_bounded"
+    }
+  ],
+  "resource_map": {
+    "a_mutex0#318": "main::a",
+    "b_mutex0#432": "main::b",
+    "forget#1536": null,
+    "forget#2295": null,
+    "hby#3011": null,
+    "res_semaphore0#1051": null,
+    "res_semaphore0#1133": null
+  },
+  "status": "ok",
+  "traces": 32,
+  "unmapped_resources": [
+    "forget#1536",
+    "forget#2295",
+    "hby#3011",
+    "res_semaphore0#1051",
+    "res_semaphore0#1133"
+  ]
+}

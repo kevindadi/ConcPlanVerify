@@ -1,0 +1,161 @@
+{
+  "program": "atomic_counter_retry",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": ["c"],
+        "functions": ["main", "w1", "w2"]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "c",
+          "kind": "var",
+          "type": "Atomic",
+          "base": "Int",
+          "init": 0
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "scope",
+              "funcs": ["main::w1", "main::w2"]
+            },
+            {
+              "sid": "s2",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w1",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "expected",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            },
+            {
+              "name": "desired",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            },
+            {
+              "name": "old",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "expected"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "desired",
+              "expr": "expected + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "expected",
+              "desired": "desired",
+              "dst": "old"
+            },
+            {
+              "sid": "s4",
+              "kind": "branch",
+              "cond": "old != expected",
+              "then": "s1",
+              "else": "s5"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "w2",
+          "kind": "normal",
+          "form": "closure",
+          "locals": [
+            {
+              "name": "expected",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            },
+            {
+              "name": "desired",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            },
+            {
+              "name": "old",
+              "type": "Int",
+              "modeled": true,
+              "init": 0
+            }
+          ],
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "atomic_load",
+              "resource": "main::c",
+              "dst": "expected"
+            },
+            {
+              "sid": "s2",
+              "kind": "assign_local",
+              "target": "desired",
+              "expr": "expected + 1"
+            },
+            {
+              "sid": "s3",
+              "kind": "atomic_cas",
+              "resource": "main::c",
+              "expected": "expected",
+              "desired": "desired",
+              "dst": "old"
+            },
+            {
+              "sid": "s4",
+              "kind": "branch",
+              "cond": "old != expected",
+              "then": "s1",
+              "else": "s5"
+            },
+            {
+              "sid": "s5",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

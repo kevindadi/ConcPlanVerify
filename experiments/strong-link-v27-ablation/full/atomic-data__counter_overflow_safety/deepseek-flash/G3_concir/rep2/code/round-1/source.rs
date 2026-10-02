@@ -1,0 +1,50 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+// Shared state: variable `c` protected by mutex `m`.
+struct Shared {
+    c: i64,
+}
+
+// CIR function main::w1
+fn w1(state: Arc<Mutex<Shared>>) {
+    // mutex_lock { resource: m }
+    let mut guard = state.lock().unwrap();
+    // assign_local { target: seen, expr: c }
+    let seen = guard.c;
+    let _ = seen;
+    // write_shared { resource: c, expr: 1 }
+    guard.c = 1;
+    // mutex_unlock { resource: m }
+    drop(guard);
+}
+
+// CIR function main::w2
+fn w2(state: Arc<Mutex<Shared>>) {
+    // mutex_lock { resource: m }
+    let mut guard = state.lock().unwrap();
+    // assign_local { target: seen, expr: c }
+    let seen = guard.c;
+    let _ = seen;
+    // write_shared { resource: c, expr: 1 }
+    guard.c = 1;
+    // mutex_unlock { resource: m }
+    drop(guard);
+}
+
+// CIR function main::main
+fn main() {
+    let state = Arc::new(Mutex::new(Shared { c: 0 }));
+
+    // scope { funcs: [w1, w2] }
+    let s1 = Arc::clone(&state);
+    let h1 = thread::spawn(move || w1(s1));
+
+    let s2 = Arc::clone(&state);
+    let h2 = thread::spawn(move || w2(s2));
+
+    h1.join().unwrap();
+    h2.join().unwrap();
+
+    println!("DONE done=1");
+}

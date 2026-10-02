@@ -1,0 +1,53 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-ablation/full/condvar__notify_one_multi_waiter_wrong_pick/deepseek-flash/G3_concir/rep2/code/round-1/source-proj)
+error[E0599]: no method named `release` found for struct `Arc<Semaphore>` in the current scope
+   --> src/main.rs:17:15
+    |
+ 17 |         g12_1.release();
+    |               ^^^^^^^
+    |
+help: there is a method `release_count` with a similar name, but with different arguments
+   --> /Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync/src/lib.rs:111:5
+    |
+111 |     pub fn release_count(&self, n: i64) -> Result<(), SemCountError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `release` found for struct `Arc<Semaphore>` in the current scope
+   --> src/main.rs:29:15
+    |
+ 29 |         g12_2.release();
+    |               ^^^^^^^
+    |
+help: there is a method `release_count` with a similar name, but with different arguments
+   --> /Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync/src/lib.rs:111:5
+    |
+111 |     pub fn release_count(&self, n: i64) -> Result<(), SemCountError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `release` found for struct `Arc<Semaphore>` in the current scope
+   --> src/main.rs:45:14
+    |
+ 45 |         gN_3.release();
+    |              ^^^^^^^
+    |
+help: there is a method `release_count` with a similar name, but with different arguments
+   --> /Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync/src/lib.rs:111:5
+    |
+111 |     pub fn release_count(&self, n: i64) -> Result<(), SemCountError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `release` found for struct `Arc<Semaphore>` in the current scope
+   --> src/main.rs:46:14
+    |
+ 46 |         gN_3.release();
+    |              ^^^^^^^
+    |
+help: there is a method `release_count` with a similar name, but with different arguments
+   --> /Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync/src/lib.rs:111:5
+    |
+111 |     pub fn release_count(&self, n: i64) -> Result<(), SemCountError> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `probe` (bin "probe") due to 4 previous errors

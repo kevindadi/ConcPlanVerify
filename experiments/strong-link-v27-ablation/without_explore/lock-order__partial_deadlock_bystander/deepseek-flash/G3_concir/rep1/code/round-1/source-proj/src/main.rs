@@ -1,0 +1,80 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+use concir_sync::Semaphore;
+
+// Bystander task: runs forever without finishing on its own.
+fn bystander() {
+    loop {
+        std::hint::spin_loop();
+    }
+}
+
+fn main() {
+    // Shared resources
+    let a = Arc::new(Mutex::new(0)); // flag protected by lock a
+    let b = Arc::new(Mutex::new(()));
+    let sa = Semaphore::new(0);
+    let sb = Semaphore::new(0);
+
+    // Spawn bystander first (as per CIR)
+    let _hbystander = thread::spawn(bystander);
+
+    // Worker a
+    let a_clone = Arc::clone(&a);
+    let b_clone = Arc::clone(&b);
+    let sa_clone = Arc::clone(&sa);
+    let sb_clone = Arc::clone(&sb);
+    let ha = thread::spawn(move || {
+        // s1: mutex_lock a
+        let guard_a1 = a_clone.lock().unwrap();
+        // s2: semaphore_release sa
+        sa_clone.release();
+        // s3: mutex_unlock a
+        drop(guard_a1);
+        // s4: semaphore_acquire sb
+        let _permit_sb = sb_clone.acquire();
+        // s5: mutex_lock a
+        let mut guard_a2 = a_clone.lock().unwrap();
+        // s6: mutex_lock b
+        let guard_b = b_clone.lock().unwrap();
+        // s7: write_shared flag = 1
+        *guard_a2 = 1;
+        // s8: mutex_unlock b
+        drop(guard_b);
+        // s9: mutex_unlock a
+        drop(guard_a2);
+    });
+
+    // Worker b
+    let a_clone = Arc::clone(&a);
+    let b_clone = Arc::clone(&b);
+    let sa_clone = Arc::clone(&sa);
+    let sb_clone = Arc::clone(&sb);
+    let hb = thread::spawn(move || {
+        // s1: mutex_lock b
+        let guard_b1 = b_clone.lock().unwrap();
+        // s2: semaphore_release sb
+        sb_clone.release();
+        // s3: mutex_unlock b
+        drop(guard_b1);
+        // s4: semaphore_acquire sa
+        let _permit_sa = sa_clone.acquire();
+        // s5: mutex_lock a
+        let mut guard_a = a_clone.lock().unwrap();
+        // s6: mutex_lock b
+        let guard_b2 = b_clone.lock().unwrap();
+        // s7: write_shared flag = 1
+        *guard_a = 1;
+        // s8: mutex_unlock b
+        drop(guard_b2);
+        // s9: mutex_unlock a
+        drop(guard_a);
+    });
+
+    // Join only the two workers (bystander may keep running)
+    ha.join().unwrap();
+    hb.join().unwrap();
+
+    // Required terminal line
+    println!("DONE a=1 b=1");
+}

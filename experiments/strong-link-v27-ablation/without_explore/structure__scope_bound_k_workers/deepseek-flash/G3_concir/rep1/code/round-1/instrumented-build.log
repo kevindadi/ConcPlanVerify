@@ -1,0 +1,42 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-ablation/without_explore/structure__scope_bound_k_workers/deepseek-flash/G3_concir/rep1/code/round-1/proj)
+warning: unused import: `std::thread`
+ --> src/main.rs:4:5
+  |
+4 | use std::thread;
+  |     ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `acc` is never read
+ --> src/main.rs:7:24
+  |
+7 |     let mut acc: i32 = 0;
+  |                        ^ this value is reassigned later and never used
+8 |     let permit = s.acquire();
+9 |     acc = 1;
+  |     ------- `acc` is overwritten here before the previous value is read
+  |
+  = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `acc` is never read
+  --> src/main.rs:15:24
+   |
+15 |     let mut acc: i32 = 0;
+   |                        ^ this value is reassigned later and never used
+16 |     let permit = s.acquire();
+17 |     acc = 1;
+   |     ------- `acc` is overwritten here before the previous value is read
+
+warning: value assigned to `acc` is never read
+  --> src/main.rs:23:24
+   |
+23 |     let mut acc: i32 = 0;
+   |                        ^ this value is reassigned later and never used
+24 |     let permit = s.acquire();
+25 |     acc = 1;
+   |     ------- `acc` is overwritten here before the previous value is read
+
+warning: `probe` (bin "probe") generated 4 warnings (run `cargo fix --bin "probe" -p probe` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.31s

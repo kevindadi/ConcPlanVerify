@@ -1,0 +1,18 @@
+```rust
+use std::thread;
+
+fn worker() {
+    // R2: worker performs no shared work and shares no state.
+}
+
+fn main() {
+    let h1 = thread::spawn(worker);
+    h1.join().unwrap();
+
+    let h2 = thread::spawn(worker);
+    h2.join().unwrap();
+
+    // R6: exact terminal line.
+    println!("DONE done=1");
+}
+```

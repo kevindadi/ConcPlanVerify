@@ -1,0 +1,73 @@
+{
+  "stage": "check",
+  "error_class": "static_check",
+  "status": "INVALID",
+  "diagnostics": [
+    {
+      "code": "E301",
+      "severity": "error",
+      "message": "mutex_lock/unlock requires a Mutex (resource 'main::sa')",
+      "path": "modules[0].functions[1].body[1]",
+      "location": "main::a.s2",
+      "fix_hint": "use the matching resource type",
+      "json_path": "modules[0].functions[1].body[1]"
+    },
+    {
+      "code": "E301",
+      "severity": "error",
+      "message": "mutex_lock/unlock requires a Mutex (resource 'main::sb')",
+      "path": "modules[0].functions[1].body[2]",
+      "location": "main::a.s3",
+      "fix_hint": "use the matching resource type",
+      "json_path": "modules[0].functions[1].body[2]"
+    },
+    {
+      "code": "E301",
+      "severity": "error",
+      "message": "mutex_lock/unlock requires a Mutex (resource 'main::sb')",
+      "path": "modules[0].functions[2].body[1]",
+      "location": "main::b.s2",
+      "fix_hint": "use the matching resource type",
+      "json_path": "modules[0].functions[2].body[1]"
+    },
+    {
+      "code": "E301",
+      "severity": "error",
+      "message": "mutex_lock/unlock requires a Mutex (resource 'main::sa')",
+      "path": "modules[0].functions[2].body[2]",
+      "location": "main::b.s3",
+      "fix_hint": "use the matching resource type",
+      "json_path": "modules[0].functions[2].body[2]"
+    },
+    {
+      "code": "E704",
+      "severity": "warning",
+      "message": "Var resource 'flag' has no protection mapping",
+      "path": "modules[0].resources[4]",
+      "fix_hint": "add a protection mapping or change to Atomic type",
+      "json_path": "modules[0].resources[4]"
+    },
+    {
+      "code": "E401",
+      "severity": "warning",
+      "message": "spawn handle 'hby' has no matching join",
+      "path": "modules[0].functions[0].body[2]",
+      "location": "main::main.s3",
+      "fix_hint": "add join on this handle, or use a scope statement (implicit join_all)",
+      "json_path": "modules[0].functions[0].body[2]"
+    }
+  ],
+  "expected_shapes": [
+    "use the matching resource type",
+    "add a protection mapping or change to Atomic type",
+    "add join on this handle, or use a scope statement (implicit join_all)"
+  ],
+  "declared_functions": [
+    "main::main",
+    "main::a",
+    "main::b",
+    "main::bystander"
+  ],
+  "normalizations": [],
+  "note": "The backend decides acceptance. `path` is a JSON pointer when the checker provided one. Resend the whole program."
+}

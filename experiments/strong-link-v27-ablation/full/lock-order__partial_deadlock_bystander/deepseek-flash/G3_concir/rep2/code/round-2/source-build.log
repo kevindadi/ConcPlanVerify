@@ -1,0 +1,72 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-ablation/full/lock-order__partial_deadlock_bystander/deepseek-flash/G3_concir/rep2/code/round-2/source-proj)
+error[E0597]: `sa` does not live long enough
+   --> src/main.rs:22:21
+    |
+ 15 |       let sa = Semaphore::new(1);
+    |           -- binding `sa` declared here
+...
+ 22 |       let sa_credit = sa.acquire();
+    |                       ^^ borrowed value does not live long enough
+...
+ 45 |       let hb = thread::spawn(move || {
+    |  ______________-
+ 46 | |         let sb_permit = sb2.acquire(); // s1 semaphore_acquire sb
+ 47 | |         let guard_b1 = b2.lock().unwrap(); // s2 mutex_lock b
+ 48 | |         sa_credit.release(); // s3 semaphore_release sa
+...   |
+ 56 | |         std::mem::forget(sb_permit);
+ 57 | |     });
+    | |______- argument requires that `sa` is borrowed for `'static`
+...
+ 73 |   }
+    |   - `sa` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `sb` does not live long enough
+   --> src/main.rs:23:21
+    |
+ 16 |       let sb = Semaphore::new(1);
+    |           -- binding `sb` declared here
+...
+ 23 |       let sb_credit = sb.acquire();
+    |                       ^^ borrowed value does not live long enough
+...
+ 29 |       let ha = thread::spawn(move || {
+    |  ______________-
+ 30 | |         let mut guard_a = a1.lock().unwrap(); // s1 mutex_lock a
+ 31 | |         sb_credit.release(); // s2 semaphore_release sb
+ 32 | |         let sa_permit = sa1.acquire(); // s3 semaphore_acquire sa
+...   |
+ 38 | |         std::mem::forget(sa_permit);
+ 39 | |     });
+    | |______- argument requires that `sb` is borrowed for `'static`
+...
+ 73 |   }
+    |   - `sb` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+warning: value assigned to `tick` is never read
+  --> src/main.rs:61:24
+   |
+61 |         let mut tick = 0; // local `tick`, declared with init 0
+   |                        ^ this value is reassigned later and never used
+62 |         tick = 1; // s1 assign_local tick = 1
+   |         -------- `tick` is overwritten here before the previous value is read
+   |
+   = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+For more information about this error, try `rustc --explain E0597`.
+warning: `probe` (bin "probe") generated 1 warning
+error: could not compile `probe` (bin "probe") due to 2 previous errors; 1 warning emitted

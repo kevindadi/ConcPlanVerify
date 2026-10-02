@@ -1,0 +1,58 @@
+{
+  "binary_sha256": "e0c7e3d122f2f08fd7483f248e9c263102d81964c8219b8a126b84d43cb41c0e",
+  "bounded": true,
+  "events": 320,
+  "git_rev": "a35dc867d6327c772d48bd7c0473a6606fcc467a",
+  "properties": [
+    {
+      "detail": "decided by behavior (hang/timeout) and Miri",
+      "id": "no-deadlock",
+      "kind": "deadlock_free",
+      "req": [
+        "R4",
+        "R5",
+        "R6"
+      ],
+      "source": "properties",
+      "status": "deferred"
+    },
+    {
+      "id": "main::w1 completes",
+      "kind": "reachable",
+      "req": [
+        "R1",
+        "R6"
+      ],
+      "source": "preserved",
+      "status": "PASS_bounded"
+    },
+    {
+      "id": "main::w2 completes",
+      "kind": "reachable",
+      "req": [
+        "R1",
+        "R6"
+      ],
+      "source": "preserved",
+      "status": "PASS_bounded"
+    },
+    {
+      "id": "main::w1 holds [main::s] at once",
+      "kind": "reachable",
+      "req": [
+        "R2",
+        "R3"
+      ],
+      "source": "preserved",
+      "status": "PASS_bounded"
+    }
+  ],
+  "resource_map": {
+    "s_semaphore0#573": "main::s",
+    "w1#624": "main::w1",
+    "w2#698": "main::w2"
+  },
+  "status": "ok",
+  "traces": 32,
+  "unmapped_resources": []
+}

@@ -1,0 +1,112 @@
+{
+  "channel_semantics": {
+    "constructions": [
+      {
+        "capacity": 0,
+        "capacity_class": "rendezvous",
+        "constructor": "sync_channel",
+        "evidence": "let_tuple",
+        "function": "main",
+        "id": "ctor0",
+        "rx": "rx1",
+        "site": "703",
+        "tx": "tx1"
+      },
+      {
+        "capacity": 0,
+        "capacity_class": "rendezvous",
+        "constructor": "sync_channel",
+        "evidence": "let_tuple",
+        "function": "main",
+        "id": "ctor1",
+        "rx": "rx2",
+        "site": "748",
+        "tx": "tx2"
+      }
+    ],
+    "endpoints": [
+      {
+        "construction_id": "ctor0",
+        "evidence": "param_from_call",
+        "function": "r",
+        "name": "rx1",
+        "site": "510",
+        "status": "traced"
+      },
+      {
+        "construction_id": "ctor1",
+        "evidence": "param_from_call",
+        "function": "r",
+        "name": "tx2",
+        "site": "551",
+        "status": "traced"
+      },
+      {
+        "construction_id": "ctor1",
+        "evidence": "param_from_call",
+        "function": "s",
+        "name": "rx2",
+        "site": "275",
+        "status": "traced"
+      },
+      {
+        "construction_id": "ctor0",
+        "evidence": "param_from_call",
+        "function": "s",
+        "name": "tx1",
+        "site": "233",
+        "status": "traced"
+      }
+    ],
+    "semaphores": [],
+    "uncovered_sync": []
+  },
+  "harness_notes": [],
+  "limitations": [],
+  "resources": [
+    {
+      "display": "lk_mutex0",
+      "kind": "Mutex",
+      "name": "lk_mutex0#671",
+      "site": "671"
+    },
+    {
+      "display": "s",
+      "entry": "s",
+      "kind": "Spawn",
+      "name": "s#851",
+      "site": "851",
+      "unique_entry": true
+    },
+    {
+      "display": "r",
+      "entry": "r",
+      "kind": "Spawn",
+      "name": "r#906",
+      "site": "906",
+      "unique_entry": true
+    },
+    {
+      "display": "tx1",
+      "kind": "Channel",
+      "name": "tx1"
+    },
+    {
+      "display": "rx2",
+      "kind": "Channel",
+      "name": "rx2"
+    },
+    {
+      "display": "rx1",
+      "kind": "Channel",
+      "name": "rx1"
+    },
+    {
+      "display": "tx2",
+      "kind": "Channel",
+      "name": "tx2"
+    }
+  ],
+  "schema_version": "cir-resources-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-ablation/without_explore/channel__send_while_holding_mutex/deepseek-flash/G3_concir/rep2/code/round-1/instrument/input.rs"
+}

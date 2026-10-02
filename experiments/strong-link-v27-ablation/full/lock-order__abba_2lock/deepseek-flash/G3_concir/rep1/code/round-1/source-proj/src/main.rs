@@ -1,0 +1,36 @@
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn main() {
+    // Shared resources declared by module main: mutex a, mutex b.
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    // main::main -- spawn t1 and t2, then join both.
+    let a_t1 = Arc::clone(&a);
+    let b_t1 = Arc::clone(&b);
+    let h1 = thread::spawn(move || {
+        // main::t1
+        let g1 = a_t1.lock().unwrap();
+        let g2 = b_t1.lock().unwrap();
+        drop(g2);
+        drop(g1);
+        1
+    });
+
+    let a_t2 = Arc::clone(&a);
+    let b_t2 = Arc::clone(&b);
+    let h2 = thread::spawn(move || {
+        // main::t2
+        let g1 = a_t2.lock().unwrap();
+        let g2 = b_t2.lock().unwrap();
+        drop(g2);
+        drop(g1);
+        1
+    });
+
+    let t1 = h1.join().unwrap();
+    let t2 = h2.join().unwrap();
+
+    println!("DONE t1={} t2={}", t1, t2);
+}
