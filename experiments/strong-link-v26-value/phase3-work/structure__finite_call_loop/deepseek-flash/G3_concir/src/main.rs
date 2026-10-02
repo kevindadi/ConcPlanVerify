@@ -1,0 +1,22 @@
+mod cir_trace;
+// Design: helper_twice_sequential
+// main: call main::helper; call main::helper; return
+// helper: return
+//
+// The main task calls the auxiliary routine `helper` twice, one call strictly
+// after the other (sequential composition). There is no shared state, no
+// synchronization primitive, and no spawned thread to join, so every schedule
+// trivially terminates.
+
+fn helper() {
+    // main::helper body: { return }
+}
+
+fn main() { cir_trace::init();
+    // s1: call main::helper
+    helper();
+    // s2: call main::helper
+    helper();
+    // s3: return (main) — required terminal line
+    println!("DONE done=1");
+ cir_trace::finish();}
