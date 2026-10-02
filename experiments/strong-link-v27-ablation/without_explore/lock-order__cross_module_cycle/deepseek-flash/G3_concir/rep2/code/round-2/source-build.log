@@ -1,0 +1,71 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v27-ablation/without_explore/lock-order__cross_module_cycle/deepseek-flash/G3_concir/rep2/code/round-2/source-proj)
+warning: value assigned to `x` is never read
+  --> src/main.rs:14:26
+   |
+14 |         let mut x: i32 = 0;
+   |                          ^ this value is reassigned later and never used
+15 |         x = 1;
+   |         ----- `x` is overwritten here before the previous value is read
+   |
+   = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `y` is never read
+  --> src/main.rs:52:26
+   |
+52 |         let mut y: i32 = 0;
+   |                          ^ this value is reassigned later and never used
+53 |         y = 1;
+   |         ----- `y` is overwritten here before the previous value is read
+
+warning: module `modA` should have a snake case name
+ --> src/main.rs:1:5
+  |
+1 | mod modA {
+  |     ^^^^ help: convert the identifier to snake case: `mod_a`
+  |
+  = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: module `modB` should have a snake case name
+  --> src/main.rs:39:5
+   |
+39 | mod modB {
+   |     ^^^^ help: convert the identifier to snake case: `mod_b`
+
+warning: static variable `a` should have an upper case name
+ --> src/main.rs:5:16
+  |
+5 |     pub static a: Mutex<()> = Mutex::new(());
+  |                ^
+  |
+  = note: `#[warn(non_upper_case_globals)]` (part of `#[warn(nonstandard_style)]`) on by default
+help: convert the identifier to upper case
+  |
+5 -     pub static a: Mutex<()> = Mutex::new(());
+5 +     pub static A: Mutex<()> = Mutex::new(());
+  |
+
+warning: static variable `b` should have an upper case name
+  --> src/main.rs:43:16
+   |
+43 |     pub static b: Mutex<()> = Mutex::new(());
+   |                ^
+   |
+help: convert the identifier to upper case
+   |
+43 -     pub static b: Mutex<()> = Mutex::new(());
+43 +     pub static B: Mutex<()> = Mutex::new(());
+   |
+
+warning: `probe` (bin "probe") generated 6 warnings (run `cargo fix --bin "probe" -p probe` to apply 2 suggestions)
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.21s

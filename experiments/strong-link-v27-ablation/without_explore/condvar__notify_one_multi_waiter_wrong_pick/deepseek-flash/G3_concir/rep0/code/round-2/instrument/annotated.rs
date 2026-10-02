@@ -1,0 +1,85 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+// Rust implementation of the verified ConcIR design "waiters_notifier".
+use concir_sync::{Permit, Semaphore};
+use std::sync::{Arc};
+
+// main::w1
+fn w1(m: &Mutex<()>, cv: &Condvar, p12: Permit, pN: Permit) {
+    let guard = m.lock().unwrap();       // s1: mutex_lock  m
+    p12.release();                       // s2: semaphore_release g12
+    let guard = cv.wait(guard).unwrap(); // s3: condvar_wait cv/m
+    drop(guard);                         // s4: mutex_unlock m
+    pN.release();                        // s5: semaphore_release gN
+}                                        // s6: return
+
+// main::w2
+fn w2(m: &Mutex<()>, cv: &Condvar, p12: Permit, pN: Permit) {
+    let guard = m.lock().unwrap();       // s1: mutex_lock  m
+    p12.release();                       // s2: semaphore_release g12
+    let guard = cv.wait(guard).unwrap(); // s3: condvar_wait cv/m
+    drop(guard);                         // s4: mutex_unlock m
+    pN.release();                        // s5: semaphore_release gN
+}                                        // s6: return
+
+// main::notifier
+fn notifier(m: &Mutex<()>, cv: &Condvar, g12: &Semaphore, gN: &Semaphore) {
+    let p1 = g12.acquire();              // s1: semaphore_acquire g12
+    let p2 = g12.acquire();              // s2: semaphore_acquire g12
+    let guard = m.lock().unwrap();       // s3: mutex_lock m
+    cv.notify_all();                     // s4: condvar_notify_all cv
+    drop(guard);                         // s5: mutex_unlock m
+    let p3 = gN.acquire();               // s6: semaphore_acquire gN
+    let p4 = gN.acquire();               // s7: semaphore_acquire gN
+
+    // s8: return.  The design keeps these four acquisitions (it never
+    // releases them), so forget the permits instead of dropping them.
+    std::mem::forget(p1);
+    std::mem::forget(p2);
+    std::mem::forget(p3);
+    std::mem::forget(p4);
+}
+
+// main::main
+fn main() { cir_trace::init();
+    let m = Arc::new(Mutex::new_named("m_mutex0#1940", ()));
+    let cv = Arc::new(Condvar::new_named("cv_condvar0#1981"));
+
+    // In the CIR the two counting semaphores start empty and the waiters
+    // signal them with `semaphore_release`.  With the permit based API a
+    // release is performed by handing back a permit, so main pre-creates one
+    // permit per pending release and gives each waiter the permits it will
+    // hand back at its release points.  The leaked (never dropped) handles
+    // keep the references usable from the spawned threads.
+    let g12_arc: &'static Arc<Semaphore> = Box::leak(Box::new(Semaphore::new_named("res_semaphore0#2501", 2)));
+    let g12: &'static Semaphore = g12_arc;
+    let gN_arc: &'static Arc<Semaphore> = Box::leak(Box::new(Semaphore::new_named("res_semaphore0#2626", 2)));
+    let gN: &'static Semaphore = gN_arc;
+
+    let p12a = g12.acquire();
+    let p12b = g12.acquire();
+    let pNa = gN.acquire();
+    let pNb = gN.acquire();
+
+    let h1 = {
+        let m = Arc::clone(&m);
+        let cv = Arc::clone(&cv);
+        cir_trace::spawn("w1#2884", move || w1(&m, &cv, p12a, pNa))
+    };
+    let h2 = {
+        let m = Arc::clone(&m);
+        let cv = Arc::clone(&cv);
+        cir_trace::spawn("w2#3031", move || w2(&m, &cv, p12b, pNb))
+    };
+    let h3 = {
+        let m = Arc::clone(&m);
+        let cv = Arc::clone(&cv);
+        cir_trace::spawn("notifier#3178", move || notifier(&m, &cv, g12, gN))
+    };
+
+    h1.join().unwrap();
+    h2.join().unwrap();
+    h3.join().unwrap();
+
+    println!("DONE waiters=0");
+ cir_trace::finish();}
