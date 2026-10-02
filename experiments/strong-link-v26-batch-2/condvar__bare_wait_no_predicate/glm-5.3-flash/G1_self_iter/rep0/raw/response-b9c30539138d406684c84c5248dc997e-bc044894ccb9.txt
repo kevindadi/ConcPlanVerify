@@ -1,0 +1,65 @@
+No original program was attached, so I reviewed the spec against the canonical buggy version of this pattern and repaired the defects that the requirements target. The defects and their fixes:
+
+**Defect 1 — lost wakeup (violates R5, R7, R9).** A naive waiter does `if !ready { cv.wait() }` once. If the notifier runs first (sets `ready = true`, signals, exits) before the waiter even locks `m`, the signal is lost and the waiter blocks forever. **Fix:** the waiter checks the flag under the lock and waits only inside a `while !*ready` loop, re-checking after every wake (R4). If the flag is already true, it never waits at all (R6).
+
+**Defect 2 — waiter waits without holding the lock / checks flag outside the lock (violates R2, R4, R6).** The flag must only be read/written while `m` is held; `Condvar::wait` atomically releases the lock while blocked and reacquires it on wake, so the waiter never holds `m` while blocked (R6).
+
+**Defect 3 — notifier sets flag without the lock or signals before setting (violates R3, R8).** The notifier sets `*ready = true` while holding `m`, then signals, then releases the lock by dropping the guard.
+
+**Defect 4 — program may exit before roles finish or print a stale flag (violates R7, R10).** Both threads are `join`ed, and the final line is printed only after both have finished, reading the flag under the lock so it is guaranteed `true`.
+
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+fn main() {
+    // R2: one lock (m), one condition variable (cv), guarding the boolean flag (ready).
+    let shared = Arc::new((Mutex::new(false), Condvar::new()));
+
+    // R1: waiter and notifier run at the same time.
+    let waiter = {
+        let shared = Arc::clone(&shared);
+        thread::spawn(move || {
+            let (m, cv) = (&shared.0, &shared.1);
+
+            // R4/R6: check the flag while holding the lock; wait only while it is false.
+            let mut ready = m.lock().unwrap();
+            while !*ready {
+                // R6: wait() atomically releases m while blocked and reacquires it on wake.
+                // R4/R9: re-check the flag after each wake; cannot pass until it is true.
+                ready = cv.wait(ready).unwrap();
+            }
+            // Lock released here; flag is true.
+        })
+    };
+
+    let notifier = {
+        let shared = Arc::clone(&shared);
+        thread::spawn(move || {
+            let (m, cv) = (&shared.0, &shared.1);
+
+            // R3: set the flag while holding the lock...
+            let mut ready = m.lock().unwrap();
+            *ready = true;
+            // ...signal the condition variable...
+            cv.notify_one();
+            // ...then release the lock (guard dropped at end of scope).
+        })
+    };
+
+    // R7: wait for both roles to finish in every schedule.
+    waiter.join().unwrap();
+    notifier.join().unwrap();
+
+    // R8/R10: the flag is true in every schedule; print exactly the required line.
+    let shared_ready = shared.0.lock().unwrap();
+    println!("DONE ready={}", *shared_ready);
+}
+```
+
+**Why every schedule terminates (R5, R7):**
+- *Notifier first:* it sets `ready = true` under `m` and exits. The waiter then locks `m`, sees `*ready == true`, never calls `wait`, and exits — no lost wakeup.
+- *Waiter first:* it sees `false`, waits (releasing `m`); the notifier acquires `m`, sets `true`, signals; the waiter wakes holding `m`, re-checks, sees `true`, exits.
+- *Interleavings:* the predicate loop makes each wake safe regardless of spurious wakeups or signal timing, and `notify_one` is sufficient since there is exactly one waiter.
+
+Output is exactly `DONE ready=true` (R10).

@@ -1,0 +1,12 @@
+{
+  "fingerprint": "8d3ab58f09f2650173113b3dc9a75f13d5ec34f80b343f99fd60d6d701ec1dbb",
+  "calls": [
+    {
+      "system": "Write one Rust program from the requirements. Do not invent extra requirements.",
+      "user": "Specification:\n# Requirements\n\nR1. The program starts a supervising task that launches two worker threads and waits for both of them to finish.\nR2. Both worker threads share a single atomic counter that starts at zero.\nR3. Each worker adds exactly one to the shared counter, so once both have finished the counter equals two.\nR4. Each worker updates the counter with an atomic read-modify-write retry loop, so a competing update can never be silently lost.\nR5. A failed update attempt must be retried rather than abandoned, so every worker's increment eventually takes effect.\nR6. From every state that can occur, it must remain possible for the counter to still reach two.\nR7. Each increment appears to happen in a single indivisible step, so no partial update is ever observable.\nR8. Every possible schedule and interleaving of the two workers must terminate.\nR9. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): w1, w2.\n- Shared resources: c (atomic counter).\n\n\nOutput the complete Rust program.",
+      "response": "```rust\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::thread;\n\nstatic c: AtomicUsize = AtomicUsize::new(0);\n\nfn w1() {\n    let mut old = c.load(Ordering::SeqCst);\n    loop {\n        match c.compare_exchange(old, old + 1, Ordering::SeqCst, Ordering::SeqCst) {\n            Ok(_) => break,\n            Err(actual) => old = actual,\n        }\n    }\n}\n\nfn w2() {\n    let mut old = c.load(Ordering::SeqCst);\n    loop {\n        match c.compare_exchange(old, old + 1, Ordering::SeqCst, Ordering::SeqCst) {\n            Ok(_) => break,\n            Err(actual) => old = actual,\n        }\n    }\n}\n\nfn main() {\n    let t1 = thread::spawn(w1);\n    let t2 = thread::spawn(w2);\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    assert_eq!(c.load(Ordering::SeqCst), 2);\n\n    println!(\"DONE done=1\");\n}\n```",
+      "response_model": "deepseek-flash",
+      "snapshot_sha256": "6f5665530f91ab0847edef9176760c01903a7717e14b0c2162811292b80bc0be"
+    }
+  ]
+}
