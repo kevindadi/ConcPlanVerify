@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    // Shared resources: m (lock), cv (condition variable), ready (shared variable).\n    let shared = Arc::new((Mutex::new(false), Condvar::new()));\n    let (m, cv) = (&shared.0, &shared.1);\n\n    // Waiter role.\n    let waiter = {\n        let shared = Arc::clone(&shared);\n        thread::spawn(move || {\n            let (m, cv) = (&shared.0, &shared.1);\n            let mut ready = m.lock().unwrap();\n            // Check the flag first; wait only while the flag is false;\n            // re-check after each wake. The lock is released while blocked.\n            while !*ready {\n                ready = cv.wait(ready).unwrap();\n            }\n            // Flag is true: the waiter may pass its wait.\n        })\n    };\n\n    // Notifier role.\n    let notifier = {\n        let shared = Arc::clone(&shared);\n        thread::spawn(move || {\n            let (m, cv) = (&shared.0, &shared.1);\n            let mut ready = m.lock().unwrap();\n            // Set the flag while holding the lock, then signal.\n            *ready = true;\n            cv.notify_one();\n            // Lock is released when the guard is dropped.\n        })\n    };\n\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n\n    println!(\"DONE ready=true\");\n}\n```"
+}

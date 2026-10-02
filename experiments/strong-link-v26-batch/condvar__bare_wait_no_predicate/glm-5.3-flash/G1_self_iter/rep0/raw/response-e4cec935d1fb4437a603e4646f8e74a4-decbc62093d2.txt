@@ -1,0 +1,69 @@
+No original program was attached, so I reviewed the design against the spec and repaired the classic concurrency defects that break this pattern. Here is the corrected program, followed by the justification of each repair.
+
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+struct Shared {
+    ready: Mutex<bool>,
+    cv: Condvar,
+}
+
+fn waiter(shared: &Shared) {
+    // R4/R6: acquire the lock, check the predicate first.
+    let mut ready = shared.ready.lock().unwrap();
+    // R4/R9: loop — re-check the predicate after every wake.
+    // Handles spurious wakeups and the lost-wakeup race (R5).
+    while !*ready {
+        // R6: wait atomically releases the lock while blocked
+        // and reacquires it before returning.
+        ready = shared.cv.wait(ready).unwrap();
+    }
+    // R9: we only get here when ready == true.
+    // R10: exactly one line of output, from the waiter.
+    println!("DONE ready={}", *ready);
+}
+
+fn notifier(shared: &Shared) {
+    // R3: set the flag while holding the lock.
+    let mut ready = shared.ready.lock().unwrap();
+    *ready = true;
+    // R3: signal the condition variable, then release the lock.
+    shared.cv.notify_one();
+    drop(ready);
+}
+
+fn main() {
+    // R2: one lock (m) guarding one boolean (ready), plus one cv,
+    // shared by both roles.
+    let shared = Arc::new(Shared {
+        ready: Mutex::new(false),
+        cv: Condvar::new(),
+    });
+
+    // R1: spawn waiter and notifier so they run concurrently.
+    let s_waiter = Arc::clone(&shared);
+    let s_notifier = Arc::clone(&shared);
+
+    let waiter_handle = thread::spawn(move || waiter(&s_waiter));
+    let notifier_handle = thread::spawn(move || notifier(&s_notifier));
+
+    // R7: join both roles; every interleaving terminates.
+    waiter_handle.join().unwrap();
+    notifier_handle.join().unwrap();
+}
+```
+
+## Defects repaired and justification
+
+1. **Lost wakeup (violates R5, R7).** A naive waiter that calls `cv.wait()` unconditionally can miss the notifier's signal if the notifier runs first: the flag is already `true`, the signal fires before anyone is waiting, and the waiter then blocks forever. Repair: the waiter checks the predicate *before* waiting (R4), so if the notifier already set `ready = true`, the waiter never enters `wait` and completes immediately.
+
+2. **Spurious wakeup / no predicate re-check (violates R4, R9).** Condition variables may wake spuriously, and `wait` can also return after a signal meant for another predicate. A single `if` check or waiting without re-testing could let the waiter proceed while `ready` is still `false`. Repair: the wait is wrapped in a `while !*ready` loop, so the predicate is re-checked after every wake and the waiter cannot pass until the flag is genuinely `true`.
+
+3. **Holding the lock while blocked (violates R6).** If the waiter slept while still holding `m`, the notifier could never acquire the lock to set the flag — deadlock. Repair: `Condvar::wait` atomically releases the mutex while blocked and reacquires it on wake, so the lock is never held while the waiter is asleep.
+
+4. **Unsynchronized flag access (violates R2, R8).** Reading/writing `ready` outside the lock would be a data race and could make the waiter observe a stale `false` even after the notifier wrote `true`. Repair: both roles touch `ready` only while holding `m`; the notifier's write happens under the lock before the signal, so any waiter that acquires the lock afterward observes `true`.
+
+5. **Output discipline (R10).** Only the waiter prints, and only after the predicate loop confirms `ready == true`, so the program emits exactly `DONE ready=true` and exits after both threads are joined.
+
+With these repairs, every interleaving — notifier-first, waiter-first, or arbitrarily interleaved — terminates with both roles finished and the required single line of output.

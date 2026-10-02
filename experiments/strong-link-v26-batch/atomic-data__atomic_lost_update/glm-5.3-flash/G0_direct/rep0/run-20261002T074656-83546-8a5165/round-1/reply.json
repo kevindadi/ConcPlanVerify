@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::sync::atomic::{AtomicUsize, Ordering};\n\n// R2: shared atomic counter c, starts at zero\nstatic C: AtomicUsize = AtomicUsize::new(0);\n\n// Worker role: w1 / w2 (same body, one thread each)\nfn worker() {\n    // R4/R5: atomic read-modify-write retry loop.\n    // A failed compare_exchange is retried, never abandoned,\n    // so this worker's increment eventually takes effect (R3, R6).\n    loop {\n        let cur = C.load(Ordering::Acquire);\n        match C.compare_exchange_weak(\n            cur,\n            cur + 1,\n            Ordering::AcqRel,\n            Ordering::Acquire,\n        ) {\n            Ok(_) => break,          // R7: increment applied as one indivisible step\n            Err(_) => continue,      // R5: retry on competing update\n        }\n    }\n}\n\nfn main() {\n    // R1: supervising task launches two worker threads (w1, w2)\n    // and waits for both to finish.\n    let w1 = std::thread::spawn(worker);\n    let w2 = std::thread::spawn(worker);\n\n    // R8: both loops terminate under any interleaving; join waits for both.\n    w1.join().expect(\"w1 panicked\");\n    w2.join().expect(\"w2 panicked\");\n\n    // R9: print exactly this line, then exit.\n    println!(\"DONE done=1\");\n}\n```"
+}

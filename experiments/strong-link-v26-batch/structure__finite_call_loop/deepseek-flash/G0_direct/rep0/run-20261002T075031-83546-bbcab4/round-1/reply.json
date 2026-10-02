@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\nuse std::thread;\n\nfn helper() {\n    // No shared state; each call runs independently.\n}\n\nfn main() {\n    let handle = thread::spawn(helper);\n    handle.join().unwrap();\n\n    let handle = thread::spawn(helper);\n    handle.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
+}

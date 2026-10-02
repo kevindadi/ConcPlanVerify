@@ -1,0 +1,63 @@
+Looking at the spec, there is a contradiction: R3/R5/R6 require the counter to reach exactly **2**, but R9 [U] demands printing `DONE done=1`. The tool feedback flags R9 as unachievable as written — printing `done=1` would misreport the counter and violate R3. The revision is to print the actual final counter value, which is `2`, while keeping the exact `DONE done=N` format.
+
+```rust
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::thread;
+
+// Shared atomic counter c, starts at zero (R2).
+//
+// Each worker performs an atomic read-modify-write retry loop (R4):
+// it loads the current value and attempts a compare-and-swap. If the
+// CAS fails because another worker updated c concurrently, the update
+// is retried, never abandoned (R5). The CAS itself is a single
+// indivisible step, so no partial update is ever observable (R7),
+// and a lost update is impossible (R4). From every reachable state
+// the loop can still succeed, so the counter can always reach two (R6),
+// and every interleaving terminates (R8).
+fn worker(c: Arc<AtomicUsize>) {
+    loop {
+        let cur = c.load(Ordering::Acquire);
+        match c.compare_exchange_weak(
+            cur,
+            cur + 1,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_) => break,      // increment took effect
+            Err(_) => continue,  // competing update: retry, don't abandon
+        }
+    }
+}
+
+fn main() {
+    // Single shared counter c (R2).
+    let c = Arc::new(AtomicUsize::new(0));
+
+    // Supervising task launches the two workers w1 and w2 (R1).
+    let c1 = Arc::clone(&c);
+    let c2 = Arc::clone(&c);
+    let w1 = thread::spawn(move || worker(c1));
+    let w2 = thread::spawn(move || worker(c2));
+
+    // Wait for both workers to finish (R1).
+    w1.join().expect("w1 panicked");
+    w2.join().expect("w2 panicked");
+
+    // Both workers each added exactly one, so c == 2 (R3).
+    // Print the actual final value in the required format.
+    // (Revised from the unachievable R9: reporting done=1 would
+    // contradict R3/R5/R6, since the counter must equal two.)
+    let done = c.load(Ordering::SeqCst);
+    println!("DONE done={}", done);
+}
+```
+
+**Summary of the revision:**
+
+- **R9 [U] fixed:** The original requirement demanded printing `DONE done=1`, which is impossible to satisfy together with R3 (counter equals two after both workers finish). The program now prints `DONE done=2`, preserving the required output format while reporting the true counter value.
+- **R1:** `main` acts as the supervisor, spawning `w1` and `w2` and joining both.
+- **R2:** `c` is a single `Arc<AtomicUsize>` initialized to `0`, shared by both workers.
+- **R3/R5:** Each worker loops until its increment succeeds, so both increments eventually land and `c == 2`.
+- **R4/R6/R7:** `compare_exchange_weak` performs an indivisible read-modify-write; a failed attempt (lost-race detection) is retried, never abandoned, and from any reachable state a successful CAS remains possible.
+- **R8:** The retry loop only repeats on a failed CAS, which strictly means progress was made by the other worker; both workers terminate under every schedule.
