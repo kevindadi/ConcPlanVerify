@@ -33,7 +33,8 @@ or drop one twice to manufacture events.
 Other primitives:
 
 - `Mutex` and `Condvar` from `std::sync`
-- `std::sync::mpsc::{channel, sync_channel}` for channels; capacity 0 is rendezvous
+- `std::sync::mpsc::{channel, sync_channel}` for channels; `channel()` is
+  unbounded and `sync_channel(0)` is rendezvous
 - `std::sync::atomic` for CIR atomics
 - `std::thread::spawn` plus `join`
 
@@ -45,6 +46,13 @@ is applied later by the checker.
 - One CIR function is one Rust function. The entry scope starts the threads it names.
 - One CIR mutex, condvar, channel, or semaphore is one primitive with that name.
   Do not add a primitive the CIR does not have.
+- Channel endpoints: bind each endpoint to its CIR channel by name. Construct the
+  pair with `let (tx, rx) = ...` and name each endpoint after the CIR channel
+  resource, optionally with a `_tx` / `_rx` / `_sender` / `_receiver` suffix (a CIR
+  channel `ch` may be `ch_tx` / `ch_rx` or `ch_sender` / `ch_receiver`). Pass the
+  endpoints to the worker functions under those names. The checker traces an
+  endpoint from its construction site, aliases and cross-function passing; do not
+  rely on creation order and do not assume the only remaining channel is the match.
 - A CIR `var` lives in the mutex named by its protection edge, or in a local.
   Do not add a new lock for it.
 - `condvar_wait` is `while !predicate { guard = cv.wait(guard) }` under the paired mutex.
@@ -71,5 +79,8 @@ is applied later by the checker.
   fields are not.
 - Atomics: `std::sync::atomic::Atomic*` on a simple path receiver (`c.load`,
   `c.compare_exchange`, `c.store`). A field receiver (`s.c.load`) is not observed.
-- Channels: `std::sync::mpsc` with the CIR capacity (`channel()` = 0, `sync_channel(n)`).
+- Channels: `std::sync::mpsc`. Match the CIR capacity exactly: an unbounded CIR
+  channel is `channel()`; a bounded CIR channel with capacity `n` is
+  `sync_channel(n)`, and capacity `0` is rendezvous (`sync_channel(0)`). Do not
+  use `channel()` for a CIR channel whose capacity is `0`.
 - Print the exact terminal line; the text alone does not satisfy a requirement.
