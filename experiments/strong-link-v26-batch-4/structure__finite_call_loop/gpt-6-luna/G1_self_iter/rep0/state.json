@@ -1,0 +1,19 @@
+{
+  "fingerprint": "5f917910617e49a5f509cc8070367c1170028220792f3ba026d964e73aeabf03",
+  "calls": [
+    {
+      "system": "Review your Rust program and repair concurrency defects you can justify.",
+      "user": "Specification:\n# Requirements\n\nR1. A main task calls an auxiliary routine and then begins the same call sequence again. [U]\nR2. The main task and the auxiliary routine share no mutexes, counters, or other shared state, so no two tasks contend for a resource.\nR3. Each auxiliary call runs to completion before the calling task starts the next call.\nR4. Every schedule and interleaving of the tasks must terminate.\nR5. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): helper.\n\n\nOutput the complete Rust program.",
+      "response": "```rust\nuse std::thread;\n\nfn helper() {}\n\nfn main() {\n    thread::spawn(helper).join().expect(\"helper panicked\");\n    thread::spawn(helper).join().expect(\"helper panicked\");\n\n    println!(\"DONE done=1\");\n}\n```",
+      "response_model": "gpt-6-luna",
+      "snapshot_sha256": "311ee1fb9af420c6c8dada69e0c0c460deeabd120a8ba5f7d081769a70cdea46"
+    },
+    {
+      "system": "Review your Rust program and repair concurrency defects you can justify.",
+      "user": "Specification:\n# Requirements\n\nR1. A main task calls an auxiliary routine and then begins the same call sequence again. [U]\nR2. The main task and the auxiliary routine share no mutexes, counters, or other shared state, so no two tasks contend for a resource.\nR3. Each auxiliary call runs to completion before the calling task starts the next call.\nR4. Every schedule and interleaving of the tasks must terminate.\nR5. The program must print exactly the line `DONE done=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): helper.\n\n\nCurrent program:\n```rust\nuse std::thread;\n\nfn helper() {}\n\nfn main() {\n    thread::spawn(helper).join().expect(\"helper panicked\");\n    thread::spawn(helper).join().expect(\"helper panicked\");\n\n    println!(\"DONE done=1\");\n}\n\n```\n\nSelf-review instructions:\nReview the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.\n\nReview the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.",
+      "response": "NO_ISSUES",
+      "response_model": "gpt-6-luna",
+      "snapshot_sha256": "087c21e439ff9996cc0f05d2dc4e33c1d35b2c1900b62933acff5eb72bcf0fb3"
+    }
+  ]
+}

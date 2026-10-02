@@ -1,0 +1,26 @@
+// R1: The main task calls the auxiliary routine and then begins the same
+//     call sequence again.
+// R2: The main task and the auxiliary routine share no mutexes, counters,
+//     or other shared state, so no two tasks contend for a resource.
+// R3: Each auxiliary call runs to completion before the calling task
+//     starts the next call (plain sequential function calls guarantee this).
+// R4: Every schedule and interleaving of the tasks must terminate
+//     (there is only one task of execution and no blocking constructs).
+// R5: The program prints exactly the line `DONE done=1` and then exits.
+
+// Role: helper (the auxiliary routine)
+fn helper() {
+    // No shared state: no mutexes, counters, or globals are touched here.
+    // The routine runs to completion before returning to the caller.
+}
+
+fn main() {
+    // First call sequence: main task calls the auxiliary routine.
+    helper();
+
+    // R1: the main task begins the same call sequence again.
+    helper();
+
+    // R5: print exactly the required line, then exit.
+    println!("DONE done=1");
+}

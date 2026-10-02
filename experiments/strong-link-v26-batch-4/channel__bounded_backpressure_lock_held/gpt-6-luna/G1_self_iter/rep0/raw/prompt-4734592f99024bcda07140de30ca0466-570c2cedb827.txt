@@ -1,0 +1,82 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. A main task starts a sender role and a receiver role that run at the same time.
+R2. The two roles communicate through a channel that can hold at most one value, and both roles occasionally need one shared lock. [U]
+R3. The sender passes two values in order and the receiver takes two values, so both roles can finish.
+R4. When the channel is full the sender waits before it sends again, and when the channel is empty the receiver waits before it takes.
+R5. No role may wait on the channel while holding the shared lock that the other role needs.
+R6. Every schedule and interleaving must terminate with the sender and the receiver both finished.
+R7. The sender must not pass its second value before the receiver has taken the first, because the channel holds only one value.
+R8. The program must print exactly the line `DONE done=1` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): sender, receiver.
+- Shared resources: m (lock), ch (channel).
+
+
+Current program:
+```rust
+use std::sync::{
+    mpsc::{sync_channel, Receiver, SyncSender},
+    Arc, Mutex,
+};
+use std::thread;
+
+fn touch_m(m: &Arc<Mutex<usize>>) {
+    let mut count = m.lock().unwrap();
+    *count += 1;
+}
+
+fn sender(ch: SyncSender<u8>, m: Arc<Mutex<usize>>) {
+    for value in [1, 2] {
+        touch_m(&m);
+        ch.send(value).unwrap();
+    }
+}
+
+fn receiver(ch: Receiver<u8>, m: Arc<Mutex<usize>>) -> (u8, u8) {
+    let mut values = [0; 2];
+    for value in &mut values {
+        touch_m(&m);
+        *value = ch.recv().unwrap();
+    }
+    (values[0], values[1])
+}
+
+fn main() {
+    let ch = sync_channel(1);
+    let (ch_tx, ch_rx) = ch;
+    let m = Arc::new(Mutex::new(0));
+
+    let sender_handle = {
+        let m = Arc::clone(&m);
+        thread::spawn(move || sender(ch_tx, m))
+    };
+    let receiver_handle = {
+        let m = Arc::clone(&m);
+        thread::spawn(move || receiver(ch_rx, m))
+    };
+
+    let sender_finished = sender_handle.join().is_ok();
+    let receiver_got_values = receiver_handle
+        .join()
+        .map(|values| values == (1, 2))
+        .unwrap_or(false);
+    let lock_count_is_correct = *m.lock().unwrap() == 4;
+
+    let done = usize::from(sender_finished && receiver_got_values && lock_count_is_correct);
+    println!("DONE done={done}");
+}
+
+```
+
+Self-review instructions:
+Review the program for concurrency defects and either fix it (full program) or reply exactly NO_ISSUES.
+
+Review the current program against the requirements. If you find a justified defect, output the complete corrected Rust program. If no further defect is found, reply exactly NO_ISSUES.

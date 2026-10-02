@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "use std::sync::{\n    mpsc::{sync_channel, Receiver, SyncSender},\n    Arc, Mutex,\n};\nuse std::thread;\n\nfn touch_m(m: &Arc<Mutex<usize>>) {\n    let mut count = m.lock().unwrap();\n    *count += 1;\n}\n\nfn sender(ch: SyncSender<u8>, m: Arc<Mutex<usize>>) {\n    for value in [1, 2] {\n        touch_m(&m);\n        ch.send(value).unwrap();\n    }\n}\n\nfn receiver(ch: Receiver<u8>, m: Arc<Mutex<usize>>) -> (u8, u8) {\n    let mut values = [0; 2];\n    for value in &mut values {\n        touch_m(&m);\n        *value = ch.recv().unwrap();\n    }\n    (values[0], values[1])\n}\n\nfn main() {\n    let ch = sync_channel(1);\n    let (ch_tx, ch_rx) = ch;\n    let m = Arc::new(Mutex::new(0));\n\n    let sender_handle = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || sender(ch_tx, m))\n    };\n    let receiver_handle = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || receiver(ch_rx, m))\n    };\n\n    let sender_finished = sender_handle.join().is_ok();\n    let receiver_got_values = receiver_handle\n        .join()\n        .map(|values| values == (1, 2))\n        .unwrap_or(false);\n    let lock_count_is_correct = *m.lock().unwrap() == 4;\n\n    let done = usize::from(sender_finished && receiver_got_values && lock_count_is_correct);\n    println!(\"DONE done={done}\");\n}"
+}

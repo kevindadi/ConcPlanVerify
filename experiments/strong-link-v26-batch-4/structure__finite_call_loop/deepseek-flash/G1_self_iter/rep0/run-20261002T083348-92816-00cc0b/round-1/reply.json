@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::thread;\n\nfn helper() {\n    // Auxiliary routine: no shared state, no output.\n}\n\nfn main() {\n    // First auxiliary call\n    let handle = thread::spawn(helper);\n    handle.join().expect(\"helper thread panicked\");\n\n    // Second auxiliary call\n    let handle = thread::spawn(helper);\n    handle.join().expect(\"helper thread panicked\");\n\n    println!(\"DONE done=1\");\n}\n```"
+}

@@ -1,0 +1,10 @@
+use std::thread;
+
+fn helper() {}
+
+fn main() {
+    thread::spawn(helper).join().expect("helper panicked");
+    thread::spawn(helper).join().expect("helper panicked");
+
+    println!("DONE done=1");
+}

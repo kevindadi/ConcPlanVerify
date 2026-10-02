@@ -1,0 +1,11 @@
+fn helper() {}
+
+fn main() {
+    let handle = std::thread::spawn(helper);
+    handle.join().unwrap();
+
+    let handle = std::thread::spawn(helper);
+    handle.join().unwrap();
+
+    println!("DONE done=1");
+}

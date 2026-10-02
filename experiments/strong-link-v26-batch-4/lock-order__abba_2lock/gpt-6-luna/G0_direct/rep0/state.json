@@ -1,0 +1,12 @@
+{
+  "fingerprint": "4b4cb256aaee24348e18850e027af889caf2532d08db4097ad56d12e952e7b35",
+  "calls": [
+    {
+      "system": "Write one Rust program from the requirements. Do not invent extra requirements.",
+      "user": "Specification:\n# Requirements\n\nR1. The design contains one main thread and two worker threads.\nR2. Both worker threads share the same two locks, and neither lock may be held by more than one worker at a time.\nR3. Each worker must hold both locks at the same time while it performs its critical work.\nR4. A worker that finds a lock busy must wait for it to become free and then continue.\nR5. It must never be possible for the two workers to leave each other waiting forever, each holding one lock and needing the other.\nR6. The main thread starts both workers and only finishes after both workers have finished.\nR7. Every worker must release each lock it holds before it finishes.\nR8. Every possible schedule or interleaving of the workers must terminate.\nR9. The program must print exactly the line `DONE t1=1 t2=1` and then exit. [U]\n\n## Entities\n\nUse these exact names in the design and in the program.\n\n- Roles (threads/functions): t1, t2.\n- Shared resources: a (lock), b (lock).\n\n\nOutput the complete Rust program.",
+      "response": "use std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn t1(a: &Mutex<()>, b: &Mutex<()>) -> usize {\n    let _a = a.lock().unwrap();\n    let _b = b.lock().unwrap();\n\n    let value = 1;\n\n    drop(_b);\n    drop(_a);\n    value\n}\n\nfn t2(a: &Mutex<()>, b: &Mutex<()>) -> usize {\n    let _a = a.lock().unwrap();\n    let _b = b.lock().unwrap();\n\n    let value = 1;\n\n    drop(_b);\n    drop(_a);\n    value\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let handle_t1 = thread::spawn(move || t1(&a1, &b1));\n\n    let a2 = Arc::clone(&a);\n    let b2 = Arc::clone(&b);\n    let handle_t2 = thread::spawn(move || t2(&a2, &b2));\n\n    let result_t1 = handle_t1.join().unwrap();\n    let result_t2 = handle_t2.join().unwrap();\n\n    println!(\"DONE t1={} t2={}\", result_t1, result_t2);\n}",
+      "response_model": "gpt-6-luna",
+      "snapshot_sha256": "b708fbbf04b88d4fd71a19dc0002c9cce644256e4f23900dda3ba8c1fc074a91"
+    }
+  ]
+}

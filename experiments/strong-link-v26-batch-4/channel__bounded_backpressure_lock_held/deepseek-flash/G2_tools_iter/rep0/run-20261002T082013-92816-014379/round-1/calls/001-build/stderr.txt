@@ -1,0 +1,102 @@
+warning: binary `cir_arm_probe` should have a kebab-case name
+  |
+1 | ...run-20261002T082013-92816-014379/round-1/probe/target/.../cir_arm_probe
+  |                                                              ^^^^^^^^^^^^^
+  |
+  = note: `cargo::non_kebab_case_bins` is set to `warn` by default
+help: to change the binary name to `cir-arm-probe`, convert `bin.name`
+ --> Cargo.toml:7:8
+  |
+7 - name = "cir_arm_probe"
+7 + name = "cir-arm-probe"
+  |
+error: non-binding let on a synchronization lock
+  --> src/main.rs:40:9
+   |
+40 |     let _ = m.lock().unwrap();
+   |         ^ this lock is not assigned to a binding and is immediately dropped
+   |
+   = note: `#[deny(let_underscore_lock)]` (part of `#[deny(let_underscore)]`) on by default
+help: consider binding to an unused variable to avoid immediately dropping the value
+   |
+40 |     let _unused = m.lock().unwrap();
+   |          ++++++
+help: consider immediately dropping the value
+   |
+40 -     let _ = m.lock().unwrap();
+40 +     drop(m.lock().unwrap());
+   |
+
+error: non-binding let on a synchronization lock
+  --> src/main.rs:43:9
+   |
+43 |     let _ = m.lock().unwrap();
+   |         ^ this lock is not assigned to a binding and is immediately dropped
+   |
+help: consider binding to an unused variable to avoid immediately dropping the value
+   |
+43 |     let _unused = m.lock().unwrap();
+   |          ++++++
+help: consider immediately dropping the value
+   |
+43 -     let _ = m.lock().unwrap();
+43 +     drop(m.lock().unwrap());
+   |
+
+error: non-binding let on a synchronization lock
+  --> src/main.rs:46:9
+   |
+46 |     let _ = m.lock().unwrap();
+   |         ^ this lock is not assigned to a binding and is immediately dropped
+   |
+help: consider binding to an unused variable to avoid immediately dropping the value
+   |
+46 |     let _unused = m.lock().unwrap();
+   |          ++++++
+help: consider immediately dropping the value
+   |
+46 -     let _ = m.lock().unwrap();
+46 +     drop(m.lock().unwrap());
+   |
+
+error: non-binding let on a synchronization lock
+  --> src/main.rs:52:9
+   |
+52 |     let _ = m.lock().unwrap();
+   |         ^ this lock is not assigned to a binding and is immediately dropped
+   |
+help: consider binding to an unused variable to avoid immediately dropping the value
+   |
+52 |     let _unused = m.lock().unwrap();
+   |          ++++++
+help: consider immediately dropping the value
+   |
+52 -     let _ = m.lock().unwrap();
+52 +     drop(m.lock().unwrap());
+   |
+
+error: non-binding let on a synchronization lock
+  --> src/main.rs:55:9
+   |
+55 |     let _ = m.lock().unwrap();
+   |         ^ this lock is not assigned to a binding and is immediately dropped
+   |
+help: consider binding to an unused variable to avoid immediately dropping the value
+   |
+55 |     let _unused = m.lock().unwrap();
+   |          ++++++
+help: consider immediately dropping the value
+   |
+55 -     let _ = m.lock().unwrap();
+55 +     drop(m.lock().unwrap());
+   |
+
+error: could not compile `cir_arm_probe` (bin "cir_arm_probe") due to 5 previous errors
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`

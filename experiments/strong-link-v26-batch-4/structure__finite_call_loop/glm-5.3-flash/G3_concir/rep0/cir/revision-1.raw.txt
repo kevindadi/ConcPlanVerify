@@ -1,0 +1,38 @@
+```json
+{
+  "program": "sequential_helper_calls",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {"resources": [], "functions": ["main", "helper"]},
+      "requires": {"resources": [], "functions": []},
+      "resources": [],
+      "protection": [],
+      "functions": [
+        {
+          "name": "helper",
+          "kind": "normal",
+          "locals": [
+            {"name": "work", "type": "Int", "modeled": true, "init": 0}
+          ],
+          "body": [
+            {"sid": "s1", "kind": "assign_local", "target": "work", "expr": "1"},
+            {"sid": "s2", "kind": "return"}
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {"sid": "s1", "kind": "call", "func": "main::helper", "args": []},
+            {"sid": "s2", "kind": "call", "func": "main::helper", "args": []},
+            {"sid": "s3", "kind": "return"}
+          ]
+        }
+      ]
+    }
+  ]
+}
+```

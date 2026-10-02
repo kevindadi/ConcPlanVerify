@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Mutex;\nuse std::thread;\n\nfn t1(a: &Mutex<()>, b: &Mutex<()>, result: &AtomicUsize) {\n    let guard_a = a.lock().unwrap();\n    let guard_b = b.lock().unwrap();\n\n    result.store(1, Ordering::SeqCst);\n\n    drop(guard_b);\n    drop(guard_a);\n}\n\nfn t2(a: &Mutex<()>, b: &Mutex<()>, result: &AtomicUsize) {\n    let guard_a = a.lock().unwrap();\n    let guard_b = b.lock().unwrap();\n\n    result.store(1, Ordering::SeqCst);\n\n    drop(guard_b);\n    drop(guard_a);\n}\n\nfn main() {\n    let a = Mutex::new(());\n    let b = Mutex::new(());\n    let result_t1 = AtomicUsize::new(0);\n    let result_t2 = AtomicUsize::new(0);\n\n    thread::scope(|scope| {\n        let worker_t1 = scope.spawn(|| t1(&a, &b, &result_t1));\n        let worker_t2 = scope.spawn(|| t2(&a, &b, &result_t2));\n\n        worker_t1.join().unwrap();\n        worker_t2.join().unwrap();\n    });\n\n    println!(\n        \"DONE t1={} t2={}\",\n        result_t1.load(Ordering::SeqCst),\n        result_t2.load(Ordering::SeqCst)\n    );\n}\n```"
+}

@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "tools_green_ml",
+  "raw_text": "```rust\n// R1: The main task performs the same call sequence twice: it invokes the\n//     auxiliary routine `helper`, waits for it to finish, then repeats.\n// R2: The main task and `helper` share no mutexes, counters, or any other\n//     shared state — `helper` touches nothing the main task owns, so no two\n//     tasks ever contend for a resource.\n// R3: Each auxiliary call runs to completion (the thread is joined) before\n//     the main task starts the next call.\n// R4: Every schedule terminates: the main task simply spawns, joins, spawns,\n//     joins, prints, and exits. `helper` performs no blocking operations and\n//     returns immediately, so no interleaving can deadlock or hang.\n// R5: The program prints exactly one line, `DONE done=1`, and exits.\n\nfn helper() {\n    // Auxiliary routine: no shared state, no synchronization, runs to\n    // completion on its own and returns.\n}\n\nfn main() {\n    // First call sequence: spawn the auxiliary routine and let it run to\n    // completion before proceeding.\n    let first = std::thread::spawn(helper);\n    first.join().expect(\"helper task must not panic\");\n\n    // Second call sequence: the main task begins the same call again.\n    let second = std::thread::spawn(helper);\n    second.join().expect(\"helper task must not panic\");\n\n    // R5: exactly one line of output, then the process exits.\n    println!(\"DONE done=1\");\n}\n```"
+}

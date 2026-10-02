@@ -1,0 +1,53 @@
+// R1: one main thread plus two worker threads (t1, t2).
+// R2: locks `a` and `b` are shared by both workers; a Mutex can be held by only one thread.
+// R3: each worker holds both locks simultaneously during its critical work.
+// R4: Mutex::lock() blocks until the lock becomes free, then continues.
+// R5: deadlock is impossible because both workers acquire the locks in the
+//     same fixed order (a, then b). A circular wait can never form.
+// R6: main starts both workers and joins them before finishing.
+// R7: guards are dropped (released) explicitly before the worker ends.
+// R8: every interleaving terminates: lock acquisition always proceeds in
+//     order a -> b, so no schedule can deadlock.
+// R9: main prints exactly `DONE t1=1 t2=1` and exits.
+
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+fn worker(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {
+    // Always lock in the same order: a, then b. This is what makes
+    // deadlock (R5) impossible under any interleaving (R8).
+    let _guard_a = a.lock().unwrap(); // R4: waits if busy, then continues
+    let _guard_b = b.lock().unwrap(); // R4: waits if busy, then continues
+
+    // R3: critical work while holding both locks at the same time.
+    // (No-op work; holding both guards here is the point.)
+
+    // R7: release each lock before finishing.
+    drop(_guard_b);
+    drop(_guard_a);
+}
+
+fn main() {
+    // Shared resources: a (lock), b (lock).
+    let a = Arc::new(Mutex::new(()));
+    let b = Arc::new(Mutex::new(()));
+
+    // R6: main starts both workers.
+    let h1 = {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        thread::spawn(move || worker(a, b)) // role: t1
+    };
+    let h2 = {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        thread::spawn(move || worker(a, b)) // role: t2
+    };
+
+    // R6: main finishes only after both workers have finished.
+    h1.join().unwrap();
+    h2.join().unwrap();
+
+    // R9: exactly this line, then exit.
+    println!("DONE t1=1 t2=1");
+}

@@ -1,0 +1,56 @@
+```rust
+use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::thread;
+
+fn sender(ch: SyncSender<i32>, m: Arc<Mutex<()>>) {
+    // Occasionally need the shared lock, but never while waiting on ch.
+    {
+        let _guard = m.lock().unwrap();
+        // shared-lock critical section
+    }
+
+    ch.send(1).unwrap();
+
+    {
+        let _guard = m.lock().unwrap();
+        // shared-lock critical section
+    }
+
+    ch.send(2).unwrap();
+}
+
+fn receiver(ch: Receiver<i32>, m: Arc<Mutex<()>>) {
+    {
+        let _guard = m.lock().unwrap();
+        // shared-lock critical section
+    }
+
+    let first = ch.recv().unwrap();
+    assert_eq!(first, 1);
+
+    {
+        let _guard = m.lock().unwrap();
+        // shared-lock critical section
+    }
+
+    let second = ch.recv().unwrap();
+    assert_eq!(second, 2);
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(()));
+    let (ch, rx) = sync_channel(1);
+
+    let sender_m = Arc::clone(&m);
+    let sender_handle = thread::spawn(move || sender(ch, sender_m));
+
+    let receiver_m = Arc::clone(&m);
+    let receiver_handle = thread::spawn(move || receiver(rx, receiver_m));
+
+    sender_handle.join().unwrap();
+    receiver_handle.join().unwrap();
+
+    println!("DONE done=1");
+}
+```
