@@ -27,6 +27,11 @@ function is a static error.
 - A parameter is `{"name","type","modeled"}`; a local is
   `{"name","type","modeled","init"}`. `type` is `Int` or `Bool`. `modeled: true`
   means the checker tracks the value. Parameters and locals have no `base`.
+- A function may carry `"bound": k` (`k >= 1`): at most `k` activations of that
+  function run at once. Express an activation bound this way and start the
+  function once (with `scope` or `spawn`). Do **not** start the same function at
+  several sites to express a bound: that multiplies interleavings without adding
+  modeled behaviour and can exhaust the exploration bounds.
 - `base` and `init` appear only on `Var`, `Atomic`, and `Channel` resources.
 
 ## Resources
@@ -86,6 +91,12 @@ Do **not** emit `rwlock_*`, `select`, `async_call`, `await`, `abstract_step`, or
   that resource. A rendezvous is a `Channel` with `capacity` 0.
 - **Resources.** Use the exact entity names from the requirements. A `Var`
   written by more than one thread under a lock must be listed in `protection`.
+- **Repeated workers.** A worker function may be spawned at more than one
+  creation site and activated several times. A local declared inside a function
+  is per-activation state; do not use a local to carry state shared across
+  activations. Shared state must live in a resource (`Var`/`Atomic`) with a
+  `protection` edge, and every activation must have a reachable `return` and be
+  joined. Do not assume a function runs at most once.
 
 ## Example 1: bounded loop with an explicit exit (branch + goto)
 
