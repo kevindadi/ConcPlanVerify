@@ -1,0 +1,45 @@
+mod cir_trace;
+use cir_trace::sync::{Mutex, Condvar};
+use std::sync::{Arc};
+use std::thread;
+
+// Sequential helper routine: performs only local computation.
+fn compute() -> u32 {
+    let mut local = 0u32;
+    for i in 0..100 {
+        local = local.wrapping_add(i);
+    }
+    local
+}
+
+// Worker: takes the shared mutex m, calls compute (local only),
+// updates the shared counter acc while still holding m, then releases m.
+fn worker(m: &Mutex<u32>) {
+    let acc = m.lock().unwrap(); // R5: waits if another worker holds m
+    let _result = compute();     // R2: local computation only
+    *acc += 1;                   // R2: update shared counter while holding m
+    drop(acc);                   // R3: release the mutex before finishing
+}
+
+fn main() { cir_trace::init();
+    // Shared resources: m is the lock, acc is the shared variable it guards.
+    let m: Arc<Mutex<u32>> = Arc::new(Mutex::new_named("m_mutex0#831", 0));
+
+    // R1: main task starts a group of two workers (w1, w2).
+    let w1 = {
+        let m = Arc::clone(&m);
+        cir_trace::spawn("worker#957", move || worker(&m))
+    };
+    let w2 = {
+        let m = Arc::clone(&m);
+        cir_trace::spawn("worker#1053", move || worker(&m))
+    };
+
+    // R6/R7: joining both workers guarantees termination and completion
+    // under every schedule and interleaving.
+    w1.join().expect("w1 panicked");
+    w2.join().expect("w2 panicked");
+
+    // R8: print exactly the required line, then exit.
+    println!("DONE done=1");
+ cir_trace::finish();}

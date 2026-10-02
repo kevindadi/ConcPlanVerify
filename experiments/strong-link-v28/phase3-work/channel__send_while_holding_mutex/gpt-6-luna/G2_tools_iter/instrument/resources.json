@@ -1,0 +1,126 @@
+{
+  "channel_semantics": {
+    "constructions": [
+      {
+        "capacity": 0,
+        "capacity_class": "rendezvous",
+        "constructor": "sync_channel",
+        "evidence": "let_tuple",
+        "function": "main",
+        "id": "ctor0",
+        "rx": "ch1_receiver",
+        "site": "927",
+        "tx": "ch1_sender"
+      },
+      {
+        "capacity": 0,
+        "capacity_class": "rendezvous",
+        "constructor": "sync_channel",
+        "evidence": "let_tuple",
+        "function": "main",
+        "id": "ctor1",
+        "rx": "ch2_receiver",
+        "site": "988",
+        "tx": "ch2_sender"
+      }
+    ],
+    "endpoints": [
+      {
+        "construction_id": "ctor0",
+        "evidence": "param_from_call",
+        "function": "r",
+        "name": "ch1",
+        "site": "746",
+        "status": "traced"
+      },
+      {
+        "construction_id": "ctor1",
+        "evidence": "param_from_call",
+        "function": "r",
+        "name": "ch2",
+        "site": "771",
+        "status": "traced"
+      },
+      {
+        "construction_id": "ctor0",
+        "evidence": "param_from_call",
+        "function": "s",
+        "name": "ch1",
+        "site": "331",
+        "status": "traced"
+      },
+      {
+        "construction_id": "ctor1",
+        "evidence": "param_from_call",
+        "function": "s",
+        "name": "ch2",
+        "site": "370",
+        "status": "traced"
+      }
+    ],
+    "semaphores": [],
+    "uncovered_sync": [
+      {
+        "form": "Barrier::new",
+        "function": "main",
+        "kind": "Barrier",
+        "reason": "Barrier is not part of the modeled CIR event projection",
+        "site": "1079"
+      },
+      {
+        "form": "wait",
+        "function": "r",
+        "kind": "Barrier",
+        "reason": "Barrier::wait is not a modeled CIR event",
+        "site": "630"
+      },
+      {
+        "form": "wait",
+        "function": "s",
+        "kind": "Barrier",
+        "reason": "Barrier::wait is not a modeled CIR event",
+        "site": "230"
+      }
+    ]
+  },
+  "harness_notes": [],
+  "limitations": [
+    "Barrier is not instrumented"
+  ],
+  "resources": [
+    {
+      "display": "shared_mutex0",
+      "kind": "Mutex",
+      "name": "shared_mutex0#1045",
+      "site": "1045"
+    },
+    {
+      "display": "s",
+      "entry": "s",
+      "kind": "Spawn",
+      "name": "s#1195",
+      "site": "1195",
+      "unique_entry": true
+    },
+    {
+      "display": "r",
+      "entry": "r",
+      "kind": "Spawn",
+      "name": "r#1381",
+      "site": "1381",
+      "unique_entry": true
+    },
+    {
+      "display": "ch1",
+      "kind": "Channel",
+      "name": "ch1"
+    },
+    {
+      "display": "ch2",
+      "kind": "Channel",
+      "name": "ch2"
+    }
+  ],
+  "schema_version": "cir-resources-v1",
+  "source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v28/phase3-work/channel__send_while_holding_mutex/gpt-6-luna/G2_tools_iter/instrument/input.rs"
+}
