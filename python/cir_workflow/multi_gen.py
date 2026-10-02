@@ -23,6 +23,9 @@ from .providers import CandidateRequest, CandidateResponse
 from .transport import build_registry, require_experiment_model
 
 CELL_CAPS = {"G0_direct": 2, "G1_self_iter": 8, "G2_tools_iter": 8, "G3_concir": 14}
+# v23 round caps include the first generation (initial + at most two repairs).
+ROUND_CAPS = {"G0_direct": 1, "G1_self_iter": 3, "G2_tools_iter": 3, "G3_concir": 3}
+G3_CODE_ROUND_CAP = 3
 MAIN_ARMS = ("G0_direct", "G1_self_iter", "G2_tools_iter", "G3_concir")
 ARM_MODE = {
     "G0_direct": ("direct", ARM_DIRECT, 1),
@@ -91,6 +94,8 @@ def matrix_from_config(config: dict) -> list[dict]:
                         "arm": arm,
                         "rep": int(rep),
                         "cell_cap": int((config.get("cell_caps") or CELL_CAPS)[arm]),
+                        "round_cap": int((config.get("rounds") or ROUND_CAPS)[arm]),
+                        "g3_code_cap": int(config.get("g3_code_rounds") or G3_CODE_ROUND_CAP),
                     })
     return cells
 
@@ -127,17 +132,25 @@ class SharedCounterBudget:
         return getattr(self.shared, name)
 
 
+class CellBudgetExhausted(BudgetExhausted):
+    """One cell used its own physical cap. That cell ends; the batch continues."""
+
+
 class CellBudget(SharedCounterBudget):
-    def __init__(self, inner: SharedCounterBudget, cap: int):
+    def __init__(self, inner: SharedCounterBudget, cap: int, cell_id: str | None = None):
         self.inner = inner
         self.cell_cap = cap
-        self.cell_used = 0
+        self.cell_id = cell_id
         self.cell_lock = threading.Lock()
+        # The per-cell cap persists across restarts: count the attempts already
+        # recorded for this cell so a resume cannot grant a fresh cap.
+        count = getattr(inner, "cell_attempt_count", None)
+        self.cell_used = int(count(cell_id)) if callable(count) and cell_id else 0
 
     def reserve(self, link: dict | None = None) -> int:
         with self.cell_lock:
             if self.cell_used >= self.cell_cap:
-                raise BudgetExhausted(
+                raise CellBudgetExhausted(
                     f"cell physical cap reached ({self.cell_used}/{self.cell_cap})")
             used = self.inner.reserve(link)
             self.cell_used += 1
@@ -287,14 +300,23 @@ class SnapshotClient:
     def complete(self, system: str, user: str):
         if self.blocked:
             raise ConfigError(self.blocked)
+        # The audit wrapper binds the reservation context on this snapshot
+        # wrapper; forward it so the innermost client's reservation_link sees
+        # the run/cell/stage/round instead of null.
+        ctx = getattr(self, "call_context", None)
+        if ctx:
+            from .call_context import bind_context
+            bind_context(self.inner, ctx)
         cached = self.state["calls"][self._replay_at] if self._replay_at < len(self.state["calls"]) else None
         if cached is not None:
             if cached.get("system") != system or cached.get("user") != user:
                 raise ConfigError("snapshot_prompt_mismatch")
             self._replay_at += 1
-            return SimpleNamespace(text=cached.get("response") or "",
-                                   response_model=cached.get("response_model"),
-                                   usage=None, wall_ms=0, finish_reason="cache")
+            return SimpleNamespace(
+                text=cached.get("response") or "",
+                response_model=cached.get("response_model"), usage=None, wall_ms=0,
+                finish_reason="cache", request_id=None, prompt_sha256=None, cost=None,
+                transport_attempt=1)
         outcome = self.inner.complete(system, user)
         self.calls += 1
         record = {
@@ -356,6 +378,39 @@ def _rust_system_hides_contract(user: str, contract_marker: str) -> bool:
     return contract_marker not in user
 
 
+def _oracle_score_cell(out_dir: Path, task, record: dict, binary: Path,
+                       instrument: Path | None) -> dict:
+    """Score every emitted G0-G2 candidate with the shared requirement oracle.
+
+    The Rust arms must be judged by the same oracle as G3, not only by their own
+    build/tool acceptance. Tool cost is bounded: 32 native runs, no Miri.
+    """
+    from . import rust_oracle
+    rounds = {}
+    for path in sorted(out_dir.glob("run-*/round-*/candidate.rs")):
+        try:
+            rounds[int(path.parent.name.split("-")[1])] = path
+        except (IndexError, ValueError):
+            continue
+    per_round: dict[str, Any] = {}
+    for rd in record.get("rounds") or []:
+        path = rounds.get(rd.get("round"))
+        if path is None:
+            continue
+        try:
+            ev = rust_oracle.evaluate(
+                path.read_text(encoding="utf-8"), task.contract_path,
+                task.reference_cir_path, out_dir / f"oracle-round-{rd.get('round')}",
+                n_native=32, miri_seeds=0, run_timeout=10.0,
+                binary=binary, instrument_binary=instrument)
+            rd["requirement_coverage"] = ev.get("coverage")
+            rd["oracle_status"] = ev.get("status")
+            per_round[str(rd.get("round"))] = ev.get("coverage")
+        except Exception as exc:  # noqa: BLE001 - one round must not stop the cell
+            rd["oracle_error"] = f"{type(exc).__name__}: {exc}"[:200]
+    return per_round
+
+
 def run_one_cell(cell: dict, client, task, out_dir: Path, *, binary: Path,
                  instrument: Path | None, stage_runner: Callable | None = None) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -365,11 +420,14 @@ def run_one_cell(cell: dict, client, task, out_dir: Path, *, binary: Path,
     if arm == "G3_concir":
         if hasattr(client, "set_stage"):
             client.set_stage("cir")
-        record = run_g3_v2(client, binary, task, out_dir, k_cir=4, k_code=3,
+        record = run_g3_v2(client, binary, task, out_dir,
+                           k_cir=int(cell.get("round_cap", 3)),
+                           k_code=int(cell.get("g3_code_cap", 3)),
                            instrument_binary=instrument)
         record["model_pass_is_not_rf"] = True
         return record
     mode, internal, k = ARM_MODE[arm]
+    k = int(cell.get("round_cap", k))
     from .arms import run_rust_arm
     provider = GenerationProvider(client, mode, cell["model_id"])
     run = run_rust_arm(provider, arm=internal, task=task.id, spec=task.requirements_md,
@@ -378,12 +436,16 @@ def run_one_cell(cell: dict, client, task, out_dir: Path, *, binary: Path,
     record = run.as_dict()
     record["arm"] = arm
     record["llm_calls"] = len(provider.calls)
+    record["requirement_coverage"] = _oracle_score_cell(
+        out_dir, task, record, binary, instrument)
     return record
 
 
 def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tasks_by_id: dict,
                    binary: Path, instrument: Path | None = None, live: bool = False,
-                   stage_runner: Callable | None = None, seed: int = 20261002) -> dict:
+                   stage_runner: Callable | None = None, seed: int = 20261002,
+                   spec_resolver: Callable | None = None,
+                   model_concurrency: dict | None = None) -> dict:
     if not config["models"]:
         return {"cells": [], "calls": 0, "stop": "empty_matrix", "real_requests": 0}
     cells = matrix_from_config(config)
@@ -405,10 +467,33 @@ def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tas
         stop = None
         from concurrent.futures import ThreadPoolExecutor
 
+        model_concurrency = (dict(model_concurrency) if model_concurrency is not None
+                             else dict(config.get("model_concurrency") or {}))
+        _sems: dict[str, threading.Semaphore] = {}
+        _sems_lock = threading.Lock()
+
+        def _model_sem(model_id: str) -> threading.Semaphore:
+            with _sems_lock:
+                if model_id not in _sems:
+                    limit = int(model_concurrency.get(
+                        model_id, int(config.get("concurrency") or 3)))
+                    _sems[model_id] = threading.Semaphore(max(1, limit))
+                return _sems[model_id]
+
         def _run(cell: dict) -> dict:
-            spec = require_experiment_model(build_registry(), cell["display_name"])
+            sem = _model_sem(cell["model_id"])
+            sem.acquire()
+            try:
+                return _run_cell(cell)
+            finally:
+                sem.release()
+
+        def _run_cell(cell: dict) -> dict:
+            spec = (spec_resolver(cell) if spec_resolver is not None
+                    else require_experiment_model(build_registry(), cell["display_name"]))
             matrix_budget = SharedCounterBudget(shared, matrix_cap, matrix_counter, counter_lock, "matrix")
-            cell_budget = CellBudget(matrix_budget, cell["cell_cap"])
+            cell_id = f"{cell['task']}/{cell['model_id']}/{cell['arm']}/rep{cell['rep']}"
+            cell_budget = CellBudget(matrix_budget, cell["cell_cap"], cell_id)
             raw = client_factory(spec, cell, cell_budget, out_dir)
             fingerprint = send_fingerprint(spec, cell, config, raw)
             cell_dir = cell_directory(out_dir, cell)
@@ -451,16 +536,29 @@ def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tas
                 })
                 return {"cell": cell, "status": "executed", "error": None, "record": record,
                         "calls": wrapped.calls}
+            except CellBudgetExhausted as exc:
+                # one cell spent its own cap; the other cells must continue
+                return {"cell": cell, "status": "budget_exhausted", "scope": "cell",
+                        "error": str(exc), "record": {}, "calls": wrapped.calls}
             except BudgetExhausted as exc:
-                return {"cell": cell, "status": "budget_exhausted", "error": str(exc),
-                        "record": {}, "calls": wrapped.calls}
+                return {"cell": cell, "status": "budget_exhausted", "scope": "global",
+                        "error": str(exc), "record": {}, "calls": wrapped.calls}
             except ConfigError as exc:
                 return {"cell": cell, "status": "protocol_stop", "error": str(exc),
                         "record": {}, "calls": wrapped.calls}
             except Exception as exc:  # noqa: BLE001 - one cell must not kill the batch
-                return {"cell": cell, "status": "infrastructure_error",
-                        "error": f"{type(exc).__name__}: {exc}"[:300],
-                        "record": {}, "calls": wrapped.calls}
+                name = type(exc).__name__
+                # A transport reset or timeout is a property of one attempt, not
+                # of the harness: record it and keep the batch going so a resume
+                # can retry it. Only a protocol/snapshot/audit fault is fatal.
+                recoverable = name in {
+                    "APIConnectionError", "APITimeoutError", "RateLimitError",
+                    "InternalServerError", "TransientLlmError", "HardTimeoutError",
+                    "ModelIdentityError",
+                }
+                return {"cell": cell,
+                        "status": "transport_error" if recoverable else "infrastructure_error",
+                        "error": f"{name}: {exc}"[:300], "record": {}, "calls": wrapped.calls}
 
         def _consume(batch: list[dict]) -> str | None:
             nonlocal calls
@@ -469,10 +567,11 @@ def execute_matrix(config: dict, out_dir: Path, *, client_factory: Callable, tas
                 for item in pool.map(_run, batch):
                     results.append(item)
                     calls += item["calls"]
-                    if item["status"] == "budget_exhausted":
+                    if item["status"] in ("infrastructure_error", "protocol_stop"):
+                        reason = reason or item["status"]
+                    elif (item["status"] == "budget_exhausted"
+                          and item.get("scope") != "cell"):
                         reason = "budget_exhausted"
-                    elif item["status"] == "infrastructure_error":
-                        reason = reason or "infrastructure_error"
             return reason
 
         first_wave = [cell for cell in ordered if cell["task"] == first_task]
