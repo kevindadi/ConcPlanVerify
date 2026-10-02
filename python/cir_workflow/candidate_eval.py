@@ -226,10 +226,30 @@ def _channel_protocol_feedback(ledger, result: dict) -> str | None:
     except (OSError, KeyError, json.JSONDecodeError):
         channels = []
     where: dict[str, tuple] = {}
-    semantics = (result.get("resources") or {}).get("channel_semantics") or {}
-    for endpoint in semantics.get("endpoints", []):
-        if isinstance(endpoint, dict) and endpoint.get("name"):
-            where[endpoint["name"]] = (endpoint.get("function"), endpoint.get("site"))
+    # `result["resources"]` is the instrumenter's resource list (not the raw
+    # resources.json). Use it for the construction site, and read the raw
+    # channel_semantics next to the frozen source for the function name.
+    resources = result.get("resources")
+    if isinstance(resources, dict):
+        for endpoint in (resources.get("channel_semantics") or {}).get("endpoints", []):
+            if isinstance(endpoint, dict) and endpoint.get("name"):
+                where[endpoint["name"]] = (endpoint.get("function"), endpoint.get("site"))
+    elif isinstance(resources, list):
+        for row in resources:
+            if isinstance(row, dict) and row.get("name"):
+                where[row["name"]] = (None, row.get("site"))
+    source_path = result.get("source_path")
+    if source_path:
+        raw = Path(source_path).parent / "instrument" / "resources.json"
+        if raw.is_file():
+            try:
+                semantics = json.loads(raw.read_text(encoding="utf-8")).get("channel_semantics") or {}
+                for endpoint in semantics.get("endpoints", []):
+                    if isinstance(endpoint, dict) and endpoint.get("name"):
+                        where[endpoint["name"]] = (
+                            endpoint.get("function"), endpoint.get("site"))
+            except (OSError, json.JSONDecodeError):
+                pass
     lines = []
     for row in misses:
         name = row.get("rust")
