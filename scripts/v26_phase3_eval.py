@@ -43,7 +43,8 @@ def last_candidate(cell: Path, arm: str) -> Path | None:
 
 def tokens_for(cell: Path) -> dict:
     audit = cell / "audit.jsonl"
-    calls = 0
+    audit_events = 0
+    attempts = set()
     inp = out = reason = 0
     missing = 0
     if audit.is_file():
@@ -52,7 +53,10 @@ def tokens_for(cell: Path) -> dict:
                 ev = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            calls += 1
+            audit_events += 1
+            aid = ev.get("attempt_id")
+            if aid:
+                attempts.add(aid)
             u = ev.get("usage") or {}
             for key, acc in (("input_tokens", "in"), ("output_tokens", "out"),
                              ("reasoning_tokens", "reason")):
@@ -65,7 +69,9 @@ def tokens_for(cell: Path) -> dict:
                     out += int(v)
                 else:
                     reason += int(v)
-    return {"calls": calls, "input_tokens": inp, "output_tokens": out,
+    # Physical calls are counted by unique attempt id, not by audit line count.
+    return {"calls": len(attempts), "audit_events": audit_events,
+            "input_tokens": inp, "output_tokens": out,
             "reasoning_tokens": reason, "missing_token_fields": missing}
 
 
@@ -113,25 +119,35 @@ def main() -> int:
         for arm in ARMS:
             rows = [r for r in records if r["model"] == model and r["arm"] == arm]
             planned = len(rows)
-            ev = [r for r in rows if r.get("rf") is not None]
-            rf_all = sum(r["rf"] for r in ev) / planned if planned else None
+            evaluable = [r for r in rows if r.get("rf") is not None]
+            delivered = [r for r in evaluable if r.get("accepted") is True]
             agg[f"{model}/{arm}"] = {
                 "planned": planned,
                 "executed": sum(1 for r in rows if r["run_status"] == "executed"),
                 "budget_exhausted": sum(1 for r in rows if r["run_status"] == "budget_exhausted"),
                 "transport_error": sum(1 for r in rows if r["run_status"] == "transport_error"),
                 "accepted": sum(1 for r in rows if r.get("accepted")),
-                "evaluable": len(ev),
+                "delivered_evaluable": len(delivered),
+                "delivered_unevaluable": sum(1 for r in rows if r.get("accepted") and r.get("rf") is None),
+                "not_delivered": sum(1 for r in rows if not r.get("accepted")),
                 "build_fail": sum(1 for r in rows if r.get("built") is False),
                 "unsupported": sum(1 for r in rows if (r.get("statuses") or {}).values()
                                    and "unsupported" in (r.get("statuses") or {}).values()),
-                "rc_all": round(sum((r.get("rc") or 0.0) for r in rows) / planned, 4) if planned else None,
-                "rf_all": round(rf_all, 4) if rf_all is not None else None,
-                "rf_acc": round(sum(r["rf"] for r in ev) / len(ev), 4) if ev else None,
+                # Primary: accepted AND evaluable, over ALL pre-registered cells.
+                "RF_delivered_all": round(sum(r["rf"] for r in delivered) / planned, 4) if planned else None,
+                # Mean over delivered+evaluable only.
+                "RF_delivered_acc": round(sum(r["rf"] for r in delivered) / len(delivered), 4)
+                                    if delivered else None,
+                # Last emitted candidate, diagnostic only (never the delivery score).
+                "RF_last_generated_all": round(sum(r["rf"] for r in evaluable) / planned, 4) if planned else None,
+                "RF_last_generated_eval": round(sum(r["rf"] for r in evaluable) / len(evaluable), 4)
+                                          if evaluable else None,
                 "calls": sum(r["calls"] for r in rows),
-                "input_tokens": sum(r["input_tokens"] for r in rows),
-                "output_tokens": sum(r["output_tokens"] for r in rows),
-                "reasoning_tokens": sum(r["reasoning_tokens"] for r in rows),
+                "audit_events": sum(r.get("audit_events", 0) for r in rows),
+                "input_tokens_known": sum(r["input_tokens"] for r in rows),
+                "output_tokens_known": sum(r["output_tokens"] for r in rows),
+                "reasoning_tokens_known": sum(r["reasoning_tokens"] for r in rows),
+                "token_fields_missing": sum(r.get("missing_token_fields", 0) for r in rows),
             }
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "PHASE3_RESULTS.json").write_text(json.dumps({
