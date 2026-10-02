@@ -1,0 +1,65 @@
+{
+  "attributes": [
+    {
+      "construction_site": null,
+      "evidence": "absent",
+      "expected": "semaphore_initial",
+      "expected_capacity": 0,
+      "observed": null,
+      "observed_capacity": null,
+      "reason": "no used semaphore construction is bound to this CIR resource",
+      "resource_id": "main::sa",
+      "runtime": null,
+      "status": "unknown"
+    },
+    {
+      "construction_site": null,
+      "evidence": "absent",
+      "expected": "semaphore_initial",
+      "expected_capacity": 0,
+      "observed": null,
+      "observed_capacity": null,
+      "reason": "no used semaphore construction is bound to this CIR resource",
+      "resource_id": "main::sb",
+      "runtime": null,
+      "status": "unknown"
+    }
+  ],
+  "scope": "identity, channel-capacity attributes, and uncovered sync are separate; a conforming finite trace does not override a capacity conflict or an unknown capacity",
+  "uncovered_sync": [],
+  "unresolved": {
+    "sa_semaphore0#1101": {
+      "reason": "semaphore initial value must come from the single construction that is acquired or released",
+      "site": "1101",
+      "used_constructions": 0
+    },
+    "sb_semaphore0#1133": {
+      "reason": "semaphore initial value must come from the single construction that is acquired or released",
+      "site": "1133",
+      "used_constructions": 0
+    }
+  },
+  "verified": {
+    "a#1287": {
+      "cir": "main::a",
+      "rule": "spawn-entry"
+    },
+    "a_mutex0#1009": {
+      "cir": "main::a",
+      "rule": "exact"
+    },
+    "b#1496": {
+      "cir": "main::b",
+      "rule": "spawn-entry"
+    },
+    "b_mutex0#1067": {
+      "cir": "main::b",
+      "rule": "exact"
+    },
+    "bystander#1574": {
+      "cir": "main::bystander",
+      "rule": "spawn-entry"
+    }
+  },
+  "violated": {}
+}

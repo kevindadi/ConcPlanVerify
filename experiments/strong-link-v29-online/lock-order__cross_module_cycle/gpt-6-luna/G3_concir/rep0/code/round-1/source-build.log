@@ -1,0 +1,67 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-online/lock-order__cross_module_cycle/gpt-6-luna/G3_concir/rep0/code/round-1/source-proj)
+error[E0530]: function parameters cannot shadow statics
+  --> src/main.rs:11:38
+   |
+ 9 |     pub static b: Mutex<()> = Mutex::new(());
+   |     ----------------------------------------- the static `b` is defined here
+10 |
+11 |     pub fn t2(a: &'static Mutex<()>, b: &'static Mutex<()>) {
+   |                                      ^ cannot be named the same as a static
+
+error[E0530]: function parameters cannot shadow statics
+  --> src/main.rs:23:7
+   |
+ 4 | static a: Mutex<()> = Mutex::new(());
+   | ------------------------------------- the static `a` is defined here
+...
+23 | fn t1(a: &'static Mutex<()>, b: &'static Mutex<()>) {
+   |       ^ cannot be named the same as a static
+
+warning: variable `work` is assigned to, but never used
+  --> src/main.rs:15:13
+   |
+15 |         let mut work = 0;
+   |             ^^^^^^^^
+   |
+   = note: consider using `_work` instead
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `work` is never read
+  --> src/main.rs:16:9
+   |
+16 |         work = 1;
+   |         ^^^^^^^^
+   |
+   = help: maybe it is overwritten before being read?
+   = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable `work` is assigned to, but never used
+  --> src/main.rs:27:9
+   |
+27 |     let mut work = 0;
+   |         ^^^^^^^^
+   |
+   = note: consider using `_work` instead
+
+warning: value assigned to `work` is never read
+  --> src/main.rs:28:5
+   |
+28 |     work = 1;
+   |     ^^^^^^^^
+   |
+   = help: maybe it is overwritten before being read?
+
+For more information about this error, try `rustc --explain E0530`.
+warning: `probe` (bin "probe") generated 4 warnings
+error: could not compile `probe` (bin "probe") due to 2 previous errors; 4 warnings emitted
+warning: unused dependency `concir_sync`
+  --> Cargo.toml:11:1
+   |
+11 | concir_sync = { path = "/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync" }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `concir_sync`
+warning: `probe` (manifest) generated 1 warning

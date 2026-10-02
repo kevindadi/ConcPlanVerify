@@ -1,0 +1,139 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-online/condvar__notify_one_multi_waiter_wrong_pick/gpt-6-luna/G3_concir/rep0/code/round-2/source-proj)
+error[E0382]: use of moved value: `g12_permit`
+   --> src/main.rs:14:9
+    |
+ 10 |     g12_permit: Permit,
+    |     ---------- move occurs because `g12_permit` has type `Permit<'_>`, which does not implement the `Copy` trait
+...
+ 13 |     while !*proceed {
+    |     --------------- inside of this loop
+ 14 |         g12_permit.release();
+    |         ^^^^^^^^^^ --------- `g12_permit` moved due to this method call, in previous iteration of loop
+    |
+note: `concir_sync::Permit::<'a>::release` takes ownership of the receiver `self`, which moves `g12_permit`
+   --> /Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync/src/lib.rs:127:20
+    |
+127 |     pub fn release(self) {}
+    |                    ^^^^
+
+warning: unused variable: `g12`
+ --> src/main.rs:8:5
+  |
+8 |     g12: Arc<Semaphore>,
+  |     ^^^ help: if this is intentional, prefix it with an underscore: `_g12`
+  |
+  = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+error[E0382]: use of moved value: `g12_permit`
+   --> src/main.rs:30:9
+    |
+ 26 |     g12_permit: Permit,
+    |     ---------- move occurs because `g12_permit` has type `Permit<'_>`, which does not implement the `Copy` trait
+...
+ 29 |     while !*proceed {
+    |     --------------- inside of this loop
+ 30 |         g12_permit.release();
+    |         ^^^^^^^^^^ --------- `g12_permit` moved due to this method call, in previous iteration of loop
+    |
+note: `concir_sync::Permit::<'a>::release` takes ownership of the receiver `self`, which moves `g12_permit`
+   --> /Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync/src/lib.rs:127:20
+    |
+127 |     pub fn release(self) {}
+    |                    ^^^^
+
+warning: unused variable: `g12`
+  --> src/main.rs:24:5
+   |
+24 |     g12: Arc<Semaphore>,
+   |     ^^^ help: if this is intentional, prefix it with an underscore: `_g12`
+
+error[E0597]: `g12` does not live long enough
+   --> src/main.rs:61:23
+    |
+ 58 |     let g12 = Semaphore::new(2);
+    |         --- binding `g12` declared here
+...
+ 61 |     let g12_permit1 = g12.acquire();
+    |                       ^^^ borrowed value does not live long enough
+...
+ 71 |         thread::spawn(move || w1(m, cv, g12, gN, g12_permit1))
+    |         ------------------------------------------------------ argument requires that `g12` is borrowed for `'static`
+...
+ 94 | }
+    | - `g12` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `g12` does not live long enough
+   --> src/main.rs:62:23
+    |
+ 58 |     let g12 = Semaphore::new(2);
+    |         --- binding `g12` declared here
+...
+ 62 |     let g12_permit2 = g12.acquire();
+    |                       ^^^ borrowed value does not live long enough
+...
+ 79 |         thread::spawn(move || w2(m, cv, g12, gN, g12_permit2))
+    |         ------------------------------------------------------ argument requires that `g12` is borrowed for `'static`
+...
+ 94 | }
+    | - `g12` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `gN` does not live long enough
+   --> src/main.rs:63:22
+    |
+ 59 |     let gN = Semaphore::new(2);
+    |         -- binding `gN` declared here
+...
+ 63 |     let gN_permit1 = gN.acquire();
+    |                      ^^ borrowed value does not live long enough
+...
+ 86 |         thread::spawn(move || notifier(m, cv, g12, gN_permit1, gN_permit2))
+    |         ------------------------------------------------------------------- argument requires that `gN` is borrowed for `'static`
+...
+ 94 | }
+    | - `gN` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+error[E0597]: `gN` does not live long enough
+   --> src/main.rs:64:22
+    |
+ 59 |     let gN = Semaphore::new(2);
+    |         -- binding `gN` declared here
+...
+ 64 |     let gN_permit2 = gN.acquire();
+    |                      ^^ borrowed value does not live long enough
+...
+ 86 |         thread::spawn(move || notifier(m, cv, g12, gN_permit1, gN_permit2))
+    |         ------------------------------------------------------------------- argument requires that `gN` is borrowed for `'static`
+...
+ 94 | }
+    | - `gN` dropped here while still borrowed
+    |
+note: requirement that the value outlives `'static` introduced here
+   --> /Users/kevin/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/functions.rs:128:15
+    |
+128 |     F: Send + 'static,
+    |               ^^^^^^^
+
+Some errors have detailed explanations: E0382, E0597.
+For more information about an error, try `rustc --explain E0382`.
+warning: `probe` (bin "probe") generated 2 warnings
+error: could not compile `probe` (bin "probe") due to 6 previous errors; 2 warnings emitted

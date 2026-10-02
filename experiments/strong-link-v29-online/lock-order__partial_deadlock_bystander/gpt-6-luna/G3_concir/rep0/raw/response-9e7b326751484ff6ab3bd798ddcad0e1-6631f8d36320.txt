@@ -1,0 +1,85 @@
+```rust
+use concir_sync::Semaphore;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+struct AState {
+    flag: bool,
+}
+
+fn a(a: Arc<Mutex<AState>>, b: Arc<Mutex<()>>, sa: Arc<Semaphore>, sb: Arc<Semaphore>) {
+    let initial_permit = sa.acquire();
+
+    {
+        let _guard = a.lock().unwrap();
+    }
+    initial_permit.release();
+
+    let _handshake_permit = sb.acquire();
+
+    let mut a_guard = a.lock().unwrap();
+    let b_guard = b.lock().unwrap();
+    a_guard.flag = true;
+    drop(b_guard);
+    drop(a_guard);
+}
+
+fn b(a: Arc<Mutex<AState>>, b: Arc<Mutex<()>>, sa: Arc<Semaphore>, sb: Arc<Semaphore>) {
+    let initial_permit = sb.acquire();
+
+    {
+        let _guard = b.lock().unwrap();
+    }
+    initial_permit.release();
+
+    let _handshake_permit = sa.acquire();
+
+    let mut a_guard = a.lock().unwrap();
+    let b_guard = b.lock().unwrap();
+    a_guard.flag = true;
+    drop(b_guard);
+    drop(a_guard);
+}
+
+fn bystander() {
+    let mut i = true;
+    loop {
+        if i == true {
+            i = true;
+        } else {
+            return;
+        }
+    }
+}
+
+fn main() {
+    let a = Arc::new(Mutex::new(AState { flag: false }));
+    let b = Arc::new(Mutex::new(()));
+    let sa = Semaphore::new(1);
+    let sb = Semaphore::new(1);
+
+    let ha = {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        let sa = Arc::clone(&sa);
+        let sb = Arc::clone(&sb);
+        thread::spawn(move || a(a, b, sa, sb))
+    };
+
+    let hb = {
+        let a = Arc::clone(&a);
+        let b = Arc::clone(&b);
+        let sa = Arc::clone(&sa);
+        let sb = Arc::clone(&sb);
+        thread::spawn(move || b(a, b, sa, sb))
+    };
+
+    let hby = thread::spawn(move || bystander());
+
+    ha.join().unwrap();
+    hb.join().unwrap();
+    drop(hby);
+
+    println!("DONE a=1 b=1");
+}
+```

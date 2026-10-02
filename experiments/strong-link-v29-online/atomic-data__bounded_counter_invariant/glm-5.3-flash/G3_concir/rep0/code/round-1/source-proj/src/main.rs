@@ -1,0 +1,31 @@
+use std::sync::{Arc, Mutex};
+
+fn w1(m: &Arc<Mutex<i32>>) {
+    let mut guard = m.lock().unwrap();
+    let c = *guard;
+    *guard = c + 1;
+    drop(guard);
+}
+
+fn w2(m: &Arc<Mutex<i32>>) {
+    let mut guard = m.lock().unwrap();
+    let c = *guard;
+    *guard = c + 1;
+    drop(guard);
+}
+
+fn main() {
+    let m = Arc::new(Mutex::new(0i32));
+
+    let m1 = Arc::clone(&m);
+    let h1 = std::thread::spawn(move || w1(&m1));
+
+    let m2 = Arc::clone(&m);
+    let h2 = std::thread::spawn(move || w2(&m2));
+
+    h1.join().expect("w1 panicked");
+    h2.join().expect("w2 panicked");
+
+    let final_c = *m.lock().unwrap();
+    println!("DONE done={}", final_c / 2);
+}

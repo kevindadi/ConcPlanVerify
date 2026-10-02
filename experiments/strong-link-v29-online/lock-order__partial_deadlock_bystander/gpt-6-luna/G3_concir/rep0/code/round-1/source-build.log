@@ -1,0 +1,33 @@
+     Locking 1 package to highest compatible version
+   Compiling concir_sync v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/runtime/concir_sync)
+   Compiling probe v0.1.0 (/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v29-online/lock-order__partial_deadlock_bystander/gpt-6-luna/G3_concir/rep0/code/round-1/source-proj)
+error[E0618]: expected function, found `Arc<std::sync::Mutex<AState>>`
+  --> src/main.rs:65:31
+   |
+ 9 | fn a(a: Arc<Mutex<AState>>, b: Arc<Mutex<()>>, sa: Arc<Semaphore>, sb: Arc<Semaphore>) {
+   | -------------------------------------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+...
+61 |         let a = Arc::clone(&a);
+   |             - `a` has type `Arc<std::sync::Mutex<AState>>`
+...
+65 |         thread::spawn(move || a(a, b, sa, sb))
+   |                               ^--------------
+   |                               |
+   |                               call expression requires function
+
+error[E0618]: expected function, found `Arc<std::sync::Mutex<()>>`
+  --> src/main.rs:73:31
+   |
+26 | fn b(a: Arc<Mutex<AState>>, b: Arc<Mutex<()>>, sa: Arc<Semaphore>, sb: Arc<Semaphore>) {
+   | -------------------------------------------------------------------------------------- this function of the same name is available here, but it's shadowed by the local binding
+...
+70 |         let b = Arc::clone(&b);
+   |             - `b` has type `Arc<std::sync::Mutex<()>>`
+...
+73 |         thread::spawn(move || b(a, b, sa, sb))
+   |                               ^--------------
+   |                               |
+   |                               call expression requires function
+
+For more information about this error, try `rustc --explain E0618`.
+error: could not compile `probe` (bin "probe") due to 2 previous errors
