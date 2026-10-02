@@ -28,7 +28,7 @@ from .evidence_v2 import (
     PROTOCOL, ReexecutionLedger, binding_assessment, evaluate_reexecution,
 )
 
-ACCEPTANCE_POLICY = "ledger-v6"
+ACCEPTANCE_POLICY = "ledger-v6-followup-v2"
 
 
 def interpret(result: dict, contract: dict, *, accepted: bool,
@@ -204,7 +204,16 @@ def decide_followup(ledger: ReexecutionLedger, result: dict) -> dict[str, Any]:
         feedback = " ".join(ledger.reasons) or "The observable output does not meet the requirement."
         return _repair("candidate_error", "functional_failure", feedback)
     if verdict == "attribute_conflict":
-        feedback = " ".join(ledger.reasons) or "A channel capacity attribute conflicts with the CIR."
+        feedback = " ".join(ledger.reasons) or "A resource attribute conflicts with the CIR."
+        mismatches = [row for row in (result.get("binding") or {}).get("attributes") or []
+                      if isinstance(row, dict) and row.get("status") == "mismatch"]
+        if mismatches:
+            details = [{key: row.get(key) for key in (
+                "resource_id", "expected", "expected_capacity", "observed",
+                "observed_capacity", "construction_site")} for row in mismatches]
+            feedback += "\nConstructor mismatches:\n" + json.dumps(details, ensure_ascii=False)
+            feedback += ("\nMatch each constructor to the verified CIR attributes. "
+                         "Preserve the synchronization operations and do not change the contract.")
         return _repair("candidate_error", "attribute_conflict", feedback)
     if verdict == "explicit_failure":
         violation = (ledger.trace.get("violations") or [{}])[0]
@@ -233,6 +242,24 @@ def decide_followup(ledger: ReexecutionLedger, result: dict) -> dict[str, Any]:
             and ledger.delivery_status == "deliver_bounded":
         return {"action": "accept", "category": "accepted", "status": "accepted",
                 "feedback": "", "semantic_retry": False, "protocol_retry": False}
+    # Anonymous worker closures violate the published one-function-per-CIR-
+    # function generation protocol. This is fixable without guessing a binding
+    # or treating unresolved identities as semantic counterexamples.
+    ambiguous = (result.get("binding") or {}).get("ambiguous") or []
+    anonymous = [row for row in ambiguous if isinstance(row, dict)
+                 and row.get("reason") == "thread entry is not unambiguous"
+                 and row.get("entry") is None]
+    if (verdict == "inconclusive" and ledger.hashes.get("verified")
+            and anonymous):
+        names = ", ".join(str(row.get("rust")) for row in anonymous)
+        return {"action": "repair_protocol", "category": "protocol_noncompliance",
+                "status": "anonymous_worker_entry",
+                "feedback": (f"Spawned workers {names} have no unambiguous named entry. "
+                             "Implement each CIR worker as a named Rust function with the "
+                             "same name and call it from its spawn closure. Preserve the "
+                             "verified CIR synchronization, resource names, and shared-state "
+                             "updates. Do not guess thread identity from spawn order."),
+                "semantic_retry": False, "protocol_retry": True}
     if ledger.delivery_status == "withhold_capability" or any(
             "unsupported" in reason for reason in ledger.reasons):
         return _capability()
@@ -300,7 +327,7 @@ def evaluate_candidate(source: str, cir_path: Path, contract_path: Path, out_dir
                        cir_complete: bool | None = None, functional: dict | None = None,
                        functional_spec: dict | None = None, manifest_path: Path | None = None,
                        cell_id: str = "", candidate_kind: str = "final",
-                       round_no: int | None = None) -> dict:
+                       round_no: int | None = None, binding_binary: Path | None = None) -> dict:
     """Acquire evidence for one candidate and interpret it. Every exit writes a ledger."""
 
     from . import bounded_monitor, rust_oracle
@@ -315,10 +342,13 @@ def evaluate_candidate(source: str, cir_path: Path, contract_path: Path, out_dir
     source_path.write_text(source, encoding="utf-8")
     source_sha = hashlib.sha256(source.encode()).hexdigest()
     cir_sha, contract_sha = _sha_file(cir_path), _sha_file(contract_path)
+    from .binding import default_binary
+    binding_binary = Path(binding_binary) if binding_binary is not None else default_binary()
+    binding_sha = _sha_file(binding_binary)
     backend_sha, instrument_sha = _sha_file(binary), _sha_file(Path(instrument)) if instrument else None
     acquisition = _acquisition_id({
         "source": source_sha, "cir": cir_sha, "contract": contract_sha,
-        "backend": backend_sha, "instrument": instrument_sha,
+        "backend": backend_sha, "instrument": instrument_sha, "binding": binding_sha,
         "n_runs": n_runs, "timeout": run_timeout,
     })
     binds_base = {"acquisition_id": acquisition, "source_sha256": source_sha,
@@ -330,6 +360,7 @@ def evaluate_candidate(source: str, cir_path: Path, contract_path: Path, out_dir
         "contract_path": str(contract_path),
         "source_sha256": source_sha, "cir_sha256": cir_sha, "contract_sha256": contract_sha,
         "backend_sha256": backend_sha, "instrument_sha256": instrument_sha,
+        "binding_sha256": binding_sha,
         "acquisition_id": acquisition, "n_runs": n_runs, "stages": {},
         "limitations": [], "candidate_kind": candidate_kind, "round_no": round_no,
         "functional": None, "artifacts": [],
@@ -420,7 +451,8 @@ def evaluate_candidate(source: str, cir_path: Path, contract_path: Path, out_dir
     result["raw_events"] = _count_lines(out / "traces")
 
     try:
-        rb = binding_bind(out / "instrument/resources.json", cir_path, manifest_path=manifest_path)
+        rb = binding_bind(out / "instrument/resources.json", cir_path, manifest_path=manifest_path,
+                          binary=binding_binary)
     except BindingUnavailable as exc:
         result["stages"]["binding"] = f"tool_error: {exc}"
         result["binding"] = {"mapping": {}, "ambiguous": [], "violated": {},

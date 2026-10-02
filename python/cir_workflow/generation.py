@@ -503,23 +503,13 @@ def _cir_plan(cir: dict[str, Any]) -> str:
         for fn in mod.get("functions", []):
             steps = []
             for st in fn.get("body", []):
-                kind = st.get("kind")
-                if kind == "spawn":
-                    steps.append(f"spawn {st.get('func')}")
-                elif kind == "scope":
-                    steps.append("start [" + ", ".join(st.get("funcs", [])) + "]")
-                elif kind == "join":
-                    steps.append("join")
-                elif kind in ("mutex_lock", "mutex_unlock", "semaphore_acquire",
-                              "semaphore_release"):
-                    steps.append(f"{kind} {st.get('resource')}")
-                elif kind == "channel_send" or kind == "channel_recv":
-                    steps.append(f"{kind} {st.get('channel')}")
-                elif kind == "condvar_wait":
-                    steps.append(f"condvar_wait {st.get('condvar')} on {st.get('lock')}")
-                elif kind in ("condvar_notify", "condvar_notify_all"):
-                    steps.append(f"{kind} {st.get('condvar')}")
-            lines.append(f"- {fn.get('name')}: " + ("; ".join(steps) or "no operations"))
+                # Keep data updates, calls, conditions, and nested bodies too.
+                # A synchronization-only summary silently said "no operations"
+                # for a function containing modeled computation or control flow.
+                kind = st.get("kind", "unknown")
+                detail = {k: v for k, v in st.items() if k not in {"kind", "sid"}}
+                steps.append(f"{kind} " + json.dumps(detail, ensure_ascii=False, sort_keys=True))
+            lines.append(f"- {fn.get('name')}: " + ("; ".join(steps) or "empty body"))
     return "\n".join(lines)
 
 
