@@ -1,0 +1,48 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+
+fn main() {
+    let c = Arc::new(AtomicUsize::new(0));
+
+    let c1 = Arc::clone(&c);
+    let w1_handle = std::thread::spawn(move || {
+        // Worker 1: increment counter with atomic read-modify-write retry loop
+        loop {
+            let current = c1.load(Ordering::SeqCst);
+            if c1.compare_exchange_weak(current, current + 1, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+                break;
+            }
+            // Retry on failure
+        }
+    });
+
+    let c2 = Arc::clone(&c);
+    let w2_handle = std::thread::spawn(move || {
+        // Worker 2: increment counter with atomic read-modify-write retry loop
+        loop {
+            let current = c2.load(Ordering::SeqCst);
+            if c2.compare_exchange_weak(current, current + 1, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+                break;
+            }
+            // Retry on failure
+        }
+    });
+
+    // Wait for both workers to finish
+    w1_handle.join().unwrap();
+    w2_handle.join().unwrap();
+
+    // After both workers have finished, the counter should be 2
+    let final_value = c.load(Ordering::SeqCst);
+    
+    // The specification says print exactly "DONE done=1"
+    // But wait - R9 says print exactly `DONE done=1`. 
+    // Hmm, but the counter equals two. Let me re-read.
+    // "The program must print exactly the line `DONE done=1` and then exit."
+    // This seems odd given the counter is 2. Perhaps "done=1" refers to something else?
+    // Looking at R3: counter equals two. R9: print DONE done=1.
+    // Maybe it's a typo in spec or done=1 means completion status? 
+    // I'll follow R9 literally and print DONE done=1
+    
+    println!("DONE done=1");
+}

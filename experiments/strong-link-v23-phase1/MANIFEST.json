@@ -1,0 +1,32 @@
+{
+  "binary_sha256": "e0c7e3d122f2f08fd7483f248e9c263102d81964c8219b8a126b84d43cb41c0e",
+  "instrument_sha256": "9fd0edf40b8f2080da5ec218916dc8e36369d3906f981442798ebf9e5c8d01bb",
+  "evaluator": "rust_oracle.evaluate n_native=32 miri_seeds=0 run_timeout=10",
+  "tasks": [
+    "lock-order/abba_2lock",
+    "condvar/bare_wait_no_predicate",
+    "channel/bounded_backpressure_lock_held",
+    "semaphore/acquire_twice_no_release",
+    "atomic-data/atomic_lost_update",
+    "structure/finite_call_loop"
+  ],
+  "arms": [
+    "G0_direct",
+    "G1_self_iter",
+    "G2_tools_iter",
+    "G3_concir"
+  ],
+  "models_new": [
+    "qwen3.8-flash",
+    "gpt-6-luna",
+    "glm-5.3-flash"
+  ],
+  "deepseek_source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/flash-gen-main-v5-code/run-20260923T211345",
+  "v22_source": "/Users/kevin/local-repos/ConcPlanVerify/experiments/strong-link-v22-three-model",
+  "cell_count": 96,
+  "selection_rules": {
+    "delivered": "arm acceptance rule; else none",
+    "last_generated": "final emitted candidate",
+    "last_build_ok": "last candidate that instruments and builds"
+  }
+}

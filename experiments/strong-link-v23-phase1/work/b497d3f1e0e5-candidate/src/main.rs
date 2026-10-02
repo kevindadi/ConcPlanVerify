@@ -1,0 +1,39 @@
+mod cir_trace;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+
+fn main() { cir_trace::init();
+    let c = Arc::new(AtomicUsize::new(0));
+
+    let c1 = Arc::clone(&c);
+    let w1_handle = cir_trace::spawn("w1_handle#174", move || {
+        // Worker 1: increment counter with atomic read-modify-write retry loop
+        loop {
+            let current = c1.load(Ordering::SeqCst);
+            if c1.compare_exchange_weak(current, current + 1, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+                break;
+            }
+            // Retry on failure
+        }
+    });
+
+    let c2 = Arc::clone(&c);
+    let w2_handle = cir_trace::spawn("w2_handle#596", move || {
+        // Worker 2: increment counter with atomic read-modify-write retry loop
+        loop {
+            let current = c2.load(Ordering::SeqCst);
+            if c2.compare_exchange_weak(current, current + 1, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+                break;
+            }
+            // Retry on failure
+        }
+    });
+
+    // Wait for both workers to finish
+    w1_handle.join().unwrap();
+    w2_handle.join().unwrap();
+
+    // After both workers have finished, the counter should be 2
+    // The specification says print exactly "DONE done=1"
+    println!("DONE done=1");
+ cir_trace::finish();}

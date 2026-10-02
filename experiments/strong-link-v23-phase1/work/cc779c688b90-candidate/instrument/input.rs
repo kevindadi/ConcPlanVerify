@@ -1,0 +1,36 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+
+static c: AtomicUsize = AtomicUsize::new(0);
+
+fn worker() {
+    loop {
+        let cur = c.load(Ordering::SeqCst);
+        match c.compare_exchange_weak(
+            cur,
+            cur + 1,
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+        ) {
+            Ok(_) => break,
+            Err(_) => continue,
+        }
+    }
+}
+
+fn w1() {
+    worker();
+}
+
+fn w2() {
+    worker();
+}
+
+fn main() {
+    let h1 = std::thread::spawn(w1);
+    let h2 = std::thread::spawn(w2);
+    h1.join().unwrap();
+    h2.join().unwrap();
+    assert_eq!(c.load(Ordering::SeqCst), 2);
+    println!("DONE done=1");
+}

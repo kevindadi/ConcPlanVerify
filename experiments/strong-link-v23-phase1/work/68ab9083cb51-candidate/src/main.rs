@@ -1,0 +1,22 @@
+mod cir_trace;
+use std::thread;
+
+fn helper() {
+    // Auxiliary routine: does nothing significant, runs to completion
+}
+
+fn main() { cir_trace::init();
+    // R1: A main task calls an auxiliary routine and then begins the same call sequence again.
+    // R3: Each auxiliary call runs to completion before the calling task starts the next call.
+    
+    // First call to helper
+    let handle = cir_trace::spawn("handle#360", helper);
+    handle.join().unwrap();
+
+    // Second call to helper
+    let handle2 = cir_trace::spawn("handle2#459", helper);
+    handle2.join().unwrap();
+
+    // R5: The program must print exactly the line `DONE done=1` and then exit.
+    println!("DONE done=1");
+ cir_trace::finish();}
