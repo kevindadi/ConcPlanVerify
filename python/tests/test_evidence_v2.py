@@ -255,6 +255,14 @@ class StateMachineTests(unittest.TestCase):
         self.assertEqual(led.trace["state"], "empty_projection")
         self.assertFalse(led.all_obligations_satisfied)
 
+    def test_atomic_only_empty_projection_is_not_a_capability_gap(self):
+        # A CIR with no synchronization resources legitimately projects nothing.
+        with tempfile.TemporaryDirectory() as td:
+            r = _result(Path(td), projected_events=0, raw_events=64)
+            r["cir_has_sync"] = False
+            led = _ev(r)
+        self.assertEqual(led.trace["state"], "no_sync_projection")
+
     def test_binding_gap_violation_is_unresolved_not_independent(self):
         with tempfile.TemporaryDirectory() as td:
             r = _result(Path(td), binding={"mapping": {}, "ambiguous": [{"rust": "tx"}],

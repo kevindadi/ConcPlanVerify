@@ -368,7 +368,11 @@ def _trace_state(result: dict, conform: dict, binding: dict, evidence_ok: bool) 
     elif violations:
         state = "observed_violation" if independent or not binding_gap else "binding_unresolved"
     elif projected == 0:
-        state = "empty_projection"
+        # An empty projection is expected only when the CIR is KNOWN to have no
+        # synchronization resources (atomic/var-only programs); otherwise it is
+        # a defect (sync operations declared but not performed).
+        state = ("no_sync_projection" if result.get("cir_has_sync") is False
+                 else "empty_projection")
     elif statuses.get("conformant", 0) == traces:
         state = "observed_conformant"
     else:
@@ -586,6 +590,7 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
     identity = _identity_state(binding, binding_ev["ok"])
     conform = conform_ev["conform"] if conform_ev["ok"] else {}
     trace = _trace_state(result, conform, binding, conform_ev["ok"])
+    conformance_ok = trace["state"] in {"observed_conformant", "no_sync_projection"}
     run = _run_state(result)
     hashes = hash_verification(result)
     monitor = monitor_ev["monitor"] if monitor_ev["ok"] else {"properties": []}
@@ -597,19 +602,25 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
         pid = cp["id"]
         mv = model_ev["props"].get(pid) if model_ev["ok"] else None
         status = monitor_props.get(pid, "not_observed") if monitor_ev["ok"] else "not_observed"
-        checker_available = (monitor_ev["ok"] and status not in {"not_observed", "unsupported", "unmapped"}
-                             and cp["kind"] in TRACE_DECIDABLE)
+        value_goal = (cp.get("goal") or {}).get("kind") == "var_eq"
+        decidable_value = value_goal and status == "not_observed"
+        checker_available = (monitor_ev["ok"] and cp["kind"] in TRACE_DECIDABLE
+                             and (status not in {"not_observed", "unsupported", "unmapped"}
+                                  or decidable_value))
         relevant_ok = binding_ev["ok"] and not identity["relevant_unresolved"] \
             and not identity["declaration_error"]
         # External functional support does not satisfy an internal property.
         if monitor_ev["ok"] and status == "FAIL":
             state, guarantee = "violated", "none"
+        elif monitor_ev["ok"] and decidable_value and relevant_ok:
+            # A value goal whose carrier WAS observed but whose target value was
+            # never reached is a candidate defect, not a checker gap.
+            state, guarantee = "violated", "none"
         elif cp["kind"] == "deadlock_free":
             state = "satisfied" if (model["verified"] and run["state"] == "completed"
-                                    and trace["state"] == "observed_conformant"
-                                    and relevant_ok) else "unresolved"
+                                    and conformance_ok and relevant_ok) else "unresolved"
             guarantee = "bounded_observation" if state == "satisfied" else "none"
-        elif status == "PASS_bounded" and trace["state"] == "observed_conformant" and relevant_ok:
+        elif status == "PASS_bounded" and conformance_ok and relevant_ok:
             state, guarantee = "satisfied", "bounded_observation"
         else:
             state, guarantee = "unresolved", "none"
@@ -650,7 +661,7 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
     all_satisfied = bool(
         contract_props and model["verified"] and hashes["verified"]
         and conform_ev["ok"] and binding_ev["ok"] and monitor_ev["ok"]
-        and trace["state"] == "observed_conformant"
+        and conformance_ok
         and not identity["relevant_unresolved"] and not identity["declaration_error"]
         and attributes_ok
         and run["state"] == "completed" and not requirement_failed
@@ -678,8 +689,9 @@ def evaluate_reexecution(result: dict, contract: dict, *, accepted: bool,
                        "a conforming finite trace does not override it")
     elif requirement_failed:
         verdict = "requirement_failure"
-        failed_ids = [p.property_id for p in props if p.obligation_state == "violated"]
-        reasons.append("monitor FAIL on " + ", ".join(failed_ids))
+        failed = [p for p in props if p.obligation_state == "violated"]
+        reasons.append("monitor requirement not satisfied on " + ", ".join(
+            f"{p.property_id} ({p.independent_requirement_result})" for p in failed))
     elif binding_ev["ok"] and identity["declaration_error"]:
         verdict = "binding_declaration_error"
         reasons.append("a binding manifest claim disagrees with structure")

@@ -351,6 +351,13 @@ def evaluate_candidate(source: str, cir_path: Path, contract_path: Path, out_dir
         "backend": backend_sha, "instrument": instrument_sha, "binding": binding_sha,
         "n_runs": n_runs, "timeout": run_timeout,
     })
+    try:
+        cir_doc = json.loads(cir_path.read_text(encoding="utf-8"))
+        cir_has_sync = any(
+            r.get("type") in {"Mutex", "Condvar", "Semaphore", "Channel"}
+            for m in cir_doc.get("modules", []) for r in m.get("resources", []))
+    except (OSError, json.JSONDecodeError):
+        cir_has_sync = True  # unknown: keep the strict (defect) interpretation
     binds_base = {"acquisition_id": acquisition, "source_sha256": source_sha,
                   "cir_sha256": cir_sha, "contract_sha256": contract_sha,
                   "backend_sha256": backend_sha}
@@ -360,7 +367,7 @@ def evaluate_candidate(source: str, cir_path: Path, contract_path: Path, out_dir
         "contract_path": str(contract_path),
         "source_sha256": source_sha, "cir_sha256": cir_sha, "contract_sha256": contract_sha,
         "backend_sha256": backend_sha, "instrument_sha256": instrument_sha,
-        "binding_sha256": binding_sha,
+        "binding_sha256": binding_sha, "cir_has_sync": cir_has_sync,
         "acquisition_id": acquisition, "n_runs": n_runs, "stages": {},
         "limitations": [], "candidate_kind": candidate_kind, "round_no": round_no,
         "functional": None, "artifacts": [],
@@ -481,7 +488,7 @@ def evaluate_candidate(source: str, cir_path: Path, contract_path: Path, out_dir
 
     wrapper_names = {r["name"] for r in wrapped["resources"] if r.get("kind") == "ChannelWrapper"}
     generation._rewrite_traces(out / "traces", out / "conform-traces", mapping,
-                               generation._DROP_OPS, wrapper_names)
+                               generation._DROP_OPS | {"value"}, wrapper_names)
     for trace in sorted((out / "conform-traces").glob("*.jsonl")):
         art = _artifact("projection", trace, binds=binds_base)
         if art:
@@ -505,7 +512,7 @@ def evaluate_candidate(source: str, cir_path: Path, contract_path: Path, out_dir
         report = bounded_monitor.run_monitor(
             contract_path, out / "monitor-traces",
             resources=out / "instrument/resources.json",
-            mapping=mapping_path, binary=binary)
+            mapping=mapping_path, program=cir_path, binary=binary)
     except (OSError, RuntimeError, json.JSONDecodeError) as exc:
         result["stages"]["monitor"] = f"tool_error: {exc}"
         result["artifacts"] = artifacts

@@ -5,14 +5,14 @@ use std::thread;
 
 fn w1(c: Arc<AtomicI32>) {
     loop {
-        let observed = { let __cpv = c.load(Ordering::SeqCst); cir_trace::record_value("c", (__cpv) as i64); __cpv };
+        let observed = { let __cpv = c.load(Ordering::SeqCst); cir_trace::record_value("c#878", (__cpv) as i64); __cpv };
         let old = { let __cpv = c
             .compare_exchange(
                 observed,
                 observed + 1,
                 Ordering::SeqCst,
                 Ordering::SeqCst,
-            ); if __cpv.is_ok() { cir_trace::record_value("c", (c.load(std::sync::atomic::Ordering::SeqCst)) as i64); } __cpv }
+            ); if __cpv.is_ok() { cir_trace::record_value("c#878", (c.load(std::sync::atomic::Ordering::SeqCst)) as i64); } __cpv }
             .unwrap_or_else(|old| old);
 
         if old == observed {
@@ -23,14 +23,14 @@ fn w1(c: Arc<AtomicI32>) {
 
 fn w2(c: Arc<AtomicI32>) {
     loop {
-        let observed = { let __cpv = c.load(Ordering::SeqCst); cir_trace::record_value("c", (__cpv) as i64); __cpv };
+        let observed = { let __cpv = c.load(Ordering::SeqCst); cir_trace::record_value("c#878", (__cpv) as i64); __cpv };
         let old = { let __cpv = c
             .compare_exchange(
                 observed,
                 observed + 1,
                 Ordering::SeqCst,
                 Ordering::SeqCst,
-            ); if __cpv.is_ok() { cir_trace::record_value("c", (c.load(std::sync::atomic::Ordering::SeqCst)) as i64); } __cpv }
+            ); if __cpv.is_ok() { cir_trace::record_value("c#878", (c.load(std::sync::atomic::Ordering::SeqCst)) as i64); } __cpv }
             .unwrap_or_else(|old| old);
 
         if old == observed {

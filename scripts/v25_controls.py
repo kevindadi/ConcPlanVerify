@@ -32,9 +32,11 @@ CASES = [
     ("atomic_pos", REAL_ATOMIC, ATOMIC, "positive", "PASS_bounded"),
     ("atomic_neg_print", CTRL / "atomic_neg_print.rs", ATOMIC, "negative", "not_observed"),
     ("atomic_unknown_field", CTRL / "atomic_unknown_field.rs", ATOMIC, "unknown", "unsupported"),
+    ("atomic_shadow_two_constructions", CTRL / "atomic_shadow_two_constructions.rs", ATOMIC, "shadow", "unsupported"),
     ("bare_pos", REAL_BARE, BARE, "positive", "PASS_bounded"),
     ("bare_neg_print", CTRL / "bare_neg_print.rs", BARE, "negative", "not_observed"),
     ("bare_shadow_other_mutex", CTRL / "bare_shadow_other_mutex.rs", BARE, "shadow", "not_observed"),
+    ("bare_struct_mutex", CTRL / "bare_struct_mutex.rs", BARE, "unknown", "unsupported"),
 ]
 
 
