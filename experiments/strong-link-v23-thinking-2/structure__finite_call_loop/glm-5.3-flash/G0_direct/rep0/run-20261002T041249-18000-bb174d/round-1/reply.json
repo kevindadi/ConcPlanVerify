@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "build_ok",
+  "raw_text": "```rust\n// Roles: helper (auxiliary routine), called by the main task.\n\n// Auxiliary routine: shares no mutexes, counters, or other state\n// with the calling task (R2). It runs to completion before returning (R3).\nfn helper() {\n    // Self-contained work; no shared state, no blocking, always terminates (R4).\n    let _ = std::hint::black_box(1 + 1);\n}\n\nfn main() {\n    // First call sequence: main task calls the auxiliary routine (R1).\n    helper();\n\n    // Main task then begins the same call sequence again (R1).\n    // Because the calls are sequential in one task, each call runs\n    // to completion before the next starts (R3), and every schedule\n    // terminates (R4).\n    helper();\n\n    // Exactly one line of output, then exit (R5).\n    println!(\"DONE done=1\");\n}\n```"
+}

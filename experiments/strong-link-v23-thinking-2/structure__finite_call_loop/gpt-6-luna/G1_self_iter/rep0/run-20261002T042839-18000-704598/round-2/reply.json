@@ -1,0 +1,7 @@
+{
+  "round": 2,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "The original `spawn`/`join` sequence is serialized, but creating threads is unnecessary and can fail before the required output is printed. Calling `helper` directly preserves the required order and avoids that failure mode.\n\n```rust\nfn helper() {}\n\nfn main() {\n    for _ in 0..2 {\n        helper();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
+}

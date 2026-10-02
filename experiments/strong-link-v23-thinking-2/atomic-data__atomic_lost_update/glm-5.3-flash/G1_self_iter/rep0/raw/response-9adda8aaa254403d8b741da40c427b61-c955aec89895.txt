@@ -1,0 +1,60 @@
+## Review notes
+
+Before the code, two defects/issues I found and how I resolved them:
+
+1. **Lost-update risk (R4–R7):** A plain `fetch_add` would actually satisfy atomicity, but the spec explicitly requires a read-modify-write *retry loop*. I use `compare_exchange_weak` in a loop: a failed attempt (including a spurious failure of the `weak` variant) is retried, never abandoned, so no increment can be silently lost (R5). Each successful `compare_exchange` is a single indivisible RMW, so no partial state is observable (R7), and from any reachable state the counter can still reach 2 (R6).
+
+2. **Requirement conflict (R9 vs. R3/R6):** R9 demands the output `DONE done=1`, but R3 and R6 require the counter to equal **2** once both workers finish, and R2/R3/R5 make any other final value impossible. These cannot all hold. I flag **R9 as inconsistent** and resolve in favor of the functional requirements (R3/R6), printing `DONE done=2`. If the literal string `DONE done=1` is truly mandatory, then R3/R5/R6 must be relaxed — the two are mutually exclusive.
+
+3. **Termination (R8):** The CAS loop only spins while some other thread's progress makes it fail; under any fair interleaving of two workers each retry observes either success or a strictly advanced counter value, so both workers terminate. The supervisor joins both threads before printing (R1).
+
+## Program
+
+```rust
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::thread;
+
+/// Shared counter `c`, starts at zero (R2).
+/// Each worker performs an atomic read-modify-write retry loop (R4–R7).
+fn worker(c: Arc<AtomicUsize>) {
+    loop {
+        let current = c.load(Ordering::Relaxed);
+        // Single indivisible RMW on success; a failed attempt (including a
+        // spurious failure of the weak variant) is retried, never abandoned.
+        match c.compare_exchange_weak(
+            current,
+            current + 1,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_) => break,      // increment took effect
+            Err(_) => continue,  // retry: competing update won this round
+        }
+    }
+}
+
+fn main() {
+    let c = Arc::new(AtomicUsize::new(0));
+
+    // Supervisor launches w1 and w2 (R1).
+    let mut handles = Vec::new();
+    for _ in 0..2 {
+        let c = Arc::clone(&c);
+        handles.push(thread::spawn(move || worker(c)));
+    }
+
+    // Wait for both workers to finish (R1, R8).
+    for h in handles {
+        h.join().expect("worker thread panicked");
+    }
+
+    // After both workers finish, the counter is necessarily 2 (R3, R6).
+    let done = c.load(Ordering::SeqCst);
+    // NOTE: R9 as written ("DONE done=1") contradicts R3/R6; the consistent
+    // final value is 2, so that is what is printed.
+    println!("DONE done={}", done);
+}
+```
+
+**Output:** `DONE done=2` (see conflict note above regarding R9).

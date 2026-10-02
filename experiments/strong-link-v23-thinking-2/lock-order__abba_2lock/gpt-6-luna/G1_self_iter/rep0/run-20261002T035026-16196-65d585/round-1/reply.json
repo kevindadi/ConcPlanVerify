@@ -1,0 +1,7 @@
+{
+  "round": 1,
+  "kind": "program",
+  "matched": [],
+  "decision": "continue",
+  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn t1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) -> usize {\n    let guard_a = a.lock().unwrap();\n    let guard_b = b.lock().unwrap();\n\n    // Critical work while holding both locks.\n    let result = 1;\n\n    drop(guard_b);\n    drop(guard_a);\n    result\n}\n\nfn t2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) -> usize {\n    let guard_a = a.lock().unwrap();\n    let guard_b = b.lock().unwrap();\n\n    // Critical work while holding both locks.\n    let result = 1;\n\n    drop(guard_b);\n    drop(guard_a);\n    result\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let h1 = thread::spawn(move || t1(a1, b1));\n\n    let a2 = Arc::clone(&a);\n    let b2 = Arc::clone(&b);\n    let h2 = thread::spawn(move || t2(a2, b2));\n\n    let result1 = h1.join().unwrap();\n    let result2 = h2.join().unwrap();\n\n    println!(\"DONE t1={} t2={}\", result1, result2);\n}\n```"
+}

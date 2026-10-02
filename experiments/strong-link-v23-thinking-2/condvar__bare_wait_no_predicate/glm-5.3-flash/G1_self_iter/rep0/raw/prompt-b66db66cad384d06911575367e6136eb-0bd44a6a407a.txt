@@ -1,0 +1,74 @@
+Review your Rust program and repair concurrency defects you can justify.
+
+Specification:
+# Requirements
+
+R1. A main task starts a waiter role and a notifier role that run at the same time.
+R2. The waiter and the notifier share one lock and one condition variable, and the lock guards a boolean flag. [U]
+R3. The notifier sets the shared flag to true while holding the lock, signals the condition variable, and then releases the lock.
+R4. While holding the lock, the waiter checks the flag first, waits on the condition variable only while the flag is false, and re-checks the flag after each wake.
+R5. The waiter must complete even when the notifier signals before the waiter starts waiting.
+R6. The waiter must not wait on the condition variable while the flag is already true, and must not keep the lock while blocked.
+R7. Every schedule and interleaving of the two roles must terminate with both roles finished.
+R8. The shared flag becomes true in every schedule.
+R9. The waiter must not pass its wait until the flag is true.
+R10. The program must print exactly the line `DONE ready=true` and then exit. [U]
+
+## Entities
+
+Use these exact names in the design and in the program.
+
+- Roles (threads/functions): waiter, notifier.
+- Shared resources: m (lock), cv (condition variable), ready (shared variable).
+
+
+Current program:
+```rust
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+
+fn main() {
+    // R2: one lock (m) and one condition variable (cv); m guards the boolean flag (ready).
+    let m = Arc::new(Mutex::new(false));
+    let cv = Arc::new(Condvar::new());
+
+    // R1: waiter and notifier run concurrently as separate threads.
+    let waiter = {
+        let m = Arc::clone(&m);
+        let cv = Arc::clone(&cv);
+        thread::spawn(move || {
+            // R6: take the lock only to check/wait; wait releases it while blocked.
+            let mut ready = m.lock().unwrap();
+            // R4/R9: check the flag first; wait only while false; re-check after each wake.
+            while !*ready {
+                ready = cv.wait(ready).unwrap();
+            }
+            // R9: loop exits only when ready is true.
+        })
+    };
+
+    let notifier = {
+        let m = Arc::clone(&m);
+        let cv = Arc::clone(&cv);
+        thread::spawn(move || {
+            // R3: set the flag while holding the lock, signal, then release.
+            let mut ready = m.lock().unwrap();
+            *ready = true; // R8: flag becomes true in every schedule.
+            cv.notify_one();
+            // Lock released here when `ready` (the guard) drops.
+        })
+    };
+
+    // R7: join both roles; every interleaving terminates because the waiter
+    // never waits on an already-true flag and re-checks after each wake.
+    waiter.join().unwrap();
+    notifier.join().unwrap();
+
+    // R10: print exactly `DONE ready=true` and exit.
+    let ready = *m.lock().unwrap();
+    println!("DONE ready={}", ready);
+}
+
+```
+
+Fix concurrency defects and output the complete program.
