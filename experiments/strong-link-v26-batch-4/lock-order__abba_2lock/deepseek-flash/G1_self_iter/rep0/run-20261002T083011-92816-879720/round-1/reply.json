@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "continue",
-  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn t1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) -> i32 {\n    // Consistent lock ordering: always acquire a, then b.\n    let ga = a.lock().unwrap();\n    let gb = b.lock().unwrap();\n\n    // Critical work while holding both locks.\n    let _ = 1 + 1;\n\n    drop(gb);\n    drop(ga);\n    1\n}\n\nfn t2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) -> i32 {\n    // Same lock ordering as t1 prevents circular wait/deadlock.\n    let ga = a.lock().unwrap();\n    let gb = b.lock().unwrap();\n\n    // Critical work while holding both locks.\n    let _ = 1 + 1;\n\n    drop(gb);\n    drop(ga);\n    1\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let h1 = thread::Builder::new()\n        .name(\"t1\".to_string())\n        .spawn(move || t1(a1, b1))\n        .unwrap();\n\n    let a2 = Arc::clone(&a);\n    let b2 = Arc::clone(&b);\n    let h2 = thread::Builder::new()\n        .name(\"t2\".to_string())\n        .spawn(move || t2(a2, b2))\n        .unwrap();\n\n    let r1 = h1.join().unwrap();\n    let r2 = h2.join().unwrap();\n\n    println!(\"DONE t1={} t2={}\", r1, r2);\n}\n```"
-}

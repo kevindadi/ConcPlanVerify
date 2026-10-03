@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "tools_dirty",
-  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    let m = Arc::new(Mutex::new(false));\n    let cv = Arc::new(Condvar::new());\n\n    let waiter_m = Arc::clone(&m);\n    let waiter_cv = Arc::clone(&cv);\n    let waiter = thread::spawn(move || {\n        let mut ready = waiter_m.lock().unwrap();\n        while !*ready {\n            ready = waiter_cv.wait(ready).unwrap();\n        }\n    });\n\n    let notifier_m = Arc::clone(&m);\n    let notifier_cv = Arc::clone(&cv);\n    let notifier = thread::spawn(move || {\n        let mut ready = notifier_m.lock().unwrap();\n        *ready = true;\n        notifier_cv.notify_one();\n        drop(ready);\n    });\n\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n\n    let ready = m.lock().unwrap();\n    println!(\"DONE ready={}\", *ready);\n}\n```"
-}

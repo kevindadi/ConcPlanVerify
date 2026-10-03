@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_ok",
-  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    // Shared resources: m (lock), cv (condition variable), ready (shared variable).\n    let m = Arc::new(Mutex::new(false));\n    let cv = Arc::new(Condvar::new());\n\n    let waiter_m = Arc::clone(&m);\n    let waiter_cv = Arc::clone(&cv);\n    let waiter = thread::spawn(move || {\n        // R4: check the flag first, wait only while the flag is false,\n        // and re-check the flag after each wake.\n        // R6: the lock is released while blocked (Condvar::wait does this).\n        // R9: do not pass the wait until the flag is true.\n        let mut guard = waiter_m.lock().unwrap();\n        while !*guard {\n            guard = waiter_cv.wait(guard).unwrap();\n        }\n    });\n\n    let notifier_m = Arc::clone(&m);\n    let notifier_cv = Arc::clone(&cv);\n    let notifier = thread::spawn(move || {\n        // R3: set the flag to true while holding the lock, signal the\n        // condition variable, then release the lock.\n        let mut guard = notifier_m.lock().unwrap();\n        *guard = true;\n        notifier_cv.notify_one();\n        drop(guard);\n    });\n\n    // R1/R7: both roles run at the same time and must both finish.\n    waiter.join().unwrap();\n    notifier.join().unwrap();\n\n    // R8/R10: the flag is true in every schedule; print the exact line.\n    let ready = *m.lock().unwrap();\n    println!(\"DONE ready={}\", ready);\n}\n```"
-}

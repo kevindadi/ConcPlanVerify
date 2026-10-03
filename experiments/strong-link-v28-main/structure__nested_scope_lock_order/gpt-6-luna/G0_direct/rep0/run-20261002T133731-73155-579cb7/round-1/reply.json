@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_ok",
-  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn x1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {\n    let _a = a.lock().unwrap();\n    let _b = b.lock().unwrap();\n}\n\nfn x2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {\n    let _a = a.lock().unwrap();\n    let _b = b.lock().unwrap();\n}\n\nfn outer(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {\n    let x1_a = Arc::clone(&a);\n    let x1_b = Arc::clone(&b);\n    let x2_a = Arc::clone(&a);\n    let x2_b = Arc::clone(&b);\n\n    let x1_worker = thread::spawn(move || x1(x1_a, x1_b));\n    let x2_worker = thread::spawn(move || x2(x2_a, x2_b));\n\n    let x1_result = x1_worker.join();\n    let x2_result = x2_worker.join();\n\n    x1_result.unwrap();\n    x2_result.unwrap();\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let outer_a = Arc::clone(&a);\n    let outer_b = Arc::clone(&b);\n    let outer_worker = thread::spawn(move || outer(outer_a, outer_b));\n\n    outer_worker.join().unwrap();\n    println!(\"DONE done=1\");\n}\n```"
-}

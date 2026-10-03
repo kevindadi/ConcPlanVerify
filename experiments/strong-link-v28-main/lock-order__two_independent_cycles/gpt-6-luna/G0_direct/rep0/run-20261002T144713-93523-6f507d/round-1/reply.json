@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_ok",
-  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn work() {}\n\nfn t1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {\n    let _a = a.lock().unwrap();\n    let _b = b.lock().unwrap();\n    work();\n}\n\nfn t2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) {\n    let _a = a.lock().unwrap();\n    let _b = b.lock().unwrap();\n    work();\n}\n\nfn t3(c: Arc<Mutex<()>>, d: Arc<Mutex<()>>) {\n    let _c = c.lock().unwrap();\n    let _d = d.lock().unwrap();\n    work();\n}\n\nfn t4(c: Arc<Mutex<()>>, d: Arc<Mutex<()>>) {\n    let _c = c.lock().unwrap();\n    let _d = d.lock().unwrap();\n    work();\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n    let c = Arc::new(Mutex::new(()));\n    let d = Arc::new(Mutex::new(()));\n\n    let handles = [\n        thread::spawn({\n            let a = Arc::clone(&a);\n            let b = Arc::clone(&b);\n            move || t1(a, b)\n        }),\n        thread::spawn({\n            let a = Arc::clone(&a);\n            let b = Arc::clone(&b);\n            move || t2(a, b)\n        }),\n        thread::spawn({\n            let c = Arc::clone(&c);\n            let d = Arc::clone(&d);\n            move || t3(c, d)\n        }),\n        thread::spawn({\n            let c = Arc::clone(&c);\n            let d = Arc::clone(&d);\n            move || t4(c, d)\n        }),\n    ];\n\n    for handle in handles {\n        handle.join().unwrap();\n    }\n\n    println!(\"DONE done=1\");\n}\n```"
-}

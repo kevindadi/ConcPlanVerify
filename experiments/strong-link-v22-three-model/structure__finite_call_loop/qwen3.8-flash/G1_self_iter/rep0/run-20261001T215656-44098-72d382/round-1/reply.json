@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "continue",
-  "raw_text": "```rust\nuse std::thread;\n\nfn helper() {\n    // Auxiliary routine: does nothing significant, runs to completion\n}\n\nfn main() {\n    // R1: A main task calls an auxiliary routine and then begins the same call sequence again.\n    // R3: Each auxiliary call runs to completion before the calling task starts the next call.\n    \n    // First call to helper\n    let handle = thread::spawn(helper);\n    handle.join().unwrap();\n    \n    // Second call to helper (same call sequence again)\n    let handle2 = thread::spawn(helper);\n    handle2.join().unwrap();\n    \n    // R5: The program must print exactly the line `DONE done=1` and then exit.\n    println!(\"DONE done=1\");\n}\n```"
-}

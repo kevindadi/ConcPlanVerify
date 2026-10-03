@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "continue",
-  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn waiter(shared: &Arc<(Mutex<bool>, Condvar)>) {\n    let (m, cv) = &*shared;\n    let mut ready = m.lock().unwrap();\n    while !*ready {\n        ready = cv.wait(ready).unwrap();\n    }\n}\n\nfn notifier(shared: &Arc<(Mutex<bool>, Condvar)>) {\n    let (m, cv) = &*shared;\n    let mut ready = m.lock().unwrap();\n    *ready = true;\n    cv.notify_all();\n    drop(ready);\n}\n\nfn main() {\n    let shared = Arc::new((Mutex::new(false), Condvar::new()));\n    let s2 = Arc::clone(&shared);\n    let s3 = Arc::clone(&shared);\n\n    let w = thread::spawn(move || waiter(&s2));\n    let n = thread::spawn(move || notifier(&s3));\n    w.join().unwrap();\n    n.join().unwrap();\n\n    let ready = *shared.0.lock().unwrap();\n    println!(\"DONE ready={}\", ready);\n}\n```\n\nThe predicate loop (`while !*ready`) guarantees the waiter never waits when the flag is already true, fixing the lost-wakeup defect (R5, R9). Using `notify_all` ensures termination under every interleaving. Released lock during wait satisfies R6."
-}

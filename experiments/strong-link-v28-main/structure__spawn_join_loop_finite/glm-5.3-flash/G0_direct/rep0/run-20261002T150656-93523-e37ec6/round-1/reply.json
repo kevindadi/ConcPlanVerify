@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_fail",
-  "raw_text": "```rust\nuse tokio::task::JoinHandle;\n\n// Role: worker\n// Performs no shared work: it touches only its own local counter and\n// returns it as the task's result. It shares no mutexes or counters\n// with the main task.\nasync fn worker() -> u32 {\n    let mut local_count: u32 = 0;\n    local_count += 1;\n    local_count\n}\n\n#[tokio::main]\nasync fn main() {\n    // R1: main starts a worker and waits for it to finish,\n    // then begins the same start-and-wait cycle again.\n    // R3: each started worker is awaited exactly once before the next starts.\n    // R4/R5: each worker always finishes, so every await completes and\n    // every interleaving terminates.\n\n    // First start-and-wait cycle.\n    let handle: JoinHandle<u32> = tokio::spawn(worker());\n    let _first = handle.await.expect(\"worker panicked\");\n\n    // Second start-and-wait cycle (the same cycle begun again).\n    let handle: JoinHandle<u32> = tokio::spawn(worker());\n    let done = handle.await.expect(\"worker panicked\");\n\n    // R6: print exactly one line, then exit.\n    println!(\"DONE done={}\", done);\n}\n```"
-}

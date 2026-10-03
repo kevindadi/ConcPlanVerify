@@ -1,7 +1,0 @@
-{
-  "round": 2,
-  "kind": "program",
-  "matched": [],
-  "decision": "tools_green_ml",
-  "raw_text": "```rust\n#![allow(non_upper_case_globals)]\n\nuse std::sync::Mutex;\nuse std::thread;\n\nstatic a: Mutex<()> = Mutex::new(());\nstatic b: Mutex<()> = Mutex::new(());\n\nfn t1() {\n    let _guard_a = a.lock().unwrap();\n    let _guard_b = b.lock().unwrap();\n\n    // Critical work while holding both locks.\n}\n\nfn t2() {\n    let _guard_a = a.lock().unwrap();\n    let _guard_b = b.lock().unwrap();\n\n    // Critical work while holding both locks.\n}\n\nfn main() {\n    let t1_handle = thread::spawn(t1);\n    let t2_handle = thread::spawn(t2);\n\n    t1_handle.join().unwrap();\n    t2_handle.join().unwrap();\n\n    println!(\"DONE t1=1 t2=1\");\n}\n```"
-}

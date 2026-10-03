@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_ok",
-  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let t1_handle = thread::spawn(move || {\n        // Worker t1: acquire locks in consistent order (a then b) to prevent deadlock\n        let _lock_a = a1.lock().unwrap();\n        let _lock_b = b1.lock().unwrap();\n        // Critical work happens while holding both locks\n        drop(_lock_b);\n        drop(_lock_a);\n    });\n\n    let a2 = Arc::clone(&a);\n    let b2 = Arc::clone(&b);\n    let t2_handle = thread::spawn(move || {\n        // Worker t2: acquire locks in same consistent order (a then b) to prevent deadlock\n        let _lock_a = a2.lock().unwrap();\n        let _lock_b = b2.lock().unwrap();\n        // Critical work happens while holding both locks\n        drop(_lock_b);\n        drop(_lock_a);\n    });\n\n    // Main thread waits for both workers to finish\n    t1_handle.join().unwrap();\n    t2_handle.join().unwrap();\n\n    println!(\"DONE t1=1 t2=1\");\n}\n```"
-}

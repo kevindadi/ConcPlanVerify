@@ -1,7 +1,0 @@
-{
-  "round": 4,
-  "kind": "program",
-  "matched": [],
-  "decision": "continue",
-  "raw_text": "The existing program’s CAS retry loop correctly preserves both increments. With only two workers, each failed CAS can be caused by the other worker’s successful increment, so the retry loop terminates under ordinary scheduling assumptions. The counter reaches `2`, while the required output remains exactly `DONE done=1`.\n\n```rust\nuse std::sync::atomic::{AtomicUsize, Ordering};\nuse std::sync::Arc;\nuse std::thread;\n\nfn increment(c: &AtomicUsize) {\n    let mut observed = c.load(Ordering::SeqCst);\n\n    loop {\n        match c.compare_exchange(\n            observed,\n            observed + 1,\n            Ordering::SeqCst,\n            Ordering::SeqCst,\n        ) {\n            Ok(_) => return,\n            Err(actual) => observed = actual,\n        }\n    }\n}\n\nfn w1(c: Arc<AtomicUsize>) {\n    increment(&c);\n}\n\nfn w2(c: Arc<AtomicUsize>) {\n    increment(&c);\n}\n\nfn main() {\n    let c = Arc::new(AtomicUsize::new(0));\n\n    let c1 = Arc::clone(&c);\n    let t1 = thread::spawn(move || w1(c1));\n\n    let c2 = Arc::clone(&c);\n    let t2 = thread::spawn(move || w2(c2));\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    assert_eq!(c.load(Ordering::SeqCst), 2);\n    println!(\"DONE done=1\");\n}\n```"
-}

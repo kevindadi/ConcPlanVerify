@@ -1,7 +1,0 @@
-{
-  "round": 4,
-  "kind": "program",
-  "matched": [],
-  "decision": "continue",
-  "raw_text": "The existing program already serializes each helper call with `join`. Calling `helper` directly avoids unnecessary thread creation, so there are no interleavings or thread-creation failures to account for.\n\n```rust\nfn helper() {}\n\nfn call_sequence() {\n    helper();\n}\n\nfn main() {\n    call_sequence();\n    call_sequence();\n    println!(\"DONE done=1\");\n}\n```"
-}

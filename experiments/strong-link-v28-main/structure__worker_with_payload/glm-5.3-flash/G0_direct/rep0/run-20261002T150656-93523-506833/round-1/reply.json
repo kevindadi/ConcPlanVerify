@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_fail",
-  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\n// Sequential helper routine: performs only local computation.\nfn compute() -> u32 {\n    let mut local = 0u32;\n    for i in 0..100 {\n        local = local.wrapping_add(i);\n    }\n    local\n}\n\n// Worker: takes the shared mutex m, calls compute (local only),\n// updates the shared counter acc while still holding m, then releases m.\nfn worker(m: &Mutex<u32>) {\n    let acc = m.lock().unwrap(); // R5: waits if another worker holds m\n    let _result = compute();     // R2: local computation only\n    *acc += 1;                   // R2: update shared counter while holding m\n    drop(acc);                   // R3: release the mutex before finishing\n}\n\nfn main() {\n    // Shared resources: m is the lock, acc is the shared variable it guards.\n    let m: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));\n\n    // R1: main task starts a group of two workers (w1, w2).\n    let w1 = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || worker(&m))\n    };\n    let w2 = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || worker(&m))\n    };\n\n    // R6/R7: joining both workers guarantees termination and completion\n    // under every schedule and interleaving.\n    w1.join().expect(\"w1 panicked\");\n    w2.join().expect(\"w2 panicked\");\n\n    // R8: print exactly the required line, then exit.\n    println!(\"DONE done=1\");\n}\n```"
-}

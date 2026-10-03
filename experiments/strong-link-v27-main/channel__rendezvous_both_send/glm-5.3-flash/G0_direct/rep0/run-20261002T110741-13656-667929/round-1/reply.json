@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_ok",
-  "raw_text": "```rust\nuse std::sync::mpsc::sync_channel;\nuse std::thread;\n\nfn main() {\n    // ch: a zero-buffered (rendezvous) channel.\n    // A send only completes when a receiver is ready to take the value,\n    // so s1 and r must meet to exchange it (R2).\n    let (tx, rx) = sync_channel::<i32>(0);\n\n    // Role: s1 — the sending task (R1).\n    let s1 = thread::spawn(move || {\n        // Passes exactly one value; blocks until r takes it (R3).\n        tx.send(1).expect(\"s1: receiver disappeared\");\n    });\n\n    // Role: r — the receiving task (R1).\n    let r = thread::spawn(move || {\n        // Takes exactly one value; blocks until s1 sends it (R3).\n        // If s1 has finished without sending, recv returns an error\n        // instead of waiting forever (R4).\n        rx.recv().expect(\"r: sender disappeared without sending\")\n    });\n\n    // Both tasks run concurrently and each finishes after the single\n    // hand-off (R3). Joining both guarantees every interleaving\n    // terminates with both tasks finished (R5).\n    let done = r.join().expect(\"r panicked\");\n    s1.join().expect(\"s1 panicked\");\n\n    // One value was sent and one was taken, so ch is empty now (R6).\n    // (rx is consumed/dropped after the single successful recv.)\n\n    println!(\"DONE done={}\", done);\n}\n```"
-}

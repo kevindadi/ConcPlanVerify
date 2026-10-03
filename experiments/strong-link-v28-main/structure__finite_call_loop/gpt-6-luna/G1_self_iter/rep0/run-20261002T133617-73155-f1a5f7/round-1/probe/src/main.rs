@@ -1,8 +1,0 @@
-fn helper() {}
-
-fn main() {
-    std::thread::spawn(helper).join().unwrap();
-    std::thread::spawn(helper).join().unwrap();
-
-    println!("DONE done=1");
-}

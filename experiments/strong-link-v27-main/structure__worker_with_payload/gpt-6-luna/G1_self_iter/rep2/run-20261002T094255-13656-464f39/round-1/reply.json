@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "continue",
-  "raw_text": "```rust\nuse std::sync::{\n    atomic::{AtomicUsize, Ordering},\n    Arc, Mutex,\n};\n\nfn compute() -> usize {\n    let mut value = 0usize;\n    for i in 0..1_000 {\n        value = value.wrapping_add(i);\n    }\n    value\n}\n\nfn w1(m: Arc<Mutex<()>>, acc: Arc<AtomicUsize>) {\n    let guard = m.lock().unwrap();\n    let _work = compute();\n    acc.fetch_add(1, Ordering::Relaxed);\n    drop(guard);\n}\n\nfn w2(m: Arc<Mutex<()>>, acc: Arc<AtomicUsize>) {\n    let guard = m.lock().unwrap();\n    let _work = compute();\n    acc.fetch_add(1, Ordering::Relaxed);\n    drop(guard);\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(()));\n    let acc = Arc::new(AtomicUsize::new(0));\n\n    let m1 = Arc::clone(&m);\n    let acc1 = Arc::clone(&acc);\n    let h1 = std::thread::spawn(move || w1(m1, acc1));\n\n    let m2 = Arc::clone(&m);\n    let acc2 = Arc::clone(&acc);\n    let h2 = std::thread::spawn(move || w2(m2, acc2));\n\n    h1.join().unwrap();\n    h2.join().unwrap();\n\n    let done = usize::from(acc.load(Ordering::Relaxed) == 2);\n    println!(\"DONE done={done}\");\n}\n```"
-}

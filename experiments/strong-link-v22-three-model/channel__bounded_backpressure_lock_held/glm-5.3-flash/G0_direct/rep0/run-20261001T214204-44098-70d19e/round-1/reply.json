@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_ok",
-  "raw_text": "```rust\nuse std::sync::{mpsc, Arc, Mutex};\nuse std::thread;\n\nfn main() {\n    // ch: channel holding at most one value (R2, R4, R7)\n    let (tx, rx) = mpsc::sync_channel::<i32>(1);\n    // m: shared lock both roles occasionally need (R2)\n    let m: Arc<Mutex<()>> = Arc::new(Mutex::new(()));\n\n    let m_tx = m.clone();\n\n    let sender = thread::spawn(move || {\n        for v in 1..=2i32 {\n            // Acquire lock only while NOT blocked on the channel (R5):\n            // we take the lock, record nothing blocking, release before send-wait.\n            {\n                let _g = m_tx.lock().unwrap();\n                // short critical section; channel not waited on here\n            }\n            tx.send(v).unwrap(); // waits while channel full (R4); lock released above\n        }\n    });\n\n    let m_rx = m.clone();\n\n    let receiver = thread::spawn(move || {\n        for _ in 0..2 {\n            let v = rx.recv().unwrap(); // waits while channel empty (R4); no lock held\n            {\n                let _g = m_rx.lock().unwrap();\n                let _ = v; // brief use of shared lock (R2), never blocking on channel inside (R5)\n            }\n        }\n    });\n\n    sender.join().unwrap();\n    receiver.join().unwrap();\n\n    // R3: both roles finished; R6: termination guaranteed by capacity-1 handoff;\n    // R8: exact output\n    println!(\"DONE done=1\");\n}\n```"
-}

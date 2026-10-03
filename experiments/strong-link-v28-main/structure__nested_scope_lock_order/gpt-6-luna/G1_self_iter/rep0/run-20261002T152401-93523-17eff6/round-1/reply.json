@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "continue",
-  "raw_text": "```rust\nuse std::sync::Mutex;\nuse std::thread;\n\nfn x1(a: &Mutex<()>, b: &Mutex<()>) {\n    let _a = a.lock().unwrap();\n    let _b = b.lock().unwrap();\n}\n\nfn x2(a: &Mutex<()>, b: &Mutex<()>) {\n    let _a = a.lock().unwrap();\n    let _b = b.lock().unwrap();\n}\n\nfn outer(a: &Mutex<()>, b: &Mutex<()>) {\n    thread::scope(|scope| {\n        let x1_worker = scope.spawn(|| x1(a, b));\n        let x2_worker = scope.spawn(|| x2(a, b));\n\n        x1_worker.join().unwrap();\n        x2_worker.join().unwrap();\n    });\n}\n\nfn main() {\n    let a = Mutex::new(());\n    let b = Mutex::new(());\n\n    thread::scope(|scope| {\n        let outer_worker = scope.spawn(|| outer(&a, &b));\n        outer_worker.join().unwrap();\n    });\n\n    println!(\"DONE done=1\");\n}\n```"
-}

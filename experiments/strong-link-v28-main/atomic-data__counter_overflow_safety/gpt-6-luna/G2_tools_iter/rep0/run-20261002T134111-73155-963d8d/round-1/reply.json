@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "tools_green_ml",
-  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\n#[repr(u8)]\n#[derive(Clone, Copy)]\nenum Counter {\n    Zero = 0,\n    One = 1,\n    Two = 2,\n}\n\nstruct State {\n    c: Counter,\n}\n\nstruct Shared {\n    m: Mutex<State>,\n}\n\nfn w1(shared: Arc<Shared>) {\n    let mut state = shared.m.lock().unwrap();\n    if (state.c as u8) < 1 {\n        state.c = Counter::One;\n    }\n}\n\nfn w2(shared: Arc<Shared>) {\n    let mut state = shared.m.lock().unwrap();\n    if (state.c as u8) < 1 {\n        state.c = Counter::One;\n    }\n}\n\nfn main() {\n    let shared = Arc::new(Shared {\n        m: Mutex::new(State { c: Counter::Zero }),\n    });\n\n    let shared_for_w1 = Arc::clone(&shared);\n    let t1 = thread::spawn(move || w1(shared_for_w1));\n\n    let shared_for_w2 = Arc::clone(&shared);\n    let t2 = thread::spawn(move || w2(shared_for_w2));\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    let done = {\n        let state = shared.m.lock().unwrap();\n        state.c as u8\n    };\n    println!(\"DONE done={done}\");\n}\n```"
-}

@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "continue",
-  "raw_text": "```rust\nuse std::sync::{\n    mpsc::{sync_channel, Receiver, SyncSender},\n    Arc, Mutex,\n};\nuse std::thread;\n\nfn sender(ch: SyncSender<usize>, m: Arc<Mutex<usize>>) {\n    for value in [1, 2] {\n        {\n            let mut count = m.lock().unwrap();\n            *count += 1;\n        } // Release m before sending, which may wait.\n        ch.send(value).unwrap();\n    }\n}\n\nfn receiver(ch: Receiver<usize>, m: Arc<Mutex<usize>>) {\n    for expected in [1, 2] {\n        let value = ch.recv().unwrap(); // Wait without holding m.\n        assert_eq!(value, expected);\n\n        let mut count = m.lock().unwrap();\n        *count += 1;\n    }\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(0));\n    let ch = sync_channel::<usize>(1);\n    let (sender_ch, receiver_ch) = ch;\n\n    let sender_thread = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || sender(sender_ch, m))\n    };\n    let receiver_thread = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || receiver(receiver_ch, m))\n    };\n\n    sender_thread.join().unwrap();\n    receiver_thread.join().unwrap();\n    assert_eq!(*m.lock().unwrap(), 4);\n\n    println!(\"DONE done=1\");\n}\n```"
-}

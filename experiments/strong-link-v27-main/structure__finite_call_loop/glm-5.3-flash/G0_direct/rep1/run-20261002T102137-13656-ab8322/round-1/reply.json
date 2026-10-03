@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_ok",
-  "raw_text": "```rust\n// R1: The main task calls the auxiliary routine `helper`, then begins the\n//     same call sequence again (two identical call rounds).\n// R2: The main task and `helper` share no mutexes, counters, or other\n//     shared state — no two tasks ever contend for a resource.\n// R3: Each auxiliary call runs to completion (the thread is joined) before\n//     the calling task starts the next call.\n// R4: Every schedule and interleaving terminates: each spawned thread is\n//     joined before proceeding, and the loop is bounded.\n// R5: The program prints exactly the line `DONE done=1` and then exits.\n\nfn helper() {\n    // Auxiliary routine. It uses no shared state of any kind, so it can\n    // never contend with the main task (or with anything else).\n}\n\nfn main() {\n    // Two rounds of the same call sequence: call the auxiliary routine,\n    // wait for it to run to completion, then begin the sequence again.\n    for _round in 0..2 {\n        let handle = std::thread::spawn(helper);\n        // R3: run this call to completion before starting the next one.\n        handle.join().expect(\"helper thread panicked\");\n    }\n\n    // R5: exactly one line of output, then exit.\n    println!(\"DONE done=1\");\n}\n```"
-}

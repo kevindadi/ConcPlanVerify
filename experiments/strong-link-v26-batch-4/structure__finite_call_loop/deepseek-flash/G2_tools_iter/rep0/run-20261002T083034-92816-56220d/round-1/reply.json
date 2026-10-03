@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "tools_green_ml",
-  "raw_text": "```rust\nuse std::thread;\n\nfn helper() {\n    // The auxiliary routine does not share any state with the main task.\n}\n\nfn main() {\n    // First call of the auxiliary routine.\n    let h1 = thread::spawn(|| helper());\n    h1.join().unwrap();\n\n    // Begin the same call sequence again: call the auxiliary routine a second time.\n    let h2 = thread::spawn(|| helper());\n    h2.join().unwrap();\n\n    let done = 1;\n    println!(\"DONE done={}\", done);\n}\n```"
-}

@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_ok",
-  "raw_text": "```rust\nuse std::sync::mpsc::{sync_channel, Receiver, SyncSender};\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn sender(ch: SyncSender<i32>, m: Arc<Mutex<()>>) {\n    for value in [1, 2] {\n        {\n            let _guard = m.lock().unwrap();\n        }\n        ch.send(value).unwrap();\n    }\n}\n\nfn receiver(ch: Receiver<i32>, m: Arc<Mutex<()>>) {\n    for expected in [1, 2] {\n        {\n            let _guard = m.lock().unwrap();\n        }\n        let value = ch.recv().unwrap();\n        assert_eq!(value, expected);\n    }\n}\n\nfn main() {\n    let (ch_sender, ch_receiver) = sync_channel(1);\n    let m = Arc::new(Mutex::new(()));\n\n    let sender_m = Arc::clone(&m);\n    let sender_thread = thread::spawn(move || sender(ch_sender, sender_m));\n\n    let receiver_m = Arc::clone(&m);\n    let receiver_thread = thread::spawn(move || receiver(ch_receiver, receiver_m));\n\n    sender_thread.join().unwrap();\n    receiver_thread.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
-}

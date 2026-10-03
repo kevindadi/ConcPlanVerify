@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_ok",
-  "raw_text": "```rust\nuse std::sync::Mutex;\nuse std::thread;\n\nmod module_a {\n    use std::sync::Mutex;\n\n    #[allow(non_upper_case_globals)]\n    pub static a: Mutex<()> = Mutex::new(());\n\n    pub fn t1() {\n        // Both tasks acquire a before b, preventing a circular wait.\n        let a_guard = a.lock().unwrap();\n        let b_guard = crate::module_b::b.lock().unwrap();\n\n        let _both = (&a_guard, &b_guard);\n\n        drop(b_guard);\n        drop(a_guard);\n    }\n}\n\nmod module_b {\n    use std::sync::Mutex;\n\n    #[allow(non_upper_case_globals)]\n    pub static b: Mutex<()> = Mutex::new(());\n\n    pub fn t2() {\n        // Both tasks acquire a before b, preventing a circular wait.\n        let a_guard = crate::module_a::a.lock().unwrap();\n        let b_guard = b.lock().unwrap();\n\n        let _both = (&a_guard, &b_guard);\n\n        drop(b_guard);\n        drop(a_guard);\n    }\n}\n\nfn main() {\n    let t1 = thread::spawn(module_a::t1);\n    let t2 = thread::spawn(module_b::t2);\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
-}

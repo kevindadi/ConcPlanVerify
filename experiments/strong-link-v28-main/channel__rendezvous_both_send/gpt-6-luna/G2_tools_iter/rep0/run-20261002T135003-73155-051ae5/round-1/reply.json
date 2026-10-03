@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "tools_green_ml",
-  "raw_text": "```rust\nuse std::sync::mpsc::{sync_channel, Receiver, SyncSender};\nuse std::thread;\n\nfn s1(ch: SyncSender<()>) {\n    ch.send(()).expect(\"receiver failed\");\n}\n\nfn r(ch: Receiver<()>) {\n    ch.recv().expect(\"sender failed\");\n}\n\nfn main() {\n    let ch = sync_channel::<()>(0);\n    let (ch_sender, ch_receiver) = ch;\n\n    let sender = thread::spawn(move || s1(ch_sender));\n    let receiver = thread::spawn(move || r(ch_receiver));\n\n    sender.join().expect(\"sender task panicked\");\n    receiver.join().expect(\"receiver task panicked\");\n\n    println!(\"DONE done=1\");\n}\n```"
-}

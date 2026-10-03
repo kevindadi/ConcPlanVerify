@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_ok",
-  "raw_text": "```rust\n// Roles: helper (auxiliary routine), called by the main task.\n\n// Auxiliary routine: shares no mutexes, counters, or other state with the\n// main task (R2). It runs to completion before returning (R3).\nfn helper() {\n    // No shared state; nothing to contend for.\n}\n\nfn main() {\n    // R1: the main task calls the auxiliary routine, then begins the same\n    // call sequence again.\n    helper();\n    helper();\n\n    // R4: with a single task and no shared resources, every schedule\n    // terminates trivially.\n    // R5: print exactly the required line, then exit.\n    println!(\"DONE done=1\");\n}\n```"
-}

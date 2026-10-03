@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "tools_green_ml",
-  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\ntype Lock = Arc<Mutex<()>>;\n\nfn t1(a: Lock, b: Lock) {\n    let first = a.lock().unwrap();\n    let second = b.lock().unwrap();\n\n    std::hint::black_box((&*first, &*second));\n\n    drop(second);\n    drop(first);\n}\n\nfn t2(b: Lock, c: Lock) {\n    let first = b.lock().unwrap();\n    let second = c.lock().unwrap();\n\n    std::hint::black_box((&*first, &*second));\n\n    drop(second);\n    drop(first);\n}\n\nfn t3(a: Lock, c: Lock) {\n    // Acquire locks in the same global order as the other workers: a, b, c.\n    let first = a.lock().unwrap();\n    let second = c.lock().unwrap();\n\n    std::hint::black_box((&*first, &*second));\n\n    drop(second);\n    drop(first);\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n    let c = Arc::new(Mutex::new(()));\n\n    let t1_handle = {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        thread::spawn(move || t1(a, b))\n    };\n\n    let t2_handle = {\n        let b = Arc::clone(&b);\n        let c = Arc::clone(&c);\n        thread::spawn(move || t2(b, c))\n    };\n\n    let t3_handle = {\n        let a = Arc::clone(&a);\n        let c = Arc::clone(&c);\n        thread::spawn(move || t3(a, c))\n    };\n\n    t1_handle.join().unwrap();\n    t2_handle.join().unwrap();\n    t3_handle.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
-}

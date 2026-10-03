@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_ok",
-  "raw_text": "```rust\nuse std::sync::mpsc::{sync_channel, Receiver, SyncSender};\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn s(ch1: SyncSender<i32>, ch2: Receiver<i32>, shared_lock: Arc<Mutex<usize>>) {\n    {\n        let mut value = shared_lock.lock().unwrap();\n        *value += 1;\n    }\n\n    ch1.send(1).unwrap();\n    let _reply = ch2.recv().unwrap();\n}\n\nfn r(ch1: Receiver<i32>, ch2: SyncSender<i32>, shared_lock: Arc<Mutex<usize>>) {\n    {\n        let mut value = shared_lock.lock().unwrap();\n        *value += 1;\n    }\n\n    let value = ch1.recv().unwrap();\n    ch2.send(value).unwrap();\n}\n\nfn main() {\n    let (ch1_tx, ch1_rx) = sync_channel::<i32>(0);\n    let (ch2_tx, ch2_rx) = sync_channel::<i32>(0);\n    let shared_lock = Arc::new(Mutex::new(0));\n\n    let sender_lock = Arc::clone(&shared_lock);\n    let sender = thread::spawn(move || s(ch1_tx, ch2_rx, sender_lock));\n\n    let receiver_lock = Arc::clone(&shared_lock);\n    let receiver = thread::spawn(move || r(ch1_rx, ch2_tx, receiver_lock));\n\n    sender.join().unwrap();\n    receiver.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
-}

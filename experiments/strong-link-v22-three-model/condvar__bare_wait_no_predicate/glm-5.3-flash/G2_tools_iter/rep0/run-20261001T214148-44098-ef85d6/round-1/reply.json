@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "tools_dirty",
-  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nfn main() {\n    let shared = Arc::new((Mutex::new(false), Condvar::new()));\n    let (m, cv) = (&shared.0, &shared.1);\n\n    let waiter = {\n        let shared = Arc::clone(&shared);\n        thread::spawn(move || {\n            let (m, cv) = (&shared.0, &shared.1);\n            let mut ready = m.lock().unwrap();\n            while !*ready {\n                ready = cv.wait_while(ready, |ready| !*ready).unwrap();\n            }\n            ready\n        })\n    };\n\n    let notifier = {\n        let shared = Arc::clone(&shared);\n        thread::spawn(move || {\n            let (m, cv) = (&shared.0, &shared.1);\n            let mut ready = m.lock().unwrap();\n            *ready = true;\n            cv.notify_one();\n            drop(ready);\n        })\n    };\n\n    let ready = *waiter.join().unwrap();\n    notifier.join().unwrap();\n    println!(\"DONE ready={}\", ready);\n}\n```\n\nThis satisfies the spec: the mutex guards `ready`; the notifier sets it and signals under the lock; the waiter loops on the predicate (so a pre-signal, i.e., flag already true, means it never waits), releases the lock while blocked via `wait_while`, and the main thread joins both roles before printing exactly `DONE ready=true`."
-}

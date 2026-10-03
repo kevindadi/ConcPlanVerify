@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_ok",
-  "raw_text": "```rust\nuse std::sync::{\n    mpsc::{sync_channel, Receiver, SyncSender},\n    Arc, Mutex,\n};\nuse std::thread;\n\nfn sender(ch: SyncSender<u32>, m: Arc<Mutex<()>>) {\n    for value in [1, 2] {\n        let guard = m.lock().unwrap();\n        drop(guard);\n\n        ch.send(value).unwrap();\n    }\n}\n\nfn receiver(ch: Receiver<u32>, m: Arc<Mutex<()>>) {\n    for _ in 0..2 {\n        let guard = m.lock().unwrap();\n        drop(guard);\n\n        ch.recv().unwrap();\n    }\n}\n\nfn main() {\n    let ch = sync_channel::<u32>(1);\n    let (ch_sender, ch_receiver) = ch;\n    let m = Arc::new(Mutex::new(()));\n\n    let sender_handle = {\n        let m = Arc::clone(&m);\n        thread::spawn(move || sender(ch_sender, m))\n    };\n\n    let receiver_handle = thread::spawn(move || receiver(ch_receiver, m));\n\n    sender_handle.join().unwrap();\n    receiver_handle.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
-}

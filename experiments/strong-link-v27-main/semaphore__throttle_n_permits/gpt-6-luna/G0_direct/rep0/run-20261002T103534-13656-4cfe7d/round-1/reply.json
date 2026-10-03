@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_ok",
-  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct Semaphore {\n    permits: Mutex<usize>,\n    available: Condvar,\n}\n\nimpl Semaphore {\n    fn new(permits: usize) -> Self {\n        Self {\n            permits: Mutex::new(permits),\n            available: Condvar::new(),\n        }\n    }\n\n    fn acquire(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        while *permits == 0 {\n            permits = self.available.wait(permits).unwrap();\n        }\n        *permits -= 1;\n    }\n\n    fn release(&self) {\n        let mut permits = self.permits.lock().unwrap();\n        *permits += 1;\n        self.available.notify_one();\n    }\n}\n\nfn run_worker(s: Arc<Semaphore>) {\n    s.acquire();\n    let _work = ();\n    s.release();\n}\n\nfn w1(s: Arc<Semaphore>) {\n    run_worker(s);\n}\n\nfn w2(s: Arc<Semaphore>) {\n    run_worker(s);\n}\n\nfn w3(s: Arc<Semaphore>) {\n    run_worker(s);\n}\n\nfn main() {\n    let s = Arc::new(Semaphore::new(2));\n\n    let t1 = {\n        let s = Arc::clone(&s);\n        thread::spawn(move || w1(s))\n    };\n    let t2 = {\n        let s = Arc::clone(&s);\n        thread::spawn(move || w2(s))\n    };\n    let t3 = {\n        let s = Arc::clone(&s);\n        thread::spawn(move || w3(s))\n    };\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n    t3.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
-}

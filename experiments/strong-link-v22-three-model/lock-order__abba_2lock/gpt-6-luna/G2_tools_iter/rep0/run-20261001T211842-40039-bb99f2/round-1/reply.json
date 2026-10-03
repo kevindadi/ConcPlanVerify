@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "tools_green_ml",
-  "raw_text": "```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn t1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) -> i32 {\n    let _a_guard = a.lock().unwrap();\n    let _b_guard = b.lock().unwrap();\n    1\n}\n\nfn t2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) -> i32 {\n    let _a_guard = a.lock().unwrap();\n    let _b_guard = b.lock().unwrap();\n    1\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let worker_t1 = {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        thread::spawn(move || t1(a, b))\n    };\n\n    let worker_t2 = {\n        let a = Arc::clone(&a);\n        let b = Arc::clone(&b);\n        thread::spawn(move || t2(a, b))\n    };\n\n    let result_t1 = worker_t1.join().unwrap();\n    let result_t2 = worker_t2.join().unwrap();\n\n    println!(\"DONE t1={} t2={}\", result_t1, result_t2);\n}\n```"
-}

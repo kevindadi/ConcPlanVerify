@@ -1,7 +1,0 @@
-{
-  "round": 4,
-  "kind": "program",
-  "matched": [],
-  "decision": "continue",
-  "raw_text": "```rust\nuse std::sync::{mpsc, Arc, Mutex};\nuse std::thread;\n\nfn sender(ch: mpsc::SyncSender<u8>, m: Arc<Mutex<usize>>) {\n    ch.send(1).unwrap();\n\n    {\n        let mut shared = m.lock().unwrap();\n        *shared += 1;\n    } // Release m before the next channel operation.\n\n    ch.send(2).unwrap(); // Waits if ch is still full.\n\n    {\n        let mut shared = m.lock().unwrap();\n        *shared += 1;\n    }\n}\n\nfn receiver(ch: mpsc::Receiver<u8>, m: Arc<Mutex<usize>>) {\n    let _first = ch.recv().unwrap(); // Waits if ch is empty.\n\n    {\n        let mut shared = m.lock().unwrap();\n        *shared += 1;\n    } // Release m before the next channel operation.\n\n    let _second = ch.recv().unwrap();\n\n    {\n        let mut shared = m.lock().unwrap();\n        *shared += 1;\n    }\n}\n\nfn main() {\n    let (ch_sender, ch_receiver) = mpsc::sync_channel(1);\n    let m = Arc::new(Mutex::new(0));\n\n    let sender_m = Arc::clone(&m);\n    let sender_thread = thread::spawn(move || sender(ch_sender, sender_m));\n\n    let receiver_m = Arc::clone(&m);\n    let receiver_thread = thread::spawn(move || receiver(ch_receiver, receiver_m));\n\n    sender_thread.join().unwrap();\n    receiver_thread.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```\n\nThe capacity-one channel makes the second send wait until the receiver takes the first value. Neither role holds `m` while waiting on `ch`."
-}

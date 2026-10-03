@@ -1,7 +1,0 @@
-{
-  "round": 2,
-  "kind": "program",
-  "matched": [],
-  "decision": "continue",
-  "raw_text": "Both workers already acquire `a` before `b`, so there is no lock-order deadlock in the original program. The version below makes that ordering explicit in one shared function; each worker holds both locks during its work, and Rust releases the guards before the worker returns.\n\n```rust\nuse std::sync::{Arc, Mutex};\nuse std::thread;\n\nfn critical_work(a: &Mutex<()>, b: &Mutex<()>) -> usize {\n    let _guard_a = a.lock().unwrap();\n    let _guard_b = b.lock().unwrap();\n\n    // Critical work while holding both locks.\n    1\n}\n\nfn t1(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) -> usize {\n    critical_work(&a, &b)\n}\n\nfn t2(a: Arc<Mutex<()>>, b: Arc<Mutex<()>>) -> usize {\n    critical_work(&a, &b)\n}\n\nfn main() {\n    let a = Arc::new(Mutex::new(()));\n    let b = Arc::new(Mutex::new(()));\n\n    let a1 = Arc::clone(&a);\n    let b1 = Arc::clone(&b);\n    let h1 = thread::spawn(move || t1(a1, b1));\n\n    let a2 = Arc::clone(&a);\n    let b2 = Arc::clone(&b);\n    let h2 = thread::spawn(move || t2(a2, b2));\n\n    let result1 = h1.join().unwrap();\n    let result2 = h2.join().unwrap();\n\n    println!(\"DONE t1={} t2={}\", result1, result2);\n}\n```\n\nThe fixed acquisition order prevents circular wait. As with any thread-based program, termination assumes the scheduler eventually runs each worker."
-}

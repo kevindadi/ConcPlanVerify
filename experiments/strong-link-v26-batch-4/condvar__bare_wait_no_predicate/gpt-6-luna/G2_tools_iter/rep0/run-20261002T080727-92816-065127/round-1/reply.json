@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "tools_green_ml",
-  "raw_text": "```rust\nuse std::sync::{Arc, Condvar, Mutex};\nuse std::thread;\n\nstruct State {\n    ready: bool,\n}\n\nfn waiter(m: Arc<Mutex<State>>, cv: Arc<Condvar>) {\n    let mut state = m.lock().unwrap();\n\n    while !state.ready {\n        state = cv.wait(state).unwrap();\n    }\n}\n\nfn notifier(m: Arc<Mutex<State>>, cv: Arc<Condvar>) {\n    let mut state = m.lock().unwrap();\n    state.ready = true;\n    cv.notify_one();\n    drop(state);\n}\n\nfn main() {\n    let m = Arc::new(Mutex::new(State { ready: false }));\n    let cv = Arc::new(Condvar::new());\n\n    let waiter_thread = {\n        let m = Arc::clone(&m);\n        let cv = Arc::clone(&cv);\n        thread::spawn(move || waiter(m, cv))\n    };\n\n    let notifier_thread = {\n        let m = Arc::clone(&m);\n        let cv = Arc::clone(&cv);\n        thread::spawn(move || notifier(m, cv))\n    };\n\n    waiter_thread.join().unwrap();\n    notifier_thread.join().unwrap();\n\n    let state = m.lock().unwrap();\n    println!(\"DONE ready={}\", state.ready);\n}\n```"
-}

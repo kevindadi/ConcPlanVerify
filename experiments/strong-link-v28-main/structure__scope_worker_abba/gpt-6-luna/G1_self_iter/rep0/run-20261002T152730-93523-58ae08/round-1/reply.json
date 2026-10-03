@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "continue",
-  "raw_text": "```rust\nuse std::sync::Mutex;\nuse std::thread;\n\nfn w1(a: &Mutex<()>, b: &Mutex<()>) {\n    let _a_guard = a.lock().unwrap();\n    let _b_guard = b.lock().unwrap();\n\n    // Work is performed while both mutexes are held.\n}\n\nfn w2(a: &Mutex<()>, b: &Mutex<()>) {\n    let _a_guard = a.lock().unwrap();\n    let _b_guard = b.lock().unwrap();\n\n    // Work is performed while both mutexes are held.\n}\n\nfn main() {\n    let a = Mutex::new(());\n    let b = Mutex::new(());\n\n    thread::scope(|scope| {\n        let h1 = scope.spawn(|| w1(&a, &b));\n        let h2 = scope.spawn(|| w2(&a, &b));\n\n        h1.join().unwrap();\n        h2.join().unwrap();\n    });\n\n    println!(\"DONE done=1\");\n}\n```"
-}

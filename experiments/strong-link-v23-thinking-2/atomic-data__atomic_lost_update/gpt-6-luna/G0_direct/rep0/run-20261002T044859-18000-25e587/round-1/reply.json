@@ -1,7 +1,0 @@
-{
-  "round": 1,
-  "kind": "program",
-  "matched": [],
-  "decision": "build_ok",
-  "raw_text": "```rust\nuse std::sync::{\n    atomic::{AtomicUsize, Ordering},\n    Arc,\n};\nuse std::thread;\n\nfn w1(c: Arc<AtomicUsize>) {\n    let mut current = c.load(Ordering::Relaxed);\n    loop {\n        match c.compare_exchange(current, current + 1, Ordering::SeqCst, Ordering::Relaxed) {\n            Ok(_) => break,\n            Err(actual) => current = actual,\n        }\n    }\n}\n\nfn w2(c: Arc<AtomicUsize>) {\n    let mut current = c.load(Ordering::Relaxed);\n    loop {\n        match c.compare_exchange(current, current + 1, Ordering::SeqCst, Ordering::Relaxed) {\n            Ok(_) => break,\n            Err(actual) => current = actual,\n        }\n    }\n}\n\nfn main() {\n    let c = Arc::new(AtomicUsize::new(0));\n\n    let c1 = Arc::clone(&c);\n    let c2 = Arc::clone(&c);\n\n    let t1 = thread::spawn(move || w1(c1));\n    let t2 = thread::spawn(move || w2(c2));\n\n    t1.join().unwrap();\n    t2.join().unwrap();\n\n    println!(\"DONE done=1\");\n}\n```"
-}
