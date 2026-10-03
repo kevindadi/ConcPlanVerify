@@ -1,0 +1,99 @@
+"""Transport registry: discovery, blocked entries, identity enforcement."""
+
+from __future__ import annotations
+
+import unittest
+
+from cir_workflow import transport
+
+
+class RegistryTests(unittest.TestCase):
+    def test_deepseek_is_main_and_discovered(self):
+        specs = transport.build_registry()
+        ds = transport.resolve_model(specs, "DeepSeek Flash")
+        self.assertEqual(ds.model_id, "deepseek-flash")
+        self.assertEqual(ds.channel, "deepseek-direct")
+        self.assertEqual(ds.status, "available")
+        self.assertTrue(ds.discovered)
+
+    def test_qwen_direct_and_composer_are_available(self):
+        specs = transport.build_registry()
+        qwen = transport.resolve_model(specs, "Qwen")
+        self.assertEqual(qwen.channel, "dashscope-direct")
+        self.assertEqual(qwen.model_id, "qwen3.8-flash")
+        self.assertEqual(qwen.status, "available")
+        self.assertIn("qwen3.8-max", qwen.candidates)
+        composer = transport.resolve_model(specs, "Composer 2.5")
+        self.assertEqual(composer.channel, "cursor")
+        self.assertEqual(composer.model_id, "composer-2.5")
+        # Callable, but excluded from the fair comparison: the Cursor agent's
+        # context is large and not fully observable.
+        self.assertEqual(composer.status, "blocked")
+        self.assertEqual(composer.role, "diagnostic")
+
+    def test_blocked_models_have_no_available_id(self):
+        for spec in transport.blocked_models():
+            self.assertFalse(spec.model_id and spec.status == "available")
+
+    def test_opencode_models_are_discovered(self):
+        specs = transport.build_registry()
+        for display in ("Kimi 2.7 Code", "GLM 5.3 Flash", "GPT 6 Luna", "Grok 4.7"):
+            spec = transport.resolve_model(specs, display)
+            self.assertEqual(spec.channel, "opencode-go")
+            self.assertTrue(spec.discovered, display)
+            self.assertIn(spec.model_id, transport.DISCOVERED_MODELS["opencode-go"])
+        glm = transport.resolve_model(specs, "GLM 5.3 Flash")
+        self.assertEqual(glm.model_id, "glm-5.3-flash")
+        self.assertEqual(glm.channel, "opencode-go")
+        self.assertEqual(glm.surface, "chat")
+        self.assertNotIn("glm-5.3", glm.aliases)
+        self.assertEqual(transport.resolve_model(specs, "GLM").model_id, "glm-5.3-flash")
+        with self.assertRaises(KeyError):
+            transport.resolve_model(specs, "glm-5.3")
+        experiment = [spec.model_id for spec in transport.experiment_models(specs)]
+        self.assertEqual(experiment[-1], "glm-5.3-flash")
+        self.assertNotIn("cursor-agent", experiment)
+
+    def test_kimi_2_7_code_is_not_k3(self):
+        specs = transport.build_registry()
+        spec = transport.resolve_model(specs, "kimi-k2.7-code")
+        self.assertEqual(spec.display_name, "Kimi 2.7 Code")
+        self.assertEqual(spec.model_id, "kimi-k2.7-code")
+        self.assertEqual(spec.channel, "opencode-go")
+        self.assertNotIn("kimi-k3", spec.aliases)
+        historical = transport.resolve_model(specs, "kimi-k3")
+        self.assertEqual(historical.model_id, "kimi-k3")
+        self.assertEqual(historical.role, "historical")
+        self.assertNotIn(historical, transport.experiment_models(specs))
+
+    def test_historical_k3_is_outside_the_2_7_cohort(self):
+        rows = [{"requested_model": "kimi-k3", "returned_model": "kimi-k3"},
+                {"requested_model": "kimi-k3", "returned_model": None},
+                {"requested_model": "kimi-k2.7-code", "returned_model": "kimi-k3"}]
+        cohorts = [transport.cohort_for(r["requested_model"], r["returned_model"]) for r in rows]
+        self.assertEqual(cohorts[:2], ["historical-k3", "historical-k3"])
+        self.assertEqual(cohorts[2], "rejected-identity")
+        self.assertNotIn("kimi-2.7-code", cohorts)
+
+    def test_no_model_routes_deepseek_or_qwen_through_opencode(self):
+        for spec in transport.build_registry():
+            if spec.provider in {"deepseek", "qwen"}:
+                self.assertNotEqual(spec.channel, "opencode-go")
+
+
+class IdentityTests(unittest.TestCase):
+    def test_exact_match_confirms(self):
+        self.assertTrue(transport.verify_identity("kimi-k3", "kimi-k3"))
+
+    def test_missing_model_is_unconfirmed(self):
+        self.assertFalse(transport.verify_identity("kimi-k3", None))
+
+    def test_mismatch_raises_and_does_not_fall_back(self):
+        with self.assertRaises(transport.ModelIdentityError):
+            transport.verify_identity("kimi-k3", "glm-5.3")
+        with self.assertRaises(transport.ModelIdentityError):
+            transport.verify_identity("kimi-k2.7-code", "kimi-k3")
+
+
+if __name__ == "__main__":
+    unittest.main()

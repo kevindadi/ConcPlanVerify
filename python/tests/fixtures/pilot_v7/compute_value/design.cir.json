@@ -1,0 +1,76 @@
+{
+  "program": "compute_value",
+  "version": "3.5.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "m"
+        ],
+        "functions": [
+          "main",
+          "w"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "resources": [
+        {
+          "name": "m",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync"
+        }
+      ],
+      "protection": [],
+      "functions": [
+        {
+          "name": "w",
+          "kind": "normal",
+          "form": "function",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "mutex_lock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s2",
+              "kind": "mutex_unlock",
+              "resource": "main::m"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "body": [
+            {
+              "sid": "s1",
+              "kind": "spawn",
+              "func": "main::w",
+              "handle": "h"
+            },
+            {
+              "sid": "s2",
+              "kind": "join",
+              "handle": "h"
+            },
+            {
+              "sid": "s3",
+              "kind": "return"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

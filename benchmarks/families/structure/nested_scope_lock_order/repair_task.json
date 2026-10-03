@@ -1,0 +1,21 @@
+{
+  "requirements_file": "families/structure/nested_scope_lock_order/repair_input/requirements.txt",
+  "input_cir": "families/structure/nested_scope_lock_order/repair_input/input.cir.json",
+  "input_rust": "families/structure/nested_scope_lock_order/repair_input/input.rs",
+  "contract": "families/structure/nested_scope_lock_order/contract.json",
+  "ground_truth": {
+    "defect_family": "structure",
+    "resources": [
+      "main::a",
+      "main::b"
+    ],
+    "statements": [
+      "main::x2.s1",
+      "main::x2.s2"
+    ],
+    "expected_outcome_buggy": "FAIL",
+    "expected_outcome_fixed": "PASS",
+    "expected_repair": "unify the inner lock order",
+    "provenance": "authored; nested scope"
+  }
+}

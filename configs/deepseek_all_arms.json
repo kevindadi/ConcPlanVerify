@@ -1,0 +1,148 @@
+{
+  "models": [
+    {
+      "display_name": "DeepSeek Flash",
+      "model_id": "deepseek-flash",
+      "channel": "deepseek-direct",
+      "surface": "chat",
+      "thinking": {
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "max_output_tokens": 4096,
+      "request_timeout_seconds": 180,
+      "hard_timeout_seconds": 300
+    }
+  ],
+  "tasks": [
+    {
+      "family": "atomic-data",
+      "task": "atomic-data/atomic_lost_update"
+    },
+    {
+      "family": "atomic-data",
+      "task": "atomic-data/bounded_counter_invariant"
+    },
+    {
+      "family": "atomic-data",
+      "task": "atomic-data/counter_overflow_safety"
+    },
+    {
+      "family": "channel",
+      "task": "channel/bounded_backpressure_lock_held"
+    },
+    {
+      "family": "channel",
+      "task": "channel/rendezvous_both_send"
+    },
+    {
+      "family": "channel",
+      "task": "channel/send_while_holding_mutex"
+    },
+    {
+      "family": "condvar",
+      "task": "condvar/bare_wait_no_predicate"
+    },
+    {
+      "family": "condvar",
+      "task": "condvar/lost_wakeup_notify_before_wait"
+    },
+    {
+      "family": "condvar",
+      "task": "condvar/notify_one_multi_waiter_wrong_pick"
+    },
+    {
+      "family": "condvar",
+      "task": "condvar/same_cv_different_locks"
+    },
+    {
+      "family": "lock-order",
+      "task": "lock-order/abba_2lock"
+    },
+    {
+      "family": "lock-order",
+      "task": "lock-order/cross_module_cycle"
+    },
+    {
+      "family": "lock-order",
+      "task": "lock-order/cycle_3lock"
+    },
+    {
+      "family": "lock-order",
+      "task": "lock-order/partial_deadlock_bystander"
+    },
+    {
+      "family": "lock-order",
+      "task": "lock-order/two_independent_cycles"
+    },
+    {
+      "family": "semaphore",
+      "task": "semaphore/acquire_twice_no_release"
+    },
+    {
+      "family": "semaphore",
+      "task": "semaphore/permit_leak"
+    },
+    {
+      "family": "semaphore",
+      "task": "semaphore/throttle_n_permits"
+    },
+    {
+      "family": "structure",
+      "task": "structure/finite_call_loop"
+    },
+    {
+      "family": "structure",
+      "task": "structure/nested_scope_lock_order"
+    },
+    {
+      "family": "structure",
+      "task": "structure/scope_bound_k_workers"
+    },
+    {
+      "family": "structure",
+      "task": "structure/scope_worker_abba"
+    },
+    {
+      "family": "structure",
+      "task": "structure/spawn_join_loop_finite"
+    },
+    {
+      "family": "structure",
+      "task": "structure/worker_with_payload"
+    }
+  ],
+  "arms": [
+    "G0_direct",
+    "G1_self_iter",
+    "G2_tools_iter",
+    "G3_concir"
+  ],
+  "reps": [
+    0,
+    1,
+    2
+  ],
+  "cell_caps": {
+    "G0_direct": 2,
+    "G1_self_iter": 8,
+    "G2_tools_iter": 8,
+    "G3_concir": 14
+  },
+  "rounds": {
+    "G0_direct": 1,
+    "G1_self_iter": 4,
+    "G2_tools_iter": 4,
+    "G3_concir": 4
+  },
+  "g3_code_rounds": 3,
+  "matrix_cap": 2304,
+  "preflight_cap": 2,
+  "global_physical_cap": 2306,
+  "wall_seconds": 172800,
+  "concurrency": 3,
+  "cir_prompt_version": "v4",
+  "run_id": "reproduce-deepseek-all",
+  "note": "Fresh re-execution using the included source snapshot; historical outputs are not distributed."
+}

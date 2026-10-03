@@ -1,0 +1,1 @@
+Design a program with two mutexes A and B and two worker threads. Each worker must acquire both mutexes, perform its work inside the critical section, release both mutexes, and terminate. The main thread spawns both workers and joins them. Every interleaving must terminate without deadlock and both workers must complete.

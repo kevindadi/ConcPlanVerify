@@ -1,0 +1,33 @@
+{
+  "requirements_file": "families/lock-order/partial_deadlock_bystander/repair_input/requirements.txt",
+  "input_cir": "families/lock-order/partial_deadlock_bystander/repair_input/input.cir.json",
+  "input_rust": "families/lock-order/partial_deadlock_bystander/repair_input/input.rs",
+  "contract": "families/lock-order/partial_deadlock_bystander/contract.json",
+  "ground_truth": {
+    "defect_family": "goal_layer",
+    "resources": [
+      "main::a",
+      "main::b",
+      "main::sa",
+      "main::sb"
+    ],
+    "statements": [
+      "main::a.s3",
+      "main::b.s3"
+    ],
+    "expected_outcome_buggy": "FAIL",
+    "expected_outcome_fixed": "PASS",
+    "expected_repair": "break the semaphore cross-wait",
+    "preregistered": {
+      "buggy": {
+        "deadlock_free": "PASS",
+        "always_reachable": "FAIL"
+      },
+      "fixed": {
+        "deadlock_free": "PASS",
+        "always_reachable": "PASS"
+      }
+    },
+    "provenance": "authored"
+  }
+}

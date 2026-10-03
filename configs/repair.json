@@ -1,0 +1,30 @@
+{
+  "model": "deepseek-flash",
+  "tasks": [
+    "lock-order/partial_deadlock_bystander",
+    "lock-order/cross_module_cycle",
+    "lock-order/cycle_3lock",
+    "structure/nested_scope_lock_order",
+    "condvar/notify_one_multi_waiter_wrong_pick",
+    "channel/bounded_backpressure_lock_held",
+    "channel/send_while_holding_mutex",
+    "semaphore/acquire_twice_no_release",
+    "condvar/bare_wait_no_predicate",
+    "lock-order/abba_2lock"
+  ],
+  "arms": [
+    "A0_direct",
+    "A1_self_iter",
+    "A2_tools_iter_ml",
+    "A3_local",
+    "A3_whole",
+    "A3_tiered"
+  ],
+  "repetitions": 3,
+  "rounds": 4,
+  "local_phase_rounds": 2,
+  "max_requests": 1440,
+  "wall_seconds": 172800,
+  "concurrency": 1,
+  "round_definition": "LLM proposals; initial input inspection is not a proposal."
+}
