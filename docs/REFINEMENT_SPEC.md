@@ -47,7 +47,11 @@ A `Function` in `ast.rs` may specify `structured_body: Vec<StructuredStmt>` (wit
 Supported `StructuredStmt` variants (`#[serde(tag = "kind")]`, each carrying `id: String` and `#[serde(default)] req: Vec<String>`):
 - `stmt`: embeds any single flat `Op` (e.g., `assign_local`, `write_shared`, `read_shared`, `condvar_notify`, `condvar_notify_all`, `channel_send`, `channel_recv`, `semaphore_acquire`, `semaphore_release`, `atomic_load`, `atomic_store`, `atomic_cas`, `call`, `spawn`, `join`, `scope`, `return`, `seq_hole`, `nop`).
 - `lock_guard`: `{ "id": "b1", "kind": "lock_guard", "resource": "m", "body": [ ... ] }`
-  - Emits `mutex_lock(resource)`, lowers `body`, and emits `mutex_unlock(resource)` on normal fallthrough AND before any `return` inside `body` (tracking active lock guards on a lexical stack!).
+  - Emits `mutex_lock(resource)`, lowers `body`, and emits `mutex_unlock(resource)` on normal fallthrough AND before any `return` inside `body` (tracking active lock guards on a lexical stack in LIFO order!).
+- `rwlock_read_guard`: `{ "id": "b2", "kind": "rwlock_read_guard", "resource": "rw", "body": [ ... ] }`
+  - Emits `rwlock_read(resource)`, lowers `body`, and emits `rwlock_unlock(resource)` on normal fallthrough AND before any `return` inside `body` in LIFO order alongside `lock_guard` / `rwlock_write_guard`.
+- `rwlock_write_guard`: `{ "id": "b3", "kind": "rwlock_write_guard", "resource": "rw", "body": [ ... ] }`
+  - Emits `rwlock_write(resource)`, lowers `body`, and emits `rwlock_unlock(resource)` on normal fallthrough AND before any `return` inside `body` in LIFO order alongside `lock_guard` / `rwlock_read_guard`.
 - `if_else`: `{ "id": "b2", "kind": "if_else", "cond": "c < 2", "then_body": [ ... ], "else_body": [ ... ] }` (`else_body` optional, defaults to `[]`).
 - `while_loop`: `{ "id": "b3", "kind": "while_loop", "cond": "i < 4", "body": [ ... ] }`
 - `while_wait`: `{ "id": "b4", "kind": "while_wait", "cond": "count == 0", "condvar": "cv", "lock": "m", "body": [ ... ] }` (`body` optional before `condvar_wait`).
@@ -222,5 +226,40 @@ From `explored.results[0].state_graph` and `constructed.net` (or `raw_net` when 
      - **Loop C (Cross-layer Escalation)**: When the hole filler emits `{"escalate": {"reason": "...", "module": "..."}}` or exceeds `max_hole_rounds`, routes structured escalation diagnostics back to Stage 2 CIR revision!
    - Emits `traceability_manifest.json` linking `Clause ID -> Property ID -> Module::Function::SID (Structured ID) -> Hole ID -> Rust File:LineRange -> Verification Status`.
 5. **Bundled Prompts & Unit/Integration Tests**:
-   - `src/concplan/prompts/` bundles `scir_generation.md`, `hole_repair.md`, `cir_patch.md`, and `cir_local_revision.md` (loaded via `importlib.resources.files("concplan.prompts")`).
-   - Root `tests/` contains the consolidated unittest suite (`test_static_verify.py`, `test_e2e_pipeline.py`, `test_live_spn_concir_e2e.py`, etc.).
+   - `src/concplan/prompts/` bundles `nl_to_clauses.md`, `clauses_to_contract.md`, `scir_generation.md`, `hole_repair.md`, `cir_patch.md`, and `cir_local_revision.md` (loaded via `importlib.resources.files("concplan.prompts")`).
+   - Root `tests/` contains the consolidated unittest suite (`test_formalize_stage0.py`, `test_static_verify.py`, `test_e2e_pipeline.py`, `test_live_spn_concir_e2e.py`, etc.).
+
+---
+
+## 4. ConcIR v5 + UniPN Unification Extensions
+
+### 4.1 Temporal Properties (CTL & LTL) and Non-Vacuity (`unipn::analysis::temporal`)
+`PropertySpec` (`#[serde(tag = "kind", rename_all = "snake_case")]`) adds:
+- **`ctl`**: `{ "kind": "ctl", "id": "...", "formula": <CtlFormula<PredicateSpec>>, "non_vacuous": true, "req": ["R3"] }`
+  - `CtlFormula` tags (`#[serde(tag = "op", rename_all = "snake_case")]`): `true`, `false`, `atom` (`{atom}`), `not` (`{arg}`), `and` / `or` (`{args}`), `implies` / `eu` / `au` (`{lhs, rhs}`), `ex` / `ax` / `ef` / `af` / `eg` / `ag` (`{arg}`).
+- **`ltl`**: `{ "kind": "ltl", "id": "...", "formula": <LtlFormula<PredicateSpec>>, "fairness": [<FairnessConstraint>], "non_vacuous": true, "req": ["R3"] }`
+  - `LtlFormula` tags (`#[serde(tag = "op", rename_all = "snake_case")]`): `true`, `false`, `atom` (`{atom}`), `not` (`{arg}`), `and` / `or` (`{args}`), `implies` / `until` / `release` (`{lhs, rhs}`), `next` / `eventually` / `always` (`{arg}`).
+  - `FairnessConstraint` tags (`#[serde(tag = "kind", rename_all = "snake_case")]`): `justice` (`{atom}` = $\mathrm{GF}\,p$), `compassion` (`{enabled, taken}` = $\mathrm{GF}\,\text{enabled} \to \mathrm{GF}\,\text{taken}$).
+- **Non-Vacuity**: `PropertyResult` adds optional `vacuous: bool`, `vacuous_antecedents: Vec<String>`, and `explanation: Option<String>`. When `non_vacuous: true` and an implication antecedent holds in 0 reachable states, `explore` marks the property `FAIL` and surfaces `vacuous_antecedents` to Loop A.
+- **Additional CLIs**:
+  - `concir-backend explain-contract <contract.json> [--output <file>]` $\to$ `concir-contract-explanation/1`.
+  - `concir-backend export-cvn <program.json> [--output <file>]` $\to$ `unipn::cvn::CvnNet` + initial state + degradation report.
+
+### 4.2 Domain `TypeHole` (`src/domain.rs`), Composite Types, `RwLock`, and Multi-File Codegen
+- **`TypeDef` / `TypeHole`**: Module `types` entries support `{"Hole": {"description": "...", "req": ["R..."]}}`, `{"Struct": ...}`, and `{"Array": ...}`. `Mutex` and `RwLock` resources accept an optional `"base"` payload type.
+- **Codegen Emission**:
+  - Emits `src/domain.rs` containing `/* TYPE_HOLE(th1) type: <Name> */ #[derive(Clone, Debug, Default, PartialEq)] pub struct <Name> {}` plus a compile-time `Send + Sync + Clone + Default + 'static` bound assertion. Under `#[cfg(not(feature = "cir_trace"))]` (used by `spn`), structured mutex/rwlock guards with non-`()` payloads bind `_g_*`, `_rg_*`, and `_wg_*` to payload-typed `&mut {payload}` / `&{payload}` references backed by `Default::default()` while keeping OS sync guards (`__spn_*`) intact so `SeqHole` method/field calls compile identically under both feature modes.
+  - Emits multi-module programs into `src/<mod>.rs` and records `type_holes` (`id`, `type_name`, `module`, `file`, `line`, `description`, `req`) and `file` on `holes` in `codegen.json`.
+  - `fill_type_holes_marked` / `fill_holes_marked` wrap filled `TypeHole`s in `/* TYPE_HOLE_BEGIN(th1) */ ... /* TYPE_HOLE_END(th1) */` and write `type_hole_ranges` into `codegen_filled.json`.
+  - `AstHolePurityPlugin` scans all `src/*.rs` files (`src/main.rs`, `src/domain.rs`, `src/<mod>.rs`), allowing pure `struct`/`enum`/`impl` + bounded loops in `TypeHole`s while forbidding `Mutex`, `RwLock`, `Condvar`, `Semaphore`, `mpsc`, `Atomic*`, `thread::spawn`, `unsafe`, `cir_trace`, and unbounded `loop`/`while`.
+- **`RwLock` Canonical Ops**: `rwlock_read_lock`, `rwlock_read_unlock`, `rwlock_write_lock`, `rwlock_write_unlock` are unified across `ConcIR`, `spn`, `conform`, and `verify-refinement`.
+
+### 4.3 Compositional / Modular MIR Refinement
+- `spn` accepts `--focus-module <MOD>` (recording `focus_module` in `concir-impl-net/1`), projecting external transitions to silent `tau` and filtering purity attribution to `<MOD>` + shared `src/domain.rs` (observable iff `fn_in_module(MOD) || span_in_module(MOD) || resource_in_module(MOD)` for resources *owned* by `MOD`).
+- `concir-backend verify-refinement --module <MOD>` checks stuttering refinement projected symmetrically to transitions on resources *owned* by `<MOD>` or originating inside `<MOD>` (ignoring `requires.resources` ownership so shared imported resources modified by other modules project to `tau` symmetrically), combined with cross-module lock-order acyclicity.
+- `SpnMirRefinementPlugin(modular=True)` and `concplan e2e --modular-refinement` orchestrate global `summarize` + per-module `spn --focus-module <m>` + `verify-refinement --module <m>`, emitting `modular_reports` in `traceability_manifest.json`.
+
+### 4.4 Stage 0 Dual-Entry Autoformalization (`concplan.formalize`)
+- **Entry A (`formalize_from_nl`)**: Raw NL $\to$ Step 0.1 (`nl_to_clauses`: grounded `roles`, `resources`, `domain_types` + `R1..Rn` classified into `safety | liveness | reachability | sequential_hole` with `verifiable` flags + `REQUIREMENTS.md`) $\to$ Step 0.2 (`clauses_to_contract`: strictly isolated from candidate SCIR models) $\to$ Step 0.3 (`explain_contract_data` + `validate_contract_sanity`).
+- **Entry B (`formalize_from_structured`)**: Existing `REQUIREMENTS.md` / `requirements.json` (+ optional `contract.json`) $\to$ synthesizes missing contract via Step 0.2 or validates & explains existing contract via Step 0.3.
+- **Upgraded `traceability_manifest.json`**: Preserves all v4 keys and adds `formalization`, `nl_explanations`, `vacuity_status`, `type_holes`, and `modular_reports`.
