@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "concplan"
+version = "0.4.0"
+description = "Traceable bi-level concurrency verification and LLM orchestration for ConcIR v4"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["openai>=1.68,<3"]
+
+[project.scripts]
+concplan = "concplan.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["concplan*"]
+
+[tool.setuptools.package-data]
+"concplan.prompts" = ["*.md"]
