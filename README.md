@@ -1,174 +1,187 @@
-# ConcPlanVerify
+# ConcPlanVerify (v4)
 
-Python orchestration for LLM-driven construction and repair of concurrent
-programs. It turns clause-numbered requirement documents into a
-verification-oriented concurrency model (ConcIR), drives a verify–revise loop
-against a frozen contract, then has the model implement the verified design in
-Rust and post-verifies the result with instrumentation, conformance checking,
-and a bounded trace monitor.
+End-to-end, traceable, bi-level verification framework for LLM-driven
+construction and repair of concurrent Rust programs.
 
-All formal work is delegated to the Rust **`concir-backend`** CLI from the
-companion `ConcIR` repository: CIR validation, supportability, Petri-net
-exploration/verification, structured diagnostics, deterministic repair, code
-instrumentation, conformance, and monitoring. This package never re-implements
-CIR semantics, Petri translation, verification, candidate enumeration, patch
-legality, or repair acceptance.
+ConcPlanVerify separates **concurrency architecture** from **sequential
+business logic**:
 
-## Pipeline
+1. **Model-level verification (`backends/concir`, ConcIR v4):** Requirement
+   clauses are turned into a Structured ConcIR (`SCIR`) model (`lock_guard`,
+   `while_wait`, `seq_hole`, `req` tags), deterministically lowered to flat CIR
+   with a `TraceMap`, and exhaustively model-checked against a frozen
+   verification contract (Loop A).
+2. **Code-level static & MIR refinement verification (`backends/spn` +
+   `concir-backend verify-refinement`):** Verified CIR emits a MIR-clean Rust
+   skeleton with typed `/* HOLE(id) expected: T */` placeholders. An LLM fills
+   only the sequential holes, and pluggable static verifiers check **hole
+   purity (`O1`)** and **branch-pruning stuttering refinement (`O2`)** over the
+   compiler MIR Petri net exported by `spn`.
+3. **Bi-level iterative repair & traceability:** Hole-attributable failures
+   repair *only* the offending hole(s) (Loop B); architectural impossibilities
+   or non-hole refinement failures escalate back to Stage 2 CIR revision
+   (Loop C). Every run emits `traceability_manifest.json` linking
+   `Clause ID -> Property ID -> Module::Function::SID -> Hole ID -> Rust File:LineRange -> Verdict`.
 
-```
-requirements ──▶ CIR generation ──▶ check / support ──▶ explore vs contract ──▶ revise
-   (clause-          (LLM)              (Rust)          (exhaustive, Rust)     (local /
-    numbered,                                                                    whole /
-    contract                                                                     tiered)
-    hidden)
-                                                            │ complete PASS
-                                                            ▼
-                       accepted CIR ──▶ LLM writes Rust ──▶ instrument + conform ──▶ bounded monitor
-```
-
-- The contract is supplied by the caller, frozen, and **hidden from the
-  generation model**; generation and revision are driven by the requirement
-  document and contract-derived diagnostics only.
-- The CIR is decided *exhaustively* by model checking; the generated Rust is
-  checked by operation-bound conformance and a *bounded* monitor. The two words
-  are never used interchangeably.
-- `UNKNOWN` / `UNSUPPORTED` / budget-exhausted is reported as such, never as a
-  verified success.
-
-## Repositories
-
-- **This repository** — LLM-facing orchestration, versioned prompts, benchmarks,
-  experiment batches, evidence tiers, and the table/results generators.
-- **`ConcIR`** — Rust tool code only: CIR definition and the tools that operate
-  on it, exposed through the `concir` and `concir-backend` CLIs.
-
-## Layout
+## End-to-End Bi-Level Pipeline
 
 ```
-python/cir_workflow/
-├── concir_client.py      # typed subprocess client for concir-backend
-├── providers.py          # CandidateProvider protocol + ScriptedProvider (+ LLM adapter)
-├── offline_workflow.py   # generation -> check -> feedback -> verify -> tool repair
-├── generation.py         # generation benchmark arms and task loading
-├── revision_workflow.py  # local / whole / tiered CIR revision
-├── patch_repair.py       # constrained single-patch repair loop
-├── instrument.py         # concir-instrument driver (wrapper types, spawn events)
-├── conformance.py        # operation-bound conform driver
-├── bounded_monitor.py    # bounded trace monitor over observed runs
-├── rust_arm.py           # direct Rust arms (G0/G1/G2) + tool baselines
-├── rust_oracle.py        # reference-program oracle
-├── detection.py, scale.py, structural.py, contract_strength.py
-├── experiments_v2.py     # experiment batch orchestration
-├── gen_results.py        # RESULTS.md and tables/*.tex generation
-├── results.py, arms.py, models.py, llm.py, env.py, json_utils.py
-└── __main__.py           # CLI entry point
-prompts/                  # versioned modular-CIR generation / feedback / revision / Rust prompts
-benchmarks/               # families (generation tasks), real-cases, legacy reference programs
-experiments/              # raw experiment batches, tables, freeze manifest, evidence tiers
-runtime/concir_sync/      # provided std-only sync crate used by generated Rust
-scripts/                  # frozen experiment runners, renderers, and verifiers
-docs/                     # repository boundaries, migration record, prompt docs
+Requirements + Frozen Contract
+          │
+          ▼
+┌────────────────────────────── Stage 1/2: Model Verification (Loop A) ──────────────────────────────┐
+│  LLM generates SCIR v4 ──▶ concir-backend lower (TraceMap) ──▶ check / support / summarize         │
+│         ▲                                                               │                          │
+│         └─────────────── structured model-checking feedback ────────────┴──▶ explore (Petri net)   │
+└─────────────────────────────────────────────────────────────────────────┬──────────────────────────┘
+          ▲                                                               │ complete PASS
+          │ Loop C: cross-layer escalation                                ▼
+          │ (explicit escalate or exhausted Loop B)       concir-backend codegen (MIR-clean skeleton)
+          │                                                               │
+          │                                                               ▼
+┌─────────┴──────────────────── Stage 3/4: Code Verification (Loop B) ───────────────────────────────┐
+│  LLM fills seq_hole(s) ──▶ AstHolePurityPlugin (O1 purity + exact multi-line hole_ranges)          │
+│         ▲                        │                                                                 │
+│         │                        ▼                                                                 │
+│         │                 SpnMirRefinementPlugin (spn MIR Petri net -> verify-refinement O2)       │
+│         │                        │                                                                 │
+│         └── hole-local repair ───┴──▶ [optional] dynamic conform + traceability_manifest.json      │
+└────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Prerequisites
+## Repository Layout
 
-- A built ConcIR CLI:
-  `cargo build --release --bin concir-backend` in the `ConcIR` repository.
-- Python 3.10+. The workflow has no required third-party dependency; `openai`
-  is only needed for live LLM providers.
-- Point the client at the binary with `--binary` or the `CONCIR_BACKEND`
-  environment variable.
+```
+ConcPlanVerify/
+├── pyproject.toml                  # PEP 621 package metadata (`concplan`, `src/` layout)
+├── backends/
+│   ├── concir/                     # git submodule: ConcIR v4 AST/SCIR, Petri verifier, codegen, summarize, verify-refinement
+│   ├── spn/                        # Rust rustc_driver MIR Petri-net extractor (`spn --export-concir-net`)
+│   └── third_party/                # Optional local static analyzers (e.g. `lockbud/`, `rudra/`, gitignored)
+├── src/
+│   └── concplan/
+│       ├── __init__.py             # Top-level re-exports
+│       ├── __main__.py             # Unified v4 CLI (`concplan` / `python -m concplan`)
+│       ├── core/                   # toolchain, concir_client, models, llm, providers, prompts, env, json_utils
+│       ├── model_verify/           # normalize, offline_workflow, revision_workflow, patch_repair
+│       ├── code_verify/            # conformance, static_verify (plugins), bounded_monitor
+│       ├── pipeline/               # e2e_pipeline (Loops A/B/C + traceability), benchmarks loader
+│       └── prompts/                # Bundled v4 prompt assets loaded via `importlib.resources`
+│           ├── scir_generation.md  # SCIR v4.0 generation prompt
+│           ├── hole_repair.md      # Hole-filling, Loop B repair & Loop C escalation prompt
+│           ├── cir_patch.md        # Constrained single-patch repair prompt
+│           └── cir_local_revision.md # Function-scoped local revision prompt
+├── tests/                          # Consolidated unittest suite (unit + integration + live SPN/ConcIR E2E)
+├── benchmarks/
+│   ├── families/                   # 6 concurrency families (lock-order, condvar, channel, semaphore, atomic-data, structure)
+│   ├── real-cases/                 # Upstream real-world concurrency cases (`rmw-zenoh-998`, `dashmap-369`)
+│   ├── FAMILIES.md
+│   ├── MANIFEST.json
+│   └── GENERATION_MANIFEST.json
+└── docs/
+    ├── ARCHITECTURE.md             # Layer-by-layer architecture & plugin extension guide
+    └── REFINEMENT_SPEC.md          # Authoritative wire specification across ConcIR, SPN, and Python
+```
 
-## CLI usage
+## Build Prerequisites
 
-Thin wrappers over the backend (JSON on stdout; the process exit code mirrors
-the backend's semantic exit):
+1. **Python 3.10+** (standard library is sufficient for all offline/scripted
+   workflows and tests; install the package in editable mode for the `concplan`
+   console script and live LLM calls via `openai>=1.68,<3`):
+   ```bash
+   python -m pip install -e .
+   ```
+   Or run directly from source without installing by setting `PYTHONPATH=src`.
+2. **Build `concir-backend` (submodule):**
+   ```bash
+   cargo build --release --manifest-path backends/concir/Cargo.toml --bin concir-backend
+   ```
+   Binary discovery checks `backends/concir/target/release/` and
+   `backends/concir/target/debug/` automatically (or override via
+   `CONCIR_BACKEND` / `--binary`).
+3. **Build `spn` (MIR Petri-net analyzer, for `SpnMirRefinementPlugin`):**
+   ```bash
+   cargo build --release --manifest-path backends/spn/Cargo.toml
+   ```
+   Discovered automatically in `backends/spn/target/{release,debug}/` (or
+   override via `CONCIR_SPN`).
+4. **Optional `lockbud` (for `LockbudPlugin`):**
+   Discovered automatically in `backends/third_party/lockbud/target/{release,debug}/`
+   (or override via `CONCIR_LOCKBUD`).
+
+## CLI Usage
+
+When installed via `pip install -e .`, invoke `concplan ...` directly; when
+running from source, prefix with `PYTHONPATH=src python -m concplan ...`.
+
+### Discover Active Benchmarks
 
 ```bash
-export CONCIR_BACKEND=/path/to/ConcIR/target/release/concir-backend
-PYTHONPATH=python python3 -m cir_workflow --out /tmp/cir-out check   program.json
-PYTHONPATH=python python3 -m cir_workflow --out /tmp/cir-out support program.json
-PYTHONPATH=python python3 -m cir_workflow --out /tmp/cir-out explore program.json contract.json petri
-PYTHONPATH=python python3 -m cir_workflow --out /tmp/cir-out repair  program.json contract.json --strategy c
-PYTHONPATH=python python3 -m cir_workflow --out /tmp/cir-out replay  artifact.json
+PYTHONPATH=src python -m concplan list-benchmarks
+PYTHONPATH=src python -m concplan list-benchmarks --suite families
 ```
 
-Offline workflow with the scripted provider (no API key, no network):
+### Direct `concir-backend` Pass-Through Commands
 
 ```bash
-PYTHONPATH=python python3 -m cir_workflow --out /tmp/cir-offline offline \
-  --requirements "Two tasks take the same two locks in opposite order." \
-  --contract contract.json --provider scripted --script responses.json
+PYTHONPATH=src python -m concplan check program.json
+PYTHONPATH=src python -m concplan lower scir_program.json --output lowered.json --trace-map trace_map.json
+PYTHONPATH=src python -m concplan summarize program.json --output summary.json
+PYTHONPATH=src python -m concplan explore program.json contract.json --engine petri
+PYTHONPATH=src python -m concplan verify-refinement \
+  --spec program.json --impl-net impl_net.json \
+  --contract contract.json --codegen-map codegen_filled.json
 ```
 
-`responses.json` is a list of `{"text": "<CIR JSON>"}` (or `{"error": "..."}`)
-turns replayed in order.
+### End-to-End Bi-Level Pipeline (`e2e`)
 
-Regenerate the result tables from committed artifacts:
+Scripted offline run against a benchmark task:
 
 ```bash
-PYTHONPATH=python python3 -m cir_workflow results \
-  --batch experiments/flash-repair-main-v1/run-... \
-  --gen experiments/flash-gen-main-v5-code/run-... \
-  --genprobe experiments/gen-model-probe-v3-code \
-  --latex experiments/tables --output experiments/RESULTS.md
+PYTHONPATH=src python -m concplan --out out/e2e-demo e2e \
+  --task lock-order/abba_2lock \
+  --provider scripted --script responses.json \
+  --run-summarize --report out/e2e_report.json
 ```
 
-## Workflow guarantees
-
-- The contract is frozen and caller-supplied; the provider never writes or
-  edits it.
-- Generation candidates are retried only on parse/`check` failure, within a
-  bounded number of rounds. Once a candidate passes static checking the initial
-  CIR is frozen.
-- After freezing, the only repair path is the backend's deterministic strategy
-  search under the frozen contract and its `allowed_scope`; the provider cannot
-  replace the whole program to manufacture a pass.
-- A tool repair is labelled `tool`, never `LLM`.
-- Every complete repair artifact is replayed by the backend before it is
-  treated as evidence.
-
-## Prompt assets
-
-`prompts/` holds the versioned prompt templates used by the workflow: CIR
-generation and revision, structured feedback, single-patch repair, direct Rust
-generation and self-review, and Rust-to-CIR extraction. Prompts are data, not
-code; they are loaded by `python/cir_workflow/prompts.py`.
-
-## Benchmarks
-
-`benchmarks/families/` contains the generation tasks (requirement documents with
-an Entities section, frozen contracts with requirement-tagged clauses, and
-reference material), grouped by concurrency family. `benchmarks/real-cases/`
-holds larger reference programs, and `benchmarks/legacy-cir2cvn/` keeps the
-retired translator benchmark for historical comparison.
-
-## Experiments and evidence
-
-`experiments/` holds raw batches, `tables/`, `RESULTS.md`, `PROVENANCE.md`, the
-freeze manifest, and the evidence-tier policy:
-
-- `experiments/EVIDENCE_TIERS.md` — which batches feed the current results.
-- `experiments/RAW_POLICY.md` — which raw artifacts live on disk/freeze tags
-  only and are not tracked.
-- `experiments/FREEZE_MANIFEST.md` — frozen batch hashes and tags.
-
-## Tests
+Live LLM run (reads API key from environment or local `.env`, e.g.
+`DEEPSEEK_API_KEY` or `DASHSCOPE_API_KEY`):
 
 ```bash
-PYTHONPATH=python:. python3 -m unittest discover -s python/tests -t .
+PYTHONPATH=src python -m concplan --out out/e2e-live e2e \
+  --task lock-order/abba_2lock \
+  --provider deepseek --model deepseek-chat \
+  --run-summarize --run-dynamic-conform --report out/e2e_live.json
 ```
 
-Unit tests exercise the protocol mapping with a controllable stub; integration
-tests (`test_concir_integration.py`, `test_offline_workflow.py`) call the real
-`concir-backend` binary and skip with a clear message when it is absent.
+Other orchestration commands: `offline`, `revision`, `patch-repair`, and
+`conformance` (run `concplan <cmd> --help` or `python -m concplan <cmd> --help`
+for flags).
 
-## Model and provider constraints
+## Running Tests
 
-Live LLM commands use only the DeepSeek API key from a local `.env` and are
-pinned to `deepseek` / `deepseek-flash` with `thinking` disabled, a persisted
-request budget, and no Pro/alias/automatic-fallback. The key is for runtime
-authentication only and is never printed, committed, or written into
-experiment artifacts. Offline and generation commands remain keyless and
-network-free.
+Linux / macOS:
+
+```bash
+PYTHONPATH=src:. python3 -m unittest discover -s tests -t . -v
+```
+
+Windows PowerShell:
+
+```powershell
+$env:PYTHONPATH="src;."
+python -m unittest discover -s tests -t . -v
+```
+
+Unit tests run completely offline; integration and live end-to-end tests
+(`test_concir_integration.py`, `test_bounded_monitor.py`,
+`test_model_workflows.py`, `test_live_spn_concir_e2e.py`) automatically exercise
+the built `concir-backend` and `spn` binaries when present.
+
+## Further Reading
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Modular architecture and
+  how to add custom `StaticVerifierPlugin`s or LLM providers.
+- [`docs/REFINEMENT_SPEC.md`](docs/REFINEMENT_SPEC.md) — Wire schemas
+  (`concir-trace-map/1`, `concir-module-summary/1`, `concir-impl-net/1`,
+  `concir-refinement-report/1`) and exit-code contracts.
