@@ -43,6 +43,8 @@ EXPLORE_EXIT = {"pass": 0, "fail": 1, "unknown": 3, "invalid": 4, "unsupported":
 LOWER_EXIT = {"pass": 0, "fail": 1, "unknown": 3, "invalid": 4, "unsupported": 5}
 SUMMARIZE_EXIT = {"pass": 0, "fail": 1, "unknown": 3, "invalid": 4, "unsupported": 5}
 VERIFY_REFINEMENT_EXIT = {"pass": 0, "fail": 1, "unknown": 3, "invalid": 4, "unsupported": 5}
+EXPLAIN_CONTRACT_EXIT = {"pass": 0, "invalid": 4}
+EXPORT_CVN_EXIT = {"pass": 0, "invalid": 4, "unsupported": 5}
 REPAIR_EXIT = {
     "repaired": 0,
     "already_satisfied": 0,
@@ -348,6 +350,10 @@ class ConcirClient:
             return result
         text = stdout.strip()
         if not text:
+            if command == "export-cvn" and proc.returncode == 5:
+                result.kind, result.status = "semantic", "unsupported"
+                result.error = stderr.strip() or "export-cvn unsupported"
+                return result
             result.kind, result.status = "protocol_error", "empty_output"
             result.error = "concir-backend produced no stdout"
             return result
@@ -530,12 +536,14 @@ class ConcirClient:
         *,
         contract_path: Path | str | None = None,
         codegen_map_path: Path | str | None = None,
+        module: str | None = None,
         out_path: Path | str | None = None,
     ) -> ConcirResult:
         call_dir = self._call_dir("verify-refinement")
         spec = self._materialize(spec_path, call_dir / "spec.json")
         impl_net = self._materialize(impl_net_path, call_dir / "impl_net.json")
         argv = ["verify-refinement", "--spec", str(spec), "--impl-net", str(impl_net)]
+        config: dict[str, Any] = {}
         contract_mat: Path | None = None
         if contract_path is not None:
             contract_mat = self._materialize(contract_path, call_dir / "contract.json")
@@ -543,6 +551,9 @@ class ConcirClient:
         if codegen_map_path is not None:
             cmap_mat = self._materialize(codegen_map_path, call_dir / "codegen_map.json")
             argv += ["--codegen-map", str(cmap_mat)]
+        if module is not None:
+            argv += ["--module", str(module)]
+            config["module"] = str(module)
         resolved_out: Path | None = None
         if out_path is not None:
             resolved_out = Path(out_path).expanduser().resolve()
@@ -550,7 +561,51 @@ class ConcirClient:
             argv += ["--out", str(resolved_out)]
         result = self._invoke(
             "verify-refinement", argv, call_dir=call_dir,
-            input_path=spec, contract_path=contract_mat,
+            input_path=spec, contract_path=contract_mat, config=config,
+        )
+        if resolved_out is not None and resolved_out.exists():
+            result.artifact_path = str(resolved_out)
+        return result
+
+    def explain_contract(
+        self,
+        contract: Path | str,
+        *,
+        out_path: Path | str | None = None,
+    ) -> ConcirResult:
+        call_dir = self._call_dir("explain-contract")
+        contract_mat = self._materialize(contract, call_dir / "contract.json")
+        argv = ["explain-contract", str(contract_mat)]
+        resolved_out: Path | None = None
+        if out_path is not None:
+            resolved_out = Path(out_path).expanduser().resolve()
+            resolved_out.parent.mkdir(parents=True, exist_ok=True)
+            argv += ["--output", str(resolved_out)]
+        result = self._invoke(
+            "explain-contract", argv, call_dir=call_dir,
+            input_path=None, contract_path=contract_mat,
+        )
+        if resolved_out is not None and resolved_out.exists():
+            result.artifact_path = str(resolved_out)
+        return result
+
+    def export_cvn(
+        self,
+        program_path: Path | str,
+        *,
+        out_path: Path | str | None = None,
+    ) -> ConcirResult:
+        call_dir = self._call_dir("export-cvn")
+        prog = self._materialize(program_path, call_dir / "program.json")
+        argv = ["export-cvn", str(prog)]
+        resolved_out: Path | None = None
+        if out_path is not None:
+            resolved_out = Path(out_path).expanduser().resolve()
+            resolved_out.parent.mkdir(parents=True, exist_ok=True)
+            argv += ["--output", str(resolved_out)]
+        result = self._invoke(
+            "export-cvn", argv, call_dir=call_dir,
+            input_path=prog, contract_path=None,
         )
         if resolved_out is not None and resolved_out.exists():
             result.artifact_path = str(resolved_out)
@@ -657,6 +712,27 @@ def _classify(result: ConcirResult) -> ConcirResult:
             status, expected = "invalid", 4
         else:
             return _protocol(result, f"verify-refinement payload missing outcome (exit {exit_code})")
+    elif command == "explain-contract":
+        if exit_code == 0 and (
+            payload.get("schema") == "concir-contract-explanation/1"
+            or "properties" in payload
+        ):
+            status, expected = "pass", 0
+        elif exit_code == 4 and (payload.get("valid") is False or "error" in payload or "diagnostics" in payload):
+            status, expected = "invalid", 4
+        else:
+            return _protocol(result, f"explain-contract payload unrecognized for exit {exit_code}")
+    elif command == "export-cvn":
+        if exit_code == 0 and any(
+            k in payload for k in ("schema", "net", "cvn", "places", "transitions", "initial_state", "degradation")
+        ):
+            status, expected = "pass", 0
+        elif exit_code == 4 and (payload.get("valid") is False or "error" in payload or "diagnostics" in payload):
+            status, expected = "invalid", 4
+        elif exit_code == 5:
+            status, expected = "unsupported", 5
+        else:
+            return _protocol(result, f"export-cvn payload unrecognized for exit {exit_code}")
     elif command == "evaluate-patch":
         if payload.get("schema_version") != EXTERNAL_ARTIFACT_SCHEMA:
             return _protocol(result, f"unexpected artifact schema {payload.get('schema_version')!r}")

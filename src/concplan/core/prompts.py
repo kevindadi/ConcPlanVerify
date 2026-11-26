@@ -20,6 +20,8 @@ SCIR_GENERATION_ASSET = "scir_generation.md"
 HOLE_REPAIR_ASSET = "hole_repair.md"
 PATCH_ASSET = "cir_patch.md"
 LOCAL_REVISION_ASSET = "cir_local_revision.md"
+NL_TO_CLAUSES_ASSET = "nl_to_clauses.md"
+CLAUSES_TO_CONTRACT_ASSET = "clauses_to_contract.md"
 
 ACTIVE_PROMPT_ASSETS = (
     SCIR_GENERATION_ASSET,
@@ -27,6 +29,13 @@ ACTIVE_PROMPT_ASSETS = (
     PATCH_ASSET,
     LOCAL_REVISION_ASSET,
 )
+
+STAGE0_PROMPT_ASSETS = (
+    NL_TO_CLAUSES_ASSET,
+    CLAUSES_TO_CONTRACT_ASSET,
+)
+
+ALL_PROMPT_ASSETS = ACTIVE_PROMPT_ASSETS + STAGE0_PROMPT_ASSETS
 
 
 def _prompt_files():
@@ -37,23 +46,24 @@ def _read(name: str) -> str:
     return _prompt_files().joinpath(name).read_text(encoding="utf-8")
 
 
-def prompt_asset_record() -> dict[str, str]:
-    """Return ``{filename: sha256}`` for all 4 active v4 prompt assets."""
+def prompt_asset_record(*, include_stage0: bool = False) -> dict[str, str]:
+    """Return ``{filename: sha256}`` for bundled prompt assets."""
     files = _prompt_files()
+    names = ALL_PROMPT_ASSETS if include_stage0 else ACTIVE_PROMPT_ASSETS
     out: dict[str, str] = {}
-    for name in ACTIVE_PROMPT_ASSETS:
+    for name in names:
         data = files.joinpath(name).read_bytes()
         out[name] = sha256_bytes(data)
     return out
 
 
 def scir_generation_system_prompt() -> str:
-    """SCIR v4.0 generation prompt with lock_guard, while_wait, seq_hole, and req tags."""
+    """SCIR v5.0 generation prompt with lock_guard, while_wait, seq_hole, TypeHole, RwLock, and req tags."""
     return _read(SCIR_GENERATION_ASSET)
 
 
 def hole_repair_system_prompt() -> str:
-    """Hole-filling, Loop B hole-local repair, and Loop C escalation prompt."""
+    """Hole-filling (SeqHole + TypeHole), Loop B hole-local repair, and Loop C escalation prompt."""
     return _read(HOLE_REPAIR_ASSET)
 
 
@@ -65,6 +75,16 @@ def patch_system_prompt() -> str:
 def local_revision_system_prompt() -> str:
     """Function-scoped local CIR revision prompt."""
     return _read(LOCAL_REVISION_ASSET)
+
+
+def nl_to_clauses_system_prompt() -> str:
+    """Stage 0.1 prompt: free-form NL -> grounded entities + atomic clauses R1..Rn."""
+    return _read(NL_TO_CLAUSES_ASSET)
+
+
+def clauses_to_contract_system_prompt() -> str:
+    """Stage 0.2 isolated prompt: atomic clauses -> CTL/LTL verification contract."""
+    return _read(CLAUSES_TO_CONTRACT_ASSET)
 
 
 # Clean aliases for convenience
@@ -242,11 +262,32 @@ def build_explore_feedback(
     del preserved_ids
     payload = result.payload or {}
     properties = payload.get("properties", []) or []
-    failed_properties = [
-        {"id": p.get("id"), "outcome": p.get("outcome"), "detail": p.get("detail")}
-        for p in properties
-        if p.get("outcome") not in (None, "PASS")
-    ]
+    failed_properties = []
+    vacuous_properties = []
+    for p in properties:
+        if not isinstance(p, dict):
+            continue
+        is_vacuous = bool(p.get("vacuous")) or bool(p.get("vacuous_antecedents"))
+        if is_vacuous:
+            vacuous_properties.append({
+                "id": p.get("id"),
+                "outcome": p.get("outcome"),
+                "vacuous": True,
+                "vacuous_antecedents": list(p.get("vacuous_antecedents") or []),
+                "explanation": p.get("explanation"),
+            })
+        if p.get("outcome") not in (None, "PASS"):
+            entry: dict[str, Any] = {
+                "id": p.get("id"),
+                "outcome": p.get("outcome"),
+                "detail": p.get("detail"),
+            }
+            if is_vacuous:
+                entry["vacuous"] = True
+                entry["vacuous_antecedents"] = list(p.get("vacuous_antecedents") or [])
+            if p.get("explanation"):
+                entry["explanation"] = p.get("explanation")
+            failed_properties.append(entry)
     preserved_unmet = [
         p
         for p in failed_properties
@@ -268,19 +309,27 @@ def build_explore_feedback(
             "boundary_events": payload.get("boundary_events"),
             "repair_hints": d.get("repair_hints"),
         })
+    note = (
+        "UNKNOWN means the analysis did not complete; it is not a proof of "
+        "safety. FAIL with complete=false may already contain a counterexample."
+    )
+    if vacuous_properties:
+        note += (
+            " VACUOUS FAIL: One or more CTL/LTL implication properties failed non-vacuity "
+            "because their antecedent was never reachable in any state; revise the model so "
+            "the antecedent condition is genuinely reachable."
+        )
     return {
         "stage": "explore",
         "outcome": result.outcome,
         "complete": result.complete,
         "failed_properties": failed_properties,
+        "vacuous_properties": vacuous_properties,
         "preserved_unmet": preserved_unmet,
         "diagnostics": diagnostics,
         "unsupported": payload.get("unsupported"),
         "invalid": payload.get("invalid"),
-        "note": (
-            "UNKNOWN means the analysis did not complete; it is not a proof of "
-            "safety. FAIL with complete=false may already contain a counterexample."
-        ),
+        "note": note,
     }
 
 
