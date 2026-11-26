@@ -249,6 +249,24 @@ if cmd == "explore":
             "diagnostics": [{{"property": "deadlock_free", "outcome": "FAIL", "message": "lock cycle"}}],
         }}))
         sys.exit(1)
+    if prog.get("program") == "vacuous_first":
+        sys.stdout.write(json.dumps({{
+            "outcome": "FAIL",
+            "complete": True,
+            "properties": [{{
+                "id": "liveness-implication",
+                "outcome": "FAIL",
+                "vacuous": True,
+                "vacuous_antecedents": ["main::c > 0"],
+                "explanation": "CTL implication antecedent never reached",
+            }}],
+            "diagnostics": [{{
+                "property": "liveness-implication",
+                "outcome": "FAIL",
+                "message": "vacuous implication: antecedent main::c > 0 never holds",
+            }}],
+        }}))
+        sys.exit(1)
     sys.stdout.write(json.dumps({{
         "outcome": "PASS",
         "complete": True,
@@ -489,6 +507,121 @@ class E2EPipelineTests(unittest.TestCase):
         self.assertEqual(res.escalations[0]["offending_holes"], ["h_inc"])
         self.assertEqual(len(cir_prov.calls), 2)
         self.assertIn("hole_repair_exhausted", cir_prov.calls[1].feedback)
+
+    def test_stage0_nl_spec_vacuity_loop_a_and_type_hole_loop_b_repair(self):
+        # Stage 0 Entry A: raw NL -> clauses -> contract -> Loop A (vacuous fail -> fixed)
+        # -> Stage 3 (TypeHole th1 + SeqHole h_inc) -> Loop B repairs ONLY th1 (h_inc stays frozen!)
+        clauses_reply = {
+            "title": "counter_domain",
+            "entities": {
+                "roles": ["w1"],
+                "resources": ["m", "c"],
+                "domain_types": [{"name": "CounterStats", "description": "Pure stats", "kind": "hole", "req": ["R3"]}],
+            },
+            "clauses": [
+                {"id": "R1", "text": "No deadlocks.", "category": "safety", "verifiable": True},
+                {"id": "R2", "text": "Whenever c > 0, eventually w1 completes.", "category": "liveness", "verifiable": True},
+                {"id": "R3", "text": "CounterStats holds pure statistics.", "category": "sequential_hole", "verifiable": False},
+            ],
+        }
+        contract_reply = {
+            "name": "counter-domain",
+            "properties": [
+                {"kind": "deadlock_free", "id": "no-deadlock", "req": ["R1"]},
+                {
+                    "kind": "ctl",
+                    "id": "liveness-implication",
+                    "non_vacuous": True,
+                    "req": ["R2"],
+                    "formula": {
+                        "op": "ag",
+                        "arg": {
+                            "op": "implies",
+                            "lhs": {"op": "atom", "atom": {"kind": "var_cmp", "resource": "main::c", "op": ">", "value": 0}},
+                            "rhs": {"op": "af", "arg": {"op": "atom", "atom": {"kind": "function_completed", "function": "main::w1"}}},
+                        },
+                    },
+                },
+            ],
+            "preserved": [
+                {"kind": "reachable", "description": "w1 completes", "goal": {"kind": "function_completed", "function": "main::w1"}, "req": ["R2"]},
+            ],
+        }
+
+        vac_cir = dict(FLAT_CIR_LOWERED, program="vacuous_first")
+        clause_prov = ScriptedProvider([{"text": json.dumps(clauses_reply)}])
+        contract_prov = ScriptedProvider([{"text": json.dumps(contract_reply)}])
+        cir_prov = ScriptedProvider([
+            {"text": json.dumps(vac_cir)},
+            {"text": json.dumps(SCIR_PROGRAM)},
+        ])
+        hole_prov = ScriptedProvider([
+            # Initial fill: h_inc is clean, th1 sneaks Mutex::new!
+            {"text": json.dumps({
+                "h_inc": "1 + 1",
+                "th1": "#[derive(Default)]\npub struct CounterStats { pub lock: std::sync::Mutex<i64> }",
+            })},
+            # Loop B repair: fixes ONLY th1 (rogue change to h_inc must be ignored!)
+            {"text": json.dumps({
+                "h_inc": "9999",
+                "th1": "#[derive(Clone, Debug, Default, PartialEq)]\npub struct CounterStats { pub hits: i64 }",
+            })},
+        ])
+
+        domain_skel = (
+            "/* TYPE_HOLE(th1) type: CounterStats */\n"
+            "#[derive(Clone, Debug, Default, PartialEq)]\n"
+            "pub struct CounterStats {}\n"
+        )
+        cg_with_th = {
+            "resources": [{"fqn": "main::m", "field": "r0_main_m", "kind": "Mutex"}],
+            "holes": [
+                {"id": "h_inc", "module": "main", "function": "main::w1", "sid": "s2", "expected": "i64", "line": 3, "req": ["R2"]},
+            ],
+            "type_holes": [
+                {"id": "th1", "type_name": "CounterStats", "module": "main", "file": "src/domain.rs", "line": 1, "req": ["R3"]},
+            ],
+        }
+
+        def _codegen_with_domain(_prog: Path, out_dir: Path) -> dict:
+            (out_dir / "src").mkdir(parents=True, exist_ok=True)
+            (out_dir / "Cargo.toml").write_text('[package]\nname = "cir_generated"\nversion = "0.1.0"\nedition = "2021"\n', encoding="utf-8")
+            (out_dir / "src/main.rs").write_text(ONE_HOLE_SKELETON, encoding="utf-8")
+            (out_dir / "src/domain.rs").write_text(domain_skel, encoding="utf-8")
+            (out_dir / "codegen.json").write_text(json.dumps(cg_with_th, indent=2), encoding="utf-8")
+            return cg_with_th
+
+        verifier = CompositeStaticVerifier([AstHolePurityPlugin(), _AlwaysPassPlugin()])
+        res = run_e2e_pipeline(
+            nl_spec="Protect counter c with mutex m, ensure w1 completes whenever c > 0, and store pure CounterStats.",
+            clause_provider=clause_prov,
+            contract_provider=contract_prov,
+            client=self.client,
+            cir_provider=cir_prov,
+            hole_provider=hole_prov,
+            out_dir=self.root / "runs_v5",
+            static_verifier=verifier,
+            codegen_fn=_codegen_with_domain,
+        )
+
+        self.assertEqual(res.status, "verified", res.error)
+        # Loop A surfaced vacuity feedback on round 1 -> round 2 passed!
+        self.assertEqual(len(cir_prov.calls), 2)
+        self.assertIn("vacuous_properties", cir_prov.calls[1].feedback)
+        self.assertIn("VACUOUS FAIL", cir_prov.calls[1].feedback)
+        # Loop B repaired ONLY th1 and kept h_inc frozen at "1 + 1"!
+        self.assertEqual(len(res.hole_rounds), 2)
+        self.assertEqual(res.hole_rounds[1]["target_holes"], ["th1"])
+        self.assertEqual(res.fills["h_inc"], "1 + 1")
+        self.assertIn("hits: i64", res.fills["th1"])
+        # Upgraded traceability_manifest.json contains all v5 sections!
+        manifest = res.manifest
+        self.assertIsNotNone(manifest["formalization"])
+        self.assertIsNotNone(manifest["nl_explanations"])
+        self.assertEqual(manifest["vacuity_status"]["has_vacuous"], False)
+        self.assertEqual(len(manifest["type_holes"]), 1)
+        self.assertEqual(manifest["type_holes"][0]["type_hole_id"], "th1")
+        self.assertTrue(manifest["type_holes"][0]["rust_span"].startswith("src/domain.rs:"))
 
 
 if __name__ == "__main__":

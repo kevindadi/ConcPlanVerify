@@ -47,8 +47,11 @@ class ConcirIntegrationTests(unittest.TestCase):
         c = self.client()
         r = c.support(FIXTURES / "single_cycle.json")
         self.assertEqual((r.kind, r.status), ("semantic", "supported"))
-        r = c.support(FIXTURES / "rwlock_unsupported.json")
-        self.assertEqual((r.kind, r.status), ("semantic", "unsupported"))
+        # RwLock is supported in v5; abstract_step exercises the unsupported path.
+        r_rw = c.support(FIXTURES / "rwlock_unsupported.json")
+        self.assertEqual((r_rw.kind, r_rw.status), ("semantic", "supported"))
+        r_unsup = c.support(FIXTURES / "abstract_unsupported.json")
+        self.assertEqual((r_unsup.kind, r_unsup.status), ("semantic", "unsupported"))
 
     def test_explore_all_outcomes(self):
         c = self.client()
@@ -59,8 +62,11 @@ class ConcirIntegrationTests(unittest.TestCase):
         self.assertEqual((r.kind, r.status), ("semantic", "pass"))
         r = c.explore(FIXTURES / "finite_call_loop.json", FIXTURES / "tiny_bounds_contract.json")
         self.assertEqual((r.kind, r.status), ("semantic", "unknown"))
-        r = c.explore(FIXTURES / "rwlock_unsupported.json", FIXTURES / "rwlock_unsupported_contract.json")
-        self.assertEqual((r.kind, r.status), ("semantic", "unsupported"))
+        # RwLock deadlock fixture now verifies and detects the deadlock (fail); abstract_step returns unsupported.
+        r_rw = c.explore(FIXTURES / "rwlock_unsupported.json", FIXTURES / "rwlock_unsupported_contract.json")
+        self.assertEqual((r_rw.kind, r_rw.status), ("semantic", "fail"))
+        r_unsup = c.explore(FIXTURES / "abstract_unsupported.json", FIXTURES / "rwlock_unsupported_contract.json")
+        self.assertEqual((r_unsup.kind, r_unsup.status), ("semantic", "unsupported"))
 
     def test_repair_and_replay_round_trip(self):
         c = self.client()

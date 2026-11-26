@@ -83,8 +83,8 @@ class OfflineWorkflowTests(unittest.TestCase):
         self.assertIsNone(result.repair)
 
     def test_rwlock_unsupported_stops(self):
-        wf, _ = self.workflow("unsupported", [{"text": fixture_text("rwlock_unsupported.json")}])
-        result = wf.run("rwlock case", self.contract("rwlock_unsupported_contract.json"))
+        wf, _ = self.workflow("unsupported", [{"text": fixture_text("abstract_unsupported.json")}])
+        result = wf.run("unsupported abstract_step case", self.contract("rwlock_unsupported_contract.json"))
         self.assertIn(result.status, {"unsupported", "invalid"})
         self.assertIsNone(result.repair)
 

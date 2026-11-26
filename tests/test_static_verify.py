@@ -17,6 +17,7 @@ from concplan.code_verify.static_verify import (
     SpnMirRefinementPlugin,
     augment_codegen_map_with_hole_ranges,
     fill_holes_marked,
+    fill_type_holes_marked,
     strip_rust_comments_and_literals,
 )
 from concplan.core import toolchain
@@ -248,8 +249,40 @@ class ConcirClientV4MethodsTests(unittest.TestCase):
             rc = cli_main([
                 "--binary", str(self.stub), "--out", out_dir,
                 "verify-refinement", "--spec", str(self.prog), "--impl-net", str(self.impl_net),
+                "--module", "main",
             ])
             self.assertEqual(rc, 0)
+
+    def test_explain_contract_export_cvn_and_verify_refinement_module(self):
+        contract = self.root / "contract.json"
+        contract.write_text('{"name": "demo", "properties": []}', encoding="utf-8")
+
+        exp_json = json.dumps({
+            "schema": "concir-contract-explanation/1",
+            "name": "demo",
+            "properties": [],
+            "preserved": [],
+        })
+        r_exp = self._client(STUB_STDOUT=exp_json, STUB_EXIT="0").explain_contract(
+            contract, out_path=self.root / "out" / "exp.json"
+        )
+        self.assertEqual((r_exp.kind, r_exp.status), ("semantic", "pass"))
+        self.assertIn("--output", r_exp.argv)
+
+        cvn_json = json.dumps({"schema": "unipn-cvn/1", "net": {"places": []}})
+        r_cvn = self._client(STUB_STDOUT=cvn_json, STUB_EXIT="0").export_cvn(
+            self.prog, out_path=self.root / "out" / "cvn.json"
+        )
+        self.assertEqual((r_cvn.kind, r_cvn.status), ("semantic", "pass"))
+        self.assertIn("--output", r_cvn.argv)
+
+        ref_json = json.dumps({"schema": "concir-refinement-report/1", "outcome": "pass", "violations": []})
+        r_mod = self._client(STUB_STDOUT=ref_json, STUB_EXIT="0").verify_refinement(
+            self.prog, self.impl_net, module="worker"
+        )
+        self.assertEqual((r_mod.kind, r_mod.status), ("semantic", "pass"))
+        self.assertIn("--module", r_mod.argv)
+        self.assertIn("worker", r_mod.argv)
 
 
 class AstHolePurityAndHoleRangesTests(unittest.TestCase):
@@ -351,6 +384,117 @@ class AstHolePurityAndHoleRangesTests(unittest.TestCase):
         self.assertEqual(rep.status, "fail_skeleton")
         self.assertFalse(rep.checks["skeleton_integrity"])
         self.assertIn("changed_outside_hole", {v.kind for v in rep.violations})
+
+    def test_type_hole_filling_pure_pass_and_sync_or_loop_caught(self):
+        domain_skel = (
+            "/* TYPE_HOLE(th1) type: OrderBook */\n"
+            "#[derive(Clone, Debug, Default, PartialEq)]\n"
+            "pub struct OrderBook {}\n"
+            "const _: fn() = || {\n"
+            "    fn assert_domain_bounds<T: Send + Sync + Clone + Default + 'static>() {}\n"
+            "    assert_domain_bounds::<OrderBook>();\n"
+            "};\n"
+        )
+        worker_skel = (
+            "pub fn cf_worker() {\n"
+            "    cir_trace::ev(tag, \"s1\"); // @cir s1\n"
+            "    let _x: i64 = /* HOLE(h_mod) expected: i64 */ Default::default();\n"
+            "}\n"
+        )
+        cg = dict(SAMPLE_CODEGEN)
+        cg["holes"] = list(SAMPLE_CODEGEN["holes"]) + [
+            {
+                "id": "h_mod",
+                "module": "worker",
+                "file": "src/worker.rs",
+                "function": "worker::cf_worker",
+                "sid": "s1",
+                "expected": "i64",
+                "line": 3,
+                "req": ["R3"],
+            }
+        ]
+        cg["type_holes"] = [
+            {
+                "id": "th1",
+                "type_name": "OrderBook",
+                "module": "main",
+                "file": "src/domain.rs",
+                "line": 1,
+                "description": "Pure order book",
+                "req": ["R4"],
+            }
+        ]
+        skel = _make_skeleton(self.root / "multi", SAMPLE_SKELETON, cg)
+        (skel / "src/domain.rs").write_text(domain_skel, encoding="utf-8")
+        (skel / "src/worker.rs").write_text(worker_skel, encoding="utf-8")
+
+        # 1. Pure TypeHole (struct + pure impl + bounded for loop) + pure multi-file SeqHoles -> PASS!
+        pure_th = (
+            "#[derive(Clone, Debug, Default, PartialEq)]\n"
+            "pub struct OrderBook { pub best: i64 }\n"
+            "impl OrderBook {\n"
+            "    pub fn update(&mut self, xs: &[i64]) {\n"
+            "        for &v in xs { if v > self.best { self.best = v; } }\n"
+            "    }\n"
+            "}"
+        )
+        filled_ok = self.root / "multi_ok"
+        info = fill_holes_marked(
+            skel, filled_ok, {"h1": "1", "h2": "()", "h_mod": "7", "th1": pure_th}
+        )
+        self.assertEqual(info["applied_type_holes"], ["th1"])
+        self.assertEqual(info["type_hole_ranges"]["th1"]["file"], "src/domain.rs")
+        self.assertEqual(info["hole_ranges"]["h_mod"]["file"], "src/worker.rs")
+
+        rep_ok = AstHolePurityPlugin().verify(skeleton_dir=skel, filled_dir=filled_ok)
+        self.assertEqual(rep_ok.status, "pass", rep_ok.as_dict())
+        self.assertEqual(rep_ok.metadata["type_holes_checked"], ["th1"])
+        self.assertIn("h_mod", rep_ok.metadata["holes_checked"])
+
+        # 2. TypeHole sneaking Mutex::new + unbounded while -> fail_hole attributed to th1 in src/domain.rs!
+        bad_th = (
+            "#[derive(Default)]\n"
+            "pub struct OrderBook { pub m: std::sync::Mutex<i64> }\n"
+            "impl OrderBook {\n"
+            "    pub fn spin(&self) { while true {} }\n"
+            "}"
+        )
+        filled_bad = self.root / "multi_bad"
+        fill_type_holes_marked(skel, filled_bad, {"th1": bad_th})
+        rep_bad = AstHolePurityPlugin().verify(skeleton_dir=skel, filled_dir=filled_bad)
+        self.assertEqual(rep_bad.status, "fail_hole")
+        self.assertEqual(rep_bad.offending_holes, ["th1"])
+        kinds = {v.kind for v in rep_bad.violations}
+        self.assertIn("sync_in_type_hole", kinds)
+        self.assertIn("loop_in_type_hole", kinds)
+        self.assertTrue(all(v.rust_span.startswith("src/domain.rs:") for v in rep_bad.violations))
+        self.assertEqual(rep_bad.violations[0].req_clauses, ["R4"])
+
+        # 3. Explicitly bounded while (// @bound) in TypeHole is allowed!
+        bounded_th = (
+            "#[derive(Clone, Debug, Default, PartialEq)]\n"
+            "pub struct OrderBook { pub n: i64 }\n"
+            "impl OrderBook {\n"
+            "    pub fn step(&mut self) {\n"
+            "        // @bound(4)\n"
+            "        while self.n < 4 { self.n += 1; }\n"
+            "    }\n"
+            "}"
+        )
+        filled_bnd = self.root / "multi_bnd"
+        fill_holes_marked(skel, filled_bnd, {"h1": "1", "h2": "()", "h_mod": "7", "th1": bounded_th})
+        rep_bnd = AstHolePurityPlugin().verify(skeleton_dir=skel, filled_dir=filled_bnd)
+        self.assertEqual(rep_bnd.status, "pass", rep_bnd.as_dict())
+
+        # 4. Tampering with const assert_domain_bounds outside TYPE_HOLE fails skeleton!
+        dom_path = filled_ok / "src/domain.rs"
+        dom_path.write_text(
+            dom_path.read_text(encoding="utf-8").replace("assert_domain_bounds", "noop_bounds"),
+            encoding="utf-8",
+        )
+        rep_tamper = AstHolePurityPlugin().verify(skeleton_dir=skel, filled_dir=filled_ok)
+        self.assertEqual(rep_tamper.status, "fail_skeleton")
 
 
 class SpnMirRefinementAndLockbudPluginTests(unittest.TestCase):
@@ -537,6 +681,73 @@ class SpnMirRefinementAndLockbudPluginTests(unittest.TestCase):
             rep_bug = plugin.verify(skeleton_dir=self.skel, filled_dir=self.filled)
         self.assertEqual(rep_bug.status, "fail_refinement")
         self.assertEqual(rep_bug.violations[0].kind, "lockbud_ConflictLock")
+
+    def test_spn_plugin_modular_mode_runs_per_module_and_global_summary(self):
+        multi_spec = self.root / "multi_spec.json"
+        multi_spec.write_text(
+            json.dumps({
+                "program": "multi_demo",
+                "modules": [{"name": "main"}, {"name": "worker"}],
+            }),
+            encoding="utf-8",
+        )
+        # Stub binary handles both summarize and verify-refinement --module <m>
+        calls_seen: list[list[str]] = []
+
+        class _FakeClient:
+            def summarize(self, prog, *, module=None, out_path=None):
+                calls_seen.append(["summarize"])
+                return mock.MagicMock(
+                    kind="semantic",
+                    status="pass",
+                    payload={"schema": "concir-module-summary/1", "cross_module_lock_cycle": False},
+                )
+
+            def verify_refinement(self, spec, impl_net, *, contract_path=None, codegen_map_path=None, module=None, out_path=None):
+                calls_seen.append(["verify-refinement", str(module)])
+                return mock.MagicMock(
+                    kind="semantic",
+                    status="pass",
+                    payload={
+                        "schema": "concir-refinement-report/1",
+                        "outcome": "pass",
+                        "checks": {"hole_purity": True, "weak_simulation": True},
+                        "violations": [],
+                    },
+                    stdout_path=None,
+                )
+
+        spn_flags_seen: list[str] = []
+
+        def _fake_cargo(argv, *, cwd=None, env=None, capture_output=True, text=True, timeout=None):
+            sf = (env or {}).get("SPN_FLAGS", "")
+            spn_flags_seen.append(sf)
+            tokens = sf.split()
+            if "--export-concir-net" in tokens:
+                idx = tokens.index("--export-concir-net")
+                net_path = Path(tokens[idx + 1].strip('"'))
+                net_path.parent.mkdir(parents=True, exist_ok=True)
+                net_path.write_text('{"schema": "concir-impl-net/1", "states": []}', encoding="utf-8")
+            return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
+
+        plugin = SpnMirRefinementPlugin(client=_FakeClient(), spn_binary=self.fake_spn, modular=True)
+        with mock.patch("concplan.code_verify.static_verify.subprocess.run", side_effect=_fake_cargo):
+            rep = plugin.verify(
+                skeleton_dir=self.skel,
+                filled_dir=self.filled,
+                spec_path=multi_spec,
+                contract_path=self.contract,
+            )
+
+        self.assertEqual(rep.status, "pass", rep.as_dict())
+        self.assertTrue(rep.checks["modular_refinement"])
+        self.assertTrue(rep.checks["global_lock_order_acyclic"])
+        self.assertEqual(set(rep.metadata["modular_reports"].keys()), {"main", "worker"})
+        self.assertTrue(any("--focus-module main" in sf for sf in spn_flags_seen))
+        self.assertTrue(any("--focus-module worker" in sf for sf in spn_flags_seen))
+        self.assertIn(["summarize"], calls_seen)
+        self.assertIn(["verify-refinement", "main"], calls_seen)
+        self.assertIn(["verify-refinement", "worker"], calls_seen)
 
 
 if __name__ == "__main__":
