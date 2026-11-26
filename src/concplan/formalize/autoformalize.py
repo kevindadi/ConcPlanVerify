@@ -675,7 +675,7 @@ def validate_contract_sanity(
 
     props = contract.get("properties")
     if props is None:
-        if contract.get("deadlock_free") is True:
+        if contract.get("deadlock_free"):
             props = []
         else:
             issues.append(SanityIssue("error", "missing_properties", "contract must contain a 'properties' list"))
