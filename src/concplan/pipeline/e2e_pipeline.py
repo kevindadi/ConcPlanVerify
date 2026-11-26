@@ -39,6 +39,7 @@ from ..code_verify.conformance import (
     collect_traces,
     conform_all,
     holes_of,
+    type_holes_of,
 )
 from ..code_verify.static_verify import (
     AstHolePurityPlugin,
@@ -57,6 +58,11 @@ from ..core.prompts import (
     render_feedback,
 )
 from ..core.providers import CandidateProvider, CandidateRequest
+from ..formalize import (
+    explain_contract_data,
+    formalize_from_nl,
+    formalize_from_structured,
+)
 
 CLAUSE_RE = re.compile(r"\b(R\d+)\b")
 
@@ -100,6 +106,10 @@ class E2EResult:
     dynamic_report: dict[str, Any] | None = None
     fills: dict[str, str] = field(default_factory=dict)
     manifest: dict[str, Any] | None = None
+    formalization: dict[str, Any] | None = None
+    nl_explanations: dict[str, Any] | None = None
+    vacuity_status: dict[str, Any] | None = None
+    modular_reports: dict[str, Any] | None = None
     error: str | None = None
 
     @property
@@ -123,6 +133,10 @@ class E2EResult:
             "static_report": self.static_report,
             "dynamic_report": self.dynamic_report,
             "fills": dict(self.fills),
+            "formalization": self.formalization,
+            "nl_explanations": self.nl_explanations,
+            "vacuity_status": self.vacuity_status,
+            "modular_reports": self.modular_reports,
             "error": self.error,
         }
 
@@ -192,20 +206,29 @@ def build_hole_fill_prompt(
     hole_ids: list[str] | None = None,
     context_lines: int = 8,
 ) -> str:
-    """Build a prompt to fill all (or selected) sequential holes, with escalation protocol."""
+    """Build a prompt to fill all (or selected) SeqHoles and TypeHoles, with escalation protocol."""
 
-    source = (skeleton_dir / "src/main.rs").read_text(encoding="utf-8").splitlines()
     all_holes = holes_of(skeleton_dir)
-    selected = (
-        [h for h in all_holes if h.get("id") in set(hole_ids)]
-        if hole_ids is not None
+    all_type_holes = type_holes_of(skeleton_dir)
+    selected_set = set(hole_ids) if hole_ids is not None else None
+
+    selected_holes = (
+        [h for h in all_holes if h.get("id") in selected_set]
+        if selected_set is not None
         else all_holes
     )
+    selected_type_holes = (
+        [th for th in all_type_holes if th.get("id") in selected_set]
+        if selected_set is not None
+        else all_type_holes
+    )
+
     parts = [
-        "Fill ONLY the specified sequential hole(s) in the generated Rust skeleton.",
+        "Fill ONLY the specified hole(s) (SeqHole in src/main.rs / src/<mod>.rs and/or TypeHole in src/domain.rs) in the generated Rust skeleton.",
         "Rules:",
-        "- Return a JSON object mapping each hole id to valid pure sequential Rust code.",
-        "- Do NOT introduce synchronization, threads, channels, atomics, unsafe, `loop`/`while`, or `cir_trace`.",
+        "- Return a JSON object mapping each hole id (`h*` / `th*`) to valid pure Rust code.",
+        "- For SeqHoles: do NOT introduce synchronization, threads, channels, atomics, unsafe, `loop`/`while`, or `cir_trace`.",
+        "- For TypeHoles (`src/domain.rs`): define a pure `pub struct <Name>` (with `Send + Sync + Clone + Default + 'static`, e.g. `#[derive(Clone, Debug, Default, PartialEq)]`) and pure `impl` methods ONLY; forbid Mutex/RwLock/Condvar/Semaphore/mpsc/Atomic*/thread::spawn/unsafe/cir_trace/unbounded loops.",
         "- If a hole CANNOT be implemented purely without changing the concurrency architecture "
         "(e.g. missing shared variable, lock, or channel in CIR), return an escalation JSON instead:",
         '  {"escalate": {"reason": "<why CIR must change>", "module": "<module_name>"}}',
@@ -215,20 +238,50 @@ def build_hole_fill_prompt(
         "</requirements>",
         "",
     ]
-    for hole in selected:
-        hid = hole["id"]
-        idx = next((i for i, line in enumerate(source) if f"HOLE({hid})" in line), None)
-        if idx is None and isinstance(hole.get("line"), int):
-            idx = max(0, min(len(source) - 1, int(hole["line"]) - 1))
+
+    source_cache: dict[str, list[str]] = {}
+
+    def _read_lines(rel: str) -> list[str]:
+        if rel not in source_cache:
+            p = skeleton_dir / rel
+            source_cache[rel] = p.read_text(encoding="utf-8").splitlines() if p.is_file() else []
+        return source_cache[rel]
+
+    for th in selected_type_holes:
+        th_id = th["id"]
+        rel = str(th.get("file") or "src/domain.rs")
+        src_lines = _read_lines(rel)
+        idx = next((i for i, line in enumerate(src_lines) if f"TYPE_HOLE({th_id})" in line), None)
+        if idx is None and isinstance(th.get("line"), int):
+            idx = max(0, min(len(src_lines) - 1, int(th["line"]) - 1)) if src_lines else None
         parts.append(
-            f"### hole `{hid}` (expected `{hole.get('expected', '()')}`, "
+            f"### type_hole `{th_id}` (type `{th.get('type_name', '')}`, file `{rel}`, "
+            f"desc `{th.get('description', '')}`, req `{th.get('req', [])}`)"
+        )
+        if idx is not None and src_lines:
+            lo = max(0, idx - context_lines)
+            hi = min(len(src_lines), idx + context_lines + 1)
+            parts.append("```rust")
+            parts.extend(f"{n + 1:>4}: {src_lines[n]}" for n in range(lo, hi))
+            parts.append("```")
+        parts.append("")
+
+    for hole in selected_holes:
+        hid = hole["id"]
+        rel = str(hole.get("file") or "src/main.rs")
+        src_lines = _read_lines(rel)
+        idx = next((i for i, line in enumerate(src_lines) if f"HOLE({hid})" in line), None)
+        if idx is None and isinstance(hole.get("line"), int):
+            idx = max(0, min(len(src_lines) - 1, int(hole["line"]) - 1)) if src_lines else None
+        parts.append(
+            f"### hole `{hid}` (expected `{hole.get('expected', '()')}`, file `{rel}`, "
             f"sid `{hole.get('sid')}`, req `{hole.get('req', [])}`)"
         )
-        if idx is not None:
+        if idx is not None and src_lines:
             lo = max(0, idx - context_lines)
-            hi = min(len(source), idx + context_lines + 1)
+            hi = min(len(src_lines), idx + context_lines + 1)
             parts.append("```rust")
-            parts.extend(f"{n + 1:>4}: {source[n]}" for n in range(lo, hi))
+            parts.extend(f"{n + 1:>4}: {src_lines[n]}" for n in range(lo, hi))
             parts.append("```")
         parts.append("")
     parts.append("Reply with ONLY the JSON object.")
@@ -288,6 +341,8 @@ def build_traceability_manifest(
     escalations: list[dict[str, Any]],
     hole_rounds: list[dict[str, Any]],
     requirements_clauses: dict[str, str] | None = None,
+    formalization: dict[str, Any] | None = None,
+    nl_explanations: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble ``concir-traceability-manifest/1`` linking clauses -> contract -> CIR -> holes -> Rust -> verdicts."""
 
@@ -392,7 +447,7 @@ def build_traceability_manifest(
                 "req": reqs,
             })
 
-    # 4. Gather hole entries + Rust line ranges from codegen_filled.json.
+    # 4. Gather SeqHole and TypeHole entries + Rust line ranges from codegen_filled.json.
     hole_records: list[dict[str, Any]] = []
     hole_ranges = (codegen_filled or {}).get("hole_ranges") or {}
     for hole in (codegen_filled or {}).get("holes", []) or []:
@@ -400,7 +455,7 @@ def build_traceability_manifest(
             continue
         hid = str(hole["id"])
         rng = hole_ranges.get(hid) or {}
-        rfile = str(rng.get("file") or "src/main.rs")
+        rfile = str(rng.get("file") or hole.get("file") or "src/main.rs")
         sline = rng.get("start_line", hole.get("line"))
         eline = rng.get("end_line", sline)
         rust_loc = f"{rfile}:{sline}-{eline}" if sline is not None else rfile
@@ -420,6 +475,57 @@ def build_traceability_manifest(
             "req": reqs,
         })
 
+    type_hole_records: list[dict[str, Any]] = []
+    type_hole_ranges = (codegen_filled or {}).get("type_hole_ranges") or {}
+    for th in (codegen_filled or {}).get("type_holes", []) or []:
+        if not isinstance(th, dict) or not th.get("id"):
+            continue
+        th_id = str(th["id"])
+        rng = type_hole_ranges.get(th_id) or {}
+        rfile = str(rng.get("file") or th.get("file") or "src/domain.rs")
+        sline = rng.get("start_line", th.get("line"))
+        eline = rng.get("end_line", sline)
+        rust_loc = f"{rfile}:{sline}-{eline}" if sline is not None else rfile
+        reqs = [str(r) for r in (th.get("req") or [])]
+        for r in reqs:
+            clause_descriptions.setdefault(r, "")
+        type_hole_records.append({
+            "type_hole_id": th_id,
+            "type_name": th.get("type_name"),
+            "module": th.get("module"),
+            "rust_file": rfile,
+            "start_line": sline,
+            "end_line": eline,
+            "rust_span": rust_loc,
+            "req": reqs,
+        })
+
+    # Compute vacuity status from model_report properties.
+    vacuous_props: list[dict[str, Any]] = []
+    for prop in (model_report or {}).get("properties", []) or []:
+        if isinstance(prop, dict) and (prop.get("vacuous") or prop.get("vacuous_antecedents")):
+            vacuous_props.append({
+                "id": prop.get("id"),
+                "outcome": prop.get("outcome"),
+                "vacuous": True,
+                "vacuous_antecedents": list(prop.get("vacuous_antecedents") or []),
+            })
+    vacuity_status = {
+        "has_vacuous": bool(vacuous_props),
+        "vacuous_properties": vacuous_props,
+    }
+
+    explanations_payload = (
+        nl_explanations
+        if nl_explanations is not None
+        else (explain_contract_data(contract).as_dict() if isinstance(contract, dict) else None)
+    )
+    modular_reports = (
+        (static_report.metadata or {}).get("modular_reports")
+        if static_report is not None
+        else None
+    )
+
     model_verdict = (model_report or {}).get("outcome") or "NOT_RUN"
     static_verdict = static_report.status if static_report else "not_run"
     violations_list = [v.as_dict() for v in (static_report.violations if static_report else [])]
@@ -429,7 +535,7 @@ def build_traceability_manifest(
     links_out: list[dict[str, Any]] = []
 
     all_clause_ids = sorted(clause_descriptions.keys())
-    if not all_clause_ids and (cir_nodes or hole_records):
+    if not all_clause_ids and (cir_nodes or hole_records or type_hole_records):
         all_clause_ids = ["UNATTRIBUTED"]
 
     hole_by_id = {h["hole_id"]: h for h in hole_records}
@@ -446,7 +552,13 @@ def build_traceability_manifest(
             or (h["hole_id"] in matched_node_holes)
             or (cid == "UNATTRIBUTED" and not h["req"])
         ]
-        matched_hole_ids = {h["hole_id"] for h in matched_holes}
+        matched_type_holes = [
+            th for th in type_hole_records
+            if (cid in th["req"]) or (cid == "UNATTRIBUTED" and not th["req"])
+        ]
+        matched_hole_ids = {h["hole_id"] for h in matched_holes} | {
+            th["type_hole_id"] for th in matched_type_holes
+        }
         matched_violations = [
             v for v in violations_list
             if (cid in (v.get("req_clauses") or []))
@@ -482,12 +594,23 @@ def build_traceability_manifest(
                 }
                 for h in matched_holes
             ],
+            "type_holes": [
+                {
+                    "type_hole_id": th["type_hole_id"],
+                    "type_name": th["type_name"],
+                    "rust_file": th["rust_file"],
+                    "start_line": th["start_line"],
+                    "end_line": th["end_line"],
+                    "rust_span": th["rust_span"],
+                }
+                for th in matched_type_holes
+            ],
             "model_verdict": model_verdict,
             "static_verdict": clause_static,
             "violations": matched_violations,
         })
 
-        # Emit flat traceability links for every matched node/hole.
+        # Emit flat traceability links for every matched node/hole/type_hole.
         emitted_holes: set[str] = set()
         for n in matched_nodes:
             hid = n.get("hole_id")
@@ -525,11 +648,29 @@ def build_traceability_manifest(
                 "model_verdict": model_verdict,
                 "static_verdict": clause_static,
             })
+        for th in matched_type_holes:
+            mod_label = th.get("module") or "main"
+            tname = th.get("type_name") or th["type_hole_id"]
+            links_out.append({
+                "clause_id": cid,
+                "contract_property_ids": list(contract_prop_ids),
+                "cir_node": f"{mod_label}::type::{tname}",
+                "structured_id": None,
+                "hole_id": th["type_hole_id"],
+                "rust_location": th["rust_span"],
+                "model_verdict": model_verdict,
+                "static_verdict": clause_static,
+            })
 
     return {
         "schema": "concir-traceability-manifest/1",
         "status": status,
         "program": program_name,
+        "formalization": formalization,
+        "nl_explanations": explanations_payload,
+        "vacuity_status": vacuity_status,
+        "type_holes": type_hole_records,
+        "modular_reports": modular_reports,
         "model_verification": {
             "outcome": model_verdict,
             "complete": (model_report or {}).get("complete"),
@@ -546,8 +687,8 @@ def build_traceability_manifest(
 
 def run_e2e_pipeline(
     *,
-    requirements: str,
-    contract: dict[str, Any],
+    requirements: str | None = None,
+    contract: dict[str, Any] | None = None,
     client: ConcirClient,
     cir_provider: CandidateProvider,
     hole_provider: CandidateProvider | None = None,
@@ -564,10 +705,122 @@ def run_e2e_pipeline(
     miri_seeds: int = 0,
     requirements_clauses: dict[str, str] | None = None,
     codegen_fn: Callable[[Path, Path], dict[str, Any]] | None = None,
+    nl_spec: str | None = None,
+    clause_provider: CandidateProvider | None = None,
+    contract_provider: CandidateProvider | None = None,
+    modular_refinement: bool = False,
+    focus_modules: list[str] | None = None,
 ) -> E2EResult:
-    """Run the complete traceable bi-level verification pipeline (Loops A, B, and C)."""
+    """Run the complete traceable bi-level verification pipeline (Stage 0 + Loops A, B, and C)."""
 
     run_dir = _exclusive_run_dir(Path(out_dir).expanduser().resolve())
+    result = E2EResult(status="failed", out_dir=str(run_dir))
+
+    # ---- Stage 0: Autoformalization (Entry A: nl_spec, or Entry B: missing contract) ----
+    formalization_dict: dict[str, Any] | None = None
+    nl_explanations_dict: dict[str, Any] | None = None
+    active_requirements: str = requirements or ""
+    active_contract: dict[str, Any] | None = contract
+    active_clauses: dict[str, str] | None = dict(requirements_clauses) if requirements_clauses else None
+
+    if nl_spec is not None and active_contract is None:
+        try:
+            form_res = formalize_from_nl(
+                nl_spec,
+                clause_provider=clause_provider or cir_provider,
+                contract_provider=contract_provider or clause_provider or cir_provider,
+                client=client,
+                out_dir=run_dir / "stage0",
+            )
+        except Exception as exc:  # noqa: BLE001
+            result.error = f"Stage 0 formalize_from_nl failed: {exc}"
+            (run_dir / "e2e_result.json").write_text(
+                json.dumps(result.as_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+            return result
+        formalization_dict = form_res.as_dict()
+        nl_explanations_dict = form_res.explanation.as_dict()
+        active_requirements = form_res.requirements_md
+        active_contract = form_res.contract
+        active_clauses = active_clauses or form_res.requirements.clause_map()
+        result.formalization = formalization_dict
+        result.nl_explanations = nl_explanations_dict
+        if not form_res.sanity.ok:
+            result.error = (
+                "Stage 0 contract sanity check failed: "
+                + "; ".join(i.message for i in form_res.sanity.errors)
+            )
+            (run_dir / "e2e_result.json").write_text(
+                json.dumps(result.as_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+            return result
+    elif nl_spec is not None and active_contract is not None:
+        if clause_provider is not None:
+            try:
+                from ..formalize import nl_to_clauses as _nl_to_clauses
+
+                structured = _nl_to_clauses(nl_spec, clause_provider)
+                form_res = formalize_from_structured(
+                    structured,
+                    contract=active_contract,
+                    client=client,
+                    out_dir=run_dir / "stage0",
+                )
+                formalization_dict = form_res.as_dict()
+                nl_explanations_dict = form_res.explanation.as_dict()
+                active_requirements = form_res.requirements_md
+                active_contract = form_res.contract
+                active_clauses = active_clauses or form_res.requirements.clause_map()
+                result.formalization = formalization_dict
+                result.nl_explanations = nl_explanations_dict
+            except Exception as exc:  # noqa: BLE001
+                result.error = f"Stage 0 nl_to_clauses failed: {exc}"
+                return result
+        else:
+            active_requirements = active_requirements or nl_spec
+            nl_explanations_dict = explain_contract_data(active_contract).as_dict()
+            result.nl_explanations = nl_explanations_dict
+    elif active_contract is None:
+        if not active_requirements:
+            raise ValueError("run_e2e_pipeline requires requirements or nl_spec")
+        try:
+            form_res = formalize_from_structured(
+                active_requirements,
+                contract_provider=contract_provider or cir_provider,
+                client=client,
+                out_dir=run_dir / "stage0",
+            )
+        except Exception as exc:  # noqa: BLE001
+            result.error = f"Stage 0 formalize_from_structured failed: {exc}"
+            (run_dir / "e2e_result.json").write_text(
+                json.dumps(result.as_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+            return result
+        formalization_dict = form_res.as_dict()
+        nl_explanations_dict = form_res.explanation.as_dict()
+        active_requirements = form_res.requirements_md
+        active_contract = form_res.contract
+        active_clauses = active_clauses or form_res.requirements.clause_map()
+        result.formalization = formalization_dict
+        result.nl_explanations = nl_explanations_dict
+        if not form_res.sanity.ok:
+            result.error = (
+                "Stage 0 contract sanity check failed: "
+                + "; ".join(i.message for i in form_res.sanity.errors)
+            )
+            (run_dir / "e2e_result.json").write_text(
+                json.dumps(result.as_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+            return result
+    else:
+        nl_explanations_dict = explain_contract_data(active_contract).as_dict()
+        result.nl_explanations = nl_explanations_dict
+
+    assert active_contract is not None
+    requirements = active_requirements
+    contract = active_contract
+    requirements_clauses = active_clauses
+
     contract_path = run_dir / "contract.json"
     contract_path.write_text(
         json.dumps(contract, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -575,15 +828,17 @@ def run_e2e_pipeline(
     hole_prov = hole_provider or cir_provider
     verifier = static_verifier or CompositeStaticVerifier([
         AstHolePurityPlugin(),
-        SpnMirRefinementPlugin(client=client),
+        SpnMirRefinementPlugin(
+            client=client,
+            modular=modular_refinement,
+            focus_modules=focus_modules,
+        ),
     ])
 
     def _run_codegen(prog: Path, skel: Path) -> dict[str, Any]:
         if codegen_fn is not None:
             return codegen_fn(prog, skel)
         return default_codegen(prog, skel, binary=client.binary)
-
-    result = E2EResult(status="failed", out_dir=str(run_dir))
 
     escalation_feedback: dict[str, Any] | None = None
     last_verified_program_dict: dict[str, Any] | None = None
@@ -609,6 +864,8 @@ def run_e2e_pipeline(
             escalations=result.escalations,
             hole_rounds=result.hole_rounds,
             requirements_clauses=requirements_clauses,
+            formalization=formalization_dict,
+            nl_explanations=nl_explanations_dict,
         )
         manifest_path = run_dir / "traceability_manifest.json"
         manifest_path.write_text(
@@ -616,6 +873,8 @@ def run_e2e_pipeline(
         )
         result.manifest = manifest
         result.manifest_path = str(manifest_path)
+        result.vacuity_status = manifest.get("vacuity_status")
+        result.modular_reports = manifest.get("modular_reports")
         (run_dir / "e2e_result.json").write_text(
             json.dumps(result.as_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
@@ -816,10 +1075,12 @@ def run_e2e_pipeline(
         result.filled_dir = str(filled_dir)
 
         holes = holes_of(skeleton_dir)
+        type_holes = type_holes_of(skeleton_dir)
+        all_hole_entries = list(type_holes) + list(holes)
         current_fills: dict[str, str] = {}
         escalate_now: EscalationEvent | None = None
 
-        if holes:
+        if all_hole_entries:
             prompt_text = build_hole_fill_prompt(skeleton_dir, requirements)
             hole_req = CandidateRequest(
                 requirements=prompt_text,
@@ -833,7 +1094,7 @@ def run_e2e_pipeline(
                 "epoch": epoch,
                 "round": 0,
                 "kind": "initial_fill",
-                "target_holes": [h["id"] for h in holes],
+                "target_holes": [h["id"] for h in all_hole_entries],
                 "source": hole_resp.source,
             }
             result.hole_rounds.append(fill_rec)
@@ -849,8 +1110,8 @@ def run_e2e_pipeline(
                     source="hole_provider_explicit",
                     reason=esc["reason"],
                     module=esc.get("module"),
-                    offending_holes=[h["id"] for h in holes],
-                    req_clauses=sorted({str(r) for h in holes for r in (h.get("req") or [])}),
+                    offending_holes=[h["id"] for h in all_hole_entries],
+                    req_clauses=sorted({str(r) for h in all_hole_entries for r in (h.get("req") or [])}),
                 )
             elif parsed_fills is None:
                 return _finalize("failed", "hole provider returned invalid JSON")
@@ -886,7 +1147,7 @@ def run_e2e_pipeline(
             shutil.copytree(skeleton_dir, filled_dir)
             cmap_path = filled_dir / "codegen_filled.json"
             last_codegen_filled = augment_codegen_map_with_hole_ranges(
-                skeleton_dir, filled_dir / "src/main.rs", {}, out_path=cmap_path
+                skeleton_dir, filled_dir, {}, out_path=cmap_path
             )
 
         result.fills = dict(current_fills)

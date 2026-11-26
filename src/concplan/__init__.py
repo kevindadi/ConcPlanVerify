@@ -1,16 +1,19 @@
-"""Python orchestration layer for ConcIR v4 model & code verification.
+"""Python orchestration layer for ConcIR v5 model & code verification.
 
-Structured into four subpackages:
+Structured into five subpackages:
 
+- ``concplan.formalize`` — Stage 0 dual-entry autoformalization (NL / structured
+  requirements -> CTL/LTL verification contract, deterministic NL back-translation,
+  and contract sanity validation).
 - ``concplan.core`` — toolchain discovery, ``ConcirClient``, LLM clients,
-  providers, active v4 prompts, env & hashing helpers.
+  providers, bundled v5 prompts, env & hashing helpers.
 - ``concplan.model_verify`` — CIR normalization, offline generation/repair,
   iterative CIR revision, and constrained single-patch repair.
 - ``concplan.code_verify`` — skeleton codegen & dynamic conformance,
-  pluggable static verification (AST hole purity, SPN MIR stuttering refinement,
-  Lockbud), and bounded trace monitoring.
+  pluggable static verification (AST SeqHole/TypeHole purity, modular SPN MIR
+  stuttering refinement, Lockbud), and bounded trace monitoring.
 - ``concplan.pipeline`` — end-to-end bi-level traceable pipeline
-  (Loops A/B/C + ``traceability_manifest.json``) and benchmark discovery.
+  (Stage 0 + Loops A/B/C + ``traceability_manifest.json``) and benchmark discovery.
 """
 
 from .code_verify import (
@@ -29,9 +32,11 @@ from .code_verify import (
     coverage,
     fill_holes,
     fill_holes_marked,
+    fill_type_holes_marked,
     holes_of,
     lint_filled,
     run_monitor,
+    type_holes_of,
 )
 from .core import (
     CandidateProvider,
@@ -59,6 +64,26 @@ from .core import (
     find_lockbud,
     find_spn,
     load_dotenv,
+)
+from .formalize import (
+    ContractExplanation,
+    DomainTypeEntity,
+    FormalizationResult,
+    GroundedEntities,
+    RequirementClause,
+    SanityCheckReport,
+    SanityIssue,
+    StructuredRequirements,
+    clauses_to_contract,
+    explain_contract_data,
+    explain_ctl_formula,
+    explain_fairness,
+    explain_ltl_formula,
+    explain_predicate,
+    formalize_from_nl,
+    formalize_from_structured,
+    nl_to_clauses,
+    validate_contract_sanity,
 )
 from .model_verify import (
     ExternalPatchRepairWorkflow,
@@ -91,11 +116,15 @@ __all__ = [
     "ConcirIdentity",
     "ConcirResult",
     "Consumption",
+    "ContractExplanation",
     "Coverage",
     "DeepSeekClient",
+    "DomainTypeEntity",
     "E2EResult",
     "EscalationEvent",
     "ExternalPatchRepairWorkflow",
+    "FormalizationResult",
+    "GroundedEntities",
     "LlmCandidateProvider",
     "LlmClient",
     "LlmError",
@@ -106,37 +135,53 @@ __all__ = [
     "PatchCandidateProvider",
     "PatchRepairResult",
     "QwenClient",
+    "RequirementClause",
     "RevisionResult",
     "RevisionWorkflow",
+    "SanityCheckReport",
+    "SanityIssue",
     "ScriptedPatchProvider",
     "ScriptedProvider",
     "SpnMirRefinementPlugin",
     "StaticVerificationReport",
     "StaticVerifierPlugin",
     "StaticViolation",
+    "StructuredRequirements",
     "ToolchainConfig",
     "ToolchainError",
     "TraceRun",
     "WholeArtifactRevisionWorkflow",
     "benchmarks_summary",
+    "clauses_to_contract",
     "codegen",
     "collect_traces",
     "conform_all",
     "coverage",
     "create_llm_client",
     "default_base_url",
+    "explain_contract_data",
+    "explain_ctl_formula",
+    "explain_fairness",
+    "explain_ltl_formula",
+    "explain_predicate",
     "extract_json",
     "fill_holes",
     "fill_holes_marked",
+    "fill_type_holes_marked",
     "find_concir_backend",
     "find_lockbud",
     "find_spn",
+    "formalize_from_nl",
+    "formalize_from_structured",
     "holes_of",
     "lint_filled",
     "list_benchmarks",
     "load_benchmark",
     "load_dotenv",
+    "nl_to_clauses",
     "normalize",
     "run_e2e_pipeline",
     "run_monitor",
+    "type_holes_of",
+    "validate_contract_sanity",
 ]

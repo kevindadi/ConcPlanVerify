@@ -1,8 +1,9 @@
-"""Unified v4 command-line entry point for ConcPlanVerify (``python -m concplan``).
+"""Unified v5 command-line entry point for ConcPlanVerify (``python -m concplan``).
 
 Commands:
+- Stage 0 Autoformalization: ``formalize``, ``explain-contract``
 - Backend pass-throughs: ``check``, ``support``, ``explore``, ``lower``,
-  ``summarize``, ``verify-refinement``, ``repair``, ``replay``
+  ``summarize``, ``verify-refinement``, ``export-cvn``, ``repair``, ``replay``
 - Orchestration workflows: ``e2e``, ``offline``, ``revision``,
   ``patch-repair``, ``conformance``, ``list-benchmarks``
 """
@@ -27,10 +28,12 @@ from .core.env import load_dotenv
 from .core.llm import create_llm_client, default_base_url
 from .core.models import ModelConfig
 from .core.prompts import (
+    clauses_to_contract_system_prompt,
     hole_repair_system_prompt,
     hole_user_prompt_builder,
     llm_user_prompt_builder,
     local_revision_system_prompt,
+    nl_to_clauses_system_prompt,
     scir_generation_system_prompt,
 )
 from .core.providers import (
@@ -40,6 +43,11 @@ from .core.providers import (
     ScriptedProvider,
 )
 from .core.toolchain import SUBMODULE_RELEASE, find_concir_backend, resolve_exe_in_dir
+from .formalize import (
+    explain_contract_data,
+    formalize_from_nl,
+    formalize_from_structured,
+)
 from .model_verify.offline_workflow import OfflineWorkflow
 from .model_verify.patch_repair import ExternalPatchRepairWorkflow
 from .model_verify.revision_workflow import RevisionWorkflow
@@ -165,7 +173,7 @@ def _add_provider_args(parser: argparse.ArgumentParser) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="concplan",
-        description="ConcPlanVerify v4 CLI: ConcIR model checking, MIR refinement, and bi-level verification",
+        description="ConcPlanVerify v5 CLI: ConcIR model checking, MIR refinement, and bi-level verification",
     )
     parser.add_argument(
         "--binary",
@@ -207,7 +215,30 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--impl-net", required=True, help="exported concir-impl-net/1 JSON")
     p.add_argument("--contract", help="optional contract JSON")
     p.add_argument("--codegen-map", help="optional codegen.json / codegen_filled.json")
+    p.add_argument("--module", help="optional single module name for modular refinement")
     p.add_argument("--output", help="write concir-refinement-report/1 JSON here")
+
+    p = sub.add_parser("explain-contract", help="render deterministic NL explanation of a contract JSON")
+    p.add_argument("contract", help="contract JSON path")
+    p.add_argument("--output", help="write concir-contract-explanation/1 JSON here")
+    p.add_argument("--python-only", action="store_true", help="use pure-Python renderer without invoking concir-backend")
+
+    p = sub.add_parser("export-cvn", help="export a CIR/SCIR program to UniPN CVN JSON")
+    p.add_argument("program", help="CIR or SCIR program JSON path")
+    p.add_argument("--output", help="write exported CVN JSON here")
+
+    p = sub.add_parser("formalize", help="Stage 0 autoformalization (Entry A: NL or Entry B: structured -> contract)")
+    p.add_argument("--nl-spec", help="raw natural language requirements text (Entry A)")
+    p.add_argument("--nl-file", help="path to raw natural language requirements file (Entry A)")
+    p.add_argument("--requirements", help="structured R1..Rn requirements text (Entry B)")
+    p.add_argument("--requirements-file", help="path to REQUIREMENTS.md or requirements.json (Entry B)")
+    p.add_argument("--task", help="benchmark task id (Entry B)")
+    p.add_argument("--benchmarks-dir", help="override benchmarks directory")
+    p.add_argument("--contract", help="optional existing contract JSON path (Entry B validate & explain)")
+    p.add_argument("--title", default="requirements", help="title for generated REQUIREMENTS.md")
+    _add_provider_args(p)
+    p.add_argument("--contract-script", help="optional separate scripted JSON for Step 0.2 contract synthesis")
+    p.add_argument("--report", help="write FormalizationResult JSON here")
 
     p = sub.add_parser("repair", help="run deterministic backend repair search")
     p.add_argument("program")
@@ -222,13 +253,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("artifact")
 
     # ---- Orchestration commands ----
-    p = sub.add_parser("e2e", help="run end-to-end traceable bi-level pipeline (Loops A/B/C)")
+    p = sub.add_parser("e2e", help="run end-to-end traceable bi-level pipeline (Stage 0 + Loops A/B/C)")
+    p.add_argument("--nl-spec", help="raw natural language requirements text (runs Stage 0 Entry A)")
+    p.add_argument("--nl-file", help="path to raw natural language requirements file (runs Stage 0 Entry A)")
     p.add_argument("--requirements", help="requirements text")
     p.add_argument("--requirements-file", help="read requirements from a file")
     p.add_argument("--task", help="benchmark task id (e.g. lock-order/abba_2lock)")
     p.add_argument("--benchmarks-dir", help="override benchmarks directory")
-    p.add_argument("--contract", help="frozen contract JSON path (optional if --task is set)")
+    p.add_argument("--contract", help="frozen contract JSON path (optional: synthesized via Stage 0 if omitted)")
     _add_provider_args(p)
+    p.add_argument("--clause-script", help="optional scripted JSON for Stage 0.1 nl_to_clauses")
+    p.add_argument("--contract-script", help="optional scripted JSON for Stage 0.2 clauses_to_contract")
     p.add_argument("--hole-script", help="optional separate scripted JSON for hole filling/repair")
     p.add_argument("--initial-program", help="optional initial CIR/SCIR JSON path")
     p.add_argument("--max-cir-rounds", type=int, default=4)
@@ -236,6 +271,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-escalations", type=int, default=2)
     p.add_argument("--engine", default="petri", choices=["petri", "interp"])
     p.add_argument("--run-summarize", action="store_true", help="enable modular lock-cycle summary check")
+    p.add_argument("--modular-refinement", action="store_true", help="enable per-module SPN + verify-refinement --module")
+    p.add_argument("--focus-module", action="append", help="explicit module(s) for modular refinement")
     p.add_argument("--run-dynamic-conform", action="store_true", help="enable post-static dynamic conformance")
     p.add_argument("--native-runs", type=int, default=10)
     p.add_argument("--miri-seeds", type=int, default=0)
@@ -326,8 +363,115 @@ def main(argv: list[str] | None = None) -> int:
                 args.impl_net,
                 contract_path=args.contract,
                 codegen_map_path=args.codegen_map,
+                module=args.module,
                 out_path=args.output,
             ))
+        if args.command == "export-cvn":
+            return _emit(client.export_cvn(args.program, out_path=args.output))
+        if args.command == "explain-contract":
+            contract_data = _read_json(args.contract)
+            if not args.python_only and Path(args.binary).is_file():
+                res = client.explain_contract(args.contract, out_path=args.output)
+                if res.kind == "semantic":
+                    return _emit(res)
+            exp = explain_contract_data(contract_data)
+            payload = exp.as_dict()
+            if args.output:
+                _write_json(args.output, payload)
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "formalize":
+            nl_text: str | None = None
+            if args.nl_file:
+                nl_text = Path(args.nl_file).read_text(encoding="utf-8")
+            elif args.nl_spec:
+                nl_text = args.nl_spec
+
+            if nl_text is not None:
+                clause_prov = _build_provider(
+                    provider_name=args.provider,
+                    script_path=args.script,
+                    model_id=args.model,
+                    api_key_env=args.api_key_env,
+                    base_url=args.base_url,
+                    llm_timeout=args.llm_timeout,
+                    system_prompt=nl_to_clauses_system_prompt(),
+                    user_prompt_builder=hole_user_prompt_builder,
+                )
+                contract_prov: CandidateProvider | None = None
+                if args.contract_script:
+                    contract_prov = _build_provider(
+                        provider_name="scripted",
+                        script_path=args.contract_script,
+                        model_id=None,
+                        api_key_env=None,
+                        base_url=None,
+                        llm_timeout=args.llm_timeout,
+                        system_prompt=clauses_to_contract_system_prompt(),
+                        user_prompt_builder=hole_user_prompt_builder,
+                    )
+                elif args.provider != "scripted":
+                    contract_prov = _build_provider(
+                        provider_name=args.provider,
+                        script_path=None,
+                        model_id=args.model,
+                        api_key_env=args.api_key_env,
+                        base_url=args.base_url,
+                        llm_timeout=args.llm_timeout,
+                        system_prompt=clauses_to_contract_system_prompt(),
+                        user_prompt_builder=hole_user_prompt_builder,
+                    )
+                fres = formalize_from_nl(
+                    nl_text,
+                    clause_provider=clause_prov,
+                    contract_provider=contract_prov,
+                    client=client if Path(args.binary).is_file() else None,
+                    out_dir=args.out,
+                    title=args.title,
+                )
+            else:
+                structured_src: Any = None
+                existing_contract: dict[str, Any] | None = None
+                if args.task:
+                    task = load_benchmark(args.task, benchmarks_dir=args.benchmarks_dir)
+                    structured_src = task.load_requirements_json() or task.load_requirements_text()
+                    if args.contract is None:
+                        existing_contract = task.load_contract()
+                if args.requirements_file:
+                    structured_src = Path(args.requirements_file)
+                elif args.requirements:
+                    structured_src = args.requirements
+                if args.contract:
+                    existing_contract = _read_json(args.contract)
+                if structured_src is None:
+                    raise ValueError(
+                        "provide --nl-spec/--nl-file (Entry A) or --requirements/--requirements-file/--task (Entry B)"
+                    )
+                contract_prov = None
+                if existing_contract is None:
+                    contract_prov = _build_provider(
+                        provider_name=args.provider,
+                        script_path=args.contract_script or args.script,
+                        model_id=args.model,
+                        api_key_env=args.api_key_env,
+                        base_url=args.base_url,
+                        llm_timeout=args.llm_timeout,
+                        system_prompt=clauses_to_contract_system_prompt(),
+                        user_prompt_builder=hole_user_prompt_builder,
+                    )
+                fres = formalize_from_structured(
+                    structured_src,
+                    contract=existing_contract,
+                    contract_provider=contract_prov,
+                    client=client if Path(args.binary).is_file() else None,
+                    out_dir=args.out,
+                )
+
+            payload = fres.as_dict()
+            if args.report:
+                _write_json(args.report, payload)
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            return 0 if fres.ok else 1
         if args.command == "repair":
             return _emit(client.repair(
                 args.program,
@@ -343,7 +487,32 @@ def main(argv: list[str] | None = None) -> int:
 
         # ---- Orchestration commands ----
         if args.command == "e2e":
-            requirements, contract, clauses, _task_label = _resolve_task_inputs(args)
+            nl_text_e2e: str | None = None
+            if args.nl_file:
+                nl_text_e2e = Path(args.nl_file).read_text(encoding="utf-8")
+            elif args.nl_spec:
+                nl_text_e2e = args.nl_spec
+
+            requirements: str | None = None
+            contract: dict[str, Any] | None = None
+            clauses: dict[str, str] | None = None
+            if nl_text_e2e is None and (args.contract or args.task):
+                requirements, contract, clauses, _task_label = _resolve_task_inputs(args)
+            else:
+                if args.task:
+                    task = load_benchmark(args.task, benchmarks_dir=args.benchmarks_dir)
+                    requirements = task.load_requirements_text()
+                    contract = task.load_contract()
+                    clauses = task.load_requirements_clauses() or None
+                if args.requirements_file:
+                    requirements = Path(args.requirements_file).read_text(encoding="utf-8")
+                elif args.requirements:
+                    requirements = args.requirements
+                if args.contract:
+                    contract = _read_json(args.contract)
+                if nl_text_e2e is None and not requirements:
+                    raise ValueError("provide --nl-spec, --nl-file, --requirements, --requirements-file, or --task")
+
             cir_provider = _build_provider(
                 provider_name=args.provider,
                 script_path=args.script,
@@ -354,6 +523,54 @@ def main(argv: list[str] | None = None) -> int:
                 system_prompt=scir_generation_system_prompt(),
                 user_prompt_builder=llm_user_prompt_builder,
             )
+            clause_provider: CandidateProvider | None = None
+            if args.clause_script:
+                clause_provider = _build_provider(
+                    provider_name="scripted",
+                    script_path=args.clause_script,
+                    model_id=None,
+                    api_key_env=None,
+                    base_url=None,
+                    llm_timeout=args.llm_timeout,
+                    system_prompt=nl_to_clauses_system_prompt(),
+                    user_prompt_builder=hole_user_prompt_builder,
+                )
+            elif nl_text_e2e is not None and args.provider != "scripted":
+                clause_provider = _build_provider(
+                    provider_name=args.provider,
+                    script_path=None,
+                    model_id=args.model,
+                    api_key_env=args.api_key_env,
+                    base_url=args.base_url,
+                    llm_timeout=args.llm_timeout,
+                    system_prompt=nl_to_clauses_system_prompt(),
+                    user_prompt_builder=hole_user_prompt_builder,
+                )
+
+            contract_provider: CandidateProvider | None = None
+            if args.contract_script:
+                contract_provider = _build_provider(
+                    provider_name="scripted",
+                    script_path=args.contract_script,
+                    model_id=None,
+                    api_key_env=None,
+                    base_url=None,
+                    llm_timeout=args.llm_timeout,
+                    system_prompt=clauses_to_contract_system_prompt(),
+                    user_prompt_builder=hole_user_prompt_builder,
+                )
+            elif contract is None and args.provider != "scripted":
+                contract_provider = _build_provider(
+                    provider_name=args.provider,
+                    script_path=None,
+                    model_id=args.model,
+                    api_key_env=args.api_key_env,
+                    base_url=args.base_url,
+                    llm_timeout=args.llm_timeout,
+                    system_prompt=clauses_to_contract_system_prompt(),
+                    user_prompt_builder=hole_user_prompt_builder,
+                )
+
             hole_provider: CandidateProvider | None = None
             if args.hole_script:
                 hole_provider = _build_provider(
@@ -381,7 +598,12 @@ def main(argv: list[str] | None = None) -> int:
             plugins = [AstHolePurityPlugin()]
             if not args.ast_only:
                 plugins.append(
-                    SpnMirRefinementPlugin(client=client, spn_binary=args.spn_binary)
+                    SpnMirRefinementPlugin(
+                        client=client,
+                        spn_binary=args.spn_binary,
+                        modular=args.modular_refinement,
+                        focus_modules=args.focus_module,
+                    )
                 )
             verifier = CompositeStaticVerifier(plugins)
 
@@ -403,6 +625,11 @@ def main(argv: list[str] | None = None) -> int:
                 native_runs=args.native_runs,
                 miri_seeds=args.miri_seeds,
                 requirements_clauses=clauses,
+                nl_spec=nl_text_e2e,
+                clause_provider=clause_provider,
+                contract_provider=contract_provider,
+                modular_refinement=args.modular_refinement,
+                focus_modules=args.focus_module,
             )
             payload = result.as_dict()
             if args.report:

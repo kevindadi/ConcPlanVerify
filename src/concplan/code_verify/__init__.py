@@ -13,6 +13,7 @@ from .conformance import (
     lint_filled,
     parse_fill,
     run_conformance_smoke,
+    type_holes_of,
 )
 from .static_verify import (
     LOCKBUD_TOOLCHAIN,
@@ -26,6 +27,7 @@ from .static_verify import (
     augment_codegen_map_with_hole_ranges,
     classify_lockbud,
     fill_holes_marked,
+    fill_type_holes_marked,
     strip_rust_comments_and_literals,
 )
 
@@ -50,6 +52,7 @@ __all__ = [
     "fill_holes",
     "fill_holes_marked",
     "fill_prompt",
+    "fill_type_holes_marked",
     "holes_of",
     "lint_filled",
     "parse_fill",
@@ -57,4 +60,5 @@ __all__ = [
     "run_conformance_smoke",
     "run_monitor",
     "strip_rust_comments_and_literals",
+    "type_holes_of",
 ]
