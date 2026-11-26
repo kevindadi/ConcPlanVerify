@@ -1,31 +1,27 @@
-# Python bytecode / caches
+# Python bytecode / caches / packaging
 **/__pycache__/
 *.pyc
-
-# Plain-text logs / scratch output (never tracked), except archived tool
-# evidence under experiments/ (stdout.txt/stderr.txt/exit.txt per call).
-*.txt
-!python/requirements.txt
-!experiments/**/*.txt
+*.pyo
+.pytest_cache/
+build/
+dist/
+*.egg-info/
+src/*.egg-info/
 
 # Local environment / secrets (never tracked)
 .env
 .venv
+.venv/
+venv/
 
-# Build output
+# Build and run outputs
 target/
+out/
 results/
+concplan-out/
+*.txt
+!docs/**/*.txt
+!benchmarks/**/*.txt
 
-# Vendored third-party checkers (lockbud, Rudra). Pin by commit; build in place.
-# Their raw evidence is archived under the experiment dirs, not here.
-tools/
-
-# Supplement build output (not tracked)
-dist/
-
-# Interactive working-tree snapshots (process records, not evidence)
-reviews/
-
-# Raw experiment tier (on disk + freeze tags only; see experiments/RAW_POLICY.md)
-experiments
-
+# Local third-party analysis backends (e.g., lockbud, Rudra)
+backends/third_party/
