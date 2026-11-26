@@ -1,8 +1,8 @@
 """Unified v5 command-line entry point for ConcPlanVerify (``python -m concplan``).
 
 Commands:
-- Stage 0 Autoformalization: ``formalize``, ``explain-contract``
-- Backend pass-throughs: ``check``, ``support``, ``explore``, ``lower``,
+- Stage 0 Auto formalization: ``formalize``, ``explain-contract``
+- Backend pass-through: ``check``, ``support``, ``explore``, ``lower``,
   ``summarize``, ``verify-refinement``, ``export-cvn``, ``repair``, ``replay``
 - Orchestration workflows: ``e2e``, ``offline``, ``revision``,
   ``patch-repair``, ``conformance``, ``list-benchmarks``
@@ -227,7 +227,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("program", help="CIR or SCIR program JSON path")
     p.add_argument("--output", help="write exported CVN JSON here")
 
-    p = sub.add_parser("formalize", help="Stage 0 autoformalization (Entry A: NL or Entry B: structured -> contract)")
+    p = sub.add_parser("formalize", help="Stage 0 auto formalization (Entry A: NL or Entry B: structured -> contract)")
     p.add_argument("--nl-spec", help="raw natural language requirements text (Entry A)")
     p.add_argument("--nl-file", help="path to raw natural language requirements file (Entry A)")
     p.add_argument("--requirements", help="structured R1..Rn requirements text (Entry B)")

@@ -1,4 +1,4 @@
-"""Data models for Stage 0 Autoformalization (NL / Structured -> Contract + Explanation)."""
+"""Data models for Stage 0 Auto formalization (NL / Structured -> Contract + Explanation)."""
 
 from __future__ import annotations
 

@@ -12,8 +12,8 @@ from pathlib import Path
 def load_dotenv(path: Path | str, *, override: bool = False) -> None:
     """Load simple ``KEY=VALUE`` entries from *path* into ``os.environ``.
 
-    By default an already-exported environment variable wins (the historical
-    behaviour). Experiment runners pass ``override=True`` so the project's
+    By default, an already-exported environment variable wins (the historical
+    behavior). Experiment runners pass ``override=True`` so the project's
     ``.env`` is authoritative and a stale shell export cannot shadow a rotated
     key.
     """

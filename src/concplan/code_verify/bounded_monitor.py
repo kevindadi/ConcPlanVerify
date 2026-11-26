@@ -13,7 +13,7 @@ clause status vocabulary is:
   not_observed  an Exists clause was never witnessed
   unmapped      a resource in the clause could not be aligned to the trace
   unsupported   the trace stream cannot carry the predicate (e.g. value
-                predicates, or a completion event the instrumenter did not emit)
+                predicates, or a completion event the instrument did not emit)
   deferred      the clause is decided outside the monitor (deadlock_free via
                 behavior/Miri); resolved by ``behavior_ok`` when supplied.
 """
