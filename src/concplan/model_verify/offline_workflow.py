@@ -15,38 +15,17 @@ path is the backend's strategy search under the frozen contract and its
 from __future__ import annotations
 
 import json
-import os
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from ..core.concir_client import ConcirClient, ConcirResult, sha256_file
-from ..core.json_utils import extract_json
-from ..core.prompts import (
-    build_check_feedback,
-    build_explore_feedback,
-    render_feedback,
-)
-from ..core.providers import CandidateProvider, CandidateRequest, CandidateResponse
+from ..core.json_utils import exclusive_run_dir, extract_json
+from ..core.prompts import build_check_feedback, render_feedback
+from ..core.providers import CandidateProvider, CandidateRequest
 
 STRATEGY_ENUM = {"a": "single", "b": "composite", "c": "diagnostic"}
 SUCCESS_STATUSES = {"repaired", "already_satisfied"}
-
-
-def _exclusive_run_dir(base: Path) -> Path:
-    """Create a unique per-run directory so repeated commands cannot overwrite
-    an earlier run's generation/contract/report."""
-    base.mkdir(parents=True, exist_ok=True)
-    for _ in range(1000):
-        token = f"{time.strftime('%Y%m%dT%H%M%S', time.gmtime())}-{os.getpid()}-{os.urandom(3).hex()}"
-        path = base / f"run-{token}"
-        try:
-            path.mkdir(parents=True, exist_ok=False)
-            return path
-        except FileExistsError:
-            continue
-    raise RuntimeError(f"could not allocate a unique run directory under {base}")
 
 
 @dataclass
@@ -128,7 +107,7 @@ class OfflineWorkflow:
         }
 
     def run(self, requirements: str, contract: dict[str, Any]) -> OfflineResult:
-        run_dir = _exclusive_run_dir(self.out_dir)
+        run_dir = exclusive_run_dir(self.out_dir)
         contract_path = run_dir / "contract.json"
         contract_path.write_text(json.dumps(contract, ensure_ascii=False, indent=2) + "\n")
         contract_sha = sha256_file(contract_path)

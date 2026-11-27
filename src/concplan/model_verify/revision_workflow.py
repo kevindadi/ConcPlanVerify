@@ -24,13 +24,12 @@ from __future__ import annotations
 
 import json
 import re
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
 from ..core.concir_client import ConcirClient, sha256_file
-from ..core.json_utils import extract_json, sha256_text
+from ..core.json_utils import exclusive_run_dir, extract_json, sha256_text, write_json
 from ..core.models import Consumption, normalize_token_usage
 from ..core.prompts import build_explore_feedback, render_feedback
 from ..core.providers import CandidateProvider, CandidateRequest
@@ -99,21 +98,6 @@ class RevisionResult:
         return payload
 
 
-def _exclusive_run_dir(base: Path) -> Path:
-    import os
-
-    base.mkdir(parents=True, exist_ok=True)
-    for _ in range(1000):
-        token = f"{time.strftime('%Y%m%dT%H%M%S', time.gmtime())}-{os.getpid()}-{os.urandom(3).hex()}"
-        path = base / f"run-{token}"
-        try:
-            path.mkdir(parents=True, exist_ok=False)
-            return path
-        except FileExistsError:
-            continue
-    raise RuntimeError(f"could not allocate a unique run directory under {base}")
-
-
 class WholeArtifactRevisionWorkflow:
     def __init__(
         self,
@@ -147,7 +131,7 @@ class WholeArtifactRevisionWorkflow:
 
     def run(self, requirements: str, contract: dict[str, Any], *,
             task_id: str = "task", initial_program: Path | str | None = None) -> RevisionResult:
-        run_dir = _exclusive_run_dir(self.out_dir)
+        run_dir = exclusive_run_dir(self.out_dir)
         contract_path = run_dir / "contract.json"
         contract_path.write_text(json.dumps(contract, ensure_ascii=False, indent=2) + "\n",
                                  encoding="utf-8")
@@ -487,8 +471,6 @@ def _merge_local(base: dict[str, Any], reply: dict[str, Any]) -> tuple[dict[str,
 
     out = copy.deepcopy(base)
     errors: list[str] = []
-    known_fns = {f"{m['name']}::{f['name']}" for m in out.get("modules", [])
-                 for f in m.get("functions", [])}
     new_fns: list[str] = []
     for fqn, body in (reply.get("functions") or {}).items():
         if "::" not in fqn or not isinstance(body, list):
@@ -735,8 +717,7 @@ def build_schema_feedback(check, normalizations: list[dict[str, Any]],
 
 
 def _write_result(run_dir: Path, result: RevisionResult) -> None:
-    (run_dir / "result.json").write_text(
-        json.dumps(result.as_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_json(run_dir / "result.json", result.as_dict())
 
 
 RevisionWorkflow = WholeArtifactRevisionWorkflow

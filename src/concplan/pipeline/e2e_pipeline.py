@@ -26,10 +26,8 @@ Orchestrates:
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -50,8 +48,8 @@ from ..code_verify.static_verify import (
     augment_codegen_map_with_hole_ranges,
     fill_holes_marked,
 )
-from ..core.concir_client import ConcirClient, ConcirResult, sha256_file
-from ..core.json_utils import extract_json
+from ..core.concir_client import ConcirClient, ConcirResult
+from ..core.json_utils import exclusive_run_dir, extract_json, write_json
 from ..core.prompts import (
     build_check_feedback,
     build_explore_feedback,
@@ -139,19 +137,6 @@ class E2EResult:
             "modular_reports": self.modular_reports,
             "error": self.error,
         }
-
-
-def _exclusive_run_dir(base: Path) -> Path:
-    base.mkdir(parents=True, exist_ok=True)
-    for _ in range(1000):
-        token = f"{time.strftime('%Y%m%dT%H%M%S', time.gmtime())}-{os.getpid()}-{os.urandom(3).hex()}"
-        path = base / f"e2e-{token}"
-        try:
-            path.mkdir(parents=True, exist_ok=False)
-            return path
-        except FileExistsError:
-            continue
-    raise RuntimeError(f"could not allocate unique e2e run dir under {base}")
 
 
 def _has_structured_body(program: dict[str, Any]) -> bool:
@@ -713,7 +698,7 @@ def run_e2e_pipeline(
 ) -> E2EResult:
     """Run the complete traceable bi-level verification pipeline (Stage 0 + Loops A, B, and C)."""
 
-    run_dir = _exclusive_run_dir(Path(out_dir).expanduser().resolve())
+    run_dir = exclusive_run_dir(out_dir, prefix="e2e")
     result = E2EResult(status="failed", out_dir=str(run_dir))
 
     # ---- Stage 0: Autoformalization (Entry A: nl_spec, or Entry B: missing contract) ----
@@ -723,21 +708,11 @@ def run_e2e_pipeline(
     active_contract: dict[str, Any] | None = contract
     active_clauses: dict[str, str] | None = dict(requirements_clauses) if requirements_clauses else None
 
-    if nl_spec is not None and active_contract is None:
-        try:
-            form_res = formalize_from_nl(
-                nl_spec,
-                clause_provider=clause_provider or cir_provider,
-                contract_provider=contract_provider or clause_provider or cir_provider,
-                client=client,
-                out_dir=run_dir / "stage0",
-            )
-        except Exception as exc:  # noqa: BLE001
-            result.error = f"Stage 0 formalize_from_nl failed: {exc}"
-            (run_dir / "e2e_result.json").write_text(
-                json.dumps(result.as_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-            )
-            return result
+    def _write_e2e_result() -> None:
+        write_json(run_dir / "e2e_result.json", result.as_dict())
+
+    def _apply_stage0(form_res) -> bool:
+        nonlocal formalization_dict, nl_explanations_dict, active_requirements, active_contract, active_clauses
         formalization_dict = form_res.as_dict()
         nl_explanations_dict = form_res.explanation.as_dict()
         active_requirements = form_res.requirements_md
@@ -750,9 +725,24 @@ def run_e2e_pipeline(
                 "Stage 0 contract sanity check failed: "
                 + "; ".join(i.message for i in form_res.sanity.errors)
             )
-            (run_dir / "e2e_result.json").write_text(
-                json.dumps(result.as_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            _write_e2e_result()
+            return False
+        return True
+
+    if nl_spec is not None and active_contract is None:
+        try:
+            form_res = formalize_from_nl(
+                nl_spec,
+                clause_provider=clause_provider or cir_provider,
+                contract_provider=contract_provider or clause_provider or cir_provider,
+                client=client,
+                out_dir=run_dir / "stage0",
             )
+        except Exception as exc:  # noqa: BLE001
+            result.error = f"Stage 0 formalize_from_nl failed: {exc}"
+            _write_e2e_result()
+            return result
+        if not _apply_stage0(form_res):
             return result
     elif nl_spec is not None and active_contract is not None:
         if clause_provider is not None:
@@ -775,6 +765,7 @@ def run_e2e_pipeline(
                 result.nl_explanations = nl_explanations_dict
             except Exception as exc:  # noqa: BLE001
                 result.error = f"Stage 0 nl_to_clauses failed: {exc}"
+                _write_e2e_result()
                 return result
         else:
             active_requirements = active_requirements or nl_spec
@@ -792,25 +783,9 @@ def run_e2e_pipeline(
             )
         except Exception as exc:  # noqa: BLE001
             result.error = f"Stage 0 formalize_from_structured failed: {exc}"
-            (run_dir / "e2e_result.json").write_text(
-                json.dumps(result.as_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-            )
+            _write_e2e_result()
             return result
-        formalization_dict = form_res.as_dict()
-        nl_explanations_dict = form_res.explanation.as_dict()
-        active_requirements = form_res.requirements_md
-        active_contract = form_res.contract
-        active_clauses = active_clauses or form_res.requirements.clause_map()
-        result.formalization = formalization_dict
-        result.nl_explanations = nl_explanations_dict
-        if not form_res.sanity.ok:
-            result.error = (
-                "Stage 0 contract sanity check failed: "
-                + "; ".join(i.message for i in form_res.sanity.errors)
-            )
-            (run_dir / "e2e_result.json").write_text(
-                json.dumps(result.as_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-            )
+        if not _apply_stage0(form_res):
             return result
     else:
         nl_explanations_dict = explain_contract_data(active_contract).as_dict()
@@ -821,10 +796,7 @@ def run_e2e_pipeline(
     contract = active_contract
     requirements_clauses = active_clauses
 
-    contract_path = run_dir / "contract.json"
-    contract_path.write_text(
-        json.dumps(contract, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    contract_path = write_json(run_dir / "contract.json", contract)
     hole_prov = hole_provider or cir_provider
     verifier = static_verifier or CompositeStaticVerifier([
         AstHolePurityPlugin(),
@@ -867,17 +839,12 @@ def run_e2e_pipeline(
             formalization=formalization_dict,
             nl_explanations=nl_explanations_dict,
         )
-        manifest_path = run_dir / "traceability_manifest.json"
-        manifest_path.write_text(
-            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
+        manifest_path = write_json(run_dir / "traceability_manifest.json", manifest)
         result.manifest = manifest
         result.manifest_path = str(manifest_path)
         result.vacuity_status = manifest.get("vacuity_status")
         result.modular_reports = manifest.get("modular_reports")
-        (run_dir / "e2e_result.json").write_text(
-            json.dumps(result.as_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
+        _write_e2e_result()
         return result
 
     # Outer Loop C: cross-layer escalation epochs (0 .. max_escalations inclusive).

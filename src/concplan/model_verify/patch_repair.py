@@ -13,34 +13,19 @@ counted as an LLM success.
 from __future__ import annotations
 
 import json
-import os
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from ..core.concir_client import ConcirClient, ConcirResult, sha256_file
-from ..core.json_utils import extract_json
-from ..core.prompts import patch_system_prompt, patch_user_prompt, render_patch_feedback
+from ..core.json_utils import exclusive_run_dir, extract_json, write_json
+from ..core.prompts import render_patch_feedback
 from ..core.providers import PatchCandidateProvider, PatchRequest
 
 CONTEXT_SCHEMA = "concir-repair-context-v1"
 CANDIDATE_SCHEMA = "concir-external-patch-candidate-v1"
 EXTERNAL_ARTIFACT_SCHEMA = "concir-external-patch-artifact-v1"
 SUCCESS_STATUSES = {"accepted"}
-
-
-def _exclusive_run_dir(base: Path) -> Path:
-    base.mkdir(parents=True, exist_ok=True)
-    for _ in range(1000):
-        token = f"{time.strftime('%Y%m%dT%H%M%S', time.gmtime())}-{os.getpid()}-{os.urandom(3).hex()}"
-        path = base / f"run-{token}"
-        try:
-            path.mkdir(parents=True, exist_ok=False)
-            return path
-        except FileExistsError:
-            continue
-    raise RuntimeError(f"could not allocate a unique run directory under {base}")
 
 
 @dataclass
@@ -97,7 +82,7 @@ class ExternalPatchRepairWorkflow:
         self.max_rounds = max(1, max_rounds)
 
     def run(self, model: Path | str, contract: Path | str) -> PatchRepairResult:
-        run_dir = _exclusive_run_dir(self.out_dir)
+        run_dir = exclusive_run_dir(self.out_dir)
         model_path = Path(model).expanduser().resolve()
         contract_path = Path(contract).expanduser().resolve()
         model_sha = sha256_file(model_path)
@@ -245,8 +230,7 @@ def _replay_accepts(result: ConcirResult) -> bool:
             and payload.get("outcome") == "repaired")
 
 
-def _write_result(run_dir: Path, result: PatchRepairResult):
+def _write_result(run_dir: Path, result: PatchRepairResult) -> None:
     payload = {**result.__dict__}
     payload["rounds"] = [r.__dict__ for r in result.rounds]
-    (run_dir / "result.json").write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_json(run_dir / "result.json", payload)
