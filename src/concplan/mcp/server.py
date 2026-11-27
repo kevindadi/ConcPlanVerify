@@ -259,13 +259,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     if args.list_tools:
-        payload = {
-            "server": {"name": server.name, "version": server.version},
-            "tools": [t.to_mcp() for t in server.tools.values()],
-            "resources": [r.to_mcp() for r in server.resources.values()],
-            "prompts": [p.to_mcp() for p in server.prompts.values()],
-        }
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        print(json.dumps(server.describe(), ensure_ascii=False, indent=2))
         return 0
 
     try:

@@ -146,6 +146,14 @@ class McpServer:
     def register_prompt(self, spec: PromptSpec) -> None:
         self._prompts[spec.name] = spec
 
+    def describe(self) -> dict[str, Any]:
+        return {
+            "server": {"name": self.name, "version": self.version},
+            "tools": [t.to_mcp() for t in self._tools.values()],
+            "resources": [r.to_mcp() for r in self._resources.values()],
+            "prompts": [p.to_mcp() for p in self._prompts.values()],
+        }
+
     def handle_message(self, msg: Any) -> dict[str, Any] | None:
         """Dispatch a single parsed JSON-RPC message.
 
