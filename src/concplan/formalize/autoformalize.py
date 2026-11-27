@@ -49,6 +49,29 @@ VALID_PROPERTY_KINDS = frozenset({
     "unreachable",
     "ctl",
     "ltl",
+    "pattern",
+    "health",
+})
+
+VALID_PATTERN_KINDS = frozenset({
+    "always",
+    "exclude",
+    "at_most",
+    "precedence",
+    "triggers",
+    "can_reach",
+    "always_can_reach",
+})
+
+VALID_HEALTH_CHECKS = frozenset({
+    "deadlock",
+    "partial_deadlock",
+    "lost_wakeup",
+    "wake_starvation",
+    "acquire_starvation",
+    "resource_leak",
+    "double_lock",
+    "data_race",
 })
 
 VALID_PRESERVED_KINDS = frozenset({"reachable", "always"})
@@ -62,6 +85,7 @@ VALID_PREDICATE_KINDS = frozenset({
     "function_completed_at_least",
     "scope_completed",
     "statement_reached",
+    "milestone_reached",
     "mutex_free",
     "mutex_held",
     "holds_all",
@@ -132,6 +156,7 @@ def parse_structured_markdown(text: str, *, default_title: str = "requirements")
     roles: list[str] = []
     resources: list[str] = []
     domain_types: list[DomainTypeEntity] = []
+    milestones: list[str] = []
     clauses: list[RequirementClause] = []
 
     in_entities = False
@@ -159,6 +184,9 @@ def parse_structured_markdown(text: str, *, default_title: str = "requirements")
             if any(k in lower for k in ("domain", "type", "struct", "payload")):
                 for tok in tokens:
                     domain_types.append(DomainTypeEntity(name=tok, kind="hole"))
+                continue
+            if "milestone" in lower:
+                milestones.extend(tokens)
                 continue
 
         m_clause = _MD_CLAUSE_RE.match(raw_line)
@@ -190,6 +218,7 @@ def parse_structured_markdown(text: str, *, default_title: str = "requirements")
             roles=list(dict.fromkeys(roles)),
             resources=list(dict.fromkeys(resources)),
             domain_types=domain_types,
+            milestones=list(dict.fromkeys(milestones)),
         ),
     )
 
@@ -261,6 +290,8 @@ def explain_predicate(pred: Any) -> str:
         return f"scope `{pred.get('sid', '?')}` in `{pred.get('function', '?')}` has completed"
     if kind == "statement_reached":
         return f"statement `{pred.get('sid', '?')}` in `{pred.get('function', '?')}` is reached"
+    if kind == "milestone_reached":
+        return f"milestone `{pred.get('milestone', '?')}` has been reached"
     if kind == "mutex_free":
         return f"mutex `{pred.get('resource', '?')}` is free"
     if kind == "mutex_held":
@@ -400,6 +431,38 @@ def explain_fairness(fc: Any) -> str:
     return f"<unknown fairness kind '{kind}'>"
 
 
+def _explain_pattern(prop: dict[str, Any]) -> str:
+    pat = str(prop.get("pattern") or "").strip().lower()
+    if pat == "always":
+        cond = prop.get("cond") if "cond" in prop else prop.get("invariant")
+        return f"Pattern(always): in every reachable state, {explain_predicate(cond)}."
+    if pat == "exclude":
+        preds = ", ".join(explain_predicate(p) for p in (prop.get("preds") or []))
+        return f"Pattern(exclude): [{preds}] can never all hold simultaneously."
+    if pat == "at_most":
+        max_n = prop.get("max", "?")
+        conds = ", ".join(explain_predicate(c) for c in (prop.get("conds") or []))
+        return f"Pattern(at_most {max_n}): at most {max_n} of [{conds}] hold simultaneously."
+    if pat == "precedence":
+        eff = explain_predicate(prop.get("effect"))
+        cau = explain_predicate(prop.get("cause"))
+        return f"Pattern(precedence): '{eff}' cannot hold before '{cau}' has occurred."
+    if pat == "triggers":
+        cau = prop.get("cause") if "cause" in prop else prop.get("trigger")
+        eff = prop.get("effect") if "effect" in prop else prop.get("response")
+        fairness = prop.get("fairness") or []
+        body = f"always, whenever ({explain_predicate(cau)}), eventually ({explain_predicate(eff)})"
+        if fairness:
+            f_str = "; ".join(explain_fairness(fc) for fc in fairness)
+            body = f"under fairness [{f_str}], {body}"
+        return f"Pattern(triggers): {body}."
+    if pat == "can_reach":
+        return f"Pattern(can_reach): some reachable state satisfies {explain_predicate(prop.get('goal'))}."
+    if pat == "always_can_reach":
+        return f"Pattern(always_can_reach): from every reachable state, {explain_predicate(prop.get('goal'))} remains reachable."
+    return f"<unknown pattern '{pat}'>"
+
+
 def explain_property(prop: dict[str, Any]) -> dict[str, Any]:
     """Render one ``PropertySpec`` dict into a structured explanation entry."""
     pid = str(prop.get("id") or "")
@@ -431,6 +494,12 @@ def explain_property(prop: dict[str, Any]) -> dict[str, Any]:
             body = f"On every execution trace: {body}"
         nv = " (non-vacuous: implication antecedents must be reachable)" if non_vacuous else ""
         text = f"LTL: {body}.{nv}"
+    elif kind == "pattern":
+        nv = " (non-vacuous)" if prop.get("non_vacuous", True) else ""
+        text = f"{_explain_pattern(prop)}{nv}"
+    elif kind == "health":
+        checks = prop.get("checks") or ["default concurrency health suite"]
+        text = f"Concurrency health obligations verified by UniPN logic: {', '.join(str(c) for c in checks)}."
     else:
         text = f"<unknown property kind '{kind}'>"
 
@@ -546,7 +615,7 @@ def formula_contains_implication(formula: Any) -> bool:
 
 
 def ensure_implication_non_vacuous(contract: dict[str, Any]) -> dict[str, Any]:
-    """Return a copy of ``contract`` where CTL/LTL implication properties default to ``non_vacuous: true``."""
+    """Return a copy of ``contract`` where CTL/LTL implication and implication-style pattern properties default to ``non_vacuous: true``."""
     out = copy.deepcopy(contract)
     for prop in out.get("properties") or []:
         if not isinstance(prop, dict):
@@ -554,6 +623,10 @@ def ensure_implication_non_vacuous(contract: dict[str, Any]) -> dict[str, Any]:
         kind = str(prop.get("kind") or "").strip().lower()
         if kind in ("ctl", "ltl") and "non_vacuous" not in prop:
             if formula_contains_implication(prop.get("formula")):
+                prop["non_vacuous"] = True
+        elif kind == "pattern" and "non_vacuous" not in prop:
+            pat = str(prop.get("pattern") or "").strip().lower()
+            if pat in ("triggers", "precedence"):
                 prop["non_vacuous"] = True
     return out
 
@@ -563,6 +636,7 @@ def _collect_predicate_refs(
     *,
     functions: set[str],
     resources: set[str],
+    milestones: set[str] | None = None,
     errors: list[str],
 ) -> None:
     if not isinstance(pred, dict):
@@ -584,6 +658,12 @@ def _collect_predicate_refs(
             errors.append(f"predicate '{kind}' missing 'function'")
         else:
             functions.add(str(pred["function"]))
+    elif kind == "milestone_reached":
+        ms = str(pred.get("milestone") or "").strip()
+        if not ms:
+            errors.append("predicate 'milestone_reached' missing non-empty 'milestone'")
+        elif milestones is not None:
+            milestones.add(ms)
     elif kind in ("holds_all", "never_holds_all"):
         if not pred.get("function"):
             errors.append(f"predicate '{kind}' missing 'function'")
@@ -592,14 +672,26 @@ def _collect_predicate_refs(
         for r in pred.get("resources") or []:
             resources.add(str(r))
     elif kind == "not":
-        _collect_predicate_refs(pred.get("predicate"), functions=functions, resources=resources, errors=errors)
+        _collect_predicate_refs(
+            pred.get("predicate"),
+            functions=functions,
+            resources=resources,
+            milestones=milestones,
+            errors=errors,
+        )
     elif kind in ("and", "or"):
         subs = pred.get("predicates")
         if not isinstance(subs, list):
             errors.append(f"predicate '{kind}' requires list 'predicates'")
         else:
             for s in subs:
-                _collect_predicate_refs(s, functions=functions, resources=resources, errors=errors)
+                _collect_predicate_refs(
+                    s,
+                    functions=functions,
+                    resources=resources,
+                    milestones=milestones,
+                    errors=errors,
+                )
 
 
 def _validate_temporal_tree(
@@ -608,6 +700,7 @@ def _validate_temporal_tree(
     logic: str,
     functions: set[str],
     resources: set[str],
+    milestones: set[str] | None = None,
     errors: list[str],
 ) -> None:
     if not isinstance(node, dict):
@@ -621,14 +714,41 @@ def _validate_temporal_tree(
     if op in ("true", "false"):
         return
     if op == "atom":
-        _collect_predicate_refs(node.get("atom"), functions=functions, resources=resources, errors=errors)
+        _collect_predicate_refs(
+            node.get("atom"),
+            functions=functions,
+            resources=resources,
+            milestones=milestones,
+            errors=errors,
+        )
         return
     if op in ("not", "ex", "ax", "ef", "af", "eg", "ag", "next", "eventually", "always"):
-        _validate_temporal_tree(node.get("arg"), logic=logic, functions=functions, resources=resources, errors=errors)
+        _validate_temporal_tree(
+            node.get("arg"),
+            logic=logic,
+            functions=functions,
+            resources=resources,
+            milestones=milestones,
+            errors=errors,
+        )
         return
     if op in ("implies", "eu", "au", "until", "release"):
-        _validate_temporal_tree(node.get("lhs"), logic=logic, functions=functions, resources=resources, errors=errors)
-        _validate_temporal_tree(node.get("rhs"), logic=logic, functions=functions, resources=resources, errors=errors)
+        _validate_temporal_tree(
+            node.get("lhs"),
+            logic=logic,
+            functions=functions,
+            resources=resources,
+            milestones=milestones,
+            errors=errors,
+        )
+        _validate_temporal_tree(
+            node.get("rhs"),
+            logic=logic,
+            functions=functions,
+            resources=resources,
+            milestones=milestones,
+            errors=errors,
+        )
         return
     if op in ("and", "or"):
         args = node.get("args")
@@ -636,7 +756,14 @@ def _validate_temporal_tree(
             errors.append(f"{logic.upper()} '{op}' requires non-empty list 'args'")
             return
         for a in args:
-            _validate_temporal_tree(a, logic=logic, functions=functions, resources=resources, errors=errors)
+            _validate_temporal_tree(
+                a,
+                logic=logic,
+                functions=functions,
+                resources=resources,
+                milestones=milestones,
+                errors=errors,
+            )
 
 
 def _lookup_resource_kind(res_name: str, res_kind_map: dict[str, str]) -> str:
@@ -776,6 +903,8 @@ def _validate_entity_grounding(
     owner_label: str,
     grounded_roles: set[str],
     grounded_resources: set[str],
+    milestones: set[str] | None = None,
+    grounded_milestones: set[str] | None = None,
     strict_entities: bool,
     issues: list[SanityIssue],
 ) -> None:
@@ -800,6 +929,17 @@ def _validate_entity_grounding(
                     property_id=owner_label,
                 )
             )
+    if milestones and grounded_milestones:
+        for ms in sorted(milestones):
+            if ms not in grounded_milestones:
+                issues.append(
+                    SanityIssue(
+                        ent_sev,
+                        "ungrounded_milestone",
+                        f"{owner_kind} '{owner_label}' references milestone '{ms}' not in grounded milestones {sorted(grounded_milestones)}",
+                        property_id=owner_label,
+                    )
+                )
 
 
 def validate_contract_sanity(
@@ -838,6 +978,7 @@ def validate_contract_sanity(
     clause_index = structured.clause_by_id() if structured is not None else {}
     grounded_roles = set(structured.entities.roles) if structured is not None else set()
     grounded_resources = set(structured.entities.resources) if structured is not None else set()
+    grounded_milestones = set(structured.entities.milestones) if structured is not None else set()
     res_kind_map = (
         {
             rs.name.split("::")[-1]: rs.kind.strip().lower()
@@ -884,18 +1025,19 @@ def validate_contract_sanity(
         tree_errors: list[str] = []
         p_funcs: set[str] = set()
         p_res: set[str] = set()
+        p_ms: set[str] = set()
 
         if kind == "safety":
-            _collect_predicate_refs(prop.get("invariant"), functions=p_funcs, resources=p_res, errors=tree_errors)
+            _collect_predicate_refs(prop.get("invariant"), functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
             _check_predicate_resource_compat(prop.get("invariant"), res_kind_map, property_id=pid, issues=issues)
         elif kind in ("reachability", "always_reachable"):
-            _collect_predicate_refs(prop.get("goal"), functions=p_funcs, resources=p_res, errors=tree_errors)
+            _collect_predicate_refs(prop.get("goal"), functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
             _check_predicate_resource_compat(prop.get("goal"), res_kind_map, property_id=pid, issues=issues)
         elif kind == "unreachable":
-            _collect_predicate_refs(prop.get("bad"), functions=p_funcs, resources=p_res, errors=tree_errors)
+            _collect_predicate_refs(prop.get("bad"), functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
             _check_predicate_resource_compat(prop.get("bad"), res_kind_map, property_id=pid, issues=issues)
         elif kind == "ctl":
-            _validate_temporal_tree(prop.get("formula"), logic="ctl", functions=p_funcs, resources=p_res, errors=tree_errors)
+            _validate_temporal_tree(prop.get("formula"), logic="ctl", functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
             _check_temporal_resource_compat(prop.get("formula"), res_kind_map, property_id=pid, issues=issues)
             if require_non_vacuous and formula_contains_implication(prop.get("formula")) and not prop.get("non_vacuous"):
                 issues.append(
@@ -907,7 +1049,7 @@ def validate_contract_sanity(
                     )
                 )
         elif kind == "ltl":
-            _validate_temporal_tree(prop.get("formula"), logic="ltl", functions=p_funcs, resources=p_res, errors=tree_errors)
+            _validate_temporal_tree(prop.get("formula"), logic="ltl", functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
             _check_temporal_resource_compat(prop.get("formula"), res_kind_map, property_id=pid, issues=issues)
             for fc in prop.get("fairness") or []:
                 if not isinstance(fc, dict):
@@ -917,10 +1059,10 @@ def validate_contract_sanity(
                 if fkind not in VALID_FAIRNESS_KINDS:
                     tree_errors.append(f"unknown fairness kind '{fkind}'")
                 elif fkind == "justice":
-                    _collect_predicate_refs(fc.get("atom"), functions=p_funcs, resources=p_res, errors=tree_errors)
+                    _collect_predicate_refs(fc.get("atom"), functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
                 elif fkind == "compassion":
-                    _collect_predicate_refs(fc.get("enabled"), functions=p_funcs, resources=p_res, errors=tree_errors)
-                    _collect_predicate_refs(fc.get("taken"), functions=p_funcs, resources=p_res, errors=tree_errors)
+                    _collect_predicate_refs(fc.get("enabled"), functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
+                    _collect_predicate_refs(fc.get("taken"), functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
             if require_non_vacuous and formula_contains_implication(prop.get("formula")) and not prop.get("non_vacuous"):
                 issues.append(
                     SanityIssue(
@@ -930,6 +1072,86 @@ def validate_contract_sanity(
                         property_id=pid,
                     )
                 )
+        elif kind == "pattern":
+            pat = str(prop.get("pattern") or "").strip().lower()
+            if pat not in VALID_PATTERN_KINDS:
+                tree_errors.append(f"unknown pattern kind '{pat}'")
+            elif pat == "always":
+                cond = prop.get("cond") if "cond" in prop else prop.get("invariant")
+                _collect_predicate_refs(cond, functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
+                _check_predicate_resource_compat(cond, res_kind_map, property_id=pid, issues=issues)
+            elif pat == "exclude":
+                preds = prop.get("preds")
+                if not isinstance(preds, list) or not preds:
+                    tree_errors.append("pattern 'exclude' requires non-empty list 'preds'")
+                else:
+                    for sub in preds:
+                        _collect_predicate_refs(sub, functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
+                        _check_predicate_resource_compat(sub, res_kind_map, property_id=pid, issues=issues)
+            elif pat == "at_most":
+                conds = prop.get("conds")
+                if not isinstance(conds, list) or not conds:
+                    tree_errors.append("pattern 'at_most' requires non-empty list 'conds'")
+                else:
+                    for sub in conds:
+                        _collect_predicate_refs(sub, functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
+                        _check_predicate_resource_compat(sub, res_kind_map, property_id=pid, issues=issues)
+                if not isinstance(prop.get("max"), int) or prop.get("max") < 0:
+                    tree_errors.append("pattern 'at_most' requires non-negative int 'max'")
+            elif pat == "precedence":
+                _collect_predicate_refs(prop.get("effect"), functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
+                _collect_predicate_refs(prop.get("cause"), functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
+                _check_predicate_resource_compat(prop.get("effect"), res_kind_map, property_id=pid, issues=issues)
+                _check_predicate_resource_compat(prop.get("cause"), res_kind_map, property_id=pid, issues=issues)
+                if require_non_vacuous and prop.get("non_vacuous") is False:
+                    issues.append(
+                        SanityIssue(
+                            "error",
+                            "missing_non_vacuous",
+                            f"Pattern property '{pid}' ('precedence') should keep 'non_vacuous': true",
+                            property_id=pid,
+                        )
+                    )
+            elif pat == "triggers":
+                cau = prop.get("cause") if "cause" in prop else prop.get("trigger")
+                eff = prop.get("effect") if "effect" in prop else prop.get("response")
+                _collect_predicate_refs(cau, functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
+                _collect_predicate_refs(eff, functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
+                _check_predicate_resource_compat(cau, res_kind_map, property_id=pid, issues=issues)
+                _check_predicate_resource_compat(eff, res_kind_map, property_id=pid, issues=issues)
+                for fc in prop.get("fairness") or []:
+                    if not isinstance(fc, dict):
+                        tree_errors.append("fairness entry must be an object")
+                        continue
+                    fkind = str(fc.get("kind") or "").strip().lower()
+                    if fkind not in VALID_FAIRNESS_KINDS:
+                        tree_errors.append(f"unknown fairness kind '{fkind}'")
+                    elif fkind == "justice":
+                        _collect_predicate_refs(fc.get("atom"), functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
+                    elif fkind == "compassion":
+                        _collect_predicate_refs(fc.get("enabled"), functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
+                        _collect_predicate_refs(fc.get("taken"), functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
+                if require_non_vacuous and "non_vacuous" in prop and not prop.get("non_vacuous"):
+                    issues.append(
+                        SanityIssue(
+                            "error",
+                            "missing_non_vacuous",
+                            f"Pattern property '{pid}' ('triggers') contains an implication and must set 'non_vacuous': true",
+                            property_id=pid,
+                        )
+                    )
+            elif pat in ("can_reach", "always_can_reach"):
+                _collect_predicate_refs(prop.get("goal"), functions=p_funcs, resources=p_res, milestones=p_ms, errors=tree_errors)
+                _check_predicate_resource_compat(prop.get("goal"), res_kind_map, property_id=pid, issues=issues)
+        elif kind == "health":
+            checks = prop.get("checks")
+            if checks is not None:
+                if not isinstance(checks, list):
+                    tree_errors.append("health 'checks' must be a list")
+                else:
+                    for c in checks:
+                        if str(c).strip().lower() not in VALID_HEALTH_CHECKS:
+                            tree_errors.append(f"unknown health bug kind '{c}'")
 
         for err in tree_errors:
             issues.append(SanityIssue("error", "malformed_formula", f"property '{pid}': {err}", property_id=pid))
@@ -942,6 +1164,8 @@ def validate_contract_sanity(
                 owner_label=pid,
                 grounded_roles=grounded_roles,
                 grounded_resources=grounded_resources,
+                milestones=p_ms,
+                grounded_milestones=grounded_milestones,
                 strict_entities=strict_entities,
                 issues=issues,
             )
@@ -1198,6 +1422,7 @@ def _write_stage0_artifacts(
     req_md: str,
     contract: dict[str, Any],
     explanation: ContractExplanation,
+    req_ir: dict[str, Any] | None = None,
 ) -> dict[str, str | None]:
     if out_dir is None:
         return {
@@ -1206,6 +1431,7 @@ def _write_stage0_artifacts(
             "requirements_json_path": None,
             "contract_path": None,
             "explanation_path": None,
+            "req_ir_path": None,
         }
     root = Path(out_dir).expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
@@ -1218,13 +1444,55 @@ def _write_stage0_artifacts(
     write_json(req_json_path, structured.as_dict())
     write_json(contract_path, contract)
     write_json(exp_path, explanation.as_dict())
+    req_ir_path_str: str | None = None
+    if req_ir is not None:
+        req_ir_path = root / "req_ir.json"
+        write_json(req_ir_path, req_ir)
+        req_ir_path_str = str(req_ir_path)
     return {
         "out_dir": str(root),
         "requirements_md_path": str(req_md_path),
         "requirements_json_path": str(req_json_path),
         "contract_path": str(contract_path),
         "explanation_path": str(exp_path),
+        "req_ir_path": req_ir_path_str,
     }
+
+
+def _check_optional_req_ir(
+    req_ir_input: dict[str, Any] | Path | str | None,
+    structured: StructuredRequirements,
+    contract: dict[str, Any],
+    client: ConcirClient | None,
+    sanity: SanityCheckReport,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    req_ir_data: dict[str, Any] | None = None
+    if req_ir_input is not None:
+        if isinstance(req_ir_input, dict):
+            req_ir_data = copy.deepcopy(req_ir_input)
+        else:
+            req_ir_data = json.loads(Path(req_ir_input).expanduser().resolve().read_text(encoding="utf-8"))
+    elif structured.req_ir is not None:
+        req_ir_data = copy.deepcopy(structured.req_ir)
+
+    if req_ir_data is None:
+        return None, None
+
+    req_check_payload: dict[str, Any] | None = None
+    if client is not None:
+        res = client.check_req(req_ir_data, contract=contract)
+        req_check_payload = res.payload if isinstance(res.payload, dict) else {"status": res.status, "error": res.error}
+        if not res.is_semantic or res.status in ("fail", "invalid", "unsupported"):
+            msg = res.error or "; ".join(
+                d.get("message", "") for d in (req_check_payload or {}).get("diagnostics") or []
+            ) or f"req_ir check-req returned {res.status}"
+            sanity.issues.append(SanityIssue("error", f"req_ir_{res.status}", msg))
+            sanity.ok = False
+        elif res.status == "unknown":
+            sanity.issues.append(
+                SanityIssue("warning", "req_ir_unknown", "req_ir check-req was truncated (unknown)")
+            )
+    return req_ir_data, req_check_payload
 
 
 def formalize_from_nl(
@@ -1235,6 +1503,7 @@ def formalize_from_nl(
     client: ConcirClient | None = None,
     out_dir: Path | str | None = None,
     title: str = "requirements",
+    req_ir: dict[str, Any] | Path | str | None = None,
     max_clause_rounds: int = 2,
     max_contract_rounds: int = 2,
     enforce_non_vacuous: bool = True,
@@ -1257,10 +1526,11 @@ def formalize_from_nl(
         enforce_non_vacuous=enforce_non_vacuous,
         strict_entities=strict_entities,
     )
+    req_ir_data, req_check = _check_optional_req_ir(req_ir, structured, contract, client, sanity)
     explanation = explain_contract_data(
         contract, client=client, prefer_backend=prefer_backend_explain
     )
-    paths = _write_stage0_artifacts(out_dir, structured, req_md, contract, explanation)
+    paths = _write_stage0_artifacts(out_dir, structured, req_md, contract, explanation, req_ir=req_ir_data)
     warnings = [i.message for i in sanity.warnings]
     return FormalizationResult(
         entry="nl",
@@ -1269,6 +1539,8 @@ def formalize_from_nl(
         contract=contract,
         explanation=explanation,
         sanity=sanity,
+        req_ir=req_ir_data,
+        req_check=req_check,
         warnings=warnings,
         **paths,
     )
@@ -1281,6 +1553,7 @@ def formalize_from_structured(
     contract_provider: CandidateProvider | None = None,
     client: ConcirClient | None = None,
     out_dir: Path | str | None = None,
+    req_ir: dict[str, Any] | Path | str | None = None,
     max_contract_rounds: int = 2,
     enforce_non_vacuous: bool = True,
     strict_entities: bool = True,
@@ -1314,10 +1587,11 @@ def formalize_from_structured(
             strict_entities=strict_entities,
         )
 
+    req_ir_data, req_check = _check_optional_req_ir(req_ir, structured, contract_data, client, sanity)
     explanation = explain_contract_data(
         contract_data, client=client, prefer_backend=prefer_backend_explain
     )
-    paths = _write_stage0_artifacts(out_dir, structured, req_md, contract_data, explanation)
+    paths = _write_stage0_artifacts(out_dir, structured, req_md, contract_data, explanation, req_ir=req_ir_data)
     warnings = [i.message for i in sanity.warnings]
     return FormalizationResult(
         entry="structured",
@@ -1326,6 +1600,8 @@ def formalize_from_structured(
         contract=contract_data,
         explanation=explanation,
         sanity=sanity,
+        req_ir=req_ir_data,
+        req_check=req_check,
         warnings=warnings,
         **paths,
     )

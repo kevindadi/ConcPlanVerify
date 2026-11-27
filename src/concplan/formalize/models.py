@@ -99,6 +99,8 @@ class GroundedEntities:
     resources: list[str] = field(default_factory=list)
     domain_types: list[DomainTypeEntity] = field(default_factory=list)
     resource_specs: list[ResourceEntity] = field(default_factory=list)
+    milestones: list[str] = field(default_factory=list)
+    milestone_specs: list[dict[str, Any]] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {
@@ -108,6 +110,10 @@ class GroundedEntities:
         }
         if self.resource_specs:
             out["resource_specs"] = [rs.as_dict() for rs in self.resource_specs]
+        if self.milestones:
+            out["milestones"] = list(self.milestones)
+        if self.milestone_specs:
+            out["milestone_specs"] = [dict(ms) for ms in self.milestone_specs]
         return out
 
     @classmethod
@@ -141,11 +147,32 @@ class GroundedEntities:
         domain_types = [
             dt for dt in (DomainTypeEntity.from_raw(item) for item in raw_dts) if dt.name
         ]
+        milestones: list[str] = []
+        milestone_specs: list[dict[str, Any]] = []
+        for item in raw.get("milestones") or []:
+            if isinstance(item, dict):
+                mname = str(item.get("name") or item.get("id") or "").strip()
+                if mname:
+                    milestones.append(mname)
+                    milestone_specs.append(dict(item))
+            else:
+                mname = str(item).strip()
+                if mname:
+                    milestones.append(mname)
+        for item in raw.get("milestone_specs") or []:
+            if isinstance(item, dict):
+                mname = str(item.get("name") or item.get("id") or "").strip()
+                if mname:
+                    if mname not in milestones:
+                        milestones.append(mname)
+                    milestone_specs.append(dict(item))
         return cls(
             roles=list(dict.fromkeys(roles)),
             resources=list(dict.fromkeys(resources)),
             domain_types=domain_types,
             resource_specs=list(spec_by_name.values()),
+            milestones=list(dict.fromkeys(milestones)),
+            milestone_specs=milestone_specs,
         )
 
 
@@ -223,6 +250,7 @@ class StructuredRequirements:
     entities: GroundedEntities = field(default_factory=GroundedEntities)
     summary: str = ""
     source_nl: str | None = None
+    req_ir: dict[str, Any] | None = None
     schema: str = "concir-requirements/2"
 
     def clause_map(self) -> dict[str, str]:
@@ -276,6 +304,10 @@ class StructuredRequirements:
             lines.append(f"- **Domain Types**: {', '.join(dt_parts)}")
         else:
             lines.append("- **Domain Types**: _none_")
+        if self.entities.milestones:
+            lines.append(
+                "- **Milestones**: " + ", ".join(f"`{m}`" for m in self.entities.milestones)
+            )
         lines.append("")
 
         lines.append("## Requirements")
@@ -296,6 +328,8 @@ class StructuredRequirements:
         }
         if self.source_nl is not None:
             out["source_nl"] = self.source_nl
+        if self.req_ir is not None:
+            out["req_ir"] = self.req_ir
         return out
 
     @classmethod
@@ -303,6 +337,15 @@ class StructuredRequirements:
         title = str(data.get("title") or data.get("name") or data.get("case") or "requirements").strip()
         summary = str(data.get("summary") or data.get("description") or "").strip()
         entities = GroundedEntities.from_raw(data.get("entities") or {})
+        raw_req_ir = data.get("req_ir") if isinstance(data.get("req_ir"), dict) else None
+        if raw_req_ir and not entities.milestones:
+            ms_names = [
+                str(m.get("name")).strip()
+                for m in (raw_req_ir.get("milestones") or [])
+                if isinstance(m, dict) and str(m.get("name") or "").strip()
+            ]
+            if ms_names:
+                entities.milestones = list(dict.fromkeys(ms_names))
         raw_clauses = data.get("clauses")
         if raw_clauses is None:
             raw_clauses = data.get("requirements") or []
@@ -317,6 +360,7 @@ class StructuredRequirements:
             entities=entities,
             summary=summary,
             source_nl=str(source_nl) if source_nl is not None else None,
+            req_ir=raw_req_ir,
         )
 
 
@@ -424,6 +468,9 @@ class FormalizationResult:
     requirements_json_path: str | None = None
     contract_path: str | None = None
     explanation_path: str | None = None
+    req_ir: dict[str, Any] | None = None
+    req_ir_path: str | None = None
+    req_check: dict[str, Any] | None = None
     warnings: list[str] = field(default_factory=list)
 
     @property
@@ -431,7 +478,7 @@ class FormalizationResult:
         return self.sanity.ok
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        out = {
             "entry": self.entry,
             "ok": self.ok,
             "requirements": self.requirements.as_dict(),
@@ -446,3 +493,10 @@ class FormalizationResult:
             "explanation_path": self.explanation_path,
             "warnings": list(self.warnings),
         }
+        if self.req_ir is not None:
+            out["req_ir"] = self.req_ir
+        if self.req_ir_path is not None:
+            out["req_ir_path"] = self.req_ir_path
+        if self.req_check is not None:
+            out["req_check"] = self.req_check
+        return out

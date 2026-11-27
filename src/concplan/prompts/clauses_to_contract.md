@@ -40,6 +40,8 @@ Output **only** a single JSON object.
 - `{"kind": "var_cmp", "resource": "main::c", "op": "<=", "value": 2}` (`op` in `== != < <= > >=`)
 - `{"kind": "function_completed", "function": "main::w1"}`
 - `{"kind": "function_completed_at_least", "function": "main::w1", "n": 2}`
+- `{"kind": "statement_reached", "function": "main::w1", "sid": "s1"}`
+- `{"kind": "milestone_reached", "milestone": "item_produced"}` (when `entities.milestones` / `req_ir` defines milestones)
 - `{"kind": "mutex_free", "resource": "main::m"}` / `{"kind": "mutex_held", "resource": "main::m"}`
 - `{"kind": "mutex_exclusive", "resource": "main::m"}`
 - `{"kind": "holds_all", "function": "main::w1", "resources": ["main::m1", "main::m2"]}`
@@ -57,6 +59,17 @@ Classic properties:
 - `{"kind": "reachability", "id": "can-finish", "goal": <PredicateSpec>, "req": ["R2"]}`
 - `{"kind": "always_reachable", "id": "resettable", "goal": <PredicateSpec>, "req": ["R2"]}`
 - `{"kind": "unreachable", "id": "no-bad", "bad": <PredicateSpec>, "req": ["R2"]}`
+
+High-level **ConstraintPattern** (`kind: "pattern"`, PREFERRED over raw nested CTL/LTL whenever a standard pattern applies) and **Logic-Driven Concurrency Health** (`kind: "health"`):
+
+- `{"kind": "pattern", "id": "inv", "pattern": "always", "cond": <PredicateSpec>, "req": ["R2"]}`
+- `{"kind": "pattern", "id": "mutex-pair", "pattern": "exclude", "preds": [<PredicateSpec>, <PredicateSpec>], "req": ["R1"]}`
+- `{"kind": "pattern", "id": "bounded-active", "pattern": "at_most", "conds": [<PredicateSpec>, ...], "max": 1, "req": ["R2"]}`
+- `{"kind": "pattern", "id": "order", "pattern": "precedence", "effect": <PredicateSpec>, "cause": <PredicateSpec>, "non_vacuous": true, "req": ["R2"]}`
+- `{"kind": "pattern", "id": "resp", "pattern": "triggers", "cause": <PredicateSpec>, "effect": <PredicateSpec>, "non_vacuous": true, "fairness": [...], "req": ["R3"]}`
+- `{"kind": "pattern", "id": "reach", "pattern": "can_reach", "goal": <PredicateSpec>, "req": ["R4"]}`
+- `{"kind": "pattern", "id": "resettable", "pattern": "always_can_reach", "goal": <PredicateSpec>, "req": ["R4"]}`
+- `{"kind": "health", "id": "conc-health", "checks": ["deadlock", "partial_deadlock", "lost_wakeup", "wake_starvation", "acquire_starvation", "resource_leak", "double_lock", "data_race"], "req": ["R1"]}`
 
 Temporal CTL (`kind: "ctl"`, operators `true | false | atom | not | and | or | implies | ex | ax | ef | af | eg | ag | eu | au`):
 ```json

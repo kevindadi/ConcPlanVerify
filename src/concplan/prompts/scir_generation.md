@@ -18,9 +18,12 @@ implementation (Loop C). Output **only** the JSON object.
   - Put domain payload structs whose internal fields/methods are pure sequential Rust into a
     module `types` declaration with `{"Hole": {"description": "...", "req": ["R..."]}}` (emitted as
     `/* TYPE_HOLE(th1) type: Name */` in `src/domain.rs`).
-- **Traceability (`req`).** Attach `"req": ["R1", ...]` tags on modules, types, resources,
+- **Traceability (`req`) & Milestones (`milestone`).** Attach `"req": ["R1", ...]` tags on modules, types, resources,
   functions, `structured_body` blocks, and statements to link every design element back to
-  requirement clause IDs.
+  requirement clause IDs. When requirements specify `N_req` milestones (`req_ir`), attach
+  `"milestone": "<milestone_name>"` to the exact `stmt` (e.g. `seq_hole` or `write_shared`) that
+  realizes each milestone so `concir-backend verify-design` can verify stuttering refinement
+  ($N_{\text{req}} \sqsubseteq_{\text{ext}} N_{\text{code}}$).
 - **Prefer `structured_body` (`SCIR`) over manual `branch`/`goto` `sid` wiring.**
   `concir-backend lower` deterministically lowers `structured_body` to flat `body` statements and
   emits `concir-trace-map/1` preserving every `structured_id` and `req` tag.
