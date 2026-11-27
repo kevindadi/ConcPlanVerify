@@ -107,18 +107,25 @@ ConcPlanVerify/
 
 1. **Python 3.10+** (standard library is sufficient for all offline/scripted
    workflows and tests; install in editable mode for `concplan` and live LLM calls):
+
    ```bash
    python -m pip install -e .
    ```
+
 2. **Build `concir-backend` (submodule):**
+
    ```bash
    cargo build --release --manifest-path backends/concir/Cargo.toml --bin concir-backend
    ```
+
 3. **Build `spn` (MIR Petri-net analyzer, for `SpnMirRefinementPlugin`):**
+
    ```bash
    cargo build --release --manifest-path backends/spn/Cargo.toml
    ```
+   
 4. **Optional `lockbud` (for `LockbudPlugin`):**
+
    Discovered automatically in `backends/third_party/lockbud/target/{release,debug}/`
    (or override via `CONCIR_LOCKBUD`).
 
