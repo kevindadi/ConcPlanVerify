@@ -23,7 +23,6 @@ wrapped here.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import signal
@@ -33,7 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .json_utils import sha256_bytes, sha256_file
+from .json_utils import sha256_file
 from .toolchain import resolve_binary_path
 
 # Documented exit-code maps per command.
@@ -235,7 +234,6 @@ class ConcirClient:
         )
         started = time.monotonic()
         timed_out = False
-        spawn_error: str | None = None
         try:
             popen_kwargs: dict[str, Any] = {
                 "cwd": str(call_dir),
@@ -305,8 +303,6 @@ class ConcirClient:
             input_path=str(input_path) if input_path else None,
             contract_path=str(contract_path) if contract_path else None,
         )
-        if input_path:
-            result.payload = None
         if timed_out:
             result.kind, result.status = "process_error", "timeout"
             result.error = f"concir-backend timed out after {self.timeout:g}s"
@@ -473,6 +469,14 @@ class ConcirClient:
         return self._invoke("replay", ["replay", str(artifact_path)], call_dir=call_dir,
                             input_path=artifact_path, contract_path=None)
 
+    @staticmethod
+    def _prepare_out_path(out_path: Path | str | None) -> Path | None:
+        if out_path is None:
+            return None
+        resolved = Path(out_path).expanduser().resolve()
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        return resolved
+
     def lower(
         self,
         program_path: Path | str,
@@ -483,15 +487,11 @@ class ConcirClient:
         call_dir = self._call_dir("lower")
         prog = self._materialize(program_path, call_dir / "program.json")
         argv = ["lower", str(prog)]
-        resolved_out: Path | None = None
-        resolved_tm: Path | None = None
-        if out_path is not None:
-            resolved_out = Path(out_path).expanduser().resolve()
-            resolved_out.parent.mkdir(parents=True, exist_ok=True)
+        resolved_out = self._prepare_out_path(out_path)
+        resolved_tm = self._prepare_out_path(trace_map_path)
+        if resolved_out is not None:
             argv += ["--out", str(resolved_out)]
-        if trace_map_path is not None:
-            resolved_tm = Path(trace_map_path).expanduser().resolve()
-            resolved_tm.parent.mkdir(parents=True, exist_ok=True)
+        if resolved_tm is not None:
             argv += ["--trace-map", str(resolved_tm)]
         result = self._invoke(
             "lower", argv, call_dir=call_dir, input_path=prog, contract_path=None,
@@ -516,10 +516,8 @@ class ConcirClient:
         if module is not None:
             argv += ["--module", str(module)]
             config["module"] = str(module)
-        resolved_out: Path | None = None
-        if out_path is not None:
-            resolved_out = Path(out_path).expanduser().resolve()
-            resolved_out.parent.mkdir(parents=True, exist_ok=True)
+        resolved_out = self._prepare_out_path(out_path)
+        if resolved_out is not None:
             argv += ["--out", str(resolved_out)]
         result = self._invoke(
             "summarize", argv, call_dir=call_dir, input_path=prog,
@@ -554,10 +552,8 @@ class ConcirClient:
         if module is not None:
             argv += ["--module", str(module)]
             config["module"] = str(module)
-        resolved_out: Path | None = None
-        if out_path is not None:
-            resolved_out = Path(out_path).expanduser().resolve()
-            resolved_out.parent.mkdir(parents=True, exist_ok=True)
+        resolved_out = self._prepare_out_path(out_path)
+        if resolved_out is not None:
             argv += ["--out", str(resolved_out)]
         result = self._invoke(
             "verify-refinement", argv, call_dir=call_dir,
@@ -576,10 +572,8 @@ class ConcirClient:
         call_dir = self._call_dir("explain-contract")
         contract_mat = self._materialize(contract, call_dir / "contract.json")
         argv = ["explain-contract", str(contract_mat)]
-        resolved_out: Path | None = None
-        if out_path is not None:
-            resolved_out = Path(out_path).expanduser().resolve()
-            resolved_out.parent.mkdir(parents=True, exist_ok=True)
+        resolved_out = self._prepare_out_path(out_path)
+        if resolved_out is not None:
             argv += ["--output", str(resolved_out)]
         result = self._invoke(
             "explain-contract", argv, call_dir=call_dir,
@@ -598,10 +592,8 @@ class ConcirClient:
         call_dir = self._call_dir("export-cvn")
         prog = self._materialize(program_path, call_dir / "program.json")
         argv = ["export-cvn", str(prog)]
-        resolved_out: Path | None = None
-        if out_path is not None:
-            resolved_out = Path(out_path).expanduser().resolve()
-            resolved_out.parent.mkdir(parents=True, exist_ok=True)
+        resolved_out = self._prepare_out_path(out_path)
+        if resolved_out is not None:
             argv += ["--output", str(resolved_out)]
         result = self._invoke(
             "export-cvn", argv, call_dir=call_dir,
@@ -642,14 +634,6 @@ def _classify(result: ConcirResult) -> ConcirResult:
         if status not in REPAIR_EXIT:
             return _protocol(result, f"repair payload has unknown outcome {outcome!r}")
         expected = REPAIR_EXIT[status]
-    elif command == "replay":
-        # Replay has no outcome field in the result; exit 0 means success.
-        if exit_code == 0:
-            result.kind, result.status = "semantic", "replayed"
-            return result
-        result.kind, result.status = "semantic", "replay_failed"
-        result.error = result.stderr or "artifact replay failed"
-        return result
     elif command == "repair-context":
         if payload.get("schema_version") != "concir-repair-context-v1":
             return _protocol(result, f"unexpected context schema {payload.get('schema_version')!r}")
