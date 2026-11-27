@@ -16,7 +16,6 @@ All helpers transparently resolve ``.exe`` suffixes on Windows.
 
 from __future__ import annotations
 
-import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -226,19 +225,3 @@ def from_dir(directory: Path | str, *, label: str | None = None) -> ToolchainCon
         spn=find_spn(),
         label=label or d.name,
     )
-
-
-def submodule_toolchain() -> ToolchainConfig:
-    """Resolve the in-repo ConcIR submodule release toolchain."""
-    return from_dir(SUBMODULE_RELEASE, label="submodule-release")
-
-
-def write_manifest(toolchain: ToolchainConfig, path: Path) -> dict:
-    manifest = toolchain.fingerprint()
-    manifest["source"] = {
-        "src/concplan/core/toolchain.py": sha256_file(
-            REPO / "src/concplan/core/toolchain.py"
-        ),
-    }
-    Path(path).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    return manifest

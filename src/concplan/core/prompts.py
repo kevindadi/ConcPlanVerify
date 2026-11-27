@@ -91,35 +91,6 @@ def clauses_to_contract_system_prompt() -> str:
 generation_system_prompt = scir_generation_system_prompt
 
 
-def requirements_only_user_prompt(
-    requirements: str,
-    *,
-    previous_candidate: str | None = None,
-    feedback: str | None = None,
-) -> str:
-    """Generation user prompt that never contains the verification contract."""
-    parts = [
-        "Produce one ConcIR / SCIR program for the requirements below. No verification "
-        "contract is provided; the requirements are the whole input.",
-        "",
-        "<domain_requirements>",
-        requirements.strip(),
-        "</domain_requirements>",
-    ]
-    if previous_candidate:
-        parts += ["", "<previous_candidate>", previous_candidate, "</previous_candidate>"]
-    if feedback:
-        parts += [
-            "",
-            "<verification_feedback>",
-            feedback,
-            "</verification_feedback>",
-            "Output the complete corrected JSON object.",
-        ]
-    parts += ["", "Output only the JSON object."]
-    return "\n".join(parts)
-
-
 def patch_user_prompt(
     context: dict[str, Any],
     *,

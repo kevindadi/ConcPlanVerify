@@ -8,7 +8,7 @@ for network use in this round; the offline workflow uses :class:`ScriptedProvide
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 from .llm import LlmClient
