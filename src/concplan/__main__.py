@@ -25,6 +25,7 @@ from .code_verify.static_verify import (
 )
 from .core.concir_client import ConcirClient
 from .core.env import load_dotenv
+from .core.json_utils import write_json
 from .core.llm import create_llm_client, default_base_url
 from .core.models import ModelConfig
 from .core.prompts import (
@@ -64,12 +65,6 @@ def _default_binary() -> str:
 
 def _read_json(path: str | Path) -> Any:
     return json.loads(Path(path).read_text(encoding="utf-8"))
-
-
-def _write_json(path: str | Path, payload: Any) -> None:
-    dest = Path(path).expanduser().resolve()
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def _result_failure(result) -> dict[str, Any]:
@@ -159,6 +154,52 @@ def _build_provider(
         system_prompt=system_prompt,
         user_prompt_builder=user_prompt_builder,
     )
+
+
+def _resolve_nl_spec(args: argparse.Namespace) -> str | None:
+    if args.nl_file:
+        return Path(args.nl_file).read_text(encoding="utf-8")
+    if args.nl_spec:
+        return args.nl_spec
+    if args.from_nl:
+        if not args.example:
+            raise ValueError("--from-nl requires --example")
+        ex = load_example(args.example, examples_dir=args.examples_dir)
+        return ex.load_spec_text()
+    return None
+
+
+def _build_optional_provider(
+    args: argparse.Namespace,
+    *,
+    script_override: str | None,
+    system_prompt: str,
+    user_prompt_builder,
+    active: bool = True,
+) -> CandidateProvider | None:
+    if script_override:
+        return _build_provider(
+            provider_name="scripted",
+            script_path=script_override,
+            model_id=None,
+            api_key_env=None,
+            base_url=None,
+            llm_timeout=args.llm_timeout,
+            system_prompt=system_prompt,
+            user_prompt_builder=user_prompt_builder,
+        )
+    if active and args.provider != "scripted":
+        return _build_provider(
+            provider_name=args.provider,
+            script_path=None,
+            model_id=args.model,
+            api_key_env=args.api_key_env,
+            base_url=args.base_url,
+            llm_timeout=args.llm_timeout,
+            system_prompt=system_prompt,
+            user_prompt_builder=user_prompt_builder,
+        )
+    return None
 
 
 def _add_provider_args(parser: argparse.ArgumentParser) -> None:
@@ -359,13 +400,7 @@ def main(argv: list[str] | None = None) -> int:
                 timeout=args.timeout,
             )
             if args.list_tools:
-                payload = {
-                    "server": {"name": server.name, "version": server.version},
-                    "tools": [t.to_mcp() for t in server.tools.values()],
-                    "resources": [r.to_mcp() for r in server.resources.values()],
-                    "prompts": [p.to_mcp() for p in server.prompts.values()],
-                }
-                print(json.dumps(payload, ensure_ascii=False, indent=2))
+                print(json.dumps(server.describe(), ensure_ascii=False, indent=2))
                 return 0
             server.serve_stdio()
             return 0
@@ -403,20 +438,11 @@ def main(argv: list[str] | None = None) -> int:
             exp = explain_contract_data(contract_data)
             payload = exp.as_dict()
             if args.output:
-                _write_json(args.output, payload)
+                write_json(args.output, payload)
             print(json.dumps(payload, ensure_ascii=False, indent=2))
             return 0
         if args.command == "formalize":
-            nl_text: str | None = None
-            if args.nl_file:
-                nl_text = Path(args.nl_file).read_text(encoding="utf-8")
-            elif args.nl_spec:
-                nl_text = args.nl_spec
-            elif args.from_nl:
-                if not args.example:
-                    raise ValueError("--from-nl requires --example")
-                ex = load_example(args.example, examples_dir=args.examples_dir)
-                nl_text = ex.load_spec_text()
+            nl_text = _resolve_nl_spec(args)
 
             if nl_text is not None:
                 clause_prov = _build_provider(
@@ -429,29 +455,12 @@ def main(argv: list[str] | None = None) -> int:
                     system_prompt=nl_to_clauses_system_prompt(),
                     user_prompt_builder=hole_user_prompt_builder,
                 )
-                contract_prov: CandidateProvider | None = None
-                if args.contract_script:
-                    contract_prov = _build_provider(
-                        provider_name="scripted",
-                        script_path=args.contract_script,
-                        model_id=None,
-                        api_key_env=None,
-                        base_url=None,
-                        llm_timeout=args.llm_timeout,
-                        system_prompt=clauses_to_contract_system_prompt(),
-                        user_prompt_builder=hole_user_prompt_builder,
-                    )
-                elif args.provider != "scripted":
-                    contract_prov = _build_provider(
-                        provider_name=args.provider,
-                        script_path=None,
-                        model_id=args.model,
-                        api_key_env=args.api_key_env,
-                        base_url=args.base_url,
-                        llm_timeout=args.llm_timeout,
-                        system_prompt=clauses_to_contract_system_prompt(),
-                        user_prompt_builder=hole_user_prompt_builder,
-                    )
+                contract_prov = _build_optional_provider(
+                    args,
+                    script_override=args.contract_script,
+                    system_prompt=clauses_to_contract_system_prompt(),
+                    user_prompt_builder=hole_user_prompt_builder,
+                )
                 fres = formalize_from_nl(
                     nl_text,
                     clause_provider=clause_prov,
@@ -500,7 +509,7 @@ def main(argv: list[str] | None = None) -> int:
 
             payload = fres.as_dict()
             if args.report:
-                _write_json(args.report, payload)
+                write_json(args.report, payload)
             print(json.dumps(payload, ensure_ascii=False, indent=2))
             return 0 if fres.ok else 1
         if args.command == "repair":
@@ -518,16 +527,7 @@ def main(argv: list[str] | None = None) -> int:
 
         # ---- Orchestration commands ----
         if args.command == "e2e":
-            nl_text_e2e: str | None = None
-            if args.nl_file:
-                nl_text_e2e = Path(args.nl_file).read_text(encoding="utf-8")
-            elif args.nl_spec:
-                nl_text_e2e = args.nl_spec
-            elif args.from_nl:
-                if not args.example:
-                    raise ValueError("--from-nl requires --example")
-                ex = load_example(args.example, examples_dir=args.examples_dir)
-                nl_text_e2e = ex.load_spec_text()
+            nl_text_e2e = _resolve_nl_spec(args)
 
             requirements: str | None = None
             contract: dict[str, Any] | None = None
@@ -559,77 +559,26 @@ def main(argv: list[str] | None = None) -> int:
                 system_prompt=scir_generation_system_prompt(),
                 user_prompt_builder=llm_user_prompt_builder,
             )
-            clause_provider: CandidateProvider | None = None
-            if args.clause_script:
-                clause_provider = _build_provider(
-                    provider_name="scripted",
-                    script_path=args.clause_script,
-                    model_id=None,
-                    api_key_env=None,
-                    base_url=None,
-                    llm_timeout=args.llm_timeout,
-                    system_prompt=nl_to_clauses_system_prompt(),
-                    user_prompt_builder=hole_user_prompt_builder,
-                )
-            elif nl_text_e2e is not None and args.provider != "scripted":
-                clause_provider = _build_provider(
-                    provider_name=args.provider,
-                    script_path=None,
-                    model_id=args.model,
-                    api_key_env=args.api_key_env,
-                    base_url=args.base_url,
-                    llm_timeout=args.llm_timeout,
-                    system_prompt=nl_to_clauses_system_prompt(),
-                    user_prompt_builder=hole_user_prompt_builder,
-                )
-
-            contract_provider: CandidateProvider | None = None
-            if args.contract_script:
-                contract_provider = _build_provider(
-                    provider_name="scripted",
-                    script_path=args.contract_script,
-                    model_id=None,
-                    api_key_env=None,
-                    base_url=None,
-                    llm_timeout=args.llm_timeout,
-                    system_prompt=clauses_to_contract_system_prompt(),
-                    user_prompt_builder=hole_user_prompt_builder,
-                )
-            elif contract is None and args.provider != "scripted":
-                contract_provider = _build_provider(
-                    provider_name=args.provider,
-                    script_path=None,
-                    model_id=args.model,
-                    api_key_env=args.api_key_env,
-                    base_url=args.base_url,
-                    llm_timeout=args.llm_timeout,
-                    system_prompt=clauses_to_contract_system_prompt(),
-                    user_prompt_builder=hole_user_prompt_builder,
-                )
-
-            hole_provider: CandidateProvider | None = None
-            if args.hole_script:
-                hole_provider = _build_provider(
-                    provider_name="scripted",
-                    script_path=args.hole_script,
-                    model_id=None,
-                    api_key_env=None,
-                    base_url=None,
-                    llm_timeout=args.llm_timeout,
-                    system_prompt=hole_repair_system_prompt(),
-                    user_prompt_builder=hole_user_prompt_builder,
-                )
-            elif args.provider != "scripted":
-                hole_provider = _build_provider(
-                    provider_name=args.provider,
-                    script_path=None,
-                    model_id=args.model,
-                    api_key_env=args.api_key_env,
-                    base_url=args.base_url,
-                    llm_timeout=args.llm_timeout,
-                    system_prompt=hole_repair_system_prompt(),
-                    user_prompt_builder=hole_user_prompt_builder,
-                )
+            clause_provider = _build_optional_provider(
+                args,
+                script_override=args.clause_script,
+                system_prompt=nl_to_clauses_system_prompt(),
+                user_prompt_builder=hole_user_prompt_builder,
+                active=nl_text_e2e is not None,
+            )
+            contract_provider = _build_optional_provider(
+                args,
+                script_override=args.contract_script,
+                system_prompt=clauses_to_contract_system_prompt(),
+                user_prompt_builder=hole_user_prompt_builder,
+                active=contract is None,
+            )
+            hole_provider = _build_optional_provider(
+                args,
+                script_override=args.hole_script,
+                system_prompt=hole_repair_system_prompt(),
+                user_prompt_builder=hole_user_prompt_builder,
+            )
 
             plugins = [AstHolePurityPlugin()]
             if not args.ast_only:
@@ -669,7 +618,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             payload = result.as_dict()
             if args.report:
-                _write_json(args.report, payload)
+                write_json(args.report, payload)
             print(json.dumps(payload, ensure_ascii=False, indent=2))
             if result.status == "verified":
                 return 0
@@ -706,7 +655,7 @@ def main(argv: list[str] | None = None) -> int:
             result = wf.run(requirements, contract)
             payload = dataclasses.asdict(result)
             if args.report:
-                _write_json(args.report, payload)
+                write_json(args.report, payload)
             print(json.dumps(payload, ensure_ascii=False, indent=2))
             return 0 if result.status in {"repaired", "already_satisfied"} else 1
 
@@ -744,7 +693,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             payload = result.as_dict()
             if args.report:
-                _write_json(args.report, payload)
+                write_json(args.report, payload)
             print(json.dumps(payload, ensure_ascii=False, indent=2))
             return 0 if result.accepted else 1
 
@@ -758,9 +707,9 @@ def main(argv: list[str] | None = None) -> int:
                 max_rounds=args.max_rounds,
             )
             result = wf.run(args.model, args.contract)
-            payload = dataclasses.asdict(result)
+            payload = dataclasses.as_dict(result)
             if args.report:
-                _write_json(args.report, payload)
+                write_json(args.report, payload)
             print(json.dumps(payload, ensure_ascii=False, indent=2))
             return 0 if result.accepted else 1
 
