@@ -52,8 +52,6 @@ DEFAULT_PARAM_TYPE = "Int"
 # protection entry aliases: {wrong} -> {var|lock}
 PROTECTION_ALIASES = {"resource": "var", "protected_by": "lock", "mutex": "lock",
                       "lock_var": "lock", "variable": "var"}
-PRIMITIVE_BASE_CASE = {"bool": "Bool", "int": "Int", "float": "Float",
-                       "string": "String"}
 # Rust-ish type spellings the model may use -> canonical CIR primitive names.
 TYPE_ALIASES = {
     "bool": "Bool", "boolean": "Bool",
@@ -414,11 +412,6 @@ def normalize(program: dict, *, strict_arrays: bool = False
                         resource.pop(field)
                         records.append({"rule": "drop_field", "scope": "resource",
                                         "resource": resource.get("name"), "field": field})
-            base = resource.get("base")
-            if isinstance(base, str) and base in PRIMITIVE_BASE_CASE:
-                resource["base"] = PRIMITIVE_BASE_CASE[base]
-                records.append({"rule": "base_case", "resource": resource.get("name"),
-                                "to": resource["base"]})
             inferred = _infer_base(resource)
             if inferred:
                 resource["base"] = inferred["base"]
@@ -452,6 +445,8 @@ def normalize(program: dict, *, strict_arrays: bool = False
             for stmt in body:
                 if isinstance(stmt, dict) and "kind" not in stmt and "op" in stmt:
                     stmt["kind"] = stmt.pop("op")
+                    records.append({"rule": "statement_kind_alias", "function": function.get("name"),
+                                    "sid": str(stmt.get("sid", "")), "from": "op", "to": "kind"})
             # Models sometimes emit both an unlabeled and a labeled copy of the
             # same spawn/join/scope statement; keep the label-sid copy.
             deduped: list = []
@@ -514,10 +509,6 @@ def normalize(program: dict, *, strict_arrays: bool = False
                 if not isinstance(stmt, dict):
                     continue
                 sid = str(stmt.get("sid", ""))
-                if "kind" not in stmt and "op" in stmt:
-                    stmt["kind"] = stmt.pop("op")
-                    records.append({"rule": "statement_kind_alias", "function": function.get("name"),
-                                    "sid": sid, "from": "op", "to": "kind"})
                 kind = str(stmt.get("kind", ""))
                 for wrong, right in list(FIELD_ALIASES.items()):
                     (alias_kind, bad) = wrong
@@ -602,15 +593,3 @@ def normalize(program: dict, *, strict_arrays: bool = False
                 records.append({"rule": "add_local", "function": function.get("name"),
                                 "names": [l["name"] for l in new_locals]})
     return out, records, sid_issues
-
-
-def render_normalizations(records: list[dict]) -> str:
-    if not records:
-        return "(none)"
-    return "; ".join(json_dumps(r) for r in records)
-
-
-def json_dumps(record: dict) -> str:
-    import json
-
-    return json.dumps(record, ensure_ascii=False, sort_keys=True)
