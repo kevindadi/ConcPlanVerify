@@ -30,6 +30,7 @@ class ExampleTask:
     contract_path: Path | None = None
     contract_explanation_path: Path | None = None
     model_scir_path: Path | None = None
+    req_ir_path: Path | None = None
     traceability_manifest_path: Path | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -79,6 +80,11 @@ class ExampleTask:
             raise FileNotFoundError(f"model.scir.json not found for example {self.example_id}")
         return json.loads(self.model_scir_path.read_text(encoding="utf-8"))
 
+    def load_req_ir(self) -> dict[str, Any] | None:
+        if self.req_ir_path is None or not self.req_ir_path.is_file():
+            return None
+        return json.loads(self.req_ir_path.read_text(encoding="utf-8"))
+
     def as_summary(self) -> dict[str, Any]:
         return {
             "example_id": self.example_id,
@@ -95,6 +101,7 @@ class ExampleTask:
                 and self.contract_explanation_path.is_file()
             ),
             "has_model_scir": self.model_scir_path is not None and self.model_scir_path.is_file(),
+            "has_req_ir": self.req_ir_path is not None and self.req_ir_path.is_file(),
             "has_traceability_manifest": (
                 self.traceability_manifest_path is not None
                 and self.traceability_manifest_path.is_file()
@@ -154,6 +161,7 @@ def list_examples(examples_dir: Path | str | None = None) -> list[ExampleTask]:
                 contract_path=contract_p,
                 contract_explanation_path=_existing(ex_dir / "contract_explanation.json"),
                 model_scir_path=_existing(ex_dir / "model.scir.json"),
+                req_ir_path=_existing(ex_dir / "req_ir.json"),
                 traceability_manifest_path=_existing(ex_dir / "traceability_manifest.json"),
                 metadata=meta,
             )

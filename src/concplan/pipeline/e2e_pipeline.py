@@ -108,6 +108,8 @@ class E2EResult:
     nl_explanations: dict[str, Any] | None = None
     vacuity_status: dict[str, Any] | None = None
     modular_reports: dict[str, Any] | None = None
+    req_net_check: dict[str, Any] | None = None
+    design_refinement: dict[str, Any] | None = None
     error: str | None = None
 
     @property
@@ -115,7 +117,7 @@ class E2EResult:
         return self.status == "verified"
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        out = {
             "status": self.status,
             "ok": self.ok,
             "out_dir": self.out_dir,
@@ -137,6 +139,11 @@ class E2EResult:
             "modular_reports": self.modular_reports,
             "error": self.error,
         }
+        if self.req_net_check is not None:
+            out["req_net_check"] = self.req_net_check
+        if self.design_refinement is not None:
+            out["design_refinement"] = self.design_refinement
+        return out
 
 
 def _has_structured_body(program: dict[str, Any]) -> bool:
@@ -328,6 +335,8 @@ def build_traceability_manifest(
     requirements_clauses: dict[str, str] | None = None,
     formalization: dict[str, Any] | None = None,
     nl_explanations: dict[str, Any] | None = None,
+    req_net_check: dict[str, Any] | None = None,
+    design_refinement: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble ``concir-traceability-manifest/1`` linking clauses -> contract -> CIR -> holes -> Rust -> verdicts."""
 
@@ -647,7 +656,7 @@ def build_traceability_manifest(
                 "static_verdict": clause_static,
             })
 
-    return {
+    out_manifest = {
         "schema": "concir-traceability-manifest/1",
         "status": status,
         "program": program_name,
@@ -668,6 +677,11 @@ def build_traceability_manifest(
         "clauses": clauses_out,
         "links": links_out,
     }
+    if req_net_check is not None:
+        out_manifest["req_net_check"] = req_net_check
+    if design_refinement is not None:
+        out_manifest["design_refinement"] = design_refinement
+    return out_manifest
 
 
 def run_e2e_pipeline(
@@ -695,6 +709,7 @@ def run_e2e_pipeline(
     contract_provider: CandidateProvider | None = None,
     modular_refinement: bool = False,
     focus_modules: list[str] | None = None,
+    req_ir: dict[str, Any] | Path | str | None = None,
 ) -> E2EResult:
     """Run the complete traceable bi-level verification pipeline (Stage 0 + Loops A, B, and C)."""
 
@@ -707,17 +722,27 @@ def run_e2e_pipeline(
     active_requirements: str = requirements or ""
     active_contract: dict[str, Any] | None = contract
     active_clauses: dict[str, str] | None = dict(requirements_clauses) if requirements_clauses else None
+    active_req_ir: dict[str, Any] | None = None
+    if req_ir is not None:
+        if isinstance(req_ir, dict):
+            active_req_ir = dict(req_ir)
+        else:
+            active_req_ir = json.loads(Path(req_ir).expanduser().resolve().read_text(encoding="utf-8"))
 
     def _write_e2e_result() -> None:
         write_json(run_dir / "e2e_result.json", result.as_dict())
 
     def _apply_stage0(form_res) -> bool:
-        nonlocal formalization_dict, nl_explanations_dict, active_requirements, active_contract, active_clauses
+        nonlocal formalization_dict, nl_explanations_dict, active_requirements, active_contract, active_clauses, active_req_ir
         formalization_dict = form_res.as_dict()
         nl_explanations_dict = form_res.explanation.as_dict()
         active_requirements = form_res.requirements_md
         active_contract = form_res.contract
         active_clauses = active_clauses or form_res.requirements.clause_map()
+        if active_req_ir is None and form_res.req_ir is not None:
+            active_req_ir = form_res.req_ir
+        if form_res.req_check is not None:
+            result.req_net_check = form_res.req_check
         result.formalization = formalization_dict
         result.nl_explanations = nl_explanations_dict
         if not form_res.sanity.ok:
@@ -737,6 +762,7 @@ def run_e2e_pipeline(
                 contract_provider=contract_provider or clause_provider or cir_provider,
                 client=client,
                 out_dir=run_dir / "stage0",
+                req_ir=active_req_ir,
             )
         except Exception as exc:  # noqa: BLE001
             result.error = f"Stage 0 formalize_from_nl failed: {exc}"
@@ -755,12 +781,17 @@ def run_e2e_pipeline(
                     contract=active_contract,
                     client=client,
                     out_dir=run_dir / "stage0",
+                    req_ir=active_req_ir,
                 )
                 formalization_dict = form_res.as_dict()
                 nl_explanations_dict = form_res.explanation.as_dict()
                 active_requirements = form_res.requirements_md
                 active_contract = form_res.contract
                 active_clauses = active_clauses or form_res.requirements.clause_map()
+                if active_req_ir is None and form_res.req_ir is not None:
+                    active_req_ir = form_res.req_ir
+                if form_res.req_check is not None:
+                    result.req_net_check = form_res.req_check
                 result.formalization = formalization_dict
                 result.nl_explanations = nl_explanations_dict
             except Exception as exc:  # noqa: BLE001
@@ -780,6 +811,7 @@ def run_e2e_pipeline(
                 contract_provider=contract_provider or cir_provider,
                 client=client,
                 out_dir=run_dir / "stage0",
+                req_ir=active_req_ir,
             )
         except Exception as exc:  # noqa: BLE001
             result.error = f"Stage 0 formalize_from_structured failed: {exc}"
@@ -797,6 +829,32 @@ def run_e2e_pipeline(
     requirements_clauses = active_clauses
 
     contract_path = write_json(run_dir / "contract.json", contract)
+    req_ir_path: Path | None = None
+    if active_req_ir is not None:
+        req_ir_path = write_json(run_dir / "req_ir.json", active_req_ir)
+        if result.req_net_check is None:
+            chk_res = client.check_req(
+                req_ir_path,
+                contract=contract_path,
+                out_path=run_dir / "req_check.json",
+            )
+            result.req_net_check = chk_res.payload or {
+                "status": chk_res.status,
+                "error": chk_res.error,
+            }
+            if not chk_res.is_semantic:
+                result.error = chk_res.error or f"req_ir check-req failed: {chk_res.status}"
+                _write_e2e_result()
+                return result
+            if chk_res.status in ("fail", "invalid", "unsupported"):
+                result.error = f"Requirement Net N_req check-req returned {chk_res.status}"
+                _write_e2e_result()
+                return result
+            if chk_res.status == "unknown":
+                result.status = "unknown"
+                result.error = "Requirement Net N_req check-req returned unknown (truncated)"
+                _write_e2e_result()
+                return result
     hole_prov = hole_provider or cir_provider
     verifier = static_verifier or CompositeStaticVerifier([
         AstHolePurityPlugin(),
@@ -838,6 +896,8 @@ def run_e2e_pipeline(
             requirements_clauses=requirements_clauses,
             formalization=formalization_dict,
             nl_explanations=nl_explanations_dict,
+            req_net_check=result.req_net_check,
+            design_refinement=result.design_refinement,
         )
         manifest_path = write_json(run_dir / "traceability_manifest.json", manifest)
         result.manifest = manifest
@@ -1010,6 +1070,32 @@ def run_e2e_pipeline(
 
             result.model_report = exp_res.payload
             if exp_res.outcome == "PASS" and exp_res.complete is True:
+                if req_ir_path is not None:
+                    vd_res = client.verify_design(
+                        req_ir_path,
+                        active_cir_path,
+                        contract=contract_path,
+                        out_path=attempt_dir / "design_refinement.json",
+                    )
+                    round_rec["design_refinement_status"] = vd_res.status
+                    result.design_refinement = vd_res.payload
+                    if not vd_res.is_semantic:
+                        return _finalize("tool_error", vd_res.error or "verify-design failed")
+                    if vd_res.status == "unknown":
+                        return _finalize(
+                            "unknown",
+                            "Stage 2 design refinement (N_req <=_ext N_code) returned unknown (truncated bounds)",
+                        )
+                    if vd_res.status != "pass":
+                        round_rec["result"] = f"design_refinement_{vd_res.status}"
+                        cir_feedback = {
+                            "stage": "verify_design",
+                            "status": vd_res.status,
+                            "missing_milestones": (vd_res.payload or {}).get("missing_milestones", []),
+                            "violations": (vd_res.payload or {}).get("violations", []),
+                            "checks": (vd_res.payload or {}).get("checks", {}),
+                        }
+                        continue
                 round_rec["result"] = "accepted"
                 verified_cir_path = active_cir_path
                 verified_program_dict = active_program_dict
