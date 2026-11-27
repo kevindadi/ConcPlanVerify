@@ -21,6 +21,16 @@ CLI exit codes.
 
 Shared formal foundation used by both `concir` and `spn`:
 
+- **`unipn::hln` (High-Level Colored Petri Net):** Single-subnet-per-function
+  Petri net representation carrying thread identity, call stacks, local frames,
+  held locks, and typed wait reasons inside colored `ControlToken`s, with
+  injective length-prefixed canonical `state_key` symmetry reduction
+  (`unipn::hln::symmetry`). Replaces legacy `Condvar` resource places with
+  ordinary control places connected by first-class **`ArcDir::Broadcast`**.
+- **`unipn::analysis::obligations`:** Pure CTL / Fair-LTL (`Compassion`)
+  logic-driven bug obligation checkers over finite reachability graphs:
+  `Deadlock`, `PartialDeadlock`, `LostWakeup`, `WakeStarvation`,
+  `AcquireStarvation`, `ResourceLeak`, `DoubleLock`, and `DataRace`.
 - **`unipn::analysis::temporal`:** Generic finite-state CTL (15 operators) and
   LTL (12 operators + `Justice`/`Compassion` fairness) model checkers with
   implicit stutter self-loops on sink states, lasso counterexample extraction,
@@ -28,20 +38,42 @@ Shared formal foundation used by both `concir` and `spn`:
   and **non-vacuity detection** (`vacuous`, `vacuous_antecedents`) for universal
   implications.
 - **`unipn::analysis::refinement`:** Shared Branch-Pruning Stuttering Refinement
-  and lock-divergence checker over labeled transition graphs.
+  and lock-divergence checker over labeled transition graphs (reused for both
+  $N_{\text{req}} \sqsubseteq_{\text{ext}} N_{\text{code}}$ and
+  $N_{\text{code}} \sqsubseteq_{\text{sync}} N_{\text{mir}}$).
 - **`unipn-transfer`:** Bidirectional ConcIR v4/v5 $\leftrightarrow$ `UniPN` CVN
-  converter supporting `seq_hole`, `req`, and `types` (`TypeHole`).
+  converter supporting `seq_hole`, `req`, and `types` (`TypeHole`) with zero
+  `Condvar` resource places.
 
 ### 1.2 `backends/concir/` (git submodule — `concir-backend`)
 
-The `concir-backend` CLI implements the ConcIR v5 formal engine:
+The `concir-backend` CLI implements the ConcIR v5 formal engine and the 3-tier
+refinement pipeline $N_{\text{req}} \sqsubseteq_{\text{ext}} N_{\text{code}} \sqsubseteq_{\text{sync}} N_{\text{mir}}$:
 
+- **Unified Colored Petri Engine (`unipn_engine` / `PetriEngine`):**
+  Single-subnet-per-function `HlnNet` execution engine integrated with
+  `unipn::analysis::obligations`.
+- **Stage 0 Requirement Net IR (`req_ir`, `check-req`):** Abstract,
+  sync-free requirement net (`concir-req-ir/1`: roles, bounded `state_vars`,
+  `milestones`, `steps`) lowered to `unipn::hln::HlnNet` and checked for
+  non-terminal deadlock freedom, zero dead milestones, and requirement-level
+  temporal properties (`concir-req-check/1`).
+- **Stage 0–2 Design Extension Refinement (`design_refinement`, `verify-design`):**
+  Projects SCIR/CIR transitions onto milestone anchors (`milestone` on `Stmt` /
+  `StructuredStmt`), verifies weak stuttering simulation against $N_{\text{req}}$
+  ($\pi_{\Sigma_{\text{req}}}(N_{\text{code}}) \preceq_{\text{stutter}} N_{\text{req}}$),
+  milestone capability preservation, and `BugKind::default_suite()` health
+  obligations (`concir-design-refinement/1`).
 - **Structured Surface IR (`SCIR` v4/v5, `concir-backend lower`):** Lowers
   structured control-flow constructs (`lock_guard`, `rwlock_read_guard`,
   `rwlock_write_guard`, `if_else`, `while_loop`, `while_wait`, `stmt`) into
   flat CIR statements with deterministic `s1, s2, ...` `sid`s and LIFO guard
   unwinding on early `return`, emitting `concir-trace-map/1` preserving
-  `structured_id`, `hole_id`, and `req` traceability tags.
+  `structured_id`, `hole_id`, `milestone`, and `req` traceability tags.
+- **Constraint Pattern DSL & Health Suite (`explore/patterns.rs`, `contract.rs`):**
+  Supports `PropertySpec::Pattern` (`always`, `exclude`, `at_most`, `precedence`,
+  `triggers`, `can_reach`, `always_can_reach`), `PropertySpec::Health`
+  (`BugKind`), and `PredicateSpec::MilestoneReached`.
 - **First-class `seq_hole` & Domain `TypeHole` (`types`):**
   - `seq_hole`: pure sequential computation with optional `updates_modeled` and
     `expected_type`, executed as an atomic silent step (`tau`).
@@ -125,8 +157,9 @@ Low-level infrastructure shared across all workflows:
 - `toolchain.py` — Backend-first, Windows `.exe`-safe binary discovery.
 - `concir_client.py` — Typed subprocess wrapper (`ConcirClient`, `ConcirResult`,
   `ConcirIdentity`) for `check`, `support`, `explore`, `lower`, `summarize`,
-  `verify_refinement(module=...)`, `explain_contract`, `export_cvn`, `repair`,
-  `replay`, `repair_context`, and `evaluate_patch`.
+  `check_req`, `verify_design`, `verify_refinement(module=...)`,
+  `explain_contract`, `export_cvn`, `repair`, `replay`, `repair_context`, and
+  `evaluate_patch`.
 - `models.py`, `llm.py`, `providers.py`, `env.py`, `json_utils.py`.
 - `prompts.py` — `importlib.resources`-backed loader and SHA-256 registry for
   the bundled prompt assets (including Stage 0 `nl_to_clauses.md` and
@@ -161,14 +194,19 @@ Post-codegen static and dynamic Rust verification:
 ### 2.5 `concplan.pipeline`
 
 - `e2e_pipeline.py` — `run_e2e_pipeline`: integrates Stage 0 (optional
-  `nl_spec` or auto-formalization when `contract` is omitted) $\to$ Stage 1/2
-  (Loop A with vacuity feedback) $\to$ Stage 3 (`codegen` + `SeqHole` &
-  `TypeHole` filling) $\to$ Stage 4 (`CompositeStaticVerifier` with optional
-  `modular_refinement=True` + Loop B offending-hole/type-hole repair + Loop C
-  cross-layer escalation + optional dynamic `conform`). Emits upgraded
-  `traceability_manifest.json` (`formalization`, `nl_explanations`,
-  `vacuity_status`, `type_holes`, `modular_reports`, plus all v4 keys).
+  `nl_spec`, auto-formalization when `contract` is omitted, and optional
+  `req_ir` + `check-req`) $\to$ Stage 1/2 (Loop A with vacuity + `verify-design`
+  $N_{\text{req}} \sqsubseteq_{\text{ext}} N_{\text{code}}$ refinement feedback)
+  $\to$ Stage 3 (`codegen` + `SeqHole` & `TypeHole` filling) $\to$ Stage 4
+  (`CompositeStaticVerifier` with optional `modular_refinement=True` + Loop B
+  offending-hole/type-hole repair + Loop C cross-layer escalation + optional
+  dynamic `conform`). Emits upgraded `traceability_manifest.json`
+  (`formalization`, `nl_explanations`, `vacuity_status`, `type_holes`,
+  `modular_reports`, `req_net_check`, `design_refinement`, plus all v4 keys).
 - `examples.py` — Stage 0-first example discovery and loaders.
+- `__main__.py` & `mcp/tools.py` — Unified CLI (`concplan check-req`,
+  `concplan verify-design`, ...) and stdio MCP server (14 tools including
+  `concplan_check_req` and `concplan_verify_design`).
 
 ---
 

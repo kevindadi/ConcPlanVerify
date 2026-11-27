@@ -262,4 +262,73 @@ From `explored.results[0].state_graph` and `constructed.net` (or `raw_net` when 
 ### 4.4 Stage 0 Dual-Entry Autoformalization (`concplan.formalize`)
 - **Entry A (`formalize_from_nl`)**: Raw NL $\to$ Step 0.1 (`nl_to_clauses`: grounded `roles`, `resources`, `domain_types` + `R1..Rn` classified into `safety | liveness | reachability | sequential_hole` with `verifiable` flags + `REQUIREMENTS.md`) $\to$ Step 0.2 (`clauses_to_contract`: strictly isolated from candidate SCIR models) $\to$ Step 0.3 (`explain_contract_data` + `validate_contract_sanity`).
 - **Entry B (`formalize_from_structured`)**: Existing `REQUIREMENTS.md` / `requirements.json` (+ optional `contract.json`) $\to$ synthesizes missing contract via Step 0.2 or validates & explains existing contract via Step 0.3.
-- **Upgraded `traceability_manifest.json`**: Preserves all v4 keys and adds `formalization`, `nl_explanations`, `vacuity_status`, `type_holes`, and `modular_reports`.
+- **Upgraded `traceability_manifest.json`**: Preserves all v4 keys and adds `formalization`, `nl_explanations`, `vacuity_status`, `type_holes`, `modular_reports`, `req_net_check`, and `design_refinement`.
+
+---
+
+## 5. High-Level Colored Petri Net (`HlnNet`), Constraint Patterns, Health Suite & Two-Net Refinement (`N_req` $\sqsubseteq_{\text{ext}}$ `N_code`)
+
+### 5.1 Requirement Net IR (`concir-req-ir/1`) & Self-Check (`concir-backend check-req`)
+```json
+{
+  "schema": "concir-req-ir/1",
+  "name": "pc_req",
+  "roles": [
+    { "name": "producer", "instances": 1, "init_state": "ready", "states": ["ready", "done"], "terminal_states": ["done"], "req": ["R1"] }
+  ],
+  "state_vars": [
+    { "name": "items", "type": { "Int": [0, 1] }, "init": 0, "req": ["R1"] }
+  ],
+  "milestones": [
+    { "name": "item_produced", "description": "Producer adds an item", "req": ["R1"] }
+  ],
+  "steps": [
+    { "id": "p_produce", "role": "producer", "from_state": "ready", "to_state": "done", "guard": "items == 0", "updates": [{"target": "items", "expr": "items + 1"}], "milestone": "item_produced", "req": ["R1"] }
+  ]
+}
+```
+CLI: `concir-backend check-req <req_ir.json> [--contract <contract.json>] [--out <report.json>]` (also `concplan check-req` / MCP `concplan_check_req`).
+Output schema: `concir-req-check/1` (`outcome`, `complete`, `deadlock_free`, `no_dead_milestones`, `declared_milestones`, `reachable_milestones`, `missing_milestones`, `deadlock_states`, `diagnostics`, `properties`).
+Exit codes: `0` (`pass`), `1` (`fail`), `2` (`usage`), `3` (`unknown`), `4` (`invalid`), `5` (`unsupported`).
+
+### 5.2 Milestone Anchors & `ConstraintPattern` / `Health` Extensions
+- Optional `"milestone": "<name>"` field is supported on flat `Stmt`, `StructuredStmt::Stmt` (and inline ops in `structured_body`), and `TraceMapEntry`.
+- `PredicateSpec::MilestoneReached`: `{"kind": "milestone_reached", "milestone": "<name>"}`.
+- `PropertySpec::Pattern` (`kind: "pattern"`):
+  - `always`: `{"pattern": "always", "cond": <PredicateSpec>}`
+  - `exclude`: `{"pattern": "exclude", "preds": [<PredicateSpec>, ...]}`
+  - `at_most`: `{"pattern": "at_most", "conds": [<PredicateSpec>, ...], "max": N}`
+  - `precedence`: `{"pattern": "precedence", "effect": <PredicateSpec>, "cause": <PredicateSpec>, "non_vacuous": true}`
+  - `triggers`: `{"pattern": "triggers", "cause": <PredicateSpec>, "effect": <PredicateSpec>, "fairness": [...], "non_vacuous": true}`
+  - `can_reach`: `{"pattern": "can_reach", "goal": <PredicateSpec>}`
+  - `always_can_reach`: `{"pattern": "always_can_reach", "goal": <PredicateSpec>}`
+- `PropertySpec::Health` (`kind: "health"`): `{"kind": "health", "id": "...", "checks": ["deadlock", "partial_deadlock", "lost_wakeup", "wake_starvation", "acquire_starvation", "resource_leak", "double_lock", "data_race"]}`.
+
+### 5.3 Stage 0–2 Design Extension Refinement (`concir-backend verify-design`)
+CLI: `concir-backend verify-design --req <req_ir.json> --design <program.json> [--contract <contract.json>] [--out <report.json>]` (also `concplan verify-design` / MCP `concplan_verify_design`).
+Output schema (`concir-design-refinement/1`):
+```json
+{
+  "schema": "concir-design-refinement/1",
+  "outcome": "pass | fail | unknown | invalid | unsupported",
+  "relation": "extension_stuttering_refinement",
+  "complete": true,
+  "checks": {
+    "req_valid": true,
+    "design_valid": true,
+    "weak_simulation": true,
+    "deadlock_free": true,
+    "lock_divergence_free": true,
+    "milestone_preservation": true,
+    "health_obligations": true,
+    "contract_satisfied": true
+  },
+  "req_states": 3,
+  "design_states": 18,
+  "declared_milestones": ["item_produced", "item_consumed"],
+  "realized_milestones": ["item_produced", "item_consumed"],
+  "missing_milestones": [],
+  "violations": []
+}
+```
+Truncated exploration (`complete == false`) MUST report `unknown` (exit `3`) when no counterexample is found, never `pass` (`0`).
