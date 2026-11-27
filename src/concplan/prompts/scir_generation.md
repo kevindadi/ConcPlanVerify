@@ -40,9 +40,9 @@ A function may provide `structured_body` (instead of flat `body`). Every `Struct
 | `lock_guard` | `id`, `resource`, `body` (`[StructuredStmt]`), optional `req` | Auto-inserts `mutex_lock(resource)` on entry and `mutex_unlock(resource)` on normal exit AND before any nested `return` (RAII discipline, LIFO unwinding). |
 | `rwlock_read_guard` | `id`, `resource`, `body` (`[StructuredStmt]`), optional `req` | Auto-inserts `rwlock_read(resource)` on entry and `rwlock_unlock(resource)` on normal exit AND before any nested `return` (RAII discipline, LIFO unwinding). |
 | `rwlock_write_guard` | `id`, `resource`, `body` (`[StructuredStmt]`), optional `req` | Auto-inserts `rwlock_write(resource)` on entry and `rwlock_unlock(resource)` on normal exit AND before any nested `return` (RAII discipline, LIFO unwinding). |
-| `if_else` | `id`, `cond`, `then_body`, optional `else_body`, optional `req` | Structured conditional branch with automatic merge. |
-| `while_loop` | `id`, `cond`, `body`, optional `req` | Bounded loop; ensure the loop condition terminates. |
-| `while_wait` | `id`, `cond`, `condvar`, `lock`, optional `body`, optional `req` | Predicate-guarded wait loop: while `cond` holds, executes optional `body` and `condvar_wait(condvar, lock)` (must be inside `lock_guard` on `lock`). |
+| `if_else` | `id`, `cond`, `then_body`, optional `else_body`, optional `req` | Structured conditional branch with automatic merge. `cond` MUST be a string expression (e.g. `"count < 2"` or `"!ready"`), NEVER a JSON object. |
+| `while_loop` | `id`, `cond`, `body`, optional `req` | Bounded loop; ensure the loop condition terminates. `cond` MUST be a string expression. |
+| `while_wait` | `id`, `cond`, `condvar`, `lock`, optional `body`, optional `req` | Predicate-guarded wait loop: while `cond` holds, executes optional `body` and `condvar_wait(condvar, lock)` (must be inside `lock_guard` on `lock`). `cond` MUST be a string expression (e.g. `"!ready"` or `"ready == false"`), NEVER a JSON object. Example: `{"id": "c2", "kind": "while_wait", "cond": "!ready", "condvar": "main::not_empty", "lock": "main::queue_lock", "body": []}`. |
 | `stmt` | `id`, `op` (or embedded flat statement fields: `assign_local`, `write_shared`, `read_shared`, `mutex_lock`, `mutex_unlock`, `rwlock_read`, `rwlock_write`, `rwlock_unlock`, `condvar_notify`, `condvar_notify_all`, `channel_send`, `channel_recv`, `semaphore_acquire`, `semaphore_release`, `atomic_load`, `atomic_store`, `atomic_cas`, `call`, `spawn`, `join`, `scope`, `return`, `seq_hole`, `nop`), optional `req` | Emits one flat CIR statement. |
 
 ## 3. Domain Types (`types`), `TypeHole`, `Struct`, and `Array`
@@ -130,6 +130,8 @@ auto-emit `rwlock_read`/`rwlock_write` on entry and LIFO `rwlock_unlock` on norm
 
 ## 6. Multi-Module SCIR & Compositional Verification
 
+Unless multiple modules are explicitly requested, put all resources, types, and functions in module
+`"main"` so all names match `"main::<name>"` in the contract.
 Large programs may split responsibilities across multiple entries in `"modules"` (e.g., `main`,
 `storage`, `worker`). Declare cross-module interfaces explicitly via `"provides"` and `"requires"`
 (`resources` and `functions`) and reference external entities with FQN `<mod>::<name>`.

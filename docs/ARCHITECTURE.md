@@ -168,7 +168,7 @@ Post-codegen static and dynamic Rust verification:
   cross-layer escalation + optional dynamic `conform`). Emits upgraded
   `traceability_manifest.json` (`formalization`, `nl_explanations`,
   `vacuity_status`, `type_holes`, `modular_reports`, plus all v4 keys).
-- `benchmarks.py` — Benchmark suite discovery and loaders.
+- `examples.py` — Stage 0-first example discovery and loaders.
 
 ---
 

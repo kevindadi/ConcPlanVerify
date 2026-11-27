@@ -1,0 +1,112 @@
+{
+  "name": "bidirectional_account_transfer",
+  "properties": [
+    {
+      "kind": "deadlock_free",
+      "id": "no-deadlock",
+      "req": [
+        "R1"
+      ]
+    },
+    {
+      "kind": "reachability",
+      "id": "both-transfers-finish",
+      "goal": {
+        "kind": "and",
+        "predicates": [
+          {
+            "kind": "function_completed",
+            "function": "main::transfer_ab"
+          },
+          {
+            "kind": "function_completed",
+            "function": "main::transfer_ba"
+          }
+        ]
+      },
+      "req": [
+        "R2"
+      ]
+    },
+    {
+      "kind": "safety",
+      "id": "transfer-ab-holds-both-locks",
+      "invariant": {
+        "kind": "never_holds_all",
+        "function": "main::transfer_ab",
+        "resources": [
+          "main::account_a_mutex",
+          "main::account_b_mutex"
+        ]
+      },
+      "req": [
+        "R3"
+      ]
+    },
+    {
+      "kind": "safety",
+      "id": "transfer-ba-holds-both-locks",
+      "invariant": {
+        "kind": "never_holds_all",
+        "function": "main::transfer_ba",
+        "resources": [
+          "main::account_a_mutex",
+          "main::account_b_mutex"
+        ]
+      },
+      "req": [
+        "R3"
+      ]
+    },
+    {
+      "kind": "safety",
+      "id": "completed-transfers-nonnegative",
+      "invariant": {
+        "kind": "var_cmp",
+        "resource": "main::completed_transfers",
+        "op": ">=",
+        "value": 0
+      },
+      "req": [
+        "R4"
+      ]
+    }
+  ],
+  "preserved": [
+    {
+      "kind": "reachable",
+      "description": "transfer_ab completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::transfer_ab"
+      },
+      "req": [
+        "R2"
+      ]
+    },
+    {
+      "kind": "reachable",
+      "description": "transfer_ba completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::transfer_ba"
+      },
+      "req": [
+        "R2"
+      ]
+    },
+    {
+      "kind": "reachable",
+      "description": "completed_transfers counter is incremented at least once",
+      "goal": {
+        "kind": "var_cmp",
+        "resource": "main::completed_transfers",
+        "op": ">=",
+        "value": 1
+      },
+      "req": [
+        "R4"
+      ]
+    }
+  ]
+}

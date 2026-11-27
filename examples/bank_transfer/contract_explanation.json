@@ -1,0 +1,75 @@
+{
+  "schema": "concir-contract-explanation/1",
+  "name": "bidirectional_account_transfer",
+  "source": "concir-backend",
+  "properties": [
+    {
+      "id": "no-deadlock",
+      "kind": "deadlock_free",
+      "req": [
+        "R1"
+      ],
+      "non_vacuous": false,
+      "explanation": "No reachable state is a global deadlock."
+    },
+    {
+      "id": "both-transfers-finish",
+      "kind": "reachability",
+      "req": [
+        "R2"
+      ],
+      "non_vacuous": false,
+      "explanation": "There exists a reachable state where (function 'main::transfer_ab' has completed and function 'main::transfer_ba' has completed)."
+    },
+    {
+      "id": "transfer-ab-holds-both-locks",
+      "kind": "safety",
+      "req": [
+        "R3"
+      ],
+      "non_vacuous": false,
+      "explanation": "In every reachable state, no thread in 'main::transfer_ab' simultaneously holds all of [main::account_a_mutex, main::account_b_mutex]."
+    },
+    {
+      "id": "transfer-ba-holds-both-locks",
+      "kind": "safety",
+      "req": [
+        "R3"
+      ],
+      "non_vacuous": false,
+      "explanation": "In every reachable state, no thread in 'main::transfer_ba' simultaneously holds all of [main::account_a_mutex, main::account_b_mutex]."
+    },
+    {
+      "id": "completed-transfers-nonnegative",
+      "kind": "safety",
+      "req": [
+        "R4"
+      ],
+      "non_vacuous": false,
+      "explanation": "In every reachable state, main::completed_transfers >= 0."
+    }
+  ],
+  "preserved": [
+    {
+      "description": "transfer_ab completes",
+      "req": [
+        "R2"
+      ],
+      "explanation": "Behavior 'transfer_ab completes' must remain reachable (function 'main::transfer_ab' has completed)."
+    },
+    {
+      "description": "transfer_ba completes",
+      "req": [
+        "R2"
+      ],
+      "explanation": "Behavior 'transfer_ba completes' must remain reachable (function 'main::transfer_ba' has completed)."
+    },
+    {
+      "description": "completed_transfers counter is incremented at least once",
+      "req": [
+        "R4"
+      ],
+      "explanation": "Behavior 'completed_transfers counter is incremented at least once' must remain reachable (main::completed_transfers >= 1)."
+    }
+  ]
+}

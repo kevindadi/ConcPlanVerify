@@ -1,0 +1,95 @@
+{
+  "name": "two_workers_shared_counter",
+  "properties": [
+    {
+      "kind": "deadlock_free",
+      "id": "no-deadlock",
+      "req": [
+        "R1"
+      ]
+    },
+    {
+      "kind": "safety",
+      "id": "counter-range",
+      "invariant": {
+        "kind": "and",
+        "predicates": [
+          {
+            "kind": "var_cmp",
+            "resource": "main::counter",
+            "op": ">=",
+            "value": 0
+          },
+          {
+            "kind": "var_cmp",
+            "resource": "main::counter",
+            "op": "<=",
+            "value": 2
+          }
+        ]
+      },
+      "req": [
+        "R2"
+      ]
+    },
+    {
+      "kind": "safety",
+      "id": "mutex-exclusive",
+      "invariant": {
+        "kind": "mutex_exclusive",
+        "resource": "main::counter_mutex"
+      },
+      "req": [
+        "R3"
+      ]
+    },
+    {
+      "kind": "reachability",
+      "id": "main-completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::main"
+      },
+      "req": [
+        "R4"
+      ]
+    }
+  ],
+  "preserved": [
+    {
+      "kind": "reachable",
+      "description": "worker_a completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::worker_a"
+      },
+      "req": [
+        "R3"
+      ]
+    },
+    {
+      "kind": "reachable",
+      "description": "worker_b completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::worker_b"
+      },
+      "req": [
+        "R3"
+      ]
+    },
+    {
+      "kind": "reachable",
+      "description": "counter reaches 2 after both increments",
+      "goal": {
+        "kind": "var_eq",
+        "resource": "main::counter",
+        "value": 2
+      },
+      "req": [
+        "R2",
+        "R3"
+      ]
+    }
+  ]
+}

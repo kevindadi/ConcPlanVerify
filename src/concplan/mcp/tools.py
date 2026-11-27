@@ -34,7 +34,7 @@ from ..formalize import (
     parse_structured_requirements,
     validate_contract_sanity,
 )
-from ..pipeline.benchmarks import benchmarks_summary, load_benchmark
+from ..pipeline.examples import examples_summary, load_example
 from .protocol import McpServer, ToolSpec
 
 
@@ -163,32 +163,33 @@ def register_concplan_tools(server: McpServer, ws: McpWorkspace) -> None:
             },
         }
 
-    def handle_list_benchmarks(args: dict[str, Any]) -> dict[str, Any]:
-        benchmarks_dir = args.get("benchmarks_dir")
-        task_id = args.get("task_id")
-        if task_id:
-            task = load_benchmark(str(task_id), benchmarks_dir=benchmarks_dir)
-            summary = task.as_summary()
-            summary["requirements"] = task.load_requirements_text()
-            summary["contract"] = task.load_contract() if task.contract_path and task.contract_path.is_file() else None
-            summary["clauses"] = task.load_requirements_clauses()
+    def handle_list_examples(args: dict[str, Any]) -> dict[str, Any]:
+        examples_dir = args.get("examples_dir")
+        example_id = args.get("example_id")
+        if example_id:
+            ex = load_example(str(example_id), examples_dir=examples_dir)
+            summary = ex.as_summary()
+            summary["spec_md"] = ex.load_spec_text() if ex.spec_md_path and ex.spec_md_path.is_file() else None
+            summary["requirements"] = (
+                ex.load_requirements_text()
+                if (ex.requirements_md_path and ex.requirements_md_path.is_file())
+                or (ex.spec_md_path and ex.spec_md_path.is_file())
+                else None
+            )
+            summary["contract"] = ex.load_contract() if ex.contract_path and ex.contract_path.is_file() else None
+            summary["clauses"] = ex.load_requirements_clauses()
             summary["paths"] = {
-                "contract": str(task.contract_path) if task.contract_path else None,
-                "requirements_md": str(task.requirements_md_path) if task.requirements_md_path else None,
-                "requirements_json": str(task.requirements_json_path) if task.requirements_json_path else None,
-                "buggy_cir": str(task.buggy_cir_path) if task.buggy_cir_path else None,
-                "fixed_cir": str(task.fixed_cir_path) if task.fixed_cir_path else None,
-                "correct_cir": str(task.correct_cir_path) if task.correct_cir_path else None,
-                "repair_input_cir": str(task.repair_input_cir_path) if task.repair_input_cir_path else None,
+                "spec_md": str(ex.spec_md_path) if ex.spec_md_path else None,
+                "requirements_md": str(ex.requirements_md_path) if ex.requirements_md_path else None,
+                "requirements_json": str(ex.requirements_json_path) if ex.requirements_json_path else None,
+                "contract": str(ex.contract_path) if ex.contract_path else None,
+                "contract_explanation": str(ex.contract_explanation_path) if ex.contract_explanation_path else None,
+                "model_scir": str(ex.model_scir_path) if ex.model_scir_path else None,
+                "traceability_manifest": str(ex.traceability_manifest_path) if ex.traceability_manifest_path else None,
             }
             return summary
 
-        suite = args.get("suite")
-        summary = benchmarks_summary(benchmarks_dir)
-        if suite:
-            summary["tasks"] = [t for t in summary["tasks"] if t["suite"] == suite]
-            summary["total"] = len(summary["tasks"])
-        return summary
+        return examples_summary(examples_dir)
 
     def handle_validate_contract(args: dict[str, Any]) -> dict[str, Any]:
         if "contract" not in args:
@@ -505,18 +506,17 @@ def register_concplan_tools(server: McpServer, ws: McpWorkspace) -> None:
             handler=handle_toolchain_status,
         ),
         ToolSpec(
-            name="concplan_list_benchmarks",
-            description="List ConcPlanVerify benchmark tasks or inspect one benchmark task's requirements, contract, and reference CIR paths.",
+            name="concplan_list_examples",
+            description="List Stage 0-driven ConcPlanVerify examples or inspect one example's spec.md, Stage 0 requirements, contract, and model.scir.json paths.",
             input_schema={
                 "type": "object",
                 "properties": {
-                    "suite": {"type": "string", "enum": ["families", "real-cases"]},
-                    "task_id": {"type": "string", "description": "Optional benchmark id such as 'lock-order/abba_2lock'."},
-                    "benchmarks_dir": {"type": "string"},
+                    "example_id": {"type": "string", "description": "Optional example id such as 'shared_counter'."},
+                    "examples_dir": {"type": "string"},
                 },
                 "additionalProperties": False,
             },
-            handler=handle_list_benchmarks,
+            handler=handle_list_examples,
         ),
         ToolSpec(
             name="concplan_validate_contract",

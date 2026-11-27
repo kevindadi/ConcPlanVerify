@@ -25,6 +25,10 @@ Every `SeqHole` represents pure sequential local computation. Your Rust expressi
 5. **No potentially diverging loops:** never use `loop { ... }`, `while ... { ... }`, or `spin_loop()`.
    (Holes may run while holding locks; unbounded loops violate lock-divergence freedom.)
 6. **Respect the expected Rust type:** the expression/block must type-check against `expected: T`.
+7. **Domain types & guards:** access domain types defined in `src/domain.rs` via
+   `crate::domain::<TypeName>` (never add `use` statements inside a `SeqHole`). Also note that
+   `Mutex<()>` / `RwLock<()>` guards dereference to `()`, unless the CIR resource explicitly
+   declared `"base": "<TypeName>"`.
 
 ### 1.2 Domain Type Holes (`TypeHole`, e.g. `th1`, in `src/domain.rs`)
 

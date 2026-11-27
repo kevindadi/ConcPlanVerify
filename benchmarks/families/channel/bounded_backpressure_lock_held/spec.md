@@ -1,1 +1,0 @@
-Design a sender and a receiver over a channel of capacity one, plus one mutex both occasionally need. The sender sends two values. Every interleaving must terminate: no side may block on the channel while holding the lock the other needs.

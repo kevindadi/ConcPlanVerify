@@ -1,0 +1,143 @@
+{
+  "schema": "concir-requirements/2",
+  "title": "two_workers_shared_counter",
+  "summary": "Two worker threads each increment a shared counter once under a mutex; the main thread joins both workers. Workers also format a local log tag. The program must be deadlock-free and the counter must stay within 0..2.",
+  "entities": {
+    "roles": [
+      "worker_a",
+      "worker_b",
+      "main"
+    ],
+    "resources": [
+      "counter_mutex",
+      "counter"
+    ],
+    "domain_types": [
+      {
+        "name": "LogTag",
+        "description": "Locally formatted short log tag string produced by each worker; pure sequential formatting logic.",
+        "kind": "hole",
+        "req": [
+          "R5"
+        ]
+      }
+    ]
+  },
+  "clauses": [
+    {
+      "id": "R1",
+      "text": "The system must never deadlock.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "counter_mutex",
+        "worker_a",
+        "worker_b",
+        "main"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "The shared counter must always stay within the range 0 to 2 inclusive.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "counter",
+        "counter_mutex"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "Each worker thread increments the shared counter exactly once under the mutex.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "worker_a",
+        "worker_b",
+        "counter",
+        "counter_mutex"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "The main thread must eventually complete after both worker threads finish.",
+      "category": "reachability",
+      "verifiable": true,
+      "entities": [
+        "main",
+        "worker_a",
+        "worker_b"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "Each worker formats a short local log tag while updating the counter.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "worker_a",
+        "worker_b",
+        "LogTag"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "text": "The system must never deadlock.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "counter_mutex",
+        "worker_a",
+        "worker_b",
+        "main"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "The shared counter must always stay within the range 0 to 2 inclusive.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "counter",
+        "counter_mutex"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "Each worker thread increments the shared counter exactly once under the mutex.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "worker_a",
+        "worker_b",
+        "counter",
+        "counter_mutex"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "The main thread must eventually complete after both worker threads finish.",
+      "category": "reachability",
+      "verifiable": true,
+      "entities": [
+        "main",
+        "worker_a",
+        "worker_b"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "Each worker formats a short local log tag while updating the counter.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "worker_a",
+        "worker_b",
+        "LogTag"
+      ]
+    }
+  ],
+  "source_nl": "Write a concurrent Rust program where two worker threads each increment a shared counter once under a mutex, and the main thread waits for both to finish. Each worker should also format a short log tag locally while updating the counter. Make sure the program never deadlocks and the counter stays within 0 to 2.\n"
+}

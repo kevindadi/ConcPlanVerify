@@ -1,0 +1,159 @@
+{
+  "schema": "concir-requirements/2",
+  "title": "bidirectional_account_transfer",
+  "summary": "Two threads transfer funds in opposite directions between two mutex-protected bank accounts, incrementing a completed-transfers counter and computing a local receipt number, with deadlock freedom and completion guarantees.",
+  "entities": {
+    "roles": [
+      "transfer_ab",
+      "transfer_ba"
+    ],
+    "resources": [
+      "account_a_mutex",
+      "account_b_mutex",
+      "completed_transfers"
+    ],
+    "domain_types": [
+      {
+        "name": "Account",
+        "description": "Bank account with balance and pure deposit/withdraw methods",
+        "kind": "struct",
+        "req": [
+          "R5"
+        ]
+      }
+    ]
+  },
+  "clauses": [
+    {
+      "id": "R1",
+      "text": "The system must never deadlock.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "account_a_mutex",
+        "account_b_mutex",
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "Both transfer threads must eventually finish.",
+      "category": "reachability",
+      "verifiable": true,
+      "entities": [
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "Each transfer locks both accounts at the same time (atomic acquisition of both mutexes).",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "account_a_mutex",
+        "account_b_mutex",
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "Each completed transfer increments the completed-transfers counter.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "completed_transfers",
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "Account stores balance and supports pure deposit/withdraw operations.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "Account"
+      ]
+    },
+    {
+      "id": "R6",
+      "text": "Each transfer computes a simple receipt number locally.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "text": "The system must never deadlock.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "account_a_mutex",
+        "account_b_mutex",
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "Both transfer threads must eventually finish.",
+      "category": "reachability",
+      "verifiable": true,
+      "entities": [
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "Each transfer locks both accounts at the same time (atomic acquisition of both mutexes).",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "account_a_mutex",
+        "account_b_mutex",
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "Each completed transfer increments the completed-transfers counter.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "completed_transfers",
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "Account stores balance and supports pure deposit/withdraw operations.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "Account"
+      ]
+    },
+    {
+      "id": "R6",
+      "text": "Each transfer computes a simple receipt number locally.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    }
+  ],
+  "source_nl": "Simulate two threads transferring funds in opposite directions between two bank accounts (Account A and Account B), where each account is protected by its own mutex. Each transfer locks both accounts at the same time, increments a completed-transfers counter, and computes a simple receipt number locally. Ensure the program never deadlocks and both transfer threads finish.\n"
+}

@@ -1,0 +1,120 @@
+{
+  "name": "single_item_producer_consumer",
+  "properties": [
+    {
+      "kind": "deadlock_free",
+      "id": "no-deadlock",
+      "req": [
+        "R1"
+      ]
+    },
+    {
+      "kind": "ctl",
+      "id": "no-lost-wakeup",
+      "non_vacuous": true,
+      "req": [
+        "R2"
+      ],
+      "formula": {
+        "op": "ag",
+        "arg": {
+          "op": "implies",
+          "lhs": {
+            "op": "atom",
+            "atom": {
+              "kind": "var_eq",
+              "resource": "main::ready",
+              "value": 1
+            }
+          },
+          "rhs": {
+            "op": "af",
+            "arg": {
+              "op": "atom",
+              "atom": {
+                "kind": "function_completed",
+                "function": "main::consumer"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "ltl",
+      "id": "eventual-consumption",
+      "non_vacuous": true,
+      "req": [
+        "R3"
+      ],
+      "formula": {
+        "op": "always",
+        "arg": {
+          "op": "implies",
+          "lhs": {
+            "op": "atom",
+            "atom": {
+              "kind": "var_eq",
+              "resource": "main::ready",
+              "value": 1
+            }
+          },
+          "rhs": {
+            "op": "eventually",
+            "arg": {
+              "op": "atom",
+              "atom": {
+                "kind": "function_completed",
+                "function": "main::consumer"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "reachability",
+      "id": "both-threads-exit",
+      "goal": {
+        "kind": "and",
+        "predicates": [
+          {
+            "kind": "function_completed",
+            "function": "main::producer"
+          },
+          {
+            "kind": "function_completed",
+            "function": "main::consumer"
+          }
+        ]
+      },
+      "req": [
+        "R4"
+      ]
+    }
+  ],
+  "preserved": [
+    {
+      "kind": "reachable",
+      "description": "producer completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::producer"
+      },
+      "req": [
+        "R4"
+      ]
+    },
+    {
+      "kind": "reachable",
+      "description": "consumer completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::consumer"
+      },
+      "req": [
+        "R4"
+      ]
+    }
+  ]
+}

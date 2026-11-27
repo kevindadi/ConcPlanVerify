@@ -1,0 +1,142 @@
+{
+  "name": "concurrent_cache_rwlock",
+  "properties": [
+    {
+      "kind": "deadlock_free",
+      "id": "no-deadlock",
+      "req": [
+        "R1"
+      ]
+    },
+    {
+      "kind": "ctl",
+      "id": "writer-records-update",
+      "non_vacuous": true,
+      "req": [
+        "R2"
+      ],
+      "formula": {
+        "op": "ag",
+        "arg": {
+          "op": "implies",
+          "lhs": {
+            "op": "atom",
+            "atom": {
+              "kind": "function_completed",
+              "function": "main::writer"
+            }
+          },
+          "rhs": {
+            "op": "atom",
+            "atom": {
+              "kind": "mutex_free",
+              "resource": "main::cache_lock"
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "ctl",
+      "id": "writer-clears-updates",
+      "non_vacuous": true,
+      "req": [
+        "R3"
+      ],
+      "formula": {
+        "op": "ag",
+        "arg": {
+          "op": "implies",
+          "lhs": {
+            "op": "atom",
+            "atom": {
+              "kind": "function_completed",
+              "function": "main::writer"
+            }
+          },
+          "rhs": {
+            "op": "atom",
+            "atom": {
+              "kind": "mutex_free",
+              "resource": "main::cache_lock"
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "ctl",
+      "id": "reader-acquires-read-lock",
+      "non_vacuous": true,
+      "req": [
+        "R4"
+      ],
+      "formula": {
+        "op": "ag",
+        "arg": {
+          "op": "implies",
+          "lhs": {
+            "op": "atom",
+            "atom": {
+              "kind": "function_completed",
+              "function": "main::reader"
+            }
+          },
+          "rhs": {
+            "op": "atom",
+            "atom": {
+              "kind": "mutex_free",
+              "resource": "main::cache_lock"
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "reachability",
+      "id": "writer-completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::writer"
+      },
+      "req": [
+        "R6"
+      ]
+    },
+    {
+      "kind": "reachability",
+      "id": "reader-completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::reader"
+      },
+      "req": [
+        "R6"
+      ]
+    }
+  ],
+  "preserved": [
+    {
+      "kind": "reachable",
+      "description": "writer thread completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::writer"
+      },
+      "req": [
+        "R6"
+      ]
+    },
+    {
+      "kind": "reachable",
+      "description": "reader thread completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::reader"
+      },
+      "req": [
+        "R6"
+      ]
+    }
+  ]
+}

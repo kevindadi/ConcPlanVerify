@@ -181,6 +181,17 @@ def default_base_url(provider: str) -> str:
     raise ValueError(f"unsupported LLM provider {provider!r}")
 
 
+def _resolve_api_key(env_name: str) -> str:
+    """Resolve an API key from ``env_name``, with DeepSeek alias fallback."""
+
+    key = os.environ.get(env_name, "")
+    if not key and env_name == "DEEPSEEK_API_KEY":
+        key = os.environ.get("DEEPSEEK_APIKEY", "")
+    elif not key and env_name == "DEEPSEEK_APIKEY":
+        key = os.environ.get("DEEPSEEK_API_KEY", "")
+    return key
+
+
 def _build_openai_client(model: ModelConfig, timeout: float) -> Any:
     try:
         from openai import OpenAI
@@ -190,7 +201,7 @@ def _build_openai_client(model: ModelConfig, timeout: float) -> Any:
             "python -m pip install -e ."
         ) from error
 
-    api_key = os.environ.get(model.api_key_env, "")
+    api_key = _resolve_api_key(model.api_key_env)
     if not api_key:
         raise LlmError(f"missing API key: set env var {model.api_key_env}")
     return OpenAI(

@@ -1,0 +1,1 @@
+Write a concurrent Rust program where two worker threads each increment a shared counter once under a mutex, and the main thread waits for both to finish. Each worker should also format a short log tag locally while updating the counter. Make sure the program never deadlocks and the counter stays within 0 to 2.

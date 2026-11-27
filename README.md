@@ -87,7 +87,7 @@ ConcPlanVerify/
 │       ├── core/                   # toolchain, concir_client, models, llm, providers, prompts, env, json_utils
 │       ├── model_verify/           # normalize, offline_workflow, revision_workflow, patch_repair
 │       ├── code_verify/            # conformance, static_verify (SeqHole/TypeHole purity + modular SPN), bounded_monitor
-│       ├── pipeline/               # e2e_pipeline (Stage 0 + Loops A/B/C + traceability), benchmarks loader
+│       ├── pipeline/               # e2e_pipeline (Stage 0 + Loops A/B/C + traceability), examples loader
 │       ├── mcp/                    # Zero-dependency stdio MCP server (`concplan-mcp` / `python -m concplan.mcp`)
 │       └── prompts/                # Bundled v5 prompt assets loaded via `importlib.resources`
 │           ├── nl_to_clauses.md        # Stage 0.1 NL -> grounded entities + R1..Rn clauses
@@ -97,7 +97,7 @@ ConcPlanVerify/
 │           ├── cir_patch.md            # Constrained single-patch repair prompt
 │           └── cir_local_revision.md   # Function-scoped local revision prompt
 ├── tests/                          # Consolidated unittest suite (Stage 0 + unit + integration + live SPN/ConcIR E2E + MCP)
-├── benchmarks/                     # Concurrency benchmark families & upstream real-world cases
+├── examples/                       # Stage 0-driven natural-language examples (`spec.md` -> Stage 0 -> SCIR -> MIR refinement)
 └── docs/
     ├── ARCHITECTURE.md             # Layer-by-layer v5 architecture & extension guide
     └── REFINEMENT_SPEC.md          # Authoritative wire specification across UniPN, ConcIR, SPN, and Python
@@ -130,14 +130,17 @@ running from source, prefix with `PYTHONPATH=src python -m concplan ...`.
 ### Stage 0 Autoformalization & Contract Inspection
 
 ```bash
-# Entry A: raw natural language -> REQUIREMENTS.md + contract.json + NL explanation
+# List Stage 0 examples:
+PYTHONPATH=src python -m concplan list-examples
+
+# Entry A: raw natural language from an example -> REQUIREMENTS.md + contract.json + NL explanation
 PYTHONPATH=src python -m concplan --out out/stage0 formalize \
-  --nl-spec "Protect shared counter c with mutex m; workers w1 and w2 must complete without deadlock." \
+  --example shared_counter --from-nl \
   --provider deepseek --model deepseek-chat
 
-# Entry B: validate & explain an existing structured spec + contract
+# Entry B: validate & explain an existing example's structured spec + contract
 PYTHONPATH=src python -m concplan --out out/stage0 formalize \
-  --task lock-order/abba_2lock
+  --example shared_counter
 
 # Deterministic NL back-translation of any contract.json
 PYTHONPATH=src python -m concplan explain-contract contract.json
@@ -167,16 +170,16 @@ PYTHONPATH=src python -m concplan --out out/e2e-v5 e2e \
   --provider deepseek --model deepseek-chat \
   --run-summarize --modular-refinement --report out/e2e_v5.json
 
-# Against a benchmark task:
+# Against an example (Entry A from spec.md):
 PYTHONPATH=src python -m concplan --out out/e2e-demo e2e \
-  --task lock-order/abba_2lock \
-  --provider scripted --script responses.json \
+  --example rwlock_cache --from-nl \
+  --provider deepseek --model deepseek-chat \
   --run-summarize --report out/e2e_report.json
 ```
 
 ### MCP Server (`concplan-mcp`)
 
-ConcPlanVerify ships a zero-dependency stdio MCP server exposing 12 formal concurrency development tools (`concplan_validate_contract`, `concplan_lower_scir`, `concplan_check_model`, `concplan_summarize_modules`, `concplan_explore_model`, `concplan_repair_model`, `concplan_export_cvn`, `concplan_codegen_skeleton`, `concplan_fill_holes`, `concplan_verify_code`, `concplan_list_benchmarks`, `concplan_toolchain_status`), documentation/prompt resources, and workflow prompts:
+ConcPlanVerify ships a zero-dependency stdio MCP server exposing 12 formal concurrency development tools (`concplan_validate_contract`, `concplan_lower_scir`, `concplan_check_model`, `concplan_summarize_modules`, `concplan_explore_model`, `concplan_repair_model`, `concplan_export_cvn`, `concplan_codegen_skeleton`, `concplan_fill_holes`, `concplan_verify_code`, `concplan_list_examples`, `concplan_toolchain_status`), documentation/prompt resources, and workflow prompts:
 
 ```bash
 # Inspect registered MCP tools, resources, and prompts

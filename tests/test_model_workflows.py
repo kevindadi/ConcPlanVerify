@@ -202,10 +202,10 @@ class OfflineAcceptanceRegressionTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 2. RevisionWorkflow tests (using active benchmarks/families/lock-order/abba_2lock)
+# 2. RevisionWorkflow tests (using tests/fixtures/abba_2lock)
 # ---------------------------------------------------------------------------
 
-ABBA_DIR = REPO / "benchmarks/families/lock-order/abba_2lock"
+ABBA_DIR = REPO / "tests/fixtures/abba_2lock"
 ABBA_BUGGY = ABBA_DIR / "buggy.cir.json"
 ABBA_FIXED = ABBA_DIR / "fixed.cir.json"
 ABBA_CONTRACT = ABBA_DIR / "contract.json"
@@ -287,11 +287,11 @@ class RevisionWorkflowOfflineTests(unittest.TestCase):
 
     def test_schema_error_is_feedback_not_tool_error(self):
         fixed = json.loads(
-            (REPO / "benchmarks/families/condvar/lost_wakeup_notify_before_wait/fixed.cir.json")
+            (REPO / "tests/fixtures/lost_wakeup/fixed.cir.json")
             .read_text(encoding="utf-8")
         )
         contract = json.loads(
-            (REPO / "benchmarks/families/condvar/lost_wakeup_notify_before_wait/contract.json")
+            (REPO / "tests/fixtures/lost_wakeup/contract.json")
             .read_text(encoding="utf-8")
         )
         corrupt = copy.deepcopy(fixed)

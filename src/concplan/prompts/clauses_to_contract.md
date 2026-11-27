@@ -21,6 +21,12 @@ Output **only** a single JSON object.
    antecedent is never reachable!
 5. **Non-Triviality (`preserved`).** Include `preserved` reachability goals (e.g. worker functions
    completing) so a trivial no-op model cannot vacuously pass.
+6. **Module & Lock Rules.** Unless the user explicitly asks for multiple modules, place all roles
+   and resources in the `main` module (`"main::<name>"`). Never formalize lock usage as a global
+   `"safety"` invariant `{"kind": "mutex_held", ...}` or `{"kind": "holds_all", ...}` (locks start
+   free and are released before threads return, so `AG mutex_held` is unsatisfiable). Instead,
+   use `"mutex_exclusive"` for mutual exclusion, `"deadlock_free"` for deadlock/lock-order freedom,
+   and `"reachability"` (`"holds_all"`) when checking that a worker can hold multiple locks at once.
 
 ## 2. Supported `PredicateSpec` Shapes (`"kind"`)
 

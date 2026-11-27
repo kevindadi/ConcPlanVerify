@@ -133,24 +133,25 @@ class McpOfflineToolsTests(unittest.TestCase):
     def tearDown(self):
         self._tmp.cleanup()
 
-    def test_toolchain_status_and_list_benchmarks(self):
+    def test_toolchain_status_and_list_examples(self):
         res_tc, payload_tc = _call_tool(self.server, "concplan_toolchain_status")
         self.assertFalse(res_tc["isError"])
         self.assertIn("concir_backend", payload_tc)
         self.assertIn("spn", payload_tc)
 
-        res_bm, payload_bm = _call_tool(self.server, "concplan_list_benchmarks", {"suite": "families"})
-        self.assertFalse(res_bm["isError"])
-        self.assertGreater(payload_bm["total"], 0)
+        res_ex, payload_ex = _call_tool(self.server, "concplan_list_examples")
+        self.assertFalse(res_ex["isError"])
+        self.assertGreaterEqual(payload_ex["total"], 4)
 
-        res_task, payload_task = _call_tool(
+        res_one, payload_one = _call_tool(
             self.server,
-            "concplan_list_benchmarks",
-            {"task_id": "lock-order/abba_2lock"},
+            "concplan_list_examples",
+            {"example_id": "shared_counter"},
         )
-        self.assertFalse(res_task["isError"])
-        self.assertIn("requirements", payload_task)
-        self.assertIsNotNone(payload_task["contract"])
+        self.assertFalse(res_one["isError"])
+        self.assertIsNotNone(payload_one["spec_md"])
+        self.assertIn("requirements", payload_one)
+        self.assertIsNotNone(payload_one["contract"])
 
     def test_validate_contract_grounding_and_non_vacuity(self):
         reqs = (

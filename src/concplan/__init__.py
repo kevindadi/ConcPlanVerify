@@ -13,7 +13,7 @@ Structured into five subpackages:
   pluggable static verification (AST SeqHole/TypeHole purity, modular SPN MIR
   stuttering refinement, Lockbud), and bounded trace monitoring.
 - ``concplan.pipeline`` — end-to-end bi-level traceable pipeline
-  (Stage 0 + Loops A/B/C + ``traceability_manifest.json``) and benchmark discovery.
+  (Stage 0 + Loops A/B/C + ``traceability_manifest.json``) and example discovery.
 """
 
 from .code_verify import (
@@ -96,18 +96,17 @@ from .model_verify import (
     normalize,
 )
 from .pipeline import (
-    BenchmarkTask,
     E2EResult,
     EscalationEvent,
-    benchmarks_summary,
-    list_benchmarks,
-    load_benchmark,
+    ExampleTask,
+    examples_summary,
+    list_examples,
+    load_example,
     run_e2e_pipeline,
 )
 
 __all__ = [
     "AstHolePurityPlugin",
-    "BenchmarkTask",
     "CandidateProvider",
     "CandidateRequest",
     "CandidateResponse",
@@ -122,6 +121,7 @@ __all__ = [
     "DomainTypeEntity",
     "E2EResult",
     "EscalationEvent",
+    "ExampleTask",
     "ExternalPatchRepairWorkflow",
     "FormalizationResult",
     "GroundedEntities",
@@ -151,7 +151,7 @@ __all__ = [
     "ToolchainError",
     "TraceRun",
     "WholeArtifactRevisionWorkflow",
-    "benchmarks_summary",
+    "examples_summary",
     "clauses_to_contract",
     "codegen",
     "collect_traces",
@@ -175,9 +175,9 @@ __all__ = [
     "formalize_from_structured",
     "holes_of",
     "lint_filled",
-    "list_benchmarks",
-    "load_benchmark",
+    "list_examples",
     "load_dotenv",
+    "load_example",
     "nl_to_clauses",
     "normalize",
     "run_e2e_pipeline",

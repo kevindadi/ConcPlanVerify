@@ -1,12 +1,5 @@
-"""End-to-end bi-level verification pipeline and benchmark discovery."""
+"""End-to-end bi-level verification pipeline and Stage 0 example discovery."""
 
-from .benchmarks import (
-    DEFAULT_BENCHMARKS_DIR,
-    BenchmarkTask,
-    benchmarks_summary,
-    list_benchmarks,
-    load_benchmark,
-)
 from .e2e_pipeline import (
     E2EResult,
     EscalationEvent,
@@ -16,18 +9,25 @@ from .e2e_pipeline import (
     parse_hole_reply,
     run_e2e_pipeline,
 )
+from .examples import (
+    DEFAULT_EXAMPLES_DIR,
+    ExampleTask,
+    examples_summary,
+    list_examples,
+    load_example,
+)
 
 __all__ = [
-    "BenchmarkTask",
-    "DEFAULT_BENCHMARKS_DIR",
+    "DEFAULT_EXAMPLES_DIR",
     "E2EResult",
     "EscalationEvent",
-    "benchmarks_summary",
+    "ExampleTask",
     "build_hole_fill_prompt",
     "build_hole_repair_prompt",
     "build_traceability_manifest",
-    "list_benchmarks",
-    "load_benchmark",
+    "examples_summary",
+    "list_examples",
+    "load_example",
     "parse_hole_reply",
     "run_e2e_pipeline",
 ]

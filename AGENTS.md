@@ -50,10 +50,10 @@ ConcPlanVerify/
 │   ├── core/                        # Toolchain discovery, ConcirClient, LLM providers, bundled prompts
 │   ├── model_verify/                # Offline/revision/patch-repair model workflows
 │   ├── code_verify/                 # Multi-file conformance, AstHolePurityPlugin, SpnMirRefinementPlugin, LockbudPlugin
-│   ├── pipeline/                    # Bi-level E2E pipeline (`run_e2e_pipeline`) & benchmark discovery
+│   ├── pipeline/                    # Bi-level E2E pipeline (`run_e2e_pipeline`) & example discovery
 │   ├── prompts/                     # Bundled v5 system prompts (`nl_to_clauses.md`, `clauses_to_contract.md`, `scir_generation.md`, `hole_repair.md`, ...)
 │   └── mcp/                         # Zero-dependency stdio MCP server (`concplan-mcp` / `python -m concplan.mcp`)
-├── benchmarks/                      # `families/` and `real-cases/` benchmark tasks
+├── examples/                        # Stage 0-driven natural language concurrency examples
 └── tests/                           # Consolidated unittest suite (offline + live SPN/ConcIR E2E + MCP tests)
 ```
 
@@ -103,6 +103,7 @@ When helping a user design, verify, and implement concurrent Rust code:
 ## 5. Build, Test, CLI & MCP Quick Reference
 
 ### Build Rust Backends
+
 ```powershell
 cargo test --manifest-path backends/unipn/Cargo.toml --workspace
 cargo test --manifest-path backends/concir/Cargo.toml
@@ -111,6 +112,7 @@ Push-Location backends/spn; cargo test --lib; cargo build --release; Pop-Locatio
 ```
 
 ### Run Python Tests
+
 ```powershell
 # Windows PowerShell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
@@ -120,6 +122,7 @@ PYTHONPATH=src:. python3 -m unittest discover -s tests -v
 ```
 
 ### Install & Run CLI / MCP Server
+
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e .
 
@@ -133,6 +136,7 @@ concplan-mcp
 ```
 
 Example `mcp_config.json` entry for MCP clients (Claude Code / Cursor / Antigravity / IDE):
+
 ```json
 {
   "mcpServers": {

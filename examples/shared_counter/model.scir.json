@@ -1,0 +1,270 @@
+{
+  "program": "two_workers_shared_counter",
+  "version": "5.0.0",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "counter_mutex",
+          "counter"
+        ],
+        "functions": [
+          "worker_a",
+          "worker_b",
+          "main"
+        ],
+        "types": [
+          "LogTag"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": [],
+        "types": []
+      },
+      "types": [
+        {
+          "name": "LogTag",
+          "type": {
+            "Hole": {
+              "description": "Locally formatted short log tag string produced by each worker; pure sequential formatting logic. Constructed via LogTag::new(text).",
+              "req": [
+                "R5"
+              ]
+            }
+          }
+        }
+      ],
+      "resources": [
+        {
+          "name": "counter_mutex",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync",
+          "req": [
+            "R1",
+            "R3"
+          ]
+        },
+        {
+          "name": "counter",
+          "kind": "var",
+          "type": "Var",
+          "base": {
+            "Int": [
+              0,
+              2
+            ]
+          },
+          "init": 0,
+          "req": [
+            "R2",
+            "R3"
+          ]
+        }
+      ],
+      "protection": [
+        {
+          "var": "counter",
+          "lock": "counter_mutex"
+        }
+      ],
+      "functions": [
+        {
+          "name": "worker_a",
+          "kind": "normal",
+          "form": "closure",
+          "req": [
+            "R3",
+            "R5"
+          ],
+          "structured_body": [
+            {
+              "id": "b1",
+              "kind": "lock_guard",
+              "resource": "main::counter_mutex",
+              "req": [
+                "R1",
+                "R3"
+              ],
+              "body": [
+                {
+                  "id": "b2",
+                  "kind": "stmt",
+                  "req": [
+                    "R5"
+                  ],
+                  "op": {
+                    "kind": "seq_hole",
+                    "id": "h_format_tag_a",
+                    "desc": "format local log tag for worker_a using LogTag::new",
+                    "reads": [],
+                    "writes": [],
+                    "expected_type": "LogTag",
+                    "req": [
+                      "R5"
+                    ]
+                  }
+                },
+                {
+                  "id": "b3",
+                  "kind": "stmt",
+                  "req": [
+                    "R2",
+                    "R3"
+                  ],
+                  "op": {
+                    "kind": "seq_hole",
+                    "id": "h_inc_a",
+                    "desc": "increment shared counter once",
+                    "reads": [
+                      "main::counter"
+                    ],
+                    "writes": [
+                      "main::counter"
+                    ],
+                    "updates_modeled": [
+                      {
+                        "target": "main::counter",
+                        "expr": "counter + 1"
+                      }
+                    ],
+                    "expected_type": "()",
+                    "req": [
+                      "R2",
+                      "R3"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "b4",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        },
+        {
+          "name": "worker_b",
+          "kind": "normal",
+          "form": "closure",
+          "req": [
+            "R3",
+            "R5"
+          ],
+          "structured_body": [
+            {
+              "id": "b1",
+              "kind": "lock_guard",
+              "resource": "main::counter_mutex",
+              "req": [
+                "R1",
+                "R3"
+              ],
+              "body": [
+                {
+                  "id": "b2",
+                  "kind": "stmt",
+                  "req": [
+                    "R5"
+                  ],
+                  "op": {
+                    "kind": "seq_hole",
+                    "id": "h_format_tag_b",
+                    "desc": "format local log tag for worker_b using LogTag::new",
+                    "reads": [],
+                    "writes": [],
+                    "expected_type": "LogTag",
+                    "req": [
+                      "R5"
+                    ]
+                  }
+                },
+                {
+                  "id": "b3",
+                  "kind": "stmt",
+                  "req": [
+                    "R2",
+                    "R3"
+                  ],
+                  "op": {
+                    "kind": "seq_hole",
+                    "id": "h_inc_b",
+                    "desc": "increment shared counter once",
+                    "reads": [
+                      "main::counter"
+                    ],
+                    "writes": [
+                      "main::counter"
+                    ],
+                    "updates_modeled": [
+                      {
+                        "target": "main::counter",
+                        "expr": "counter + 1"
+                      }
+                    ],
+                    "expected_type": "()",
+                    "req": [
+                      "R2",
+                      "R3"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "b4",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "req": [
+            "R1",
+            "R4"
+          ],
+          "structured_body": [
+            {
+              "id": "b1",
+              "kind": "stmt",
+              "req": [
+                "R4"
+              ],
+              "op": {
+                "kind": "scope",
+                "funcs": [
+                  "main::worker_a",
+                  "main::worker_b"
+                ]
+              }
+            },
+            {
+              "id": "b2",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        }
+      ],
+      "req": [
+        "R1",
+        "R2",
+        "R3",
+        "R4",
+        "R5"
+      ]
+    }
+  ],
+  "entry": "main::main"
+}

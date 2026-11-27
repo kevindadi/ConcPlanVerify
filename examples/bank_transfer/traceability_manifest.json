@@ -1,0 +1,284 @@
+{
+  "schema": "concir-traceability-manifest/1",
+  "status": "failed",
+  "program": null,
+  "formalization": null,
+  "nl_explanations": {
+    "schema": "concir-contract-explanation/1",
+    "name": "bidirectional_account_transfer",
+    "source": "python",
+    "properties": [
+      {
+        "id": "no-deadlock",
+        "kind": "deadlock_free",
+        "req": [
+          "R1"
+        ],
+        "non_vacuous": false,
+        "explanation": "No reachable state is a deadlock."
+      },
+      {
+        "id": "both-transfers-finish",
+        "kind": "reachability",
+        "req": [
+          "R2"
+        ],
+        "non_vacuous": false,
+        "explanation": "Some reachable state satisfies: (function `main::transfer_ab` has completed and function `main::transfer_ba` has completed)."
+      },
+      {
+        "id": "transfer-ab-holds-both-locks",
+        "kind": "safety",
+        "req": [
+          "R3"
+        ],
+        "non_vacuous": false,
+        "explanation": "In every reachable state, no thread in `main::transfer_ab` simultaneously holds all of [`main::account_a_mutex`, `main::account_b_mutex`]."
+      },
+      {
+        "id": "transfer-ba-holds-both-locks",
+        "kind": "safety",
+        "req": [
+          "R3"
+        ],
+        "non_vacuous": false,
+        "explanation": "In every reachable state, no thread in `main::transfer_ba` simultaneously holds all of [`main::account_a_mutex`, `main::account_b_mutex`]."
+      },
+      {
+        "id": "completed-transfers-nonnegative",
+        "kind": "safety",
+        "req": [
+          "R4"
+        ],
+        "non_vacuous": false,
+        "explanation": "In every reachable state, main::completed_transfers >= 0."
+      }
+    ],
+    "preserved": [
+      {
+        "description": "transfer_ab completes",
+        "req": [
+          "R2"
+        ],
+        "explanation": "Preserved reachability (transfer_ab completes): function `main::transfer_ab` has completed must remain reachable."
+      },
+      {
+        "description": "transfer_ba completes",
+        "req": [
+          "R2"
+        ],
+        "explanation": "Preserved reachability (transfer_ba completes): function `main::transfer_ba` has completed must remain reachable."
+      },
+      {
+        "description": "completed_transfers counter is incremented at least once",
+        "req": [
+          "R4"
+        ],
+        "explanation": "Preserved reachability (completed_transfers counter is incremented at least once): main::completed_transfers >= 1 must remain reachable."
+      }
+    ]
+  },
+  "vacuity_status": {
+    "has_vacuous": false,
+    "vacuous_properties": []
+  },
+  "type_holes": [],
+  "modular_reports": null,
+  "model_verification": {
+    "outcome": "FAIL",
+    "complete": true,
+    "properties": [
+      {
+        "detail": "no deadlock state reachable",
+        "id": "no-deadlock",
+        "outcome": "PASS"
+      },
+      {
+        "detail": "goal reachable via 17 step(s) ((completed(f0) && completed(f1)))",
+        "id": "both-transfers-finish",
+        "outcome": "PASS"
+      },
+      {
+        "detail": "counterexample reached a violating state",
+        "id": "transfer-ab-holds-both-locks",
+        "outcome": "FAIL"
+      },
+      {
+        "detail": "counterexample reached a violating state",
+        "id": "transfer-ba-holds-both-locks",
+        "outcome": "FAIL"
+      },
+      {
+        "detail": "invariant held in all reachable states",
+        "id": "completed-transfers-nonnegative",
+        "outcome": "PASS"
+      },
+      {
+        "detail": "preserved reachability: completed(f0)",
+        "id": "preserved: transfer_ab completes",
+        "outcome": "PASS"
+      },
+      {
+        "detail": "preserved reachability: completed(f1)",
+        "id": "preserved: transfer_ba completes",
+        "outcome": "PASS"
+      },
+      {
+        "detail": "preserved reachability: r2 Ge 1",
+        "id": "preserved: completed_transfers counter is incremented at least once",
+        "outcome": "PASS"
+      }
+    ]
+  },
+  "static_verification": null,
+  "dynamic_conformance": null,
+  "escalations": [],
+  "hole_repair_rounds": [],
+  "clauses": [
+    {
+      "clause_id": "R1",
+      "description": "The system must never deadlock.",
+      "contract_properties": [
+        "deadlock_free",
+        "no-deadlock",
+        "both-transfers-finish",
+        "transfer-ab-holds-both-locks",
+        "transfer-ba-holds-both-locks",
+        "completed-transfers-nonnegative",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: transfer_ab completes",
+        "preserved: transfer_ba completes",
+        "preserved: completed_transfers counter is incremented at least once"
+      ],
+      "cir_nodes": [],
+      "holes": [],
+      "type_holes": [],
+      "model_verdict": "FAIL",
+      "static_verdict": "not_run",
+      "violations": []
+    },
+    {
+      "clause_id": "R2",
+      "description": "Both transfer threads must eventually finish.",
+      "contract_properties": [
+        "deadlock_free",
+        "no-deadlock",
+        "both-transfers-finish",
+        "transfer-ab-holds-both-locks",
+        "transfer-ba-holds-both-locks",
+        "completed-transfers-nonnegative",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: transfer_ab completes",
+        "preserved: transfer_ba completes",
+        "preserved: completed_transfers counter is incremented at least once"
+      ],
+      "cir_nodes": [],
+      "holes": [],
+      "type_holes": [],
+      "model_verdict": "FAIL",
+      "static_verdict": "not_run",
+      "violations": []
+    },
+    {
+      "clause_id": "R3",
+      "description": "Each transfer locks both accounts at the same time (atomic acquisition of both mutexes).",
+      "contract_properties": [
+        "deadlock_free",
+        "no-deadlock",
+        "both-transfers-finish",
+        "transfer-ab-holds-both-locks",
+        "transfer-ba-holds-both-locks",
+        "completed-transfers-nonnegative",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: transfer_ab completes",
+        "preserved: transfer_ba completes",
+        "preserved: completed_transfers counter is incremented at least once"
+      ],
+      "cir_nodes": [],
+      "holes": [],
+      "type_holes": [],
+      "model_verdict": "FAIL",
+      "static_verdict": "not_run",
+      "violations": []
+    },
+    {
+      "clause_id": "R4",
+      "description": "Each completed transfer increments the completed-transfers counter.",
+      "contract_properties": [
+        "deadlock_free",
+        "no-deadlock",
+        "both-transfers-finish",
+        "transfer-ab-holds-both-locks",
+        "transfer-ba-holds-both-locks",
+        "completed-transfers-nonnegative",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: transfer_ab completes",
+        "preserved: transfer_ba completes",
+        "preserved: completed_transfers counter is incremented at least once"
+      ],
+      "cir_nodes": [],
+      "holes": [],
+      "type_holes": [],
+      "model_verdict": "FAIL",
+      "static_verdict": "not_run",
+      "violations": []
+    },
+    {
+      "clause_id": "R5",
+      "description": "Account stores balance and supports pure deposit/withdraw operations.",
+      "contract_properties": [
+        "deadlock_free",
+        "no-deadlock",
+        "both-transfers-finish",
+        "transfer-ab-holds-both-locks",
+        "transfer-ba-holds-both-locks",
+        "completed-transfers-nonnegative",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: transfer_ab completes",
+        "preserved: transfer_ba completes",
+        "preserved: completed_transfers counter is incremented at least once"
+      ],
+      "cir_nodes": [],
+      "holes": [],
+      "type_holes": [],
+      "model_verdict": "FAIL",
+      "static_verdict": "not_run",
+      "violations": []
+    },
+    {
+      "clause_id": "R6",
+      "description": "Each transfer computes a simple receipt number locally.",
+      "contract_properties": [
+        "deadlock_free",
+        "no-deadlock",
+        "both-transfers-finish",
+        "transfer-ab-holds-both-locks",
+        "transfer-ba-holds-both-locks",
+        "completed-transfers-nonnegative",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: transfer_ab completes",
+        "preserved: transfer_ba completes",
+        "preserved: completed_transfers counter is incremented at least once"
+      ],
+      "cir_nodes": [],
+      "holes": [],
+      "type_holes": [],
+      "model_verdict": "FAIL",
+      "static_verdict": "not_run",
+      "violations": []
+    }
+  ],
+  "links": []
+}

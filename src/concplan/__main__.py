@@ -5,7 +5,7 @@ Commands:
 - Backend pass-through: ``check``, ``support``, ``explore``, ``lower``,
   ``summarize``, ``verify-refinement``, ``export-cvn``, ``repair``, ``replay``
 - Orchestration workflows: ``e2e``, ``offline``, ``revision``,
-  ``patch-repair``, ``conformance``, ``list-benchmarks``
+  ``patch-repair``, ``conformance``, ``list-examples``
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ from .formalize import (
 from .model_verify.offline_workflow import OfflineWorkflow
 from .model_verify.patch_repair import ExternalPatchRepairWorkflow
 from .model_verify.revision_workflow import RevisionWorkflow
-from .pipeline.benchmarks import benchmarks_summary, load_benchmark
+from .pipeline.examples import examples_summary, load_example
 from .pipeline.e2e_pipeline import run_e2e_pipeline
 
 
@@ -99,12 +99,12 @@ def _resolve_task_inputs(
     requirements: str | None = None
     contract: dict[str, Any] | None = None
 
-    if getattr(args, "task", None):
-        task = load_benchmark(args.task, benchmarks_dir=getattr(args, "benchmarks_dir", None))
-        task_label = task.task_id
-        requirements = task.load_requirements_text()
-        contract = task.load_contract()
-        clauses = task.load_requirements_clauses() or None
+    if getattr(args, "example", None):
+        ex = load_example(args.example, examples_dir=getattr(args, "examples_dir", None))
+        task_label = ex.example_id
+        requirements = ex.load_requirements_text()
+        contract = ex.load_contract()
+        clauses = ex.load_requirements_clauses() or None
 
     if getattr(args, "requirements_file", None):
         requirements = Path(args.requirements_file).read_text(encoding="utf-8")
@@ -115,9 +115,9 @@ def _resolve_task_inputs(
         contract = _read_json(args.contract)
 
     if not requirements:
-        raise ValueError("provide --requirements, --requirements-file, or --task")
+        raise ValueError("provide --requirements, --requirements-file, or --example")
     if contract is None:
-        raise ValueError("provide --contract or --task")
+        raise ValueError("provide --contract or --example")
     return requirements, contract, clauses, task_label
 
 
@@ -230,10 +230,11 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("formalize", help="Stage 0 auto formalization (Entry A: NL or Entry B: structured -> contract)")
     p.add_argument("--nl-spec", help="raw natural language requirements text (Entry A)")
     p.add_argument("--nl-file", help="path to raw natural language requirements file (Entry A)")
+    p.add_argument("--from-nl", action="store_true", help="when combined with --example, run Stage 0 Entry A from the example's spec.md")
     p.add_argument("--requirements", help="structured R1..Rn requirements text (Entry B)")
     p.add_argument("--requirements-file", help="path to REQUIREMENTS.md or requirements.json (Entry B)")
-    p.add_argument("--task", help="benchmark task id (Entry B)")
-    p.add_argument("--benchmarks-dir", help="override benchmarks directory")
+    p.add_argument("--example", help="example id (Entry B, or Entry A with --from-nl)")
+    p.add_argument("--examples-dir", help="override examples directory")
     p.add_argument("--contract", help="optional existing contract JSON path (Entry B validate & explain)")
     p.add_argument("--title", default="requirements", help="title for generated REQUIREMENTS.md")
     _add_provider_args(p)
@@ -256,10 +257,11 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("e2e", help="run end-to-end traceable bi-level pipeline (Stage 0 + Loops A/B/C)")
     p.add_argument("--nl-spec", help="raw natural language requirements text (runs Stage 0 Entry A)")
     p.add_argument("--nl-file", help="path to raw natural language requirements file (runs Stage 0 Entry A)")
+    p.add_argument("--from-nl", action="store_true", help="when combined with --example, run Stage 0 Entry A from the example's spec.md")
     p.add_argument("--requirements", help="requirements text")
     p.add_argument("--requirements-file", help="read requirements from a file")
-    p.add_argument("--task", help="benchmark task id (e.g. lock-order/abba_2lock)")
-    p.add_argument("--benchmarks-dir", help="override benchmarks directory")
+    p.add_argument("--example", help="example id (e.g. shared_counter)")
+    p.add_argument("--examples-dir", help="override examples directory")
     p.add_argument("--contract", help="frozen contract JSON path (optional: synthesized via Stage 0 if omitted)")
     _add_provider_args(p)
     p.add_argument("--clause-script", help="optional scripted JSON for Stage 0.1 nl_to_clauses")
@@ -283,9 +285,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("offline", help="run offline generate -> check -> explore -> tool repair workflow")
     p.add_argument("--requirements", help="requirements text")
     p.add_argument("--requirements-file", help="read requirements from a file")
-    p.add_argument("--task", help="benchmark task id (e.g. lock-order/abba_2lock)")
-    p.add_argument("--benchmarks-dir", help="override benchmarks directory")
-    p.add_argument("--contract", help="frozen contract JSON path (optional if --task is set)")
+    p.add_argument("--example", help="example id (e.g. shared_counter)")
+    p.add_argument("--examples-dir", help="override examples directory")
+    p.add_argument("--contract", help="frozen contract JSON path (optional if --example is set)")
     _add_provider_args(p)
     p.add_argument("--max-generation-rounds", type=int, default=3)
     p.add_argument("--strategy", default="c", choices=["a", "b", "c"])
@@ -299,9 +301,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("revision", help="run iterative CIR revision loop against frozen contract")
     p.add_argument("--requirements", help="requirements text")
     p.add_argument("--requirements-file", help="read requirements from a file")
-    p.add_argument("--task", help="benchmark task id (e.g. lock-order/abba_2lock)")
-    p.add_argument("--benchmarks-dir", help="override benchmarks directory")
-    p.add_argument("--contract", help="frozen contract JSON path (optional if --task is set)")
+    p.add_argument("--example", help="example id (e.g. shared_counter)")
+    p.add_argument("--examples-dir", help="override examples directory")
+    p.add_argument("--contract", help="frozen contract JSON path (optional if --example is set)")
     _add_provider_args(p)
     p.add_argument("--initial-program", help="optional initial CIR JSON path")
     p.add_argument("--max-rounds", type=int, default=4)
@@ -322,9 +324,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--native-runs", type=int, default=10)
     p.add_argument("--miri-seeds", type=int, default=0)
 
-    p = sub.add_parser("list-benchmarks", help="print JSON summary of active benchmark tasks")
-    p.add_argument("--benchmarks-dir", help="override benchmarks directory")
-    p.add_argument("--suite", choices=["families", "real-cases"], help="filter by benchmark suite")
+    p = sub.add_parser("list-examples", help="print JSON summary of active Stage 0 examples")
+    p.add_argument("--examples-dir", help="override examples directory")
 
     p = sub.add_parser("mcp", help="run the ConcPlanVerify MCP stdio server (or inspect tools)")
     p.add_argument("--workdir", help="override workspace directory for MCP tool artifacts")
@@ -342,11 +343,8 @@ def main(argv: list[str] | None = None) -> int:
     load_dotenv(repo_root / ".env")
 
     try:
-        if args.command == "list-benchmarks":
-            summary = benchmarks_summary(args.benchmarks_dir)
-            if args.suite:
-                summary["tasks"] = [t for t in summary["tasks"] if t["suite"] == args.suite]
-                summary["total"] = len(summary["tasks"])
+        if args.command == "list-examples":
+            summary = examples_summary(args.examples_dir)
             print(json.dumps(summary, ensure_ascii=False, indent=2))
             return 0
 
@@ -414,6 +412,11 @@ def main(argv: list[str] | None = None) -> int:
                 nl_text = Path(args.nl_file).read_text(encoding="utf-8")
             elif args.nl_spec:
                 nl_text = args.nl_spec
+            elif args.from_nl:
+                if not args.example:
+                    raise ValueError("--from-nl requires --example")
+                ex = load_example(args.example, examples_dir=args.examples_dir)
+                nl_text = ex.load_spec_text()
 
             if nl_text is not None:
                 clause_prov = _build_provider(
@@ -460,11 +463,11 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 structured_src: Any = None
                 existing_contract: dict[str, Any] | None = None
-                if args.task:
-                    task = load_benchmark(args.task, benchmarks_dir=args.benchmarks_dir)
-                    structured_src = task.load_requirements_json() or task.load_requirements_text()
+                if args.example:
+                    ex = load_example(args.example, examples_dir=args.examples_dir)
+                    structured_src = ex.load_requirements_json() or ex.load_requirements_text()
                     if args.contract is None:
-                        existing_contract = task.load_contract()
+                        existing_contract = ex.load_contract()
                 if args.requirements_file:
                     structured_src = Path(args.requirements_file)
                 elif args.requirements:
@@ -473,7 +476,7 @@ def main(argv: list[str] | None = None) -> int:
                     existing_contract = _read_json(args.contract)
                 if structured_src is None:
                     raise ValueError(
-                        "provide --nl-spec/--nl-file (Entry A) or --requirements/--requirements-file/--task (Entry B)"
+                        "provide --nl-spec/--nl-file (Entry A) or --requirements/--requirements-file/--example (Entry B)"
                     )
                 contract_prov = None
                 if existing_contract is None:
@@ -520,18 +523,23 @@ def main(argv: list[str] | None = None) -> int:
                 nl_text_e2e = Path(args.nl_file).read_text(encoding="utf-8")
             elif args.nl_spec:
                 nl_text_e2e = args.nl_spec
+            elif args.from_nl:
+                if not args.example:
+                    raise ValueError("--from-nl requires --example")
+                ex = load_example(args.example, examples_dir=args.examples_dir)
+                nl_text_e2e = ex.load_spec_text()
 
             requirements: str | None = None
             contract: dict[str, Any] | None = None
             clauses: dict[str, str] | None = None
-            if nl_text_e2e is None and (args.contract or args.task):
+            if nl_text_e2e is None and (args.contract or args.example):
                 requirements, contract, clauses, _task_label = _resolve_task_inputs(args)
             else:
-                if args.task:
-                    task = load_benchmark(args.task, benchmarks_dir=args.benchmarks_dir)
-                    requirements = task.load_requirements_text()
-                    contract = task.load_contract()
-                    clauses = task.load_requirements_clauses() or None
+                if args.example and nl_text_e2e is None:
+                    ex = load_example(args.example, examples_dir=args.examples_dir)
+                    requirements = ex.load_requirements_text()
+                    contract = ex.load_contract()
+                    clauses = ex.load_requirements_clauses() or None
                 if args.requirements_file:
                     requirements = Path(args.requirements_file).read_text(encoding="utf-8")
                 elif args.requirements:
@@ -539,7 +547,7 @@ def main(argv: list[str] | None = None) -> int:
                 if args.contract:
                     contract = _read_json(args.contract)
                 if nl_text_e2e is None and not requirements:
-                    raise ValueError("provide --nl-spec, --nl-file, --requirements, --requirements-file, or --task")
+                    raise ValueError("provide --nl-spec, --nl-file, --requirements, --requirements-file, or --example")
 
             cir_provider = _build_provider(
                 provider_name=args.provider,

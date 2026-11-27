@@ -10,7 +10,7 @@ from pathlib import Path
 from concplan.code_verify import bounded_monitor
 from tests._helpers import REPO
 
-ABBA = REPO / "benchmarks/families/lock-order/abba_2lock"
+ABBA = REPO / "tests/fixtures/abba_2lock"
 FIXED_TRACE = "\n".join([
     '{"t":"t1","sid":"L1","op":"mutex_lock","r":"a"}',
     '{"t":"t1","sid":"L2","op":"mutex_lock","r":"b"}',
@@ -31,7 +31,7 @@ class BoundedMonitorTests(unittest.TestCase):
     def setUpClass(cls):
         cls.contract = json.loads((ABBA / "contract.json").read_text(encoding="utf-8"))
         cls.reqjson = json.loads(
-            (ABBA / "generation_input/requirements.json").read_text(encoding="utf-8"))
+            (ABBA / "requirements.json").read_text(encoding="utf-8"))
 
     def _run(self):
         tmp = tempfile.TemporaryDirectory()

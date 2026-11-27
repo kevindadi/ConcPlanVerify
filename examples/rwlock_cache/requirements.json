@@ -1,0 +1,152 @@
+{
+  "schema": "concir-requirements/2",
+  "title": "concurrent_cache_rwlock",
+  "summary": "A small in-memory cache guarded by an RwLock with one writer thread recording and clearing updates and one reader thread inspecting cached data concurrently.",
+  "entities": {
+    "roles": [
+      "writer",
+      "reader"
+    ],
+    "resources": [
+      "cache_lock",
+      "pending_updates"
+    ],
+    "domain_types": [
+      {
+        "name": "CacheEntry",
+        "description": "In-memory cache entry struct holding cached payload data and pure accessor/update methods",
+        "kind": "struct",
+        "req": [
+          "R5"
+        ]
+      }
+    ]
+  },
+  "clauses": [
+    {
+      "id": "R1",
+      "text": "The system must never deadlock.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "cache_lock",
+        "writer",
+        "reader"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "The writer thread acquires the write lock to record an update.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "writer",
+        "cache_lock"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "The writer thread later acquires the write lock to clear pending updates.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "writer",
+        "cache_lock",
+        "pending_updates"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "The reader thread acquires the read lock to inspect cached data concurrently with other readers.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "reader",
+        "cache_lock"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "CacheEntry stores cached payload data and provides pure accessor/update methods in memory.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "CacheEntry"
+      ]
+    },
+    {
+      "id": "R6",
+      "text": "Both the writer and reader threads must eventually complete.",
+      "category": "reachability",
+      "verifiable": true,
+      "entities": [
+        "writer",
+        "reader"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "text": "The system must never deadlock.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "cache_lock",
+        "writer",
+        "reader"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "The writer thread acquires the write lock to record an update.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "writer",
+        "cache_lock"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "The writer thread later acquires the write lock to clear pending updates.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "writer",
+        "cache_lock",
+        "pending_updates"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "The reader thread acquires the read lock to inspect cached data concurrently with other readers.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "reader",
+        "cache_lock"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "CacheEntry stores cached payload data and provides pure accessor/update methods in memory.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "CacheEntry"
+      ]
+    },
+    {
+      "id": "R6",
+      "text": "Both the writer and reader threads must eventually complete.",
+      "category": "reachability",
+      "verifiable": true,
+      "entities": [
+        "writer",
+        "reader"
+      ]
+    }
+  ],
+  "source_nl": "Build a small concurrent cache guarded by a read-write lock (`RwLock`) storing an in-memory cache entry struct. One writer thread acquires a write lock to record an update and later clear pending updates, while a reader thread acquires a read lock to inspect the cached data concurrently. Make sure the program never deadlocks and both threads complete.\n"
+}

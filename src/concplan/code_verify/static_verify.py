@@ -66,6 +66,7 @@ BOUNDED_LOOP_HINT_RE = re.compile(r"(?://|/\*)\s*@bound(?:ed)?\b", re.IGNORECASE
 SID_ANNOTATION_RE = re.compile(r"// @cir (\S+)")
 SPAN_FILE_LINE_RE = re.compile(r"(?:(?P<file>[^\s:][^:]*\.rs):)?(?P<line>\d+)(?::\d+)?")
 SPAN_LINE_RE = re.compile(r":(\d+)(?::\d+)?")
+RUSTC_ERROR_SPAN_RE = re.compile(r"-->\s+(?:[^\n]*?[/\\])?(src[/\\][^\s:]+\.rs):(\d+):(\d+)")
 
 # Categorized forbidden patterns scanned ONLY after stripping Rust comments and literals.
 _FORBIDDEN_RULES: tuple[tuple[str, str, re.Pattern[str]], ...] = (
@@ -1596,7 +1597,58 @@ class SpnMirRefinementPlugin:
             )
 
         if not impl_net_path.is_file():
+            combined_output = ((proc.stderr or "") + "\n" + (proc.stdout or "")).strip()
             stderr_tail = (proc.stderr or proc.stdout or "").strip()[-1500:]
+            compile_violations: list[StaticViolation] = []
+            if proc.returncode != 0:
+                seen_spans: set[tuple[str, int, int, str]] = set()
+                for m in RUSTC_ERROR_SPAN_RE.finditer(combined_output):
+                    rel_file = m.group(1).replace("\\", "/")
+                    line_no = int(m.group(2))
+                    col_no = int(m.group(3))
+                    rust_span = f"{rel_file}:{line_no}:{col_no}"
+                    hid, sid, reqs = _attribute_span_to_hole(
+                        rust_span,
+                        hole_ranges,
+                        hole_meta,
+                        type_hole_ranges=type_hole_ranges,
+                        type_hole_meta=type_hole_meta,
+                    )
+                    if hid is None:
+                        continue
+                    key = (rel_file, line_no, col_no, hid)
+                    if key in seen_spans:
+                        continue
+                    seen_spans.add(key)
+                    compile_violations.append(
+                        StaticViolation(
+                            plugin=self.name,
+                            obligation="O1_purity",
+                            kind="compile_error_in_hole",
+                            message=f"rustc compile error inside hole '{hid}' at {rust_span}: {stderr_tail}",
+                            hole_id=hid,
+                            sid=sid,
+                            req_clauses=reqs,
+                            rust_span=rust_span,
+                        )
+                    )
+
+            if compile_violations:
+                return StaticVerificationReport(
+                    status="fail_hole",
+                    plugin=self.name,
+                    checks={"spn_available": True, "spn_exported": False},
+                    violations=compile_violations,
+                    error=f"cargo/spn compile error in hole(s) (exit {proc.returncode})",
+                    metadata={
+                        "argv": argv,
+                        "spn_flags": spn_flags,
+                        "focus_module": focus_module,
+                        "cargo_exit_code": proc.returncode,
+                        "cargo_stderr": stderr_tail,
+                    },
+                )
+
             return StaticVerificationReport(
                 status="error",
                 plugin=self.name,

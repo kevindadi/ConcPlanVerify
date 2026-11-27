@@ -1,0 +1,77 @@
+{
+  "schema": "concir-contract-explanation/1",
+  "name": "concurrent_cache_rwlock",
+  "source": "concir-backend",
+  "properties": [
+    {
+      "id": "no-deadlock",
+      "kind": "deadlock_free",
+      "req": [
+        "R1"
+      ],
+      "non_vacuous": false,
+      "explanation": "No reachable state is a global deadlock."
+    },
+    {
+      "id": "writer-records-update",
+      "kind": "ctl",
+      "req": [
+        "R2"
+      ],
+      "non_vacuous": true,
+      "explanation": "always on every path, if function 'main::writer' has completed then lock 'main::cache_lock' is free"
+    },
+    {
+      "id": "writer-clears-updates",
+      "kind": "ctl",
+      "req": [
+        "R3"
+      ],
+      "non_vacuous": true,
+      "explanation": "always on every path, if function 'main::writer' has completed then lock 'main::cache_lock' is free"
+    },
+    {
+      "id": "reader-acquires-read-lock",
+      "kind": "ctl",
+      "req": [
+        "R4"
+      ],
+      "non_vacuous": true,
+      "explanation": "always on every path, if function 'main::reader' has completed then lock 'main::cache_lock' is free"
+    },
+    {
+      "id": "writer-completes",
+      "kind": "reachability",
+      "req": [
+        "R6"
+      ],
+      "non_vacuous": false,
+      "explanation": "There exists a reachable state where function 'main::writer' has completed."
+    },
+    {
+      "id": "reader-completes",
+      "kind": "reachability",
+      "req": [
+        "R6"
+      ],
+      "non_vacuous": false,
+      "explanation": "There exists a reachable state where function 'main::reader' has completed."
+    }
+  ],
+  "preserved": [
+    {
+      "description": "writer thread completes",
+      "req": [
+        "R6"
+      ],
+      "explanation": "Behavior 'writer thread completes' must remain reachable (function 'main::writer' has completed)."
+    },
+    {
+      "description": "reader thread completes",
+      "req": [
+        "R6"
+      ],
+      "explanation": "Behavior 'reader thread completes' must remain reachable (function 'main::reader' has completed)."
+    }
+  ]
+}

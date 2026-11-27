@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from concplan.core.concir_client import ConcirClient
 from concplan.core.env import load_dotenv
 from concplan.core.json_utils import extract_json, sha256_bytes, sha256_file, sha256_text
-from concplan.core.llm import DeepSeekClient, QwenClient, create_llm_client
+from concplan.core.llm import DeepSeekClient, QwenClient, _resolve_api_key, create_llm_client
 from concplan.core.models import Consumption, ModelConfig, normalize_token_usage
 from concplan.core.prompts import (
     ACTIVE_PROMPT_ASSETS,
@@ -177,6 +177,22 @@ class LlmClientAndModelsTests(unittest.TestCase):
                 sdk_client=_FakeSdkClient(),
             )
 
+    def test_deepseek_apikey_alias_fallback(self):
+        old_std = os.environ.pop("DEEPSEEK_API_KEY", None)
+        old_alias = os.environ.get("DEEPSEEK_APIKEY")
+        os.environ["DEEPSEEK_APIKEY"] = "alias-secret-token"
+        try:
+            self.assertEqual(_resolve_api_key("DEEPSEEK_API_KEY"), "alias-secret-token")
+            os.environ["DEEPSEEK_API_KEY"] = "primary-secret-token"
+            self.assertEqual(_resolve_api_key("DEEPSEEK_API_KEY"), "primary-secret-token")
+        finally:
+            os.environ.pop("DEEPSEEK_API_KEY", None)
+            os.environ.pop("DEEPSEEK_APIKEY", None)
+            if old_std is not None:
+                os.environ["DEEPSEEK_API_KEY"] = old_std
+            if old_alias is not None:
+                os.environ["DEEPSEEK_APIKEY"] = old_alias
+
     def test_consumption_and_token_normalization(self):
         self.assertEqual(normalize_token_usage({"prompt_tokens": 10, "completion_tokens": 5}), (10, 5))
         self.assertEqual(normalize_token_usage({"input_tokens": 4, "output_tokens": 6}), (4, 6))
@@ -189,7 +205,7 @@ class LlmClientAndModelsTests(unittest.TestCase):
 
 def _bare_wait() -> dict:
     return json.loads(
-        (REPO / "benchmarks/families/condvar/lost_wakeup_notify_before_wait/buggy.cir.json")
+        (REPO / "tests/fixtures/lost_wakeup/buggy.cir.json")
         .read_text(encoding="utf-8")
     )
 
