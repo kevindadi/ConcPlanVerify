@@ -73,8 +73,10 @@ class McpProtocolTests(unittest.TestCase):
 
         tools = self.server.handle_message({"jsonrpc": "2.0", "id": 4, "method": "tools/list"})["result"]["tools"]
         tool_names = {t["name"] for t in tools}
-        self.assertEqual(len(tool_names), 12)
+        self.assertEqual(len(tool_names), 14)
         self.assertIn("concplan_explore_model", tool_names)
+        self.assertIn("concplan_check_req", tool_names)
+        self.assertIn("concplan_verify_design", tool_names)
         self.assertIn("concplan_verify_code", tool_names)
 
         resources = self.server.handle_message({"jsonrpc": "2.0", "id": 5, "method": "resources/list"})["result"]["resources"]
@@ -121,7 +123,7 @@ class McpProtocolTests(unittest.TestCase):
         self.assertEqual(lines[0], {"jsonrpc": "2.0", "id": 1, "result": {}})
         self.assertEqual(lines[1]["error"]["code"], -32700)
         self.assertEqual(lines[2]["id"], 2)
-        self.assertEqual(len(lines[2]["result"]["tools"]), 12)
+        self.assertEqual(len(lines[2]["result"]["tools"]), 14)
 
 
 class McpOfflineToolsTests(unittest.TestCase):
@@ -300,7 +302,7 @@ class McpOfflineToolsTests(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
         data = json.loads(proc.stdout)
-        self.assertEqual(len(data["tools"]), 12)
+        self.assertEqual(len(data["tools"]), 14)
 
 
 class McpLiveWorkflowTests(unittest.TestCase):
