@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
+import time
 from pathlib import Path
+from typing import Any
 
 _THINK_TAG_RE = re.compile(r"<think\b[^>]*>.*?</think>", re.DOTALL | re.IGNORECASE)
 
@@ -49,3 +52,26 @@ def extract_json(text: str) -> str:
         except json.JSONDecodeError:
             return cleaned
         return cleaned[start : start + end].strip()
+
+
+def write_json(path: Path | str, payload: Any) -> Path:
+    """Serialize ``payload`` as pretty UTF-8 JSON to ``path``, creating parent dirs."""
+    dest = Path(path).expanduser().resolve()
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return dest
+
+
+def exclusive_run_dir(base: Path | str, *, prefix: str = "run") -> Path:
+    """Create a unique per-run directory under ``base`` without overwriting prior runs."""
+    root = Path(base).expanduser().resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    for _ in range(1000):
+        token = f"{time.strftime('%Y%m%dT%H%M%S', time.gmtime())}-{os.getpid()}-{os.urandom(3).hex()}"
+        path = root / f"{prefix}-{token}"
+        try:
+            path.mkdir(parents=True, exist_ok=False)
+            return path
+        except FileExistsError:
+            continue
+    raise RuntimeError(f"could not allocate a unique run directory under {root}")

@@ -2,7 +2,7 @@
 
 from .concir_client import ConcirClient, ConcirIdentity, ConcirResult
 from .env import load_dotenv
-from .json_utils import extract_json, sha256_bytes, sha256_file, sha256_text
+from .json_utils import exclusive_run_dir, extract_json, sha256_bytes, sha256_file, sha256_text, write_json
 from .llm import DeepSeekClient, LlmClient, LlmError, QwenClient, create_llm_client, default_base_url
 from .models import Consumption, ModelConfig, normalize_token_usage
 from .prompts import (
@@ -85,6 +85,7 @@ __all__ = [
     "clauses_to_contract_system_prompt",
     "create_llm_client",
     "default_base_url",
+    "exclusive_run_dir",
     "extract_json",
     "find_bind_check",
     "find_concir_backend",
@@ -106,4 +107,5 @@ __all__ = [
     "sha256_bytes",
     "sha256_file",
     "sha256_text",
+    "write_json",
 ]
