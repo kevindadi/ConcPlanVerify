@@ -251,6 +251,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--module", help="optional single module name to summarize")
     p.add_argument("--output", help="write concir-module-summary/1 JSON here")
 
+    p = sub.add_parser("check-req", help="validate & explore abstract Requirement Net (concir-req-ir/1)")
+    p.add_argument("req_ir", help="Requirement Net IR JSON path")
+    p.add_argument("--contract", help="optional contract JSON path")
+    p.add_argument("--output", help="write concir-req-check/1 JSON here")
+
+    p = sub.add_parser("verify-design", help="verify SCIR/CIR extension stuttering refinement against N_req")
+    p.add_argument("--req", required=True, help="Requirement Net IR JSON path (N_req)")
+    p.add_argument("--design", required=True, help="SCIR/CIR design JSON path (N_code)")
+    p.add_argument("--contract", help="optional contract JSON path")
+    p.add_argument("--output", help="write concir-design-refinement/1 JSON here")
+
     p = sub.add_parser("verify-refinement", help="verify code-to-model stuttering refinement")
     p.add_argument("--spec", required=True, help="verified CIR program JSON")
     p.add_argument("--impl-net", required=True, help="exported concir-impl-net/1 JSON")
@@ -277,6 +288,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--example", help="example id (Entry B, or Entry A with --from-nl)")
     p.add_argument("--examples-dir", help="override examples directory")
     p.add_argument("--contract", help="optional existing contract JSON path (Entry B validate & explain)")
+    p.add_argument("--req-ir", help="optional Requirement Net IR JSON path (concir-req-ir/1)")
     p.add_argument("--title", default="requirements", help="title for generated REQUIREMENTS.md")
     _add_provider_args(p)
     p.add_argument("--contract-script", help="optional separate scripted JSON for Step 0.2 contract synthesis")
@@ -304,6 +316,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--example", help="example id (e.g. visit_counter)")
     p.add_argument("--examples-dir", help="override examples directory")
     p.add_argument("--contract", help="frozen contract JSON path (optional: synthesized via Stage 0 if omitted)")
+    p.add_argument("--req-ir", help="optional Requirement Net IR JSON path (concir-req-ir/1)")
     _add_provider_args(p)
     p.add_argument("--clause-script", help="optional scripted JSON for Stage 0.1 nl_to_clauses")
     p.add_argument("--contract-script", help="optional scripted JSON for Stage 0.2 clauses_to_contract")
@@ -418,6 +431,10 @@ def main(argv: list[str] | None = None) -> int:
             return _emit(client.lower(args.program, out_path=args.output, trace_map_path=args.trace_map))
         if args.command == "summarize":
             return _emit(client.summarize(args.program, module=args.module, out_path=args.output))
+        if args.command == "check-req":
+            return _emit(client.check_req(args.req_ir, contract=args.contract, out_path=args.output))
+        if args.command == "verify-design":
+            return _emit(client.verify_design(args.req, args.design, contract=args.contract, out_path=args.output))
         if args.command == "verify-refinement":
             return _emit(client.verify_refinement(
                 args.spec,
@@ -468,15 +485,19 @@ def main(argv: list[str] | None = None) -> int:
                     client=client if Path(args.binary).is_file() else None,
                     out_dir=args.out,
                     title=args.title,
+                    req_ir=args.req_ir,
                 )
             else:
                 structured_src: Any = None
                 existing_contract: dict[str, Any] | None = None
+                existing_req_ir: Any = args.req_ir
                 if args.example:
                     ex = load_example(args.example, examples_dir=args.examples_dir)
                     structured_src = ex.load_requirements_json() or ex.load_requirements_text()
                     if args.contract is None:
                         existing_contract = ex.load_contract()
+                    if existing_req_ir is None:
+                        existing_req_ir = ex.load_req_ir()
                 if args.requirements_file:
                     structured_src = Path(args.requirements_file)
                 elif args.requirements:
@@ -505,6 +526,7 @@ def main(argv: list[str] | None = None) -> int:
                     contract_provider=contract_prov,
                     client=client if Path(args.binary).is_file() else None,
                     out_dir=args.out,
+                    req_ir=existing_req_ir,
                 )
 
             payload = fres.as_dict()
@@ -532,14 +554,19 @@ def main(argv: list[str] | None = None) -> int:
             requirements: str | None = None
             contract: dict[str, Any] | None = None
             clauses: dict[str, str] | None = None
+            req_ir_arg: Any = args.req_ir
             if nl_text_e2e is None and (args.contract or args.example):
                 requirements, contract, clauses, _task_label = _resolve_task_inputs(args)
+                if args.example and req_ir_arg is None:
+                    req_ir_arg = load_example(args.example, examples_dir=args.examples_dir).load_req_ir()
             else:
                 if args.example and nl_text_e2e is None:
                     ex = load_example(args.example, examples_dir=args.examples_dir)
                     requirements = ex.load_requirements_text()
                     contract = ex.load_contract()
                     clauses = ex.load_requirements_clauses() or None
+                    if req_ir_arg is None:
+                        req_ir_arg = ex.load_req_ir()
                 if args.requirements_file:
                     requirements = Path(args.requirements_file).read_text(encoding="utf-8")
                 elif args.requirements:
@@ -615,6 +642,7 @@ def main(argv: list[str] | None = None) -> int:
                 contract_provider=contract_provider,
                 modular_refinement=args.modular_refinement,
                 focus_modules=args.focus_module,
+                req_ir=req_ir_arg,
             )
             payload = result.as_dict()
             if args.report:
