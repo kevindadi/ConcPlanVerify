@@ -54,29 +54,20 @@ class ExampleTask:
         data = self.load_requirements_json()
         if not data:
             return {}
-        raw_clauses = data.get("clauses")
-        if isinstance(raw_clauses, list):
-            out: dict[str, str] = {}
-            for idx, item in enumerate(raw_clauses, start=1):
-                if isinstance(item, dict):
-                    cid = str(item.get("id") or f"R{idx}").strip()
-                    text = str(item.get("text") or item.get("description") or "").strip()
-                    out[cid] = text
-                elif isinstance(item, str):
-                    out[f"R{idx}"] = item
-            return out
-        raw_reqs = data.get("requirements")
-        if isinstance(raw_reqs, list):
-            out = {}
-            for idx, item in enumerate(raw_reqs, start=1):
-                if isinstance(item, dict):
-                    cid = str(item.get("id") or f"R{idx}").strip()
-                    text = str(item.get("text") or item.get("description") or "").strip()
-                    out[cid] = text
-                else:
-                    out[f"R{idx}"] = str(item)
-            return out
-        return {}
+        raw_items = data.get("clauses")
+        if not isinstance(raw_items, list):
+            raw_items = data.get("requirements")
+        if not isinstance(raw_items, list):
+            return {}
+        out: dict[str, str] = {}
+        for idx, item in enumerate(raw_items, start=1):
+            if isinstance(item, dict):
+                cid = str(item.get("id") or f"R{idx}").strip()
+                text = str(item.get("text") or item.get("description") or "").strip()
+                out[cid] = text
+            else:
+                out[f"R{idx}"] = str(item)
+        return out
 
     def load_contract(self) -> dict[str, Any]:
         if self.contract_path is None or not self.contract_path.is_file():
