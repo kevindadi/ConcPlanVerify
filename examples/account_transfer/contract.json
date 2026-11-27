@@ -1,0 +1,116 @@
+{
+  "name": "bank_transfer",
+  "properties": [
+    {
+      "kind": "deadlock_free",
+      "id": "no-deadlock",
+      "req": [
+        "R1"
+      ]
+    },
+    {
+      "kind": "safety",
+      "id": "total-balance-invariant",
+      "invariant": {
+        "kind": "var_eq",
+        "resource": "main::total_balance",
+        "value": 200
+      },
+      "req": [
+        "R2"
+      ]
+    },
+    {
+      "kind": "safety",
+      "id": "receipt-counter-bound",
+      "invariant": {
+        "kind": "var_cmp",
+        "resource": "main::receipt_counter",
+        "op": "<=",
+        "value": 2
+      },
+      "req": [
+        "R3"
+      ]
+    },
+    {
+      "kind": "ctl",
+      "id": "receipt-counter-progress",
+      "non_vacuous": true,
+      "req": [
+        "R4"
+      ],
+      "formula": {
+        "op": "ag",
+        "arg": {
+          "op": "implies",
+          "lhs": {
+            "op": "atom",
+            "atom": {
+              "kind": "var_cmp",
+              "resource": "main::receipt_counter",
+              "op": "<",
+              "value": 2
+            }
+          },
+          "rhs": {
+            "op": "af",
+            "arg": {
+              "op": "atom",
+              "atom": {
+                "kind": "var_cmp",
+                "resource": "main::receipt_counter",
+                "op": ">",
+                "value": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "reachability",
+      "id": "both-transfers-complete",
+      "goal": {
+        "kind": "and",
+        "predicates": [
+          {
+            "kind": "function_completed",
+            "function": "main::transfer_ab"
+          },
+          {
+            "kind": "function_completed",
+            "function": "main::transfer_ba"
+          }
+        ]
+      },
+      "req": [
+        "R5"
+      ]
+    }
+  ],
+  "preserved": [
+    {
+      "kind": "reachable",
+      "description": "transfer_ab completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::transfer_ab"
+      },
+      "req": [
+        "R5"
+      ]
+    },
+    {
+      "kind": "reachable",
+      "description": "transfer_ba completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::transfer_ba"
+      },
+      "req": [
+        "R5"
+      ]
+    }
+  ]
+}

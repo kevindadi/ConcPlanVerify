@@ -1,0 +1,59 @@
+{
+  "schema": "concir-contract-explanation/1",
+  "name": "concurrent_access_stats",
+  "source": "concir-backend",
+  "properties": [
+    {
+      "id": "no-deadlock",
+      "kind": "deadlock_free",
+      "req": [
+        "R1"
+      ],
+      "non_vacuous": false,
+      "explanation": "No reachable state is a global deadlock."
+    },
+    {
+      "id": "visit-count-bound",
+      "kind": "safety",
+      "req": [
+        "R2"
+      ],
+      "non_vacuous": false,
+      "explanation": "In every reachable state, main::visit_count <= 2."
+    },
+    {
+      "id": "summary-eventually-ready",
+      "kind": "ctl",
+      "req": [
+        "R3"
+      ],
+      "non_vacuous": true,
+      "explanation": "always on every path, if main::visit_count > 0 then (eventually on every path, main::summary_ready == true)"
+    },
+    {
+      "id": "both-recorders-complete",
+      "kind": "reachability",
+      "req": [
+        "R4"
+      ],
+      "non_vacuous": false,
+      "explanation": "There exists a reachable state where (function 'main::recorder_a' has completed and function 'main::recorder_b' has completed)."
+    }
+  ],
+  "preserved": [
+    {
+      "description": "recorder_a completes",
+      "req": [
+        "R4"
+      ],
+      "explanation": "Behavior 'recorder_a completes' must remain reachable (function 'main::recorder_a' has completed)."
+    },
+    {
+      "description": "recorder_b completes",
+      "req": [
+        "R4"
+      ],
+      "explanation": "Behavior 'recorder_b completes' must remain reachable (function 'main::recorder_b' has completed)."
+    }
+  ]
+}

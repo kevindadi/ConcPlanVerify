@@ -53,19 +53,62 @@ class DomainTypeEntity:
 
 
 @dataclass
+class ResourceEntity:
+    """Typed concurrency resource metadata produced in Stage 0.1 symbol anchoring."""
+
+    name: str
+    kind: str = ""  # Mutex | RwLock | Condvar | Channel | Semaphore | Atomic | Var
+    domain: str = ""
+    init: Any = None
+    description: str = ""
+
+    def as_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {"name": self.name}
+        if self.kind:
+            out["kind"] = self.kind
+        if self.domain:
+            out["domain"] = self.domain
+        if self.init is not None:
+            out["init"] = self.init
+        if self.description:
+            out["description"] = self.description
+        return out
+
+    @classmethod
+    def from_raw(cls, raw: Any) -> "ResourceEntity":
+        if isinstance(raw, cls):
+            return raw
+        if isinstance(raw, str):
+            return cls(name=raw.strip())
+        if isinstance(raw, dict):
+            return cls(
+                name=str(raw.get("name") or "").strip(),
+                kind=str(raw.get("kind") or raw.get("type") or "").strip(),
+                domain=str(raw.get("domain") or raw.get("base") or "").strip(),
+                init=raw.get("init"),
+                description=str(raw.get("description") or raw.get("desc") or "").strip(),
+            )
+        raise ValueError(f"invalid resource entry: {raw!r}")
+
+
+@dataclass
 class GroundedEntities:
     """Entities extracted from requirements to ground contract predicates and SCIR design."""
 
     roles: list[str] = field(default_factory=list)
     resources: list[str] = field(default_factory=list)
     domain_types: list[DomainTypeEntity] = field(default_factory=list)
+    resource_specs: list[ResourceEntity] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        out: dict[str, Any] = {
             "roles": list(self.roles),
             "resources": list(self.resources),
             "domain_types": [dt.as_dict() for dt in self.domain_types],
         }
+        if self.resource_specs:
+            out["resource_specs"] = [rs.as_dict() for rs in self.resource_specs]
+        return out
 
     @classmethod
     def from_raw(cls, raw: Any) -> "GroundedEntities":
@@ -74,7 +117,26 @@ class GroundedEntities:
         if not isinstance(raw, dict):
             return cls()
         roles = [str(r).strip() for r in (raw.get("roles") or raw.get("functions") or []) if str(r).strip()]
-        resources = [str(r).strip() for r in (raw.get("resources") or []) if str(r).strip()]
+        resources: list[str] = []
+        spec_by_name: dict[str, ResourceEntity] = {}
+        for item in raw.get("resources") or []:
+            if isinstance(item, dict) or isinstance(item, ResourceEntity):
+                rs = ResourceEntity.from_raw(item)
+                if rs.name:
+                    resources.append(rs.name)
+                    if rs.name not in spec_by_name and (rs.kind or rs.domain or rs.init is not None or rs.description):
+                        spec_by_name[rs.name] = rs
+            else:
+                name = str(item).strip()
+                if name:
+                    resources.append(name)
+        for item in raw.get("resource_specs") or []:
+            rs = ResourceEntity.from_raw(item)
+            if rs.name:
+                if rs.name not in resources:
+                    resources.append(rs.name)
+                if rs.name not in spec_by_name:
+                    spec_by_name[rs.name] = rs
         raw_dts = raw.get("domain_types") or raw.get("types") or []
         domain_types = [
             dt for dt in (DomainTypeEntity.from_raw(item) for item in raw_dts) if dt.name
@@ -83,6 +145,7 @@ class GroundedEntities:
             roles=list(dict.fromkeys(roles)),
             resources=list(dict.fromkeys(resources)),
             domain_types=domain_types,
+            resource_specs=list(spec_by_name.values()),
         )
 
 
@@ -184,11 +247,25 @@ class StructuredRequirements:
 
         lines.append("## Entities")
         roles_str = ", ".join(f"`{r}`" for r in self.entities.roles) if self.entities.roles else "_none_"
-        res_str = (
-            ", ".join(f"`{r}`" for r in self.entities.resources)
-            if self.entities.resources
-            else "_none_"
-        )
+        spec_map = {rs.name: rs for rs in self.entities.resource_specs}
+        res_parts: list[str] = []
+        for r in self.entities.resources:
+            rs = spec_map.get(r)
+            if rs and (rs.kind or rs.domain or rs.init is not None):
+                meta_bits: list[str] = []
+                if rs.kind:
+                    if rs.domain:
+                        meta_bits.append(f"{rs.kind}: {rs.domain}" if rs.kind.lower() in {"var", "atomic"} else f"{rs.kind}<{rs.domain}>")
+                    else:
+                        meta_bits.append(rs.kind)
+                elif rs.domain:
+                    meta_bits.append(rs.domain)
+                if rs.init is not None:
+                    meta_bits.append(f"init={rs.init!r}" if not isinstance(rs.init, bool) else f"init={'true' if rs.init else 'false'}")
+                res_parts.append(f"`{r}` ({', '.join(meta_bits)})")
+            else:
+                res_parts.append(f"`{r}`")
+        res_str = ", ".join(res_parts) if res_parts else "_none_"
         lines.append(f"- **Roles / Functions**: {roles_str}")
         lines.append(f"- **Resources**: {res_str}")
         if self.entities.domain_types:

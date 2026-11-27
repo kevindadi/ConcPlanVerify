@@ -1,0 +1,103 @@
+{
+  "name": "concurrent_access_stats",
+  "properties": [
+    {
+      "kind": "deadlock_free",
+      "id": "no-deadlock",
+      "req": [
+        "R1"
+      ]
+    },
+    {
+      "kind": "safety",
+      "id": "visit-count-bound",
+      "invariant": {
+        "kind": "var_cmp",
+        "resource": "main::visit_count",
+        "op": "<=",
+        "value": 2
+      },
+      "req": [
+        "R2"
+      ]
+    },
+    {
+      "kind": "ctl",
+      "id": "summary-eventually-ready",
+      "non_vacuous": true,
+      "req": [
+        "R3"
+      ],
+      "formula": {
+        "op": "ag",
+        "arg": {
+          "op": "implies",
+          "lhs": {
+            "op": "atom",
+            "atom": {
+              "kind": "var_cmp",
+              "resource": "main::visit_count",
+              "op": ">",
+              "value": 0
+            }
+          },
+          "rhs": {
+            "op": "af",
+            "arg": {
+              "op": "atom",
+              "atom": {
+                "kind": "var_eq",
+                "resource": "main::summary_ready",
+                "value": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "reachability",
+      "id": "both-recorders-complete",
+      "goal": {
+        "kind": "and",
+        "predicates": [
+          {
+            "kind": "function_completed",
+            "function": "main::recorder_a"
+          },
+          {
+            "kind": "function_completed",
+            "function": "main::recorder_b"
+          }
+        ]
+      },
+      "req": [
+        "R4"
+      ]
+    }
+  ],
+  "preserved": [
+    {
+      "kind": "reachable",
+      "description": "recorder_a completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::recorder_a"
+      },
+      "req": [
+        "R4"
+      ]
+    },
+    {
+      "kind": "reachable",
+      "description": "recorder_b completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::recorder_b"
+      },
+      "req": [
+        "R4"
+      ]
+    }
+  ]
+}

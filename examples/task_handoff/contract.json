@@ -1,0 +1,118 @@
+{
+  "name": "task_producer_consumer_handoff",
+  "properties": [
+    {
+      "kind": "deadlock_free",
+      "id": "no-deadlock",
+      "req": [
+        "R1"
+      ]
+    },
+    {
+      "kind": "safety",
+      "id": "pending-tasks-bound",
+      "invariant": {
+        "kind": "var_cmp",
+        "resource": "main::pending_tasks",
+        "op": "<=",
+        "value": 2
+      },
+      "req": [
+        "R2"
+      ]
+    },
+    {
+      "kind": "safety",
+      "id": "processed-tasks-bound",
+      "invariant": {
+        "kind": "var_cmp",
+        "resource": "main::processed_tasks",
+        "op": "<=",
+        "value": 2
+      },
+      "req": [
+        "R3"
+      ]
+    },
+    {
+      "kind": "ctl",
+      "id": "pending-eventually-drained",
+      "non_vacuous": true,
+      "req": [
+        "R4"
+      ],
+      "formula": {
+        "op": "ag",
+        "arg": {
+          "op": "implies",
+          "lhs": {
+            "op": "atom",
+            "atom": {
+              "kind": "var_cmp",
+              "resource": "main::pending_tasks",
+              "op": ">",
+              "value": 0
+            }
+          },
+          "rhs": {
+            "op": "af",
+            "arg": {
+              "op": "atom",
+              "atom": {
+                "kind": "var_eq",
+                "resource": "main::pending_tasks",
+                "value": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "reachability",
+      "id": "producer-can-complete",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::producer"
+      },
+      "req": [
+        "R5"
+      ]
+    },
+    {
+      "kind": "reachability",
+      "id": "consumer-can-complete",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::consumer"
+      },
+      "req": [
+        "R5"
+      ]
+    }
+  ],
+  "preserved": [
+    {
+      "kind": "reachable",
+      "description": "producer completes execution",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::producer"
+      },
+      "req": [
+        "R5"
+      ]
+    },
+    {
+      "kind": "reachable",
+      "description": "consumer completes execution",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::consumer"
+      },
+      "req": [
+        "R5"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "schema": "concir-contract-explanation/1",
+  "name": "config_cache",
+  "source": "concir-backend",
+  "properties": [
+    {
+      "id": "no-deadlock",
+      "kind": "deadlock_free",
+      "req": [
+        "R1"
+      ],
+      "non_vacuous": false,
+      "explanation": "No reachable state is a global deadlock."
+    },
+    {
+      "id": "pending-changes-bound",
+      "kind": "safety",
+      "req": [
+        "R2"
+      ],
+      "non_vacuous": false,
+      "explanation": "In every reachable state, main::pending_changes <= 1."
+    },
+    {
+      "id": "pending-changes-drained",
+      "kind": "ctl",
+      "req": [
+        "R3"
+      ],
+      "non_vacuous": true,
+      "explanation": "always on every path, if main::pending_changes > 0 then (eventually on every path, main::pending_changes == 0)"
+    },
+    {
+      "id": "reader-can-complete",
+      "kind": "reachability",
+      "req": [
+        "R4"
+      ],
+      "non_vacuous": false,
+      "explanation": "There exists a reachable state where function 'main::reader' has completed."
+    },
+    {
+      "id": "writer-can-complete",
+      "kind": "reachability",
+      "req": [
+        "R4"
+      ],
+      "non_vacuous": false,
+      "explanation": "There exists a reachable state where function 'main::writer' has completed."
+    }
+  ],
+  "preserved": [
+    {
+      "description": "reader worker completes",
+      "req": [
+        "R4"
+      ],
+      "explanation": "Behavior 'reader worker completes' must remain reachable (function 'main::reader' has completed)."
+    },
+    {
+      "description": "writer worker completes",
+      "req": [
+        "R4"
+      ],
+      "explanation": "Behavior 'writer worker completes' must remain reachable (function 'main::writer' has completed)."
+    }
+  ]
+}

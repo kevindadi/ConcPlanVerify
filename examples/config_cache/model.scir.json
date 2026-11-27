@@ -1,0 +1,276 @@
+{
+  "program": "config_cache",
+  "version": "5.0.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "req": [
+        "R1",
+        "R2",
+        "R3",
+        "R4",
+        "R5"
+      ],
+      "provides": {
+        "resources": [
+          "cache_lock",
+          "pending_changes"
+        ],
+        "functions": [
+          "main",
+          "reader",
+          "writer"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "types": [
+        {
+          "name": "ConfigSnapshot",
+          "type": {
+            "Hole": {
+              "description": "Pure in-memory configuration version and entry fields without strings, loops, or synchronization",
+              "req": [
+                "R5"
+              ]
+            }
+          }
+        }
+      ],
+      "resources": [
+        {
+          "name": "cache_lock",
+          "kind": "sync",
+          "type": "RwLock",
+          "mode": "Sync",
+          "base": "ConfigSnapshot",
+          "req": [
+            "R1",
+            "R5"
+          ]
+        },
+        {
+          "name": "pending_changes",
+          "kind": "var",
+          "type": "Var",
+          "base": {
+            "Int": [
+              0,
+              1
+            ]
+          },
+          "init": 0,
+          "req": [
+            "R2",
+            "R3"
+          ]
+        }
+      ],
+      "protection": [
+        {
+          "var": "pending_changes",
+          "lock": "cache_lock"
+        }
+      ],
+      "functions": [
+        {
+          "name": "reader",
+          "kind": "normal",
+          "form": "closure",
+          "req": [
+            "R1",
+            "R4",
+            "R5"
+          ],
+          "structured_body": [
+            {
+              "id": "r1",
+              "kind": "rwlock_read_guard",
+              "resource": "main::cache_lock",
+              "req": [
+                "R1",
+                "R5"
+              ],
+              "body": [
+                {
+                  "id": "r2",
+                  "kind": "stmt",
+                  "req": [
+                    "R5"
+                  ],
+                  "op": {
+                    "kind": "seq_hole",
+                    "id": "h_read_snapshot",
+                    "desc": "inspect current configuration snapshot version and entries",
+                    "reads": [],
+                    "writes": [],
+                    "updates_modeled": [],
+                    "expected_type": "()",
+                    "req": [
+                      "R5"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "r3",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        },
+        {
+          "name": "writer",
+          "kind": "normal",
+          "form": "closure",
+          "req": [
+            "R1",
+            "R2",
+            "R3",
+            "R4",
+            "R5"
+          ],
+          "structured_body": [
+            {
+              "id": "w1",
+              "kind": "rwlock_write_guard",
+              "resource": "main::cache_lock",
+              "req": [
+                "R1",
+                "R2",
+                "R3",
+                "R5"
+              ],
+              "body": [
+                {
+                  "id": "w2",
+                  "kind": "stmt",
+                  "req": [
+                    "R2",
+                    "R5"
+                  ],
+                  "op": {
+                    "kind": "seq_hole",
+                    "id": "h_update_snapshot",
+                    "desc": "update configuration snapshot version and entries",
+                    "reads": [],
+                    "writes": [],
+                    "updates_modeled": [],
+                    "expected_type": "()",
+                    "req": [
+                      "R5"
+                    ]
+                  }
+                },
+                {
+                  "id": "w3",
+                  "kind": "stmt",
+                  "req": [
+                    "R2",
+                    "R3"
+                  ],
+                  "op": {
+                    "kind": "seq_hole",
+                    "id": "h_set_pending",
+                    "desc": "mark pending changes as present",
+                    "reads": [
+                      "main::pending_changes"
+                    ],
+                    "writes": [
+                      "main::pending_changes"
+                    ],
+                    "updates_modeled": [
+                      {
+                        "target": "main::pending_changes",
+                        "expr": "1"
+                      }
+                    ],
+                    "expected_type": "()",
+                    "req": [
+                      "R2",
+                      "R3"
+                    ]
+                  }
+                },
+                {
+                  "id": "w4",
+                  "kind": "stmt",
+                  "req": [
+                    "R2",
+                    "R3"
+                  ],
+                  "op": {
+                    "kind": "seq_hole",
+                    "id": "h_clear_pending",
+                    "desc": "archive pending changes and reset pending flag",
+                    "reads": [
+                      "main::pending_changes"
+                    ],
+                    "writes": [
+                      "main::pending_changes"
+                    ],
+                    "updates_modeled": [
+                      {
+                        "target": "main::pending_changes",
+                        "expr": "0"
+                      }
+                    ],
+                    "expected_type": "()",
+                    "req": [
+                      "R2",
+                      "R3"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "w5",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "req": [
+            "R1",
+            "R4"
+          ],
+          "structured_body": [
+            {
+              "id": "m1",
+              "kind": "stmt",
+              "req": [
+                "R4"
+              ],
+              "op": {
+                "kind": "scope",
+                "funcs": [
+                  "main::reader",
+                  "main::writer"
+                ]
+              }
+            },
+            {
+              "id": "m2",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

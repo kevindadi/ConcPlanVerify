@@ -1,0 +1,186 @@
+{
+  "schema": "concir-requirements/2",
+  "title": "bank_transfer",
+  "summary": "Concurrent bidirectional bank account transfers with atomicity, consistent balances, per-transaction receipt numbers, and deadlock freedom.",
+  "entities": {
+    "roles": [
+      "transfer_ab",
+      "transfer_ba"
+    ],
+    "resources": [
+      "account_a_lock",
+      "account_b_lock",
+      "total_balance",
+      "receipt_counter"
+    ],
+    "domain_types": [
+      {
+        "name": "Receipt",
+        "description": "Pure receipt number and transfer amount fields without synchronization or strings",
+        "kind": "hole",
+        "req": [
+          "R5"
+        ]
+      }
+    ],
+    "resource_specs": [
+      {
+        "name": "account_a_lock",
+        "kind": "Mutex",
+        "domain": "Int[0..=100]",
+        "init": 100,
+        "description": "Mutex protecting account A balance"
+      },
+      {
+        "name": "account_b_lock",
+        "kind": "Mutex",
+        "domain": "Int[0..=100]",
+        "init": 100,
+        "description": "Mutex protecting account B balance"
+      },
+      {
+        "name": "total_balance",
+        "kind": "Var",
+        "domain": "Int[0..=200]",
+        "init": 200,
+        "description": "Modeled invariant sum of both account balances"
+      },
+      {
+        "name": "receipt_counter",
+        "kind": "Var",
+        "domain": "Int[0..=2]",
+        "init": 0,
+        "description": "Modeled count of generated transaction receipts"
+      }
+    ]
+  },
+  "clauses": [
+    {
+      "id": "R1",
+      "text": "The system must never deadlock under concurrent transfer_ab and transfer_ba execution.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "account_a_lock",
+        "account_b_lock",
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "At all reachable states, total_balance remains equal to 200 (total_balance == 200).",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "total_balance",
+        "account_a_lock",
+        "account_b_lock"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "At all reachable states, receipt_counter stays within 0..=2 (receipt_counter <= 2).",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "receipt_counter"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "Whenever a transfer is initiated, on all execution paths receipt_counter eventually increases by one.",
+      "category": "liveness",
+      "verifiable": true,
+      "entities": [
+        "receipt_counter",
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "Both transfer_ab and transfer_ba workers must be able to complete execution.",
+      "category": "reachability",
+      "verifiable": true,
+      "entities": [
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    },
+    {
+      "id": "R6",
+      "text": "Construct, inspect, and update Receipt entries and pure integer receipt numbers inside sequential/type holes without synchronization, loops, unsafe, or String formatting.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "Receipt"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "text": "The system must never deadlock under concurrent transfer_ab and transfer_ba execution.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "account_a_lock",
+        "account_b_lock",
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "At all reachable states, total_balance remains equal to 200 (total_balance == 200).",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "total_balance",
+        "account_a_lock",
+        "account_b_lock"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "At all reachable states, receipt_counter stays within 0..=2 (receipt_counter <= 2).",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "receipt_counter"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "Whenever a transfer is initiated, on all execution paths receipt_counter eventually increases by one.",
+      "category": "liveness",
+      "verifiable": true,
+      "entities": [
+        "receipt_counter",
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "Both transfer_ab and transfer_ba workers must be able to complete execution.",
+      "category": "reachability",
+      "verifiable": true,
+      "entities": [
+        "transfer_ab",
+        "transfer_ba"
+      ]
+    },
+    {
+      "id": "R6",
+      "text": "Construct, inspect, and update Receipt entries and pure integer receipt numbers inside sequential/type holes without synchronization, loops, unsafe, or String formatting.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "Receipt"
+      ]
+    }
+  ],
+  "source_nl": "实现一个简单的银行账户转账功能：支持在两个账户之间并发发起双向转账并为每笔交易生成回执编号，保证转账原子性、账目一致且绝不死锁。\n"
+}

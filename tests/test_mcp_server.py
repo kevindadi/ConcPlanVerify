@@ -146,7 +146,7 @@ class McpOfflineToolsTests(unittest.TestCase):
         res_one, payload_one = _call_tool(
             self.server,
             "concplan_list_examples",
-            {"example_id": "shared_counter"},
+            {"example_id": "visit_counter"},
         )
         self.assertFalse(res_one["isError"])
         self.assertIsNotNone(payload_one["spec_md"])

@@ -1,0 +1,38 @@
+{
+  "schema": "concir-examples-manifest/1",
+  "stage0_entry": "macro-natural-language",
+  "examples": [
+    {
+      "example_id": "account_transfer",
+      "title": "bank_transfer",
+      "summary": "Concurrent bidirectional bank account transfers with consistent global lock order, invariant total balance, and per-transaction receipt numbers.",
+      "highlights": ["Mutex lock ordering", "Safety invariant (total_balance == 200)", "Non-vacuous CTL response", "TypeHole (Receipt) + SeqHoles", "SPN MIR refinement"],
+      "roles": ["transfer_ab", "transfer_ba"],
+      "primitives": ["Mutex", "Var", "TypeHole", "SeqHole"]
+    },
+    {
+      "example_id": "config_cache",
+      "title": "config_cache",
+      "summary": "Concurrent in-memory configuration cache supporting shared reads, updates, and draining pending changes.",
+      "highlights": ["RwLock<ConfigSnapshot>", "Non-vacuous CTL drain liveness", "TypeHole (ConfigSnapshot) + SeqHoles", "SPN MIR refinement"],
+      "roles": ["reader", "writer"],
+      "primitives": ["RwLock", "Var", "TypeHole", "SeqHole"]
+    },
+    {
+      "example_id": "task_handoff",
+      "title": "task_producer_consumer_handoff",
+      "summary": "Concurrent producer-consumer task handoff over a bounded channel with pending/processed counters and pure checksum verification.",
+      "highlights": ["Channel + Mutex", "Non-vacuous CTL task draining", "TypeHoles (TaskPayload, ChecksumResult) + SeqHoles", "SPN MIR refinement"],
+      "roles": ["producer", "consumer"],
+      "primitives": ["Channel", "Mutex", "Var", "TypeHole", "SeqHole"]
+    },
+    {
+      "example_id": "visit_counter",
+      "title": "concurrent_access_stats",
+      "summary": "Concurrent access counter recording multi-worker visits and generating in-memory visit summary payloads.",
+      "highlights": ["Mutex<VisitSummary>", "Safety bound (visit_count <= 2)", "Non-vacuous CTL summary readiness", "SPN MIR refinement"],
+      "roles": ["recorder_a", "recorder_b"],
+      "primitives": ["Mutex", "Var", "TypeHole", "SeqHole"]
+    }
+  ]
+}

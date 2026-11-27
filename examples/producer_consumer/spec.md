@@ -1,1 +1,0 @@
-Implement a single-item producer-consumer handoff using a mutex and a condition variable. The producer prepares an integer item, marks the slot ready, and wakes the waiting consumer, which consumes the item and computes a simple checksum before both threads exit. Ensure there is no deadlock or lost wakeup and that any produced item is eventually consumed.

@@ -135,12 +135,12 @@ PYTHONPATH=src python -m concplan list-examples
 
 # Entry A: raw natural language from an example -> REQUIREMENTS.md + contract.json + NL explanation
 PYTHONPATH=src python -m concplan --out out/stage0 formalize \
-  --example shared_counter --from-nl \
+  --example visit_counter --from-nl \
   --provider deepseek --model deepseek-chat
 
 # Entry B: validate & explain an existing example's structured spec + contract
 PYTHONPATH=src python -m concplan --out out/stage0 formalize \
-  --example shared_counter
+  --example visit_counter
 
 # Deterministic NL back-translation of any contract.json
 PYTHONPATH=src python -m concplan explain-contract contract.json
@@ -172,7 +172,7 @@ PYTHONPATH=src python -m concplan --out out/e2e-v5 e2e \
 
 # Against an example (Entry A from spec.md):
 PYTHONPATH=src python -m concplan --out out/e2e-demo e2e \
-  --example rwlock_cache --from-nl \
+  --example config_cache --from-nl \
   --provider deepseek --model deepseek-chat \
   --run-summarize --report out/e2e_report.json
 ```

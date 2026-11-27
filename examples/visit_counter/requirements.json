@@ -1,0 +1,156 @@
+{
+  "schema": "concir-requirements/2",
+  "title": "concurrent_access_stats",
+  "summary": "Concurrent access statistics supporting multiple concurrent request workers that record visit counts and generate visit summaries, ensuring accurate counts and deadlock freedom.",
+  "entities": {
+    "roles": [
+      "recorder_a",
+      "recorder_b"
+    ],
+    "resources": [
+      "stats_lock",
+      "visit_count",
+      "summary_ready"
+    ],
+    "domain_types": [
+      {
+        "name": "VisitSummary",
+        "description": "Pure in-memory visit summary payload with integer count and boolean flags, no synchronization or strings",
+        "kind": "hole",
+        "req": [
+          "R5"
+        ]
+      }
+    ],
+    "resource_specs": [
+      {
+        "name": "stats_lock",
+        "kind": "Mutex",
+        "domain": "VisitSummary",
+        "init": 0,
+        "description": "Mutex protecting the shared visit counter and summary state"
+      },
+      {
+        "name": "visit_count",
+        "kind": "Var",
+        "domain": "Int[0..=2]",
+        "init": 0,
+        "description": "Modeled total number of recorded visits, bounded to keep state space small"
+      },
+      {
+        "name": "summary_ready",
+        "kind": "Var",
+        "domain": "Bool",
+        "init": false,
+        "description": "Modeled flag indicating whether a visit summary has been generated"
+      }
+    ]
+  },
+  "clauses": [
+    {
+      "id": "R1",
+      "text": "The system must never deadlock under concurrent recorder_a and recorder_b execution.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "stats_lock",
+        "recorder_a",
+        "recorder_b"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "At all reachable states, visit_count stays within 0..=2 (visit_count <= 2).",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "visit_count"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "Whenever a visit is recorded (visit_count > 0), on all execution paths summary_ready eventually becomes true.",
+      "category": "liveness",
+      "verifiable": true,
+      "entities": [
+        "visit_count",
+        "summary_ready",
+        "recorder_a",
+        "recorder_b"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "Both recorder_a and recorder_b workers must be able to complete execution.",
+      "category": "reachability",
+      "verifiable": true,
+      "entities": [
+        "recorder_a",
+        "recorder_b"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "Construct, inspect, and update VisitSummary entries and pure integer visit counts inside sequential/type holes without synchronization, loops, unsafe, or String formatting.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "VisitSummary"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "text": "The system must never deadlock under concurrent recorder_a and recorder_b execution.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "stats_lock",
+        "recorder_a",
+        "recorder_b"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "At all reachable states, visit_count stays within 0..=2 (visit_count <= 2).",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "visit_count"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "Whenever a visit is recorded (visit_count > 0), on all execution paths summary_ready eventually becomes true.",
+      "category": "liveness",
+      "verifiable": true,
+      "entities": [
+        "visit_count",
+        "summary_ready",
+        "recorder_a",
+        "recorder_b"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "Both recorder_a and recorder_b workers must be able to complete execution.",
+      "category": "reachability",
+      "verifiable": true,
+      "entities": [
+        "recorder_a",
+        "recorder_b"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "Construct, inspect, and update VisitSummary entries and pure integer visit counts inside sequential/type holes without synchronization, loops, unsafe, or String formatting.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "VisitSummary"
+      ]
+    }
+  ],
+  "source_nl": "实现一个并发访问统计功能：支持多路并发请求同时记录访问次数并生成对应的访问摘要信息，保证统计结果准确且不会发生死锁。\n"
+}

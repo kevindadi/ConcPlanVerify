@@ -1,0 +1,180 @@
+{
+  "schema": "concir-requirements/2",
+  "title": "task_producer_consumer_handoff",
+  "summary": "Concurrent task production and consumption handoff: an upstream producer generates pending task data, a downstream consumer waits when no tasks are available, computes a checksum result upon receiving a task, with no task loss, no deadlock, and eventual processing of all submitted tasks.",
+  "entities": {
+    "roles": [
+      "producer",
+      "consumer"
+    ],
+    "resources": [
+      "task_channel",
+      "pending_tasks",
+      "processed_tasks"
+    ],
+    "domain_types": [
+      {
+        "name": "TaskPayload",
+        "description": "Pure in-memory task data with integer identifier and payload fields, no synchronization or strings",
+        "kind": "hole",
+        "req": [
+          "R6"
+        ]
+      },
+      {
+        "name": "ChecksumResult",
+        "description": "Pure computed checksum result derived from TaskPayload, integer/boolean fields only",
+        "kind": "hole",
+        "req": [
+          "R6"
+        ]
+      }
+    ],
+    "resource_specs": [
+      {
+        "name": "task_channel",
+        "kind": "Channel",
+        "domain": "TaskPayload",
+        "init": 0,
+        "description": "Bounded channel carrying TaskPayload from producer to consumer"
+      },
+      {
+        "name": "pending_tasks",
+        "kind": "Var",
+        "domain": "Int[0..=2]",
+        "init": 0,
+        "description": "Modeled count of tasks submitted but not yet processed"
+      },
+      {
+        "name": "processed_tasks",
+        "kind": "Var",
+        "domain": "Int[0..=2]",
+        "init": 0,
+        "description": "Modeled count of tasks fully processed by the consumer"
+      }
+    ]
+  },
+  "clauses": [
+    {
+      "id": "R1",
+      "text": "The system must never deadlock under concurrent producer and consumer execution.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "task_channel",
+        "producer",
+        "consumer"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "At all reachable states, pending_tasks stays within 0..=2 (pending_tasks <= 2).",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "pending_tasks"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "At all reachable states, processed_tasks stays within 0..=2 (processed_tasks <= 2).",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "processed_tasks"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "Whenever pending_tasks > 0 is reached, on all execution paths pending_tasks eventually returns to 0 (all submitted tasks are eventually processed).",
+      "category": "liveness",
+      "verifiable": true,
+      "entities": [
+        "pending_tasks",
+        "consumer"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "Both producer and consumer workers must be able to complete execution.",
+      "category": "reachability",
+      "verifiable": true,
+      "entities": [
+        "producer",
+        "consumer"
+      ]
+    },
+    {
+      "id": "R6",
+      "text": "Construct TaskPayload entries and compute ChecksumResult from them inside sequential/type holes without synchronization, loops, unsafe, or String formatting.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "TaskPayload",
+        "ChecksumResult"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "text": "The system must never deadlock under concurrent producer and consumer execution.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "task_channel",
+        "producer",
+        "consumer"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "At all reachable states, pending_tasks stays within 0..=2 (pending_tasks <= 2).",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "pending_tasks"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "At all reachable states, processed_tasks stays within 0..=2 (processed_tasks <= 2).",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "processed_tasks"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "Whenever pending_tasks > 0 is reached, on all execution paths pending_tasks eventually returns to 0 (all submitted tasks are eventually processed).",
+      "category": "liveness",
+      "verifiable": true,
+      "entities": [
+        "pending_tasks",
+        "consumer"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "Both producer and consumer workers must be able to complete execution.",
+      "category": "reachability",
+      "verifiable": true,
+      "entities": [
+        "producer",
+        "consumer"
+      ]
+    },
+    {
+      "id": "R6",
+      "text": "Construct TaskPayload entries and compute ChecksumResult from them inside sequential/type holes without synchronization, loops, unsafe, or String formatting.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "TaskPayload",
+        "ChecksumResult"
+      ]
+    }
+  ],
+  "source_nl": "实现一个任务生产与消费交接功能：上游生成待处理任务数据，下游在无任务时等待并在收到任务后计算校验结果，要求不丢任务、不死锁，所有提交的任务最终都能被处理完。\n"
+}

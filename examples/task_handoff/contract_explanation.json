@@ -1,0 +1,77 @@
+{
+  "schema": "concir-contract-explanation/1",
+  "name": "task_producer_consumer_handoff",
+  "source": "concir-backend",
+  "properties": [
+    {
+      "id": "no-deadlock",
+      "kind": "deadlock_free",
+      "req": [
+        "R1"
+      ],
+      "non_vacuous": false,
+      "explanation": "No reachable state is a global deadlock."
+    },
+    {
+      "id": "pending-tasks-bound",
+      "kind": "safety",
+      "req": [
+        "R2"
+      ],
+      "non_vacuous": false,
+      "explanation": "In every reachable state, main::pending_tasks <= 2."
+    },
+    {
+      "id": "processed-tasks-bound",
+      "kind": "safety",
+      "req": [
+        "R3"
+      ],
+      "non_vacuous": false,
+      "explanation": "In every reachable state, main::processed_tasks <= 2."
+    },
+    {
+      "id": "pending-eventually-drained",
+      "kind": "ctl",
+      "req": [
+        "R4"
+      ],
+      "non_vacuous": true,
+      "explanation": "always on every path, if main::pending_tasks > 0 then (eventually on every path, main::pending_tasks == 0)"
+    },
+    {
+      "id": "producer-can-complete",
+      "kind": "reachability",
+      "req": [
+        "R5"
+      ],
+      "non_vacuous": false,
+      "explanation": "There exists a reachable state where function 'main::producer' has completed."
+    },
+    {
+      "id": "consumer-can-complete",
+      "kind": "reachability",
+      "req": [
+        "R5"
+      ],
+      "non_vacuous": false,
+      "explanation": "There exists a reachable state where function 'main::consumer' has completed."
+    }
+  ],
+  "preserved": [
+    {
+      "description": "producer completes execution",
+      "req": [
+        "R5"
+      ],
+      "explanation": "Behavior 'producer completes execution' must remain reachable (function 'main::producer' has completed)."
+    },
+    {
+      "description": "consumer completes execution",
+      "req": [
+        "R5"
+      ],
+      "explanation": "Behavior 'consumer completes execution' must remain reachable (function 'main::consumer' has completed)."
+    }
+  ]
+}

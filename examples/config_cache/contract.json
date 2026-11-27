@@ -1,0 +1,105 @@
+{
+  "name": "config_cache",
+  "properties": [
+    {
+      "kind": "deadlock_free",
+      "id": "no-deadlock",
+      "req": [
+        "R1"
+      ]
+    },
+    {
+      "kind": "safety",
+      "id": "pending-changes-bound",
+      "invariant": {
+        "kind": "var_cmp",
+        "resource": "main::pending_changes",
+        "op": "<=",
+        "value": 1
+      },
+      "req": [
+        "R2"
+      ]
+    },
+    {
+      "kind": "ctl",
+      "id": "pending-changes-drained",
+      "non_vacuous": true,
+      "req": [
+        "R3"
+      ],
+      "formula": {
+        "op": "ag",
+        "arg": {
+          "op": "implies",
+          "lhs": {
+            "op": "atom",
+            "atom": {
+              "kind": "var_cmp",
+              "resource": "main::pending_changes",
+              "op": ">",
+              "value": 0
+            }
+          },
+          "rhs": {
+            "op": "af",
+            "arg": {
+              "op": "atom",
+              "atom": {
+                "kind": "var_eq",
+                "resource": "main::pending_changes",
+                "value": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "reachability",
+      "id": "reader-can-complete",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::reader"
+      },
+      "req": [
+        "R4"
+      ]
+    },
+    {
+      "kind": "reachability",
+      "id": "writer-can-complete",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::writer"
+      },
+      "req": [
+        "R4"
+      ]
+    }
+  ],
+  "preserved": [
+    {
+      "kind": "reachable",
+      "description": "reader worker completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::reader"
+      },
+      "req": [
+        "R4"
+      ]
+    },
+    {
+      "kind": "reachable",
+      "description": "writer worker completes",
+      "goal": {
+        "kind": "function_completed",
+        "function": "main::writer"
+      },
+      "req": [
+        "R4"
+      ]
+    }
+  ]
+}

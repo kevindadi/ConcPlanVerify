@@ -511,7 +511,7 @@ def register_concplan_tools(server: McpServer, ws: McpWorkspace) -> None:
             input_schema={
                 "type": "object",
                 "properties": {
-                    "example_id": {"type": "string", "description": "Optional example id such as 'shared_counter'."},
+                    "example_id": {"type": "string", "description": "Optional example id such as 'visit_counter'."},
                     "examples_dir": {"type": "string"},
                 },
                 "additionalProperties": False,

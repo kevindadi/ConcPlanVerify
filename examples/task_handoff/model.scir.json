@@ -1,0 +1,317 @@
+{
+  "program": "task_producer_consumer_handoff",
+  "version": "5.0.0",
+  "modules": [
+    {
+      "name": "main",
+      "provides": {
+        "resources": [
+          "task_channel",
+          "pending_tasks",
+          "processed_tasks",
+          "state_lock"
+        ],
+        "functions": [
+          "main",
+          "producer",
+          "consumer"
+        ],
+        "types": []
+      },
+      "requires": {
+        "resources": [],
+        "functions": [],
+        "types": []
+      },
+      "types": [
+        {
+          "name": "TaskPayload",
+          "type": {
+            "Hole": {
+              "description": "Pure in-memory task data with integer identifier and payload fields, no synchronization or strings",
+              "req": [
+                "R6"
+              ]
+            }
+          }
+        },
+        {
+          "name": "ChecksumResult",
+          "type": {
+            "Hole": {
+              "description": "Pure computed checksum result derived from TaskPayload, integer/boolean fields only",
+              "req": [
+                "R6"
+              ]
+            }
+          }
+        }
+      ],
+      "resources": [
+        {
+          "name": "task_channel",
+          "kind": "sync",
+          "type": "Channel",
+          "mode": "Sync",
+          "base": "Int",
+          "capacity": 2,
+          "req": [
+            "R1",
+            "R4"
+          ]
+        },
+        {
+          "name": "pending_tasks",
+          "kind": "var",
+          "type": "Var",
+          "base": {
+            "Int": [
+              0,
+              2
+            ]
+          },
+          "init": 0,
+          "req": [
+            "R2",
+            "R4"
+          ]
+        },
+        {
+          "name": "processed_tasks",
+          "kind": "var",
+          "type": "Var",
+          "base": {
+            "Int": [
+              0,
+              2
+            ]
+          },
+          "init": 0,
+          "req": [
+            "R3"
+          ]
+        },
+        {
+          "name": "state_lock",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync",
+          "req": [
+            "R1",
+            "R2",
+            "R3"
+          ]
+        }
+      ],
+      "protection": [
+        {
+          "var": "pending_tasks",
+          "lock": "state_lock"
+        },
+        {
+          "var": "processed_tasks",
+          "lock": "state_lock"
+        }
+      ],
+      "functions": [
+        {
+          "name": "producer",
+          "kind": "normal",
+          "form": "closure",
+          "req": [
+            "R1",
+            "R2",
+            "R4",
+            "R5",
+            "R6"
+          ],
+          "structured_body": [
+            {
+              "id": "b1",
+              "kind": "lock_guard",
+              "resource": "main::state_lock",
+              "req": [
+                "R1",
+                "R2"
+              ],
+              "body": [
+                {
+                  "id": "b2",
+                  "kind": "stmt",
+                  "req": [
+                    "R2",
+                    "R6"
+                  ],
+                  "op": {
+                    "kind": "seq_hole",
+                    "id": "h_produce",
+                    "desc": "construct TaskPayload and increment pending_tasks",
+                    "reads": [
+                      "main::pending_tasks"
+                    ],
+                    "writes": [
+                      "main::pending_tasks"
+                    ],
+                    "updates_modeled": [
+                      {
+                        "target": "main::pending_tasks",
+                        "expr": "pending_tasks + 1"
+                      }
+                    ],
+                    "expected_type": "()",
+                    "req": [
+                      "R2",
+                      "R6"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "b3",
+              "kind": "stmt",
+              "req": [
+                "R1",
+                "R4"
+              ],
+              "op": {
+                "kind": "channel_send",
+                "channel": "main::task_channel",
+                "value": "1"
+              }
+            },
+            {
+              "id": "b4",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        },
+        {
+          "name": "consumer",
+          "kind": "normal",
+          "form": "closure",
+          "req": [
+            "R1",
+            "R3",
+            "R4",
+            "R5",
+            "R6"
+          ],
+          "structured_body": [
+            {
+              "id": "b1",
+              "kind": "stmt",
+              "req": [
+                "R1",
+                "R4"
+              ],
+              "op": {
+                "kind": "channel_recv",
+                "channel": "main::task_channel",
+                "dst": "_"
+              }
+            },
+            {
+              "id": "b2",
+              "kind": "lock_guard",
+              "resource": "main::state_lock",
+              "req": [
+                "R1",
+                "R3"
+              ],
+              "body": [
+                {
+                  "id": "b3",
+                  "kind": "stmt",
+                  "req": [
+                    "R3",
+                    "R6"
+                  ],
+                  "op": {
+                    "kind": "seq_hole",
+                    "id": "h_consume",
+                    "desc": "compute ChecksumResult and update pending/processed counters",
+                    "reads": [
+                      "main::pending_tasks",
+                      "main::processed_tasks"
+                    ],
+                    "writes": [
+                      "main::pending_tasks",
+                      "main::processed_tasks"
+                    ],
+                    "updates_modeled": [
+                      {
+                        "target": "main::pending_tasks",
+                        "expr": "pending_tasks - 1"
+                      },
+                      {
+                        "target": "main::processed_tasks",
+                        "expr": "processed_tasks + 1"
+                      }
+                    ],
+                    "expected_type": "()",
+                    "req": [
+                      "R3",
+                      "R6"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "b4",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "req": [
+            "R1",
+            "R5"
+          ],
+          "structured_body": [
+            {
+              "id": "b1",
+              "kind": "stmt",
+              "req": [
+                "R1",
+                "R5"
+              ],
+              "op": {
+                "kind": "scope",
+                "funcs": [
+                  "main::producer",
+                  "main::consumer"
+                ]
+              }
+            },
+            {
+              "id": "b2",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        }
+      ],
+      "req": [
+        "R1",
+        "R2",
+        "R3",
+        "R4",
+        "R5",
+        "R6"
+      ]
+    }
+  ],
+  "entry": "main::main"
+}

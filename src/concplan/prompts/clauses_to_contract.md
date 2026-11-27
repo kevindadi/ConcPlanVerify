@@ -21,12 +21,17 @@ Output **only** a single JSON object.
    antecedent is never reachable!
 5. **Non-Triviality (`preserved`).** Include `preserved` reachability goals (e.g. worker functions
    completing) so a trivial no-op model cannot vacuously pass.
-6. **Module & Lock Rules.** Unless the user explicitly asks for multiple modules, place all roles
-   and resources in the `main` module (`"main::<name>"`). Never formalize lock usage as a global
-   `"safety"` invariant `{"kind": "mutex_held", ...}` or `{"kind": "holds_all", ...}` (locks start
-   free and are released before threads return, so `AG mutex_held` is unsatisfiable). Instead,
-   use `"mutex_exclusive"` for mutual exclusion, `"deadlock_free"` for deadlock/lock-order freedom,
-   and `"reachability"` (`"holds_all"`) when checking that a worker can hold multiple locks at once.
+6. **Module & Typed Resource Rules.** Unless multiple modules are explicitly requested, place all
+   roles and resources in `main` (`"main::<name>"`). Respect the declared `kind` of each resource
+   in `<grounded_entities>` (`resource_specs`):
+   - `Mutex`: use `deadlock_free`, `mutex_exclusive`, or `"reachability"` with `holds_all`. NEVER emit
+     `"safety"` invariants `mutex_held`, `holds_all`, or `never_holds_all` when workers acquire locks
+     temporarily or need to hold multiple locks together.
+   - `RwLock` / `Condvar` / `Semaphore` / `Var`: **NEVER** apply `mutex_free`, `mutex_held`, or
+     `mutex_exclusive` to an `RwLock`, `Condvar`, `Semaphore`, or `Var`! Express safety and liveness
+     using `deadlock_free`, modeled `Var` predicates (`var_eq` / `var_cmp`), non-vacuous CTL/LTL over
+     `Var`s, and worker `function_completed` reachability.
+   - Keep contracts concise (3–5 properties + `preserved` completion goals) and faithful to `[V]` clauses.
 
 ## 2. Supported `PredicateSpec` Shapes (`"kind"`)
 

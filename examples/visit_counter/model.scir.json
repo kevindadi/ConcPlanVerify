@@ -1,0 +1,303 @@
+{
+  "program": "concurrent_access_stats",
+  "version": "5.0.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "req": [
+        "R1",
+        "R2",
+        "R3",
+        "R4",
+        "R5"
+      ],
+      "provides": {
+        "resources": [
+          "stats_lock",
+          "visit_count",
+          "summary_ready"
+        ],
+        "functions": [
+          "main",
+          "recorder_a",
+          "recorder_b"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "types": [
+        {
+          "name": "VisitSummary",
+          "type": {
+            "Hole": {
+              "description": "Pure in-memory visit summary payload with integer count and boolean flags, no synchronization or strings",
+              "req": [
+                "R5"
+              ]
+            }
+          }
+        }
+      ],
+      "resources": [
+        {
+          "name": "stats_lock",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync",
+          "base": "VisitSummary",
+          "req": [
+            "R1",
+            "R5"
+          ]
+        },
+        {
+          "name": "visit_count",
+          "kind": "var",
+          "type": "Var",
+          "base": {
+            "Int": [
+              0,
+              2
+            ]
+          },
+          "init": 0,
+          "req": [
+            "R2"
+          ]
+        },
+        {
+          "name": "summary_ready",
+          "kind": "var",
+          "type": "Var",
+          "base": "Bool",
+          "init": false,
+          "req": [
+            "R3"
+          ]
+        }
+      ],
+      "protection": [
+        {
+          "var": "visit_count",
+          "lock": "stats_lock"
+        },
+        {
+          "var": "summary_ready",
+          "lock": "stats_lock"
+        }
+      ],
+      "functions": [
+        {
+          "name": "recorder_a",
+          "kind": "normal",
+          "form": "closure",
+          "req": [
+            "R2",
+            "R3",
+            "R4",
+            "R5"
+          ],
+          "structured_body": [
+            {
+              "id": "a1",
+              "kind": "lock_guard",
+              "resource": "main::stats_lock",
+              "req": [
+                "R1"
+              ],
+              "body": [
+                {
+                  "id": "a2",
+                  "kind": "stmt",
+                  "req": [
+                    "R2",
+                    "R5"
+                  ],
+                  "op": {
+                    "kind": "seq_hole",
+                    "id": "h_record_a",
+                    "desc": "record a visit in VisitSummary and increment bounded visit_count",
+                    "reads": [
+                      "main::visit_count"
+                    ],
+                    "writes": [
+                      "main::visit_count"
+                    ],
+                    "updates_modeled": [
+                      {
+                        "target": "main::visit_count",
+                        "expr": "visit_count + 1"
+                      }
+                    ],
+                    "expected_type": "()",
+                    "req": [
+                      "R2",
+                      "R5"
+                    ]
+                  }
+                },
+                {
+                  "id": "a3",
+                  "kind": "stmt",
+                  "req": [
+                    "R3"
+                  ],
+                  "op": {
+                    "kind": "seq_hole",
+                    "id": "h_ready_a",
+                    "desc": "mark summary ready after recording a visit",
+                    "reads": [
+                      "main::summary_ready"
+                    ],
+                    "writes": [
+                      "main::summary_ready"
+                    ],
+                    "updates_modeled": [
+                      {
+                        "target": "main::summary_ready",
+                        "expr": "true"
+                      }
+                    ],
+                    "expected_type": "()",
+                    "req": [
+                      "R3"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "a4",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        },
+        {
+          "name": "recorder_b",
+          "kind": "normal",
+          "form": "closure",
+          "req": [
+            "R2",
+            "R3",
+            "R4",
+            "R5"
+          ],
+          "structured_body": [
+            {
+              "id": "b1",
+              "kind": "lock_guard",
+              "resource": "main::stats_lock",
+              "req": [
+                "R1"
+              ],
+              "body": [
+                {
+                  "id": "b2",
+                  "kind": "stmt",
+                  "req": [
+                    "R2",
+                    "R5"
+                  ],
+                  "op": {
+                    "kind": "seq_hole",
+                    "id": "h_record_b",
+                    "desc": "record a visit in VisitSummary and increment bounded visit_count",
+                    "reads": [
+                      "main::visit_count"
+                    ],
+                    "writes": [
+                      "main::visit_count"
+                    ],
+                    "updates_modeled": [
+                      {
+                        "target": "main::visit_count",
+                        "expr": "visit_count + 1"
+                      }
+                    ],
+                    "expected_type": "()",
+                    "req": [
+                      "R2",
+                      "R5"
+                    ]
+                  }
+                },
+                {
+                  "id": "b3",
+                  "kind": "stmt",
+                  "req": [
+                    "R3"
+                  ],
+                  "op": {
+                    "kind": "seq_hole",
+                    "id": "h_ready_b",
+                    "desc": "mark summary ready after recording a visit",
+                    "reads": [
+                      "main::summary_ready"
+                    ],
+                    "writes": [
+                      "main::summary_ready"
+                    ],
+                    "updates_modeled": [
+                      {
+                        "target": "main::summary_ready",
+                        "expr": "true"
+                      }
+                    ],
+                    "expected_type": "()",
+                    "req": [
+                      "R3"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "b4",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "req": [
+            "R1",
+            "R4"
+          ],
+          "structured_body": [
+            {
+              "id": "m1",
+              "kind": "stmt",
+              "req": [
+                "R4"
+              ],
+              "op": {
+                "kind": "scope",
+                "funcs": [
+                  "main::recorder_a",
+                  "main::recorder_b"
+                ]
+              }
+            },
+            {
+              "id": "m2",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

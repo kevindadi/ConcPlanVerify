@@ -26,6 +26,12 @@ implementation (Loop C). Output **only** the JSON object.
   emits `concir-trace-map/1` preserving every `structured_id` and `req` tag.
 - **Avoid vacuous models.** If the contract has CTL/LTL implications with `"non_vacuous": true`,
   ensure every implication antecedent is genuinely reachable during execution!
+- **Follow the Stage 0 Symbol Table.** Use the exact `roles`, `resources` (names, kinds, bounded
+  `Int` domains `[lo, hi]`, `init`), and `domain_types` anchored in `<domain_requirements>`
+  (`## Entities`).
+- **Keep `seq_hole` types MIR-pure friendly.** Use `"()"`, `"i64"`, `"bool"`, or a declared
+  `TypeHole` struct name for `"expected_type"` — avoid `"String"`, because Rust `format!` /
+  `.to_string()` expand to stdlib `unsafe` internals in MIR.
 
 ## 2. Structured Function Body (`structured_body`)
 
@@ -117,6 +123,8 @@ Rules for `seq_hole`:
 | `Semaphore` | `name`, `kind`=`"sync"`, `type`=`"Semaphore"`, `mode`=`"Sync"`, optional `count`, optional `req` |
 | `Channel` | `name`, `kind`=`"sync"`, `type`=`"Channel"`, `mode`=`"Sync"`, `base`, `capacity`, optional `req` |
 | `Var` / `Atomic` | `name`, `kind`=`"var"`, `type`, `base` (`"Int"` / `"Bool"` / bounded `{"Int": [lo, hi]}`), `init`, optional `req` |
+
+Rules for `Channel`: `Channel` `"base"` must be a modeled scalar (`"Int"`, `{"Int": [lo, hi]}`, or `"Bool"`), not a `TypeHole` struct. `channel_send` uses `{"kind": "channel_send", "channel": "main::<ch>", "value": "1"}` (any valid scalar expression matching `base`), and `channel_recv` uses `{"kind": "channel_recv", "channel": "main::<ch>", "dst": "_"}` (or a declared `Var` / local in `"locals"`). Keep rich domain payloads in `TypeHole`s + `seq_hole`s.
 
 For `RwLock`, prefer structured `"rwlock_read_guard"` / `"rwlock_write_guard"` blocks (which
 auto-emit `rwlock_read`/`rwlock_write` on entry and LIFO `rwlock_unlock` on normal exit and early

@@ -1,0 +1,2352 @@
+{
+  "schema": "concir-traceability-manifest/1",
+  "status": "verified",
+  "program": "concurrent_access_stats",
+  "formalization": null,
+  "nl_explanations": {
+    "schema": "concir-contract-explanation/1",
+    "name": "concurrent_access_stats",
+    "source": "python",
+    "properties": [
+      {
+        "id": "no-deadlock",
+        "kind": "deadlock_free",
+        "req": [
+          "R1"
+        ],
+        "non_vacuous": false,
+        "explanation": "No reachable state is a deadlock."
+      },
+      {
+        "id": "visit-count-bound",
+        "kind": "safety",
+        "req": [
+          "R2"
+        ],
+        "non_vacuous": false,
+        "explanation": "In every reachable state, main::visit_count <= 2."
+      },
+      {
+        "id": "summary-eventually-ready",
+        "kind": "ctl",
+        "req": [
+          "R3"
+        ],
+        "non_vacuous": true,
+        "explanation": "CTL: in all reachable states, whenever (main::visit_count > 0), then (on every execution path, eventually (main::summary_ready == true)). (non-vacuous: implication antecedents must be reachable)"
+      },
+      {
+        "id": "both-recorders-complete",
+        "kind": "reachability",
+        "req": [
+          "R4"
+        ],
+        "non_vacuous": false,
+        "explanation": "Some reachable state satisfies: (function `main::recorder_a` has completed and function `main::recorder_b` has completed)."
+      }
+    ],
+    "preserved": [
+      {
+        "description": "recorder_a completes",
+        "req": [
+          "R4"
+        ],
+        "explanation": "Preserved reachability (recorder_a completes): function `main::recorder_a` has completed must remain reachable."
+      },
+      {
+        "description": "recorder_b completes",
+        "req": [
+          "R4"
+        ],
+        "explanation": "Preserved reachability (recorder_b completes): function `main::recorder_b` has completed must remain reachable."
+      }
+    ]
+  },
+  "vacuity_status": {
+    "has_vacuous": false,
+    "vacuous_properties": []
+  },
+  "type_holes": [
+    {
+      "type_hole_id": "th1",
+      "type_name": "VisitSummary",
+      "module": "main",
+      "rust_file": "src/domain.rs",
+      "start_line": 4,
+      "end_line": 34,
+      "rust_span": "src/domain.rs:4-34",
+      "req": [
+        "R5"
+      ]
+    }
+  ],
+  "modular_reports": null,
+  "model_verification": {
+    "outcome": "PASS",
+    "complete": true,
+    "properties": [
+      {
+        "detail": "no deadlock state reachable",
+        "id": "no-deadlock",
+        "outcome": "PASS"
+      },
+      {
+        "detail": "invariant held in all reachable states",
+        "id": "visit-count-bound",
+        "outcome": "PASS"
+      },
+      {
+        "detail": "CTL formula satisfied across all 39 reachable states",
+        "explanation": "always on every path, if main::visit_count > 0 then (eventually on every path, main::summary_ready == true)",
+        "id": "summary-eventually-ready",
+        "outcome": "PASS"
+      },
+      {
+        "detail": "goal reachable via 11 step(s) ((completed(f0) && completed(f1)))",
+        "id": "both-recorders-complete",
+        "outcome": "PASS"
+      },
+      {
+        "detail": "preserved reachability: completed(f0)",
+        "id": "preserved: recorder_a completes",
+        "outcome": "PASS"
+      },
+      {
+        "detail": "preserved reachability: completed(f1)",
+        "id": "preserved: recorder_b completes",
+        "outcome": "PASS"
+      }
+    ]
+  },
+  "static_verification": {
+    "status": "pass",
+    "plugin": "composite",
+    "ok": true,
+    "offending_holes": [],
+    "violations": [],
+    "checks": {
+      "skeleton_integrity": true,
+      "hole_purity": true,
+      "weak_simulation": true,
+      "deadlock_free": true,
+      "lock_divergence_free": true,
+      "preserved_goals": true,
+      "spn_available": true,
+      "spn_exported": true
+    },
+    "plugin_reports": [
+      {
+        "status": "pass",
+        "plugin": "ast_hole_purity",
+        "ok": true,
+        "offending_holes": [],
+        "violations": [],
+        "checks": {
+          "skeleton_integrity": true,
+          "hole_purity": true
+        },
+        "plugin_reports": [],
+        "metadata": {
+          "codegen_filled_path": "C:\\Users\\78680\\.gemini\\antigravity\\brain\\fd864705-8e8d-46c1-9dec-f964daa2a4ab\\scratch\\debug_e2e\\visit_counter\\e2e\\e2e-20261127T085704-28784-8335cb\\epoch-0\\filled\\codegen_filled.json",
+          "hole_ranges": {
+            "h_record_a": {
+              "file": "src/main.rs",
+              "start_line": 28,
+              "end_line": 28
+            },
+            "h_ready_a": {
+              "file": "src/main.rs",
+              "start_line": 34,
+              "end_line": 34
+            },
+            "h_record_b": {
+              "file": "src/main.rs",
+              "start_line": 58,
+              "end_line": 58
+            },
+            "h_ready_b": {
+              "file": "src/main.rs",
+              "start_line": 64,
+              "end_line": 64
+            }
+          },
+          "type_hole_ranges": {
+            "th1": {
+              "file": "src/domain.rs",
+              "start_line": 4,
+              "end_line": 34
+            }
+          },
+          "holes_checked": [
+            "h_record_a",
+            "h_ready_a",
+            "h_record_b",
+            "h_ready_b"
+          ],
+          "type_holes_checked": [
+            "th1"
+          ],
+          "files_checked": [
+            "src/cir_trace.rs",
+            "src/domain.rs",
+            "src/main.rs"
+          ]
+        },
+        "error": null
+      },
+      {
+        "status": "pass",
+        "plugin": "spn_mir_refinement",
+        "ok": true,
+        "offending_holes": [],
+        "violations": [],
+        "checks": {
+          "hole_purity": true,
+          "weak_simulation": true,
+          "deadlock_free": true,
+          "lock_divergence_free": true,
+          "preserved_goals": true,
+          "spn_available": true,
+          "spn_exported": true
+        },
+        "plugin_reports": [],
+        "metadata": {
+          "impl_net_path": "C:\\Users\\78680\\.gemini\\antigravity\\brain\\fd864705-8e8d-46c1-9dec-f964daa2a4ab\\scratch\\debug_e2e\\visit_counter\\e2e\\e2e-20261127T085704-28784-8335cb\\epoch-0\\filled\\.spn-verify\\impl_net.json",
+          "codegen_filled_path": "C:\\Users\\78680\\.gemini\\antigravity\\brain\\fd864705-8e8d-46c1-9dec-f964daa2a4ab\\scratch\\debug_e2e\\visit_counter\\e2e\\e2e-20261127T085704-28784-8335cb\\epoch-0\\filled\\codegen_filled.json",
+          "refinement_report_path": "C:\\Users\\78680\\.gemini\\antigravity\\brain\\fd864705-8e8d-46c1-9dec-f964daa2a4ab\\scratch\\debug_e2e\\visit_counter\\e2e\\e2e-20261127T085704-28784-8335cb\\epoch-0\\filled\\.spn-verify\\refinement_report.json",
+          "spec_states": 39,
+          "impl_states": 1787,
+          "relation": "stuttering_refinement",
+          "outcome": "pass"
+        },
+        "error": null
+      }
+    ],
+    "metadata": {
+      "codegen_filled_path": "C:\\Users\\78680\\.gemini\\antigravity\\brain\\fd864705-8e8d-46c1-9dec-f964daa2a4ab\\scratch\\debug_e2e\\visit_counter\\e2e\\e2e-20261127T085704-28784-8335cb\\epoch-0\\filled\\codegen_filled.json",
+      "hole_ranges": {
+        "h_record_a": {
+          "file": "src/main.rs",
+          "start_line": 28,
+          "end_line": 28
+        },
+        "h_ready_a": {
+          "file": "src/main.rs",
+          "start_line": 34,
+          "end_line": 34
+        },
+        "h_record_b": {
+          "file": "src/main.rs",
+          "start_line": 58,
+          "end_line": 58
+        },
+        "h_ready_b": {
+          "file": "src/main.rs",
+          "start_line": 64,
+          "end_line": 64
+        }
+      },
+      "type_hole_ranges": {
+        "th1": {
+          "file": "src/domain.rs",
+          "start_line": 4,
+          "end_line": 34
+        }
+      },
+      "holes_checked": [
+        "h_record_a",
+        "h_ready_a",
+        "h_record_b",
+        "h_ready_b"
+      ],
+      "type_holes_checked": [
+        "th1"
+      ],
+      "files_checked": [
+        "src/cir_trace.rs",
+        "src/domain.rs",
+        "src/main.rs"
+      ],
+      "impl_net_path": "C:\\Users\\78680\\.gemini\\antigravity\\brain\\fd864705-8e8d-46c1-9dec-f964daa2a4ab\\scratch\\debug_e2e\\visit_counter\\e2e\\e2e-20261127T085704-28784-8335cb\\epoch-0\\filled\\.spn-verify\\impl_net.json",
+      "refinement_report_path": "C:\\Users\\78680\\.gemini\\antigravity\\brain\\fd864705-8e8d-46c1-9dec-f964daa2a4ab\\scratch\\debug_e2e\\visit_counter\\e2e\\e2e-20261127T085704-28784-8335cb\\epoch-0\\filled\\.spn-verify\\refinement_report.json",
+      "spec_states": 39,
+      "impl_states": 1787,
+      "relation": "stuttering_refinement",
+      "outcome": "pass"
+    },
+    "error": null
+  },
+  "dynamic_conformance": null,
+  "escalations": [],
+  "hole_repair_rounds": [
+    {
+      "epoch": 0,
+      "round": 0,
+      "kind": "initial_fill",
+      "target_holes": [
+        "th1",
+        "h_record_a",
+        "h_ready_a",
+        "h_record_b",
+        "h_ready_b"
+      ],
+      "source": "llm",
+      "result": "filled",
+      "applied": [
+        "h_ready_a",
+        "h_ready_b",
+        "h_record_a",
+        "h_record_b",
+        "th1"
+      ]
+    }
+  ],
+  "clauses": [
+    {
+      "clause_id": "R1",
+      "description": "The system must never deadlock under concurrent recorder_a and recorder_b execution.",
+      "contract_properties": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_nodes": [
+        {
+          "fqn": "main::recorder_a::s1",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s1",
+          "structured_id": "a1",
+          "kind": "mutex_lock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_a::s2",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s2",
+          "structured_id": "a2",
+          "kind": "seq_hole",
+          "hole_id": "h_record_a"
+        },
+        {
+          "fqn": "main::recorder_a::s3",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s3",
+          "structured_id": "a3",
+          "kind": "seq_hole",
+          "hole_id": "h_ready_a"
+        },
+        {
+          "fqn": "main::recorder_a::s4",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s4",
+          "structured_id": "a1",
+          "kind": "mutex_unlock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_a::s5",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s5",
+          "structured_id": "a4",
+          "kind": "return",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s1",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s1",
+          "structured_id": "b1",
+          "kind": "mutex_lock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s2",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s2",
+          "structured_id": "b2",
+          "kind": "seq_hole",
+          "hole_id": "h_record_b"
+        },
+        {
+          "fqn": "main::recorder_b::s3",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s3",
+          "structured_id": "b3",
+          "kind": "seq_hole",
+          "hole_id": "h_ready_b"
+        },
+        {
+          "fqn": "main::recorder_b::s4",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s4",
+          "structured_id": "b1",
+          "kind": "mutex_unlock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s5",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s5",
+          "structured_id": "b4",
+          "kind": "return",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::main::s1",
+          "module": "main",
+          "function": "main",
+          "sid": "s1",
+          "structured_id": "m1",
+          "kind": "scope",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::main::s2",
+          "module": "main",
+          "function": "main",
+          "sid": "s2",
+          "structured_id": "m2",
+          "kind": "return",
+          "hole_id": null
+        }
+      ],
+      "holes": [
+        {
+          "hole_id": "h_record_a",
+          "sid": "s2",
+          "rust_file": "src/main.rs",
+          "start_line": 28,
+          "end_line": 28,
+          "rust_span": "src/main.rs:28-28"
+        },
+        {
+          "hole_id": "h_ready_a",
+          "sid": "s3",
+          "rust_file": "src/main.rs",
+          "start_line": 34,
+          "end_line": 34,
+          "rust_span": "src/main.rs:34-34"
+        },
+        {
+          "hole_id": "h_record_b",
+          "sid": "s2",
+          "rust_file": "src/main.rs",
+          "start_line": 58,
+          "end_line": 58,
+          "rust_span": "src/main.rs:58-58"
+        },
+        {
+          "hole_id": "h_ready_b",
+          "sid": "s3",
+          "rust_file": "src/main.rs",
+          "start_line": 64,
+          "end_line": 64,
+          "rust_span": "src/main.rs:64-64"
+        }
+      ],
+      "type_holes": [],
+      "model_verdict": "PASS",
+      "static_verdict": "pass",
+      "violations": []
+    },
+    {
+      "clause_id": "R2",
+      "description": "At all reachable states, visit_count stays within 0..=2 (visit_count <= 2).",
+      "contract_properties": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_nodes": [
+        {
+          "fqn": "main::recorder_a::s1",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s1",
+          "structured_id": "a1",
+          "kind": "mutex_lock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_a::s2",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s2",
+          "structured_id": "a2",
+          "kind": "seq_hole",
+          "hole_id": "h_record_a"
+        },
+        {
+          "fqn": "main::recorder_a::s3",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s3",
+          "structured_id": "a3",
+          "kind": "seq_hole",
+          "hole_id": "h_ready_a"
+        },
+        {
+          "fqn": "main::recorder_a::s4",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s4",
+          "structured_id": "a1",
+          "kind": "mutex_unlock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_a::s5",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s5",
+          "structured_id": "a4",
+          "kind": "return",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s1",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s1",
+          "structured_id": "b1",
+          "kind": "mutex_lock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s2",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s2",
+          "structured_id": "b2",
+          "kind": "seq_hole",
+          "hole_id": "h_record_b"
+        },
+        {
+          "fqn": "main::recorder_b::s3",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s3",
+          "structured_id": "b3",
+          "kind": "seq_hole",
+          "hole_id": "h_ready_b"
+        },
+        {
+          "fqn": "main::recorder_b::s4",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s4",
+          "structured_id": "b1",
+          "kind": "mutex_unlock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s5",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s5",
+          "structured_id": "b4",
+          "kind": "return",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::main::s1",
+          "module": "main",
+          "function": "main",
+          "sid": "s1",
+          "structured_id": "m1",
+          "kind": "scope",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::main::s2",
+          "module": "main",
+          "function": "main",
+          "sid": "s2",
+          "structured_id": "m2",
+          "kind": "return",
+          "hole_id": null
+        }
+      ],
+      "holes": [
+        {
+          "hole_id": "h_record_a",
+          "sid": "s2",
+          "rust_file": "src/main.rs",
+          "start_line": 28,
+          "end_line": 28,
+          "rust_span": "src/main.rs:28-28"
+        },
+        {
+          "hole_id": "h_ready_a",
+          "sid": "s3",
+          "rust_file": "src/main.rs",
+          "start_line": 34,
+          "end_line": 34,
+          "rust_span": "src/main.rs:34-34"
+        },
+        {
+          "hole_id": "h_record_b",
+          "sid": "s2",
+          "rust_file": "src/main.rs",
+          "start_line": 58,
+          "end_line": 58,
+          "rust_span": "src/main.rs:58-58"
+        },
+        {
+          "hole_id": "h_ready_b",
+          "sid": "s3",
+          "rust_file": "src/main.rs",
+          "start_line": 64,
+          "end_line": 64,
+          "rust_span": "src/main.rs:64-64"
+        }
+      ],
+      "type_holes": [],
+      "model_verdict": "PASS",
+      "static_verdict": "pass",
+      "violations": []
+    },
+    {
+      "clause_id": "R3",
+      "description": "Whenever a visit is recorded (visit_count > 0), on all execution paths summary_ready eventually becomes true.",
+      "contract_properties": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_nodes": [
+        {
+          "fqn": "main::recorder_a::s1",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s1",
+          "structured_id": "a1",
+          "kind": "mutex_lock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_a::s2",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s2",
+          "structured_id": "a2",
+          "kind": "seq_hole",
+          "hole_id": "h_record_a"
+        },
+        {
+          "fqn": "main::recorder_a::s3",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s3",
+          "structured_id": "a3",
+          "kind": "seq_hole",
+          "hole_id": "h_ready_a"
+        },
+        {
+          "fqn": "main::recorder_a::s4",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s4",
+          "structured_id": "a1",
+          "kind": "mutex_unlock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_a::s5",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s5",
+          "structured_id": "a4",
+          "kind": "return",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s1",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s1",
+          "structured_id": "b1",
+          "kind": "mutex_lock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s2",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s2",
+          "structured_id": "b2",
+          "kind": "seq_hole",
+          "hole_id": "h_record_b"
+        },
+        {
+          "fqn": "main::recorder_b::s3",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s3",
+          "structured_id": "b3",
+          "kind": "seq_hole",
+          "hole_id": "h_ready_b"
+        },
+        {
+          "fqn": "main::recorder_b::s4",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s4",
+          "structured_id": "b1",
+          "kind": "mutex_unlock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s5",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s5",
+          "structured_id": "b4",
+          "kind": "return",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::main::s1",
+          "module": "main",
+          "function": "main",
+          "sid": "s1",
+          "structured_id": "m1",
+          "kind": "scope",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::main::s2",
+          "module": "main",
+          "function": "main",
+          "sid": "s2",
+          "structured_id": "m2",
+          "kind": "return",
+          "hole_id": null
+        }
+      ],
+      "holes": [
+        {
+          "hole_id": "h_record_a",
+          "sid": "s2",
+          "rust_file": "src/main.rs",
+          "start_line": 28,
+          "end_line": 28,
+          "rust_span": "src/main.rs:28-28"
+        },
+        {
+          "hole_id": "h_ready_a",
+          "sid": "s3",
+          "rust_file": "src/main.rs",
+          "start_line": 34,
+          "end_line": 34,
+          "rust_span": "src/main.rs:34-34"
+        },
+        {
+          "hole_id": "h_record_b",
+          "sid": "s2",
+          "rust_file": "src/main.rs",
+          "start_line": 58,
+          "end_line": 58,
+          "rust_span": "src/main.rs:58-58"
+        },
+        {
+          "hole_id": "h_ready_b",
+          "sid": "s3",
+          "rust_file": "src/main.rs",
+          "start_line": 64,
+          "end_line": 64,
+          "rust_span": "src/main.rs:64-64"
+        }
+      ],
+      "type_holes": [],
+      "model_verdict": "PASS",
+      "static_verdict": "pass",
+      "violations": []
+    },
+    {
+      "clause_id": "R4",
+      "description": "Both recorder_a and recorder_b workers must be able to complete execution.",
+      "contract_properties": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_nodes": [
+        {
+          "fqn": "main::recorder_a::s1",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s1",
+          "structured_id": "a1",
+          "kind": "mutex_lock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_a::s2",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s2",
+          "structured_id": "a2",
+          "kind": "seq_hole",
+          "hole_id": "h_record_a"
+        },
+        {
+          "fqn": "main::recorder_a::s3",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s3",
+          "structured_id": "a3",
+          "kind": "seq_hole",
+          "hole_id": "h_ready_a"
+        },
+        {
+          "fqn": "main::recorder_a::s4",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s4",
+          "structured_id": "a1",
+          "kind": "mutex_unlock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_a::s5",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s5",
+          "structured_id": "a4",
+          "kind": "return",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s1",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s1",
+          "structured_id": "b1",
+          "kind": "mutex_lock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s2",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s2",
+          "structured_id": "b2",
+          "kind": "seq_hole",
+          "hole_id": "h_record_b"
+        },
+        {
+          "fqn": "main::recorder_b::s3",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s3",
+          "structured_id": "b3",
+          "kind": "seq_hole",
+          "hole_id": "h_ready_b"
+        },
+        {
+          "fqn": "main::recorder_b::s4",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s4",
+          "structured_id": "b1",
+          "kind": "mutex_unlock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s5",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s5",
+          "structured_id": "b4",
+          "kind": "return",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::main::s1",
+          "module": "main",
+          "function": "main",
+          "sid": "s1",
+          "structured_id": "m1",
+          "kind": "scope",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::main::s2",
+          "module": "main",
+          "function": "main",
+          "sid": "s2",
+          "structured_id": "m2",
+          "kind": "return",
+          "hole_id": null
+        }
+      ],
+      "holes": [
+        {
+          "hole_id": "h_record_a",
+          "sid": "s2",
+          "rust_file": "src/main.rs",
+          "start_line": 28,
+          "end_line": 28,
+          "rust_span": "src/main.rs:28-28"
+        },
+        {
+          "hole_id": "h_ready_a",
+          "sid": "s3",
+          "rust_file": "src/main.rs",
+          "start_line": 34,
+          "end_line": 34,
+          "rust_span": "src/main.rs:34-34"
+        },
+        {
+          "hole_id": "h_record_b",
+          "sid": "s2",
+          "rust_file": "src/main.rs",
+          "start_line": 58,
+          "end_line": 58,
+          "rust_span": "src/main.rs:58-58"
+        },
+        {
+          "hole_id": "h_ready_b",
+          "sid": "s3",
+          "rust_file": "src/main.rs",
+          "start_line": 64,
+          "end_line": 64,
+          "rust_span": "src/main.rs:64-64"
+        }
+      ],
+      "type_holes": [],
+      "model_verdict": "PASS",
+      "static_verdict": "pass",
+      "violations": []
+    },
+    {
+      "clause_id": "R5",
+      "description": "Construct, inspect, and update VisitSummary entries and pure integer visit counts inside sequential/type holes without synchronization, loops, unsafe, or String formatting.",
+      "contract_properties": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_nodes": [
+        {
+          "fqn": "main::recorder_a::s1",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s1",
+          "structured_id": "a1",
+          "kind": "mutex_lock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_a::s2",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s2",
+          "structured_id": "a2",
+          "kind": "seq_hole",
+          "hole_id": "h_record_a"
+        },
+        {
+          "fqn": "main::recorder_a::s3",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s3",
+          "structured_id": "a3",
+          "kind": "seq_hole",
+          "hole_id": "h_ready_a"
+        },
+        {
+          "fqn": "main::recorder_a::s4",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s4",
+          "structured_id": "a1",
+          "kind": "mutex_unlock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_a::s5",
+          "module": "main",
+          "function": "recorder_a",
+          "sid": "s5",
+          "structured_id": "a4",
+          "kind": "return",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s1",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s1",
+          "structured_id": "b1",
+          "kind": "mutex_lock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s2",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s2",
+          "structured_id": "b2",
+          "kind": "seq_hole",
+          "hole_id": "h_record_b"
+        },
+        {
+          "fqn": "main::recorder_b::s3",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s3",
+          "structured_id": "b3",
+          "kind": "seq_hole",
+          "hole_id": "h_ready_b"
+        },
+        {
+          "fqn": "main::recorder_b::s4",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s4",
+          "structured_id": "b1",
+          "kind": "mutex_unlock",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::recorder_b::s5",
+          "module": "main",
+          "function": "recorder_b",
+          "sid": "s5",
+          "structured_id": "b4",
+          "kind": "return",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::main::s1",
+          "module": "main",
+          "function": "main",
+          "sid": "s1",
+          "structured_id": "m1",
+          "kind": "scope",
+          "hole_id": null
+        },
+        {
+          "fqn": "main::main::s2",
+          "module": "main",
+          "function": "main",
+          "sid": "s2",
+          "structured_id": "m2",
+          "kind": "return",
+          "hole_id": null
+        }
+      ],
+      "holes": [
+        {
+          "hole_id": "h_record_a",
+          "sid": "s2",
+          "rust_file": "src/main.rs",
+          "start_line": 28,
+          "end_line": 28,
+          "rust_span": "src/main.rs:28-28"
+        },
+        {
+          "hole_id": "h_ready_a",
+          "sid": "s3",
+          "rust_file": "src/main.rs",
+          "start_line": 34,
+          "end_line": 34,
+          "rust_span": "src/main.rs:34-34"
+        },
+        {
+          "hole_id": "h_record_b",
+          "sid": "s2",
+          "rust_file": "src/main.rs",
+          "start_line": 58,
+          "end_line": 58,
+          "rust_span": "src/main.rs:58-58"
+        },
+        {
+          "hole_id": "h_ready_b",
+          "sid": "s3",
+          "rust_file": "src/main.rs",
+          "start_line": 64,
+          "end_line": 64,
+          "rust_span": "src/main.rs:64-64"
+        }
+      ],
+      "type_holes": [
+        {
+          "type_hole_id": "th1",
+          "type_name": "VisitSummary",
+          "rust_file": "src/domain.rs",
+          "start_line": 4,
+          "end_line": 34,
+          "rust_span": "src/domain.rs:4-34"
+        }
+      ],
+      "model_verdict": "PASS",
+      "static_verdict": "pass",
+      "violations": []
+    }
+  ],
+  "links": [
+    {
+      "clause_id": "R1",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s1",
+      "structured_id": "a1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R1",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s2",
+      "structured_id": "a2",
+      "hole_id": "h_record_a",
+      "rust_location": "src/main.rs:28-28",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R1",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s3",
+      "structured_id": "a3",
+      "hole_id": "h_ready_a",
+      "rust_location": "src/main.rs:34-34",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R1",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s4",
+      "structured_id": "a1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R1",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s5",
+      "structured_id": "a4",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R1",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s1",
+      "structured_id": "b1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R1",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s2",
+      "structured_id": "b2",
+      "hole_id": "h_record_b",
+      "rust_location": "src/main.rs:58-58",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R1",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s3",
+      "structured_id": "b3",
+      "hole_id": "h_ready_b",
+      "rust_location": "src/main.rs:64-64",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R1",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s4",
+      "structured_id": "b1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R1",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s5",
+      "structured_id": "b4",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R1",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::main::s1",
+      "structured_id": "m1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R1",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::main::s2",
+      "structured_id": "m2",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R2",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s1",
+      "structured_id": "a1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R2",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s2",
+      "structured_id": "a2",
+      "hole_id": "h_record_a",
+      "rust_location": "src/main.rs:28-28",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R2",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s3",
+      "structured_id": "a3",
+      "hole_id": "h_ready_a",
+      "rust_location": "src/main.rs:34-34",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R2",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s4",
+      "structured_id": "a1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R2",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s5",
+      "structured_id": "a4",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R2",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s1",
+      "structured_id": "b1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R2",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s2",
+      "structured_id": "b2",
+      "hole_id": "h_record_b",
+      "rust_location": "src/main.rs:58-58",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R2",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s3",
+      "structured_id": "b3",
+      "hole_id": "h_ready_b",
+      "rust_location": "src/main.rs:64-64",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R2",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s4",
+      "structured_id": "b1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R2",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s5",
+      "structured_id": "b4",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R2",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::main::s1",
+      "structured_id": "m1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R2",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::main::s2",
+      "structured_id": "m2",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R3",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s1",
+      "structured_id": "a1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R3",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s2",
+      "structured_id": "a2",
+      "hole_id": "h_record_a",
+      "rust_location": "src/main.rs:28-28",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R3",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s3",
+      "structured_id": "a3",
+      "hole_id": "h_ready_a",
+      "rust_location": "src/main.rs:34-34",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R3",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s4",
+      "structured_id": "a1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R3",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s5",
+      "structured_id": "a4",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R3",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s1",
+      "structured_id": "b1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R3",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s2",
+      "structured_id": "b2",
+      "hole_id": "h_record_b",
+      "rust_location": "src/main.rs:58-58",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R3",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s3",
+      "structured_id": "b3",
+      "hole_id": "h_ready_b",
+      "rust_location": "src/main.rs:64-64",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R3",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s4",
+      "structured_id": "b1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R3",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s5",
+      "structured_id": "b4",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R3",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::main::s1",
+      "structured_id": "m1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R3",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::main::s2",
+      "structured_id": "m2",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R4",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s1",
+      "structured_id": "a1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R4",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s2",
+      "structured_id": "a2",
+      "hole_id": "h_record_a",
+      "rust_location": "src/main.rs:28-28",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R4",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s3",
+      "structured_id": "a3",
+      "hole_id": "h_ready_a",
+      "rust_location": "src/main.rs:34-34",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R4",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s4",
+      "structured_id": "a1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R4",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s5",
+      "structured_id": "a4",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R4",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s1",
+      "structured_id": "b1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R4",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s2",
+      "structured_id": "b2",
+      "hole_id": "h_record_b",
+      "rust_location": "src/main.rs:58-58",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R4",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s3",
+      "structured_id": "b3",
+      "hole_id": "h_ready_b",
+      "rust_location": "src/main.rs:64-64",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R4",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s4",
+      "structured_id": "b1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R4",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s5",
+      "structured_id": "b4",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R4",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::main::s1",
+      "structured_id": "m1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R4",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::main::s2",
+      "structured_id": "m2",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R5",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s1",
+      "structured_id": "a1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R5",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s2",
+      "structured_id": "a2",
+      "hole_id": "h_record_a",
+      "rust_location": "src/main.rs:28-28",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R5",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s3",
+      "structured_id": "a3",
+      "hole_id": "h_ready_a",
+      "rust_location": "src/main.rs:34-34",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R5",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s4",
+      "structured_id": "a1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R5",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_a::s5",
+      "structured_id": "a4",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R5",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s1",
+      "structured_id": "b1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R5",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s2",
+      "structured_id": "b2",
+      "hole_id": "h_record_b",
+      "rust_location": "src/main.rs:58-58",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R5",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s3",
+      "structured_id": "b3",
+      "hole_id": "h_ready_b",
+      "rust_location": "src/main.rs:64-64",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R5",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s4",
+      "structured_id": "b1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R5",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::recorder_b::s5",
+      "structured_id": "b4",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R5",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::main::s1",
+      "structured_id": "m1",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R5",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::main::s2",
+      "structured_id": "m2",
+      "hole_id": null,
+      "rust_location": null,
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    },
+    {
+      "clause_id": "R5",
+      "contract_property_ids": [
+        "deadlock_free",
+        "no-deadlock",
+        "visit-count-bound",
+        "summary-eventually-ready",
+        "both-recorders-complete",
+        "preserved:reachable",
+        "preserved:reachable",
+        "preserved: recorder_a completes",
+        "preserved: recorder_b completes"
+      ],
+      "cir_node": "main::type::VisitSummary",
+      "structured_id": null,
+      "hole_id": "th1",
+      "rust_location": "src/domain.rs:4-34",
+      "model_verdict": "PASS",
+      "static_verdict": "pass"
+    }
+  ]
+}

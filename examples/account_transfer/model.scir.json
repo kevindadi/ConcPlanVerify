@@ -1,0 +1,361 @@
+{
+  "program": "bank_transfer",
+  "version": "5.0.0",
+  "entry": "main::main",
+  "modules": [
+    {
+      "name": "main",
+      "req": [
+        "R1",
+        "R2",
+        "R3",
+        "R4",
+        "R5",
+        "R6"
+      ],
+      "provides": {
+        "resources": [
+          "account_a_lock",
+          "account_b_lock",
+          "total_balance",
+          "receipt_counter"
+        ],
+        "functions": [
+          "main",
+          "transfer_ab",
+          "transfer_ba"
+        ]
+      },
+      "requires": {
+        "resources": [],
+        "functions": []
+      },
+      "types": [
+        {
+          "name": "Receipt",
+          "type": {
+            "Hole": {
+              "description": "Pure receipt number and transfer amount fields without synchronization or strings",
+              "req": [
+                "R6"
+              ]
+            }
+          }
+        }
+      ],
+      "resources": [
+        {
+          "name": "account_a_lock",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync",
+          "base": {
+            "Int": [
+              0,
+              100
+            ]
+          },
+          "req": [
+            "R1",
+            "R2"
+          ]
+        },
+        {
+          "name": "account_b_lock",
+          "kind": "sync",
+          "type": "Mutex",
+          "mode": "Sync",
+          "base": {
+            "Int": [
+              0,
+              100
+            ]
+          },
+          "req": [
+            "R1",
+            "R2"
+          ]
+        },
+        {
+          "name": "total_balance",
+          "kind": "var",
+          "type": "Var",
+          "base": {
+            "Int": [
+              0,
+              200
+            ]
+          },
+          "init": 200,
+          "req": [
+            "R2"
+          ]
+        },
+        {
+          "name": "receipt_counter",
+          "kind": "var",
+          "type": "Var",
+          "base": {
+            "Int": [
+              0,
+              2
+            ]
+          },
+          "init": 0,
+          "req": [
+            "R3",
+            "R4"
+          ]
+        }
+      ],
+      "protection": [
+        {
+          "var": "total_balance",
+          "lock": "account_a_lock"
+        },
+        {
+          "var": "receipt_counter",
+          "lock": "account_a_lock"
+        }
+      ],
+      "functions": [
+        {
+          "name": "transfer_ab",
+          "kind": "normal",
+          "form": "closure",
+          "req": [
+            "R1",
+            "R2",
+            "R3",
+            "R4",
+            "R5",
+            "R6"
+          ],
+          "structured_body": [
+            {
+              "id": "ab_lock_a",
+              "kind": "lock_guard",
+              "resource": "main::account_a_lock",
+              "req": [
+                "R1"
+              ],
+              "body": [
+                {
+                  "id": "ab_lock_b",
+                  "kind": "lock_guard",
+                  "resource": "main::account_b_lock",
+                  "req": [
+                    "R1"
+                  ],
+                  "body": [
+                    {
+                      "id": "ab_transfer",
+                      "kind": "stmt",
+                      "req": [
+                        "R2",
+                        "R6"
+                      ],
+                      "op": {
+                        "kind": "seq_hole",
+                        "id": "h_transfer_ab",
+                        "desc": "debit account_a by 10, credit account_b by 10, preserving total",
+                        "reads": [
+                          "main::total_balance"
+                        ],
+                        "writes": [
+                          "main::total_balance"
+                        ],
+                        "updates_modeled": [
+                          {
+                            "target": "main::total_balance",
+                            "expr": "total_balance"
+                          }
+                        ],
+                        "expected_type": "()",
+                        "req": [
+                          "R2",
+                          "R6"
+                        ]
+                      }
+                    },
+                    {
+                      "id": "ab_receipt",
+                      "kind": "stmt",
+                      "req": [
+                        "R3",
+                        "R4",
+                        "R6"
+                      ],
+                      "op": {
+                        "kind": "seq_hole",
+                        "id": "h_receipt_ab",
+                        "desc": "increment receipt counter and construct Receipt",
+                        "reads": [
+                          "main::receipt_counter"
+                        ],
+                        "writes": [
+                          "main::receipt_counter"
+                        ],
+                        "updates_modeled": [
+                          {
+                            "target": "main::receipt_counter",
+                            "expr": "receipt_counter + 1"
+                          }
+                        ],
+                        "expected_type": "()",
+                        "req": [
+                          "R3",
+                          "R4",
+                          "R6"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "ab_return",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        },
+        {
+          "name": "transfer_ba",
+          "kind": "normal",
+          "form": "closure",
+          "req": [
+            "R1",
+            "R2",
+            "R3",
+            "R4",
+            "R5",
+            "R6"
+          ],
+          "structured_body": [
+            {
+              "id": "ba_lock_a",
+              "kind": "lock_guard",
+              "resource": "main::account_a_lock",
+              "req": [
+                "R1"
+              ],
+              "body": [
+                {
+                  "id": "ba_lock_b",
+                  "kind": "lock_guard",
+                  "resource": "main::account_b_lock",
+                  "req": [
+                    "R1"
+                  ],
+                  "body": [
+                    {
+                      "id": "ba_transfer",
+                      "kind": "stmt",
+                      "req": [
+                        "R2",
+                        "R6"
+                      ],
+                      "op": {
+                        "kind": "seq_hole",
+                        "id": "h_transfer_ba",
+                        "desc": "debit account_b by 10, credit account_a by 10, preserving total",
+                        "reads": [
+                          "main::total_balance"
+                        ],
+                        "writes": [
+                          "main::total_balance"
+                        ],
+                        "updates_modeled": [
+                          {
+                            "target": "main::total_balance",
+                            "expr": "total_balance"
+                          }
+                        ],
+                        "expected_type": "()",
+                        "req": [
+                          "R2",
+                          "R6"
+                        ]
+                      }
+                    },
+                    {
+                      "id": "ba_receipt",
+                      "kind": "stmt",
+                      "req": [
+                        "R3",
+                        "R4",
+                        "R6"
+                      ],
+                      "op": {
+                        "kind": "seq_hole",
+                        "id": "h_receipt_ba",
+                        "desc": "increment receipt counter and construct Receipt",
+                        "reads": [
+                          "main::receipt_counter"
+                        ],
+                        "writes": [
+                          "main::receipt_counter"
+                        ],
+                        "updates_modeled": [
+                          {
+                            "target": "main::receipt_counter",
+                            "expr": "receipt_counter + 1"
+                          }
+                        ],
+                        "expected_type": "()",
+                        "req": [
+                          "R3",
+                          "R4",
+                          "R6"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "ba_return",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        },
+        {
+          "name": "main",
+          "kind": "normal",
+          "req": [
+            "R1",
+            "R5"
+          ],
+          "structured_body": [
+            {
+              "id": "main_scope",
+              "kind": "stmt",
+              "op": {
+                "kind": "scope",
+                "funcs": [
+                  "main::transfer_ab",
+                  "main::transfer_ba"
+                ]
+              }
+            },
+            {
+              "id": "main_return",
+              "kind": "stmt",
+              "op": {
+                "kind": "return"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

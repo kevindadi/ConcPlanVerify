@@ -1,1 +1,0 @@
-Build a small concurrent cache guarded by a read-write lock (`RwLock`) storing an in-memory cache entry struct. One writer thread acquires a write lock to record an update and later clear pending updates, while a reader thread acquires a read lock to inspect the cached data concurrently. Make sure the program never deadlocks and both threads complete.

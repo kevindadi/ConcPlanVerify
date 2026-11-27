@@ -1,1 +1,0 @@
-Simulate two threads transferring funds in opposite directions between two bank accounts (Account A and Account B), where each account is protected by its own mutex. Each transfer locks both accounts at the same time, increments a completed-transfers counter, and computes a simple receipt number locally. Ensure the program never deadlocks and both transfer threads finish.

@@ -22,10 +22,16 @@ Every `SeqHole` represents pure sequential local computation. Your Rust expressi
 3. **No atomics:** never use `Atomic*`, `std::sync::atomic`, or `Ordering::*`.
 4. **No unsafe, tracing, or new imports:** never use `unsafe`, `extern`, `cir_trace`, `use`, or
    `// @cir` annotations.
-5. **No potentially diverging loops:** never use `loop { ... }`, `while ... { ... }`, or `spin_loop()`.
-   (Holes may run while holding locks; unbounded loops violate lock-divergence freedom.)
-6. **Respect the expected Rust type:** the expression/block must type-check against `expected: T`.
-7. **Domain types & guards:** access domain types defined in `src/domain.rs` via
+5. **No loops in `SeqHole` OR `TypeHole`:** never use `loop { ... }`, `while ... { ... }`,
+   `for ... in ... { ... }`, or `spin_loop()` in `SeqHole` or `TypeHole` (even bounded `for` loops
+   produce MIR loop back-edges flagged by `spn`). Use straight-line expressions, `if`/`else`,
+   `match`, fixed arithmetic, and plain struct/tuple fields.
+6. **Avoid `String`, `.to_string()`, and `format!(...)`:** standard-library formatting macros
+   expand to `core::fmt` `unsafe` blocks in MIR, which `spn` flags as `unsafe_in_hole`. Represent
+   tags, summaries, receipts, and cache entries using `i64`/`u64`/`bool`, enums, or `&'static str`
+   slices (unless a `SeqHole` signature explicitly requires another primitive type).
+7. **Respect the expected Rust type:** the expression/block must type-check against `expected: T`.
+8. **Domain types & guards:** access domain types defined in `src/domain.rs` via
    `crate::domain::<TypeName>` (never add `use` statements inside a `SeqHole`). Also note that
    `Mutex<()>` / `RwLock<()>` guards dereference to `()`, unless the CIR resource explicitly
    declared `"base": "<TypeName>"`.
@@ -38,12 +44,13 @@ domain type in `src/domain.rs`:
 1. **Preserve type identity and trait bounds:** the defined `pub struct <Name>` MUST implement
    `Send + Sync + Clone + Default + 'static` (derive `#[derive(Clone, Debug, Default, PartialEq)]`
    unless custom pure impls are needed).
-2. **Pure data & pure methods ONLY:** you may define fields, helper pure structs/enums, and pure
-   `impl <Name>` methods (bounded `for` loops are allowed).
+2. **Pure data & pure loop-free methods ONLY:** you may define primitive/copy fields (`i64`, `u64`,
+   `bool`, `&'static str`), helper pure enums/structs, and straight-line `impl <Name>` methods (NO
+   `for`/`while`/`loop` and NO `String`/`.to_string()`/`format!`).
 3. **Strictly forbidden inside `TypeHole`:** NEVER introduce `std::sync`, `Mutex`, `RwLock`,
    `Condvar`, `Semaphore`, `Barrier`, `OnceLock`, `mpsc`, `channel`, `Atomic*`, `Ordering::*`,
    `std::thread`, `thread::spawn`, `thread::scope`, `thread::sleep`, `unsafe`, `extern`,
-   `cir_trace`, `// @cir`, or unbounded `loop`/`while` without an explicit bound!
+   `cir_trace`, `// @cir`, `for`/`while`/`loop`, `.to_string()`, or `format!`.
 
 ## 2. Reading Repair Diagnostics (Loop B)
 

@@ -639,6 +639,86 @@ def _validate_temporal_tree(
             _validate_temporal_tree(a, logic=logic, functions=functions, resources=resources, errors=errors)
 
 
+def _lookup_resource_kind(res_name: str, res_kind_map: dict[str, str]) -> str:
+    short = str(res_name).split("::")[-1]
+    return res_kind_map.get(str(res_name), "") or res_kind_map.get(short, "")
+
+
+def _check_predicate_resource_compat(
+    pred: Any,
+    res_kind_map: dict[str, str],
+    *,
+    property_id: str,
+    issues: list[SanityIssue],
+) -> None:
+    if not isinstance(pred, dict) or not res_kind_map:
+        return
+    pkind = str(pred.get("kind") or "").strip().lower()
+    if pkind in ("mutex_free", "mutex_held", "mutex_exclusive"):
+        res = str(pred.get("resource") or "")
+        decl_kind = _lookup_resource_kind(res, res_kind_map)
+        if decl_kind and decl_kind != "mutex":
+            issues.append(
+                SanityIssue(
+                    "error",
+                    "incompatible_resource_predicate",
+                    f"predicate '{pkind}' requires a Mutex resource, but '{res}' has kind '{decl_kind}'",
+                    property_id=property_id,
+                )
+            )
+    elif pkind in ("var_eq", "var_cmp"):
+        res = str(pred.get("resource") or "")
+        decl_kind = _lookup_resource_kind(res, res_kind_map)
+        if decl_kind in {"mutex", "rwlock", "condvar", "semaphore", "channel"}:
+            issues.append(
+                SanityIssue(
+                    "error",
+                    "incompatible_resource_predicate",
+                    f"predicate '{pkind}' requires a modeled Var/Atomic resource, but '{res}' has kind '{decl_kind}'",
+                    property_id=property_id,
+                )
+            )
+    elif pkind in ("channel_empty", "channel_at_least"):
+        res = str(pred.get("resource") or "")
+        decl_kind = _lookup_resource_kind(res, res_kind_map)
+        if decl_kind and decl_kind != "channel":
+            issues.append(
+                SanityIssue(
+                    "error",
+                    "incompatible_resource_predicate",
+                    f"predicate '{pkind}' requires a Channel resource, but '{res}' has kind '{decl_kind}'",
+                    property_id=property_id,
+                )
+            )
+    elif pkind == "not":
+        _check_predicate_resource_compat(pred.get("predicate"), res_kind_map, property_id=property_id, issues=issues)
+    elif pkind in ("and", "or"):
+        for sub in pred.get("predicates") or []:
+            _check_predicate_resource_compat(sub, res_kind_map, property_id=property_id, issues=issues)
+
+
+def _check_temporal_resource_compat(
+    node: Any,
+    res_kind_map: dict[str, str],
+    *,
+    property_id: str,
+    issues: list[SanityIssue],
+) -> None:
+    if not isinstance(node, dict) or not res_kind_map:
+        return
+    op = str(node.get("op") or "").strip().lower()
+    if op == "atom":
+        _check_predicate_resource_compat(node.get("atom"), res_kind_map, property_id=property_id, issues=issues)
+    elif "arg" in node:
+        _check_temporal_resource_compat(node.get("arg"), res_kind_map, property_id=property_id, issues=issues)
+    if "lhs" in node:
+        _check_temporal_resource_compat(node.get("lhs"), res_kind_map, property_id=property_id, issues=issues)
+    if "rhs" in node:
+        _check_temporal_resource_compat(node.get("rhs"), res_kind_map, property_id=property_id, issues=issues)
+    for sub in node.get("args") or []:
+        _check_temporal_resource_compat(sub, res_kind_map, property_id=property_id, issues=issues)
+
+
 def _matches_grounded(name: str, grounded: set[str], *, allow_main: bool = False) -> bool:
     if not grounded:
         return True
@@ -687,6 +767,15 @@ def validate_contract_sanity(
     clause_index = structured.clause_by_id() if structured is not None else {}
     grounded_roles = set(structured.entities.roles) if structured is not None else set()
     grounded_resources = set(structured.entities.resources) if structured is not None else set()
+    res_kind_map = (
+        {
+            rs.name.split("::")[-1]: rs.kind.strip().lower()
+            for rs in structured.entities.resource_specs
+            if rs.kind
+        }
+        if structured is not None
+        else {}
+    )
 
     seen_ids: set[str] = set()
     all_funcs: set[str] = set()
@@ -745,12 +834,16 @@ def validate_contract_sanity(
 
         if kind == "safety":
             _collect_predicate_refs(prop.get("invariant"), functions=p_funcs, resources=p_res, errors=tree_errors)
+            _check_predicate_resource_compat(prop.get("invariant"), res_kind_map, property_id=pid, issues=issues)
         elif kind in ("reachability", "always_reachable"):
             _collect_predicate_refs(prop.get("goal"), functions=p_funcs, resources=p_res, errors=tree_errors)
+            _check_predicate_resource_compat(prop.get("goal"), res_kind_map, property_id=pid, issues=issues)
         elif kind == "unreachable":
             _collect_predicate_refs(prop.get("bad"), functions=p_funcs, resources=p_res, errors=tree_errors)
+            _check_predicate_resource_compat(prop.get("bad"), res_kind_map, property_id=pid, issues=issues)
         elif kind == "ctl":
             _validate_temporal_tree(prop.get("formula"), logic="ctl", functions=p_funcs, resources=p_res, errors=tree_errors)
+            _check_temporal_resource_compat(prop.get("formula"), res_kind_map, property_id=pid, issues=issues)
             if require_non_vacuous and formula_contains_implication(prop.get("formula")) and not prop.get("non_vacuous"):
                 issues.append(
                     SanityIssue(
@@ -762,6 +855,7 @@ def validate_contract_sanity(
                 )
         elif kind == "ltl":
             _validate_temporal_tree(prop.get("formula"), logic="ltl", functions=p_funcs, resources=p_res, errors=tree_errors)
+            _check_temporal_resource_compat(prop.get("formula"), res_kind_map, property_id=pid, issues=issues)
             for fc in prop.get("fairness") or []:
                 if not isinstance(fc, dict):
                     tree_errors.append("fairness entry must be an object")
@@ -852,8 +946,10 @@ def validate_contract_sanity(
         pr_res: set[str] = set()
         if pkind == "reachable":
             _collect_predicate_refs(pr.get("goal"), functions=pr_funcs, resources=pr_res, errors=pr_errors)
+            _check_predicate_resource_compat(pr.get("goal"), res_kind_map, property_id=p_label, issues=issues)
         elif pkind == "always":
             _collect_predicate_refs(pr.get("invariant"), functions=pr_funcs, resources=pr_res, errors=pr_errors)
+            _check_predicate_resource_compat(pr.get("invariant"), res_kind_map, property_id=p_label, issues=issues)
         elif pkind == "function_completed":
             if pr.get("function"):
                 pr_funcs.add(str(pr["function"]))
@@ -900,10 +996,10 @@ def validate_contract_sanity(
 # ---------------------------------------------------------------------------
 
 def build_nl_to_clauses_prompt(nl_text: str, *, feedback: str | None = None) -> str:
-    """Build the Step 0.1 user prompt (raw NL -> grounded entities + atomic clauses R1..Rn)."""
+    """Build the Step 0.1 user prompt (raw NL -> typed grounded entities + atomic clauses R1..Rn)."""
     parts = [
-        "Decompose the following natural-language concurrency specification into:",
-        "1. Grounded entities: `roles` (thread/worker functions), `resources` (locks, shared vars, channels, semaphores, atomics), and `domain_types` (business/payload structs or arrays that belong in TypeHoles).",
+        "Decompose the following natural-language functional specification (which may be a high-level Chinese or English description without low-level thread/lock details) into:",
+        "1. Canonical typed symbol table in module `main`: `roles` (ASCII worker function names), typed `resources` objects (`name`, `kind` in `Mutex|RwLock|Condvar|Channel|Semaphore|Var`, `domain`, `init`), and `domain_types` (pure business structs that belong in TypeHoles).",
         "2. Numbered atomic clauses `R1..Rn`, each classified into `safety | liveness | reachability | sequential_hole` with `verifiable: true` for concurrency clauses and `verifiable: false` for sequential/domain payload logic (`sequential_hole`).",
         "",
         "<natural_language_requirements>",

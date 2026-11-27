@@ -1,0 +1,68 @@
+{
+  "schema": "concir-contract-explanation/1",
+  "name": "bank_transfer",
+  "source": "concir-backend",
+  "properties": [
+    {
+      "id": "no-deadlock",
+      "kind": "deadlock_free",
+      "req": [
+        "R1"
+      ],
+      "non_vacuous": false,
+      "explanation": "No reachable state is a global deadlock."
+    },
+    {
+      "id": "total-balance-invariant",
+      "kind": "safety",
+      "req": [
+        "R2"
+      ],
+      "non_vacuous": false,
+      "explanation": "In every reachable state, main::total_balance == 200."
+    },
+    {
+      "id": "receipt-counter-bound",
+      "kind": "safety",
+      "req": [
+        "R3"
+      ],
+      "non_vacuous": false,
+      "explanation": "In every reachable state, main::receipt_counter <= 2."
+    },
+    {
+      "id": "receipt-counter-progress",
+      "kind": "ctl",
+      "req": [
+        "R4"
+      ],
+      "non_vacuous": true,
+      "explanation": "always on every path, if main::receipt_counter < 2 then (eventually on every path, main::receipt_counter > 0)"
+    },
+    {
+      "id": "both-transfers-complete",
+      "kind": "reachability",
+      "req": [
+        "R5"
+      ],
+      "non_vacuous": false,
+      "explanation": "There exists a reachable state where (function 'main::transfer_ab' has completed and function 'main::transfer_ba' has completed)."
+    }
+  ],
+  "preserved": [
+    {
+      "description": "transfer_ab completes",
+      "req": [
+        "R5"
+      ],
+      "explanation": "Behavior 'transfer_ab completes' must remain reachable (function 'main::transfer_ab' has completed)."
+    },
+    {
+      "description": "transfer_ba completes",
+      "req": [
+        "R5"
+      ],
+      "explanation": "Behavior 'transfer_ba completes' must remain reachable (function 'main::transfer_ba' has completed)."
+    }
+  ]
+}

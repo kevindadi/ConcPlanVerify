@@ -1,0 +1,143 @@
+{
+  "schema": "concir-requirements/2",
+  "title": "config_cache",
+  "summary": "Concurrent in-memory configuration cache supporting shared reads of the current configuration snapshot, writes of new configurations, and archiving of pending changes, with thread safety and deadlock freedom.",
+  "entities": {
+    "roles": [
+      "reader",
+      "writer"
+    ],
+    "resources": [
+      "cache_lock",
+      "pending_changes"
+    ],
+    "domain_types": [
+      {
+        "name": "ConfigSnapshot",
+        "description": "Pure in-memory configuration version and entry fields without strings, loops, or synchronization",
+        "kind": "hole",
+        "req": [
+          "R5"
+        ]
+      }
+    ],
+    "resource_specs": [
+      {
+        "name": "cache_lock",
+        "kind": "RwLock",
+        "domain": "ConfigSnapshot",
+        "description": "Read-write lock protecting the current ConfigSnapshot and pending_changes"
+      },
+      {
+        "name": "pending_changes",
+        "kind": "Var",
+        "domain": "Int[0..=1]",
+        "init": 0,
+        "description": "Modeled count of unarchived pending configuration changes"
+      }
+    ]
+  },
+  "clauses": [
+    {
+      "id": "R1",
+      "text": "The system must never deadlock under concurrent reader and writer execution.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "cache_lock",
+        "reader",
+        "writer"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "At all reachable states, pending_changes stays within 0..=1 (pending_changes <= 1).",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "pending_changes"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "Whenever pending_changes > 0 is reached, on all execution paths pending_changes eventually returns to 0.",
+      "category": "liveness",
+      "verifiable": true,
+      "entities": [
+        "pending_changes",
+        "writer"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "Both reader and writer workers must be able to complete execution.",
+      "category": "reachability",
+      "verifiable": true,
+      "entities": [
+        "reader",
+        "writer"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "Construct, inspect, and update ConfigSnapshot entries and pure integer version tags inside sequential/type holes without synchronization, loops, unsafe, or String formatting.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "ConfigSnapshot"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "R1",
+      "text": "The system must never deadlock under concurrent reader and writer execution.",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "cache_lock",
+        "reader",
+        "writer"
+      ]
+    },
+    {
+      "id": "R2",
+      "text": "At all reachable states, pending_changes stays within 0..=1 (pending_changes <= 1).",
+      "category": "safety",
+      "verifiable": true,
+      "entities": [
+        "pending_changes"
+      ]
+    },
+    {
+      "id": "R3",
+      "text": "Whenever pending_changes > 0 is reached, on all execution paths pending_changes eventually returns to 0.",
+      "category": "liveness",
+      "verifiable": true,
+      "entities": [
+        "pending_changes",
+        "writer"
+      ]
+    },
+    {
+      "id": "R4",
+      "text": "Both reader and writer workers must be able to complete execution.",
+      "category": "reachability",
+      "verifiable": true,
+      "entities": [
+        "reader",
+        "writer"
+      ]
+    },
+    {
+      "id": "R5",
+      "text": "Construct, inspect, and update ConfigSnapshot entries and pure integer version tags inside sequential/type holes without synchronization, loops, unsafe, or String formatting.",
+      "category": "sequential_hole",
+      "verifiable": false,
+      "entities": [
+        "ConfigSnapshot"
+      ]
+    }
+  ],
+  "source_nl": "实现一个内存配置缓存功能：支持并发读取当前配置快照，同时支持写入新配置并归档待生效变更，保证读写过程线程安全且不会死锁。\n"
+}
