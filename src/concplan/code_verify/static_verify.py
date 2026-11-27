@@ -428,19 +428,20 @@ def _offset_to_line_range(text: str, start: int, end: int) -> tuple[int, int]:
     return start_line, end_line
 
 
-def _align_filled_to_skeleton(
+def _align_filled_generic(
     skeleton_source: str,
     filled_source: str,
+    *,
+    splitter,
+    marker_pairs_fn,
+    hole_label: str,
+    empty_message_tpl: str,
+    extra_key: str,
     fills: dict[str, str] | None = None,
+    try_fill_variants: bool = False,
 ) -> tuple[bool, list[dict[str, Any]], list[dict[str, Any]]]:
-    """Align ``filled_source`` against ``skeleton_source`` across all hole placeholders.
-
-    Returns ``(skeleton_intact, extracted_holes, structural_errors)`` where each
-    entry in ``extracted_holes`` has ``id``, ``body``, ``start``, ``end``,
-    ``start_line``, and ``end_line``.
-    """
-
-    segments, skel_holes = _split_skeleton_by_holes(skeleton_source)
+    """Align ``filled_source`` against ``skeleton_source`` across hole placeholders."""
+    segments, skel_holes = splitter(skeleton_source)
     structural_errors: list[dict[str, Any]] = []
     extracted: list[dict[str, Any]] = []
 
@@ -451,7 +452,7 @@ def _align_filled_to_skeleton(
         structural_errors.append({
             "kind": "changed_outside_hole",
             "line": diff_line,
-            "message": f"source modified outside holes near line {diff_line}",
+            "message": empty_message_tpl.format(line=diff_line),
         })
         return False, [], structural_errors
 
@@ -460,57 +461,52 @@ def _align_filled_to_skeleton(
         structural_errors.append({
             "kind": "changed_outside_hole",
             "line": diff_line,
-            "message": f"code before first hole ({skel_holes[0]['id']}) was modified near line {diff_line}",
+            "message": f"code before first {hole_label} ({skel_holes[0]['id']}) was modified near line {diff_line}",
         })
         return False, [], structural_errors
 
     pos = len(segments[0])
     fills = fills or {}
 
+    def _matches_next_seg(candidate_next: int, next_seg: str, is_last: bool) -> bool:
+        if is_last:
+            return filled_source[candidate_next:] == next_seg
+        return filled_source.startswith(next_seg, candidate_next)
+
     for idx, hole in enumerate(skel_holes):
         hid = hole["id"]
         next_seg = segments[idx + 1]
         is_last = idx == len(skel_holes) - 1
-
-        # Prefer exact marker boundaries if present right at pos.
-        marker_prefix = f"/* @hole_begin({hid}) */"
-        marker_suffix = f"/* @hole_end({hid}) */"
         next_pos = -1
 
-        if filled_source.startswith(marker_prefix, pos):
-            end_marker = filled_source.find(marker_suffix, pos + len(marker_prefix))
-            if end_marker != -1:
-                candidate_next = end_marker + len(marker_suffix)
-                if (is_last and filled_source[candidate_next:] == next_seg) or (
-                    not is_last and filled_source.startswith(next_seg, candidate_next)
-                ):
-                    next_pos = candidate_next
+        for marker_prefix, marker_suffix in marker_pairs_fn(hid):
+            if filled_source.startswith(marker_prefix, pos):
+                end_marker = filled_source.find(marker_suffix, pos + len(marker_prefix))
+                if end_marker != -1:
+                    candidate_next = end_marker + len(marker_suffix)
+                    if _matches_next_seg(candidate_next, next_seg, is_last):
+                        next_pos = candidate_next
+                        break
 
-        # Next try known fill text if provided.
-        if next_pos == -1 and hid in fills:
+        if next_pos == -1 and try_fill_variants and hid in fills:
             candidate_body = fills[hid]
+            mp_prefix, mp_suffix = marker_pairs_fn(hid)[0]
             for variant in (
-                f"{marker_prefix} {candidate_body} {marker_suffix}",
-                f"{marker_prefix}{candidate_body}{marker_suffix}",
+                f"{mp_prefix} {candidate_body} {mp_suffix}",
+                f"{mp_prefix}{candidate_body}{mp_suffix}",
                 candidate_body,
             ):
                 if filled_source.startswith(variant, pos):
                     candidate_next = pos + len(variant)
-                    if (is_last and filled_source[candidate_next:] == next_seg) or (
-                        not is_last and filled_source.startswith(next_seg, candidate_next)
-                    ):
+                    if _matches_next_seg(candidate_next, next_seg, is_last):
                         next_pos = candidate_next
                         break
 
-        # Next try exact placeholder (unfilled hole).
         if next_pos == -1 and filled_source.startswith(hole["placeholder"], pos):
             candidate_next = pos + len(hole["placeholder"])
-            if (is_last and filled_source[candidate_next:] == next_seg) or (
-                not is_last and filled_source.startswith(next_seg, candidate_next)
-            ):
+            if _matches_next_seg(candidate_next, next_seg, is_last):
                 next_pos = candidate_next
 
-        # General structural match: locate next static segment.
         if next_pos == -1:
             if is_last:
                 if next_seg == "":
@@ -531,7 +527,7 @@ def _align_filled_to_skeleton(
                 "kind": "changed_outside_hole",
                 "line": line_no,
                 "message": (
-                    f"skeleton segment after hole '{hid}' was modified or removed "
+                    f"skeleton segment after {hole_label} '{hid}' was modified or removed "
                     f"(expected static code starting near line {line_no})"
                 ),
             })
@@ -541,7 +537,7 @@ def _align_filled_to_skeleton(
         start_line, end_line = _offset_to_line_range(filled_source, pos, next_pos)
         extracted.append({
             "id": hid,
-            "expected": hole["expected"],
+            extra_key: hole[extra_key],
             "body": body,
             "start": pos,
             "end": next_pos,
@@ -555,11 +551,35 @@ def _align_filled_to_skeleton(
         structural_errors.append({
             "kind": "changed_outside_hole",
             "line": line_no,
-            "message": f"trailing code after last hole was modified near line {line_no}",
+            "message": f"trailing code after last {hole_label} was modified near line {line_no}",
         })
         return False, extracted, structural_errors
 
     return True, extracted, []
+
+
+def _align_filled_to_skeleton(
+    skeleton_source: str,
+    filled_source: str,
+    fills: dict[str, str] | None = None,
+) -> tuple[bool, list[dict[str, Any]], list[dict[str, Any]]]:
+    """Align ``filled_source`` against ``skeleton_source`` across all hole placeholders.
+
+    Returns ``(skeleton_intact, extracted_holes, structural_errors)`` where each
+    entry in ``extracted_holes`` has ``id``, ``body``, ``start``, ``end``,
+    ``start_line``, and ``end_line``.
+    """
+    return _align_filled_generic(
+        skeleton_source,
+        filled_source,
+        splitter=_split_skeleton_by_holes,
+        marker_pairs_fn=lambda hid: ((f"/* @hole_begin({hid}) */", f"/* @hole_end({hid}) */"),),
+        hole_label="hole",
+        empty_message_tpl="source modified outside holes near line {line}",
+        extra_key="expected",
+        fills=fills,
+        try_fill_variants=True,
+    )
 
 
 def _first_diff_line(expected: str, actual: str) -> int:
@@ -571,30 +591,43 @@ def _first_diff_line(expected: str, actual: str) -> int:
     return min(len(e_lines), len(a_lines)) + 1
 
 
-def _unwrap_hole_markers(hid: str, body: str) -> str:
-    m = HOLE_MARKER_RE.fullmatch(body.strip())
+def _unwrap_markers(
+    hid: str,
+    body: str,
+    pattern: re.Pattern[str],
+    pairs: tuple[tuple[str, str], ...],
+) -> str:
+    m = pattern.fullmatch(body.strip())
     if m and m.group("id") == hid:
         return m.group("body")
-    for prefix, suffix in (
-        (f"/* @hole_begin({hid}) */", f"/* @hole_end({hid}) */"),
-        (f"/* HOLE_BEGIN({hid}) */", f"/* HOLE_END({hid}) */"),
-    ):
+    for prefix, suffix in pairs:
         if body.startswith(prefix) and body.endswith(suffix):
             return body[len(prefix):len(body) - len(suffix)]
     return body
+
+
+def _unwrap_hole_markers(hid: str, body: str) -> str:
+    return _unwrap_markers(
+        hid,
+        body,
+        HOLE_MARKER_RE,
+        (
+            (f"/* @hole_begin({hid}) */", f"/* @hole_end({hid}) */"),
+            (f"/* HOLE_BEGIN({hid}) */", f"/* HOLE_END({hid}) */"),
+        ),
+    )
 
 
 def _unwrap_type_hole_markers(th_id: str, body: str) -> str:
-    m = TYPE_HOLE_MARKER_RE.fullmatch(body.strip())
-    if m and m.group("id") == th_id:
-        return m.group("body")
-    for prefix, suffix in (
-        (f"/* TYPE_HOLE_BEGIN({th_id}) */", f"/* TYPE_HOLE_END({th_id}) */"),
-        (f"/* @type_hole_begin({th_id}) */", f"/* @type_hole_end({th_id}) */"),
-    ):
-        if body.startswith(prefix) and body.endswith(suffix):
-            return body[len(prefix):len(body) - len(suffix)]
-    return body
+    return _unwrap_markers(
+        th_id,
+        body,
+        TYPE_HOLE_MARKER_RE,
+        (
+            (f"/* TYPE_HOLE_BEGIN({th_id}) */", f"/* TYPE_HOLE_END({th_id}) */"),
+            (f"/* @type_hole_begin({th_id}) */", f"/* @type_hole_end({th_id}) */"),
+        ),
+    )
 
 
 def _split_skeleton_by_type_holes(skeleton_source: str) -> tuple[list[str], list[dict[str, Any]]]:
@@ -622,109 +655,20 @@ def _align_filled_to_type_hole_skeleton(
     fills: dict[str, str] | None = None,
 ) -> tuple[bool, list[dict[str, Any]], list[dict[str, Any]]]:
     """Align filled ``src/domain.rs`` against skeleton across all ``TYPE_HOLE`` placeholders."""
-    segments, skel_holes = _split_skeleton_by_type_holes(skeleton_source)
-    structural_errors: list[dict[str, Any]] = []
-    extracted: list[dict[str, Any]] = []
-
-    if not skel_holes:
-        if filled_source == skeleton_source:
-            return True, [], []
-        diff_line = _first_diff_line(skeleton_source, filled_source)
-        structural_errors.append({
-            "kind": "changed_outside_hole",
-            "line": diff_line,
-            "message": f"domain source modified outside type holes near line {diff_line}",
-        })
-        return False, [], structural_errors
-
-    if not filled_source.startswith(segments[0]):
-        diff_line = _first_diff_line(segments[0], filled_source)
-        structural_errors.append({
-            "kind": "changed_outside_hole",
-            "line": diff_line,
-            "message": f"code before first type hole ({skel_holes[0]['id']}) was modified near line {diff_line}",
-        })
-        return False, [], structural_errors
-
-    pos = len(segments[0])
-    fills = fills or {}
-
-    for idx, hole in enumerate(skel_holes):
-        th_id = hole["id"]
-        next_seg = segments[idx + 1]
-        is_last = idx == len(skel_holes) - 1
-        next_pos = -1
-
-        for marker_prefix, marker_suffix in (
+    return _align_filled_generic(
+        skeleton_source,
+        filled_source,
+        splitter=_split_skeleton_by_type_holes,
+        marker_pairs_fn=lambda th_id: (
             (f"/* TYPE_HOLE_BEGIN({th_id}) */", f"/* TYPE_HOLE_END({th_id}) */"),
             (f"/* @type_hole_begin({th_id}) */", f"/* @type_hole_end({th_id}) */"),
-        ):
-            if filled_source.startswith(marker_prefix, pos):
-                end_marker = filled_source.find(marker_suffix, pos + len(marker_prefix))
-                if end_marker != -1:
-                    candidate_next = end_marker + len(marker_suffix)
-                    if (is_last and filled_source[candidate_next:] == next_seg) or (
-                        not is_last and filled_source.startswith(next_seg, candidate_next)
-                    ):
-                        next_pos = candidate_next
-                        break
-
-        if next_pos == -1 and filled_source.startswith(hole["placeholder"], pos):
-            candidate_next = pos + len(hole["placeholder"])
-            if (is_last and filled_source[candidate_next:] == next_seg) or (
-                not is_last and filled_source.startswith(next_seg, candidate_next)
-            ):
-                next_pos = candidate_next
-
-        if next_pos == -1:
-            if is_last:
-                if next_seg == "":
-                    next_pos = len(filled_source)
-                elif filled_source.endswith(next_seg) and len(filled_source) - len(next_seg) >= pos:
-                    next_pos = len(filled_source) - len(next_seg)
-            else:
-                if next_seg == "":
-                    next_pos = pos
-                else:
-                    found = filled_source.find(next_seg, pos)
-                    if found != -1:
-                        next_pos = found
-
-        if next_pos == -1:
-            line_no = filled_source.count("\n", 0, pos) + 1
-            structural_errors.append({
-                "kind": "changed_outside_hole",
-                "line": line_no,
-                "message": (
-                    f"skeleton segment after type hole '{th_id}' was modified or removed "
-                    f"(expected static code starting near line {line_no})"
-                ),
-            })
-            return False, extracted, structural_errors
-
-        body = filled_source[pos:next_pos]
-        start_line, end_line = _offset_to_line_range(filled_source, pos, next_pos)
-        extracted.append({
-            "id": th_id,
-            "type_name": hole["type_name"],
-            "body": body,
-            "start": pos,
-            "end": next_pos,
-            "start_line": start_line,
-            "end_line": end_line,
-        })
-        pos = next_pos + len(next_seg)
-
-    if pos != len(filled_source):
-        line_no = filled_source.count("\n", 0, min(pos, len(filled_source))) + 1
-        structural_errors.append({
-            "kind": "changed_outside_hole",
-            "line": line_no,
-            "message": f"trailing code after last type hole was modified near line {line_no}",
-        })
-        return False, extracted, structural_errors
-
-    return True, extracted, []
+        ),
+        hole_label="type hole",
+        empty_message_tpl="domain source modified outside type holes near line {line}",
+        extra_key="type_name",
+        fills=fills,
+        try_fill_variants=False,
+    )
 
 
 def _list_src_rs_files(crate_dir: Path) -> list[str]:
@@ -738,27 +682,85 @@ def _list_src_rs_files(crate_dir: Path) -> list[str]:
     )
 
 
+def _discover_type_holes(skeleton: Path, filled: Path) -> list[dict[str, Any]]:
+    known = type_holes_of(skeleton)
+    if known:
+        return known
+    domain_rs = filled / "src/domain.rs"
+    if domain_rs.is_file():
+        return [
+            {
+                "id": m.group("id"),
+                "type_name": m.group("type_name"),
+                "file": "src/domain.rs",
+            }
+            for m in TYPE_HOLE_PLACEHOLDER_RE.finditer(domain_rs.read_text(encoding="utf-8"))
+        ]
+    return []
+
+
+def _apply_seq_hole_fills_in_place(
+    skeleton: Path,
+    filled: Path,
+    fills: dict[str, str],
+    *,
+    marked: bool = True,
+) -> tuple[list[str], list[str]]:
+    """Substitute ``HOLE(id)`` placeholders across ``filled`` ``src/*.rs`` files."""
+    applied: list[str] = []
+    missing: list[str] = []
+    rs_files = _list_src_rs_files(filled)
+
+    for hole in holes_of(skeleton):
+        hid = hole["id"]
+        if hid not in fills:
+            missing.append(hid)
+            continue
+        preferred = str(hole.get("file") or "src/main.rs")
+        candidate_files = [preferred] + [f for f in rs_files if f != preferred]
+        placeholder = f"/* HOLE({hid}) expected: {hole['expected']} */ Default::default()"
+        replacement = (
+            f"/* @hole_begin({hid}) */ {fills[hid]} /* @hole_end({hid}) */"
+            if marked
+            else fills[hid]
+        )
+        pattern = re.compile(
+            rf"/\* HOLE\({re.escape(hid)}\) expected: .*? \*/ Default::default\(\)"
+        )
+        matched = False
+        for rel in candidate_files:
+            fpath = filled / rel
+            if not fpath.is_file():
+                continue
+            text = fpath.read_text(encoding="utf-8")
+            if placeholder in text:
+                fpath.write_text(text.replace(placeholder, replacement, 1), encoding="utf-8")
+                applied.append(hid)
+                matched = True
+                break
+            new_text, count = pattern.subn(lambda _m: replacement, text, count=1)
+            if count:
+                fpath.write_text(new_text, encoding="utf-8")
+                applied.append(hid)
+                matched = True
+                break
+        if not matched:
+            missing.append(hid)
+    return applied, missing
+
+
 def _apply_type_hole_fills_in_place(
     skeleton: Path,
     filled: Path,
     type_fills: dict[str, str],
+    *,
+    marked: bool = True,
 ) -> tuple[list[str], list[str]]:
-    """Substitute ``TYPE_HOLE(id)`` placeholders in ``filled`` with ``TYPE_HOLE_BEGIN/END`` markers."""
+    """Substitute ``TYPE_HOLE(id)`` placeholders in ``filled`` (optionally wrapped in markers)."""
     applied: list[str] = []
     missing: list[str] = []
 
-    known_type_holes = type_holes_of(skeleton)
-    if not known_type_holes:
-        domain_rs = filled / "src/domain.rs"
-        if domain_rs.is_file():
-            for m in TYPE_HOLE_PLACEHOLDER_RE.finditer(domain_rs.read_text(encoding="utf-8")):
-                known_type_holes.append({
-                    "id": m.group("id"),
-                    "type_name": m.group("type_name"),
-                    "file": "src/domain.rs",
-                })
-
-    for th in known_type_holes:
+    for th in _discover_type_holes(skeleton, filled):
         th_id = str(th.get("id") or "")
         if not th_id:
             continue
@@ -773,9 +775,9 @@ def _apply_type_hole_fills_in_place(
         text = target_path.read_text(encoding="utf-8")
         body_code = type_fills[th_id].strip("\r\n")
         replacement = (
-            f"/* TYPE_HOLE_BEGIN({th_id}) */\n"
-            f"{body_code}\n"
-            f"/* TYPE_HOLE_END({th_id}) */"
+            f"/* TYPE_HOLE_BEGIN({th_id}) */\n{body_code}\n/* TYPE_HOLE_END({th_id}) */"
+            if marked
+            else body_code
         )
         pattern = re.compile(
             rf"/\* TYPE_HOLE\({re.escape(th_id)}\).*? \*/"
@@ -844,59 +846,20 @@ def fill_holes_marked(
         shutil.rmtree(filled)
     shutil.copytree(skeleton, filled)
 
-    applied: list[str] = []
-    missing: list[str] = []
-    rs_files = _list_src_rs_files(filled)
-
-    for hole in holes_of(skeleton):
-        hid = hole["id"]
-        if hid not in fills:
-            missing.append(hid)
-            continue
-        preferred = str(hole.get("file") or "src/main.rs")
-        candidate_files = [preferred] + [f for f in rs_files if f != preferred]
-        placeholder = f"/* HOLE({hid}) expected: {hole['expected']} */ Default::default()"
-        replacement = f"/* @hole_begin({hid}) */ {fills[hid]} /* @hole_end({hid}) */"
-        pattern = re.compile(
-            rf"/\* HOLE\({re.escape(hid)}\) expected: .*? \*/ Default::default\(\)"
-        )
-        matched = False
-        for rel in candidate_files:
-            fpath = filled / rel
-            if not fpath.is_file():
-                continue
-            text = fpath.read_text(encoding="utf-8")
-            if placeholder in text:
-                fpath.write_text(text.replace(placeholder, replacement, 1), encoding="utf-8")
-                applied.append(hid)
-                matched = True
-                break
-            new_text, count = pattern.subn(lambda _m: replacement, text, count=1)
-            if count:
-                fpath.write_text(new_text, encoding="utf-8")
-                applied.append(hid)
-                matched = True
-                break
-        if not matched:
-            missing.append(hid)
+    applied, missing = _apply_seq_hole_fills_in_place(skeleton, filled, fills, marked=True)
 
     # Also apply any TypeHole fills (either explicit `type_fills` or matching IDs inside `fills`).
     combined_type_fills: dict[str, str] = {}
     if type_fills:
         combined_type_fills.update(type_fills)
-    for th in type_holes_of(skeleton):
+    for th in _discover_type_holes(skeleton, filled):
         th_id = str(th.get("id") or "")
         if th_id and th_id in fills and th_id not in combined_type_fills:
             combined_type_fills[th_id] = fills[th_id]
-    # Also handle TypeHoles discovered directly in src/domain.rs when codegen.json omits type_holes.
-    domain_rs = filled / "src/domain.rs"
-    if domain_rs.is_file():
-        for m in TYPE_HOLE_PLACEHOLDER_RE.finditer(domain_rs.read_text(encoding="utf-8")):
-            th_id = m.group("id")
-            if th_id in fills and th_id not in combined_type_fills:
-                combined_type_fills[th_id] = fills[th_id]
 
-    applied_th, missing_th = _apply_type_hole_fills_in_place(skeleton, filled, combined_type_fills)
+    applied_th, missing_th = _apply_type_hole_fills_in_place(
+        skeleton, filled, combined_type_fills, marked=True
+    )
 
     out_map_path = filled / "codegen_filled.json"
     all_fills = dict(fills)
@@ -1055,20 +1018,27 @@ def _sid_multiset(text: str) -> dict[str, int]:
     return counts
 
 
-def _hole_meta_index(codegen_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
+def _index_by_id(entries: list[Any] | None) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
-    for h in codegen_data.get("holes", []) or []:
-        if isinstance(h, dict) and h.get("id"):
-            out[str(h["id"])] = h
+    for item in entries or []:
+        if isinstance(item, dict) and item.get("id"):
+            out[str(item["id"])] = item
     return out
+
+
+def _hole_meta_index(codegen_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return _index_by_id(codegen_data.get("holes"))
 
 
 def _type_hole_meta_index(codegen_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    out: dict[str, dict[str, Any]] = {}
-    for th in codegen_data.get("type_holes", []) or []:
-        if isinstance(th, dict) and th.get("id"):
-            out[str(th["id"])] = th
-    return out
+    return _index_by_id(codegen_data.get("type_holes"))
+
+
+def _aggregate_statuses(statuses: list[str]) -> str:
+    for status in ("fail_skeleton", "fail_hole", "fail_refinement", "error", "unknown"):
+        if status in statuses:
+            return status
+    return "pass"
 
 
 def _span_file_matches(span_file: str | None, range_file: str | None) -> bool:
@@ -1141,6 +1111,261 @@ def _is_explicitly_bounded_loop(raw_inner: str, rel_line: int) -> bool:
     return False
 
 
+def _scan_filled_crate(
+    skeleton: Path,
+    filled: Path,
+    *,
+    fills: dict[str, str] | None = None,
+    hole_meta: dict[str, dict[str, Any]] | None = None,
+    type_hole_meta: dict[str, dict[str, Any]] | None = None,
+    plugin_name: str = "ast_hole_purity",
+    check_sid_on_all_files: bool = False,
+) -> tuple[bool, bool, list[StaticViolation], list[str], list[str], list[str]]:
+    """Pure multi-file integrity and O1 purity scanner (no disk writes).
+
+    Returns ``(skeleton_failed, hole_failed, violations, holes_checked,
+    type_holes_checked, skel_files)``.
+    """
+    hole_meta = hole_meta or {}
+    type_hole_meta = type_hole_meta or {}
+    skel_files = _list_src_rs_files(skeleton)
+    fill_files = _list_src_rs_files(filled)
+
+    violations: list[StaticViolation] = []
+    skeleton_failed = False
+    hole_failed = False
+    holes_checked: list[str] = []
+    type_holes_checked: list[str] = []
+
+    for extra in sorted(set(fill_files) - set(skel_files)):
+        skeleton_failed = True
+        violations.append(
+            StaticViolation(
+                plugin=plugin_name,
+                obligation="O_skeleton_integrity",
+                kind="unexpected_source_file",
+                message=f"unexpected Rust file added outside skeleton: {extra}",
+                rust_span=f"{extra}:1:1",
+            )
+        )
+    for missing_f in sorted(set(skel_files) - set(fill_files)):
+        skeleton_failed = True
+        violations.append(
+            StaticViolation(
+                plugin=plugin_name,
+                obligation="O_skeleton_integrity",
+                kind="missing_source_file",
+                message=f"skeleton Rust file removed in filled output: {missing_f}",
+                rust_span=f"{missing_f}:1:1",
+            )
+        )
+
+    def _check_sid_multiset(rel: str, skel_text: str, fill_text: str) -> None:
+        nonlocal skeleton_failed
+        s_sids = _sid_multiset(skel_text)
+        f_sids = _sid_multiset(fill_text)
+        if s_sids != f_sids:
+            skeleton_failed = True
+            violations.append(
+                StaticViolation(
+                    plugin=plugin_name,
+                    obligation="O_skeleton_integrity",
+                    kind="sid_count",
+                    message=(
+                        f"multiset of `// @cir <sid>` annotations changed between "
+                        f"skeleton and filled source in {rel}"
+                    ),
+                    rust_span=f"{rel}:1:1",
+                    witness_trace=[{"file": rel, "skeleton": s_sids, "filled": f_sids}],
+                )
+            )
+
+    for rel in skel_files:
+        if rel not in fill_files:
+            continue
+        skel_text = (skeleton / rel).read_text(encoding="utf-8")
+        fill_text = (filled / rel).read_text(encoding="utf-8")
+
+        if check_sid_on_all_files:
+            _check_sid_multiset(rel, skel_text, fill_text)
+
+        has_seq_holes = bool(PLACEHOLDER_RE.search(skel_text))
+        has_type_holes = bool(TYPE_HOLE_PLACEHOLDER_RE.search(skel_text))
+
+        if has_type_holes:
+            _th_ok, extracted_th, th_errs = _align_filled_to_type_hole_skeleton(
+                skel_text, fill_text, fills
+            )
+            for err in th_errs:
+                skeleton_failed = True
+                violations.append(
+                    StaticViolation(
+                        plugin=plugin_name,
+                        obligation="O_skeleton_integrity",
+                        kind=err["kind"],
+                        message=f"{rel}: {err['message']}",
+                        rust_span=f"{rel}:{err['line']}:1",
+                    )
+                )
+            th_to_scan = list(extracted_th)
+            if not th_to_scan and TYPE_HOLE_MARKER_RE.search(fill_text):
+                for m in TYPE_HOLE_MARKER_RE.finditer(fill_text):
+                    s, e = _offset_to_line_range(fill_text, m.start(), m.end())
+                    th_to_scan.append({
+                        "id": m.group("id"),
+                        "body": m.group(0),
+                        "start_line": s,
+                        "end_line": e,
+                    })
+            for item in th_to_scan:
+                th_id = item["id"]
+                type_holes_checked.append(th_id)
+                raw_body = item["body"]
+                start_line = int(item["start_line"])
+                meta = type_hole_meta.get(th_id, {})
+                reqs = [str(r) for r in (meta.get("req") or [])]
+
+                inner_body = _unwrap_type_hole_markers(th_id, raw_body)
+                leading_offset = 0
+                begin_prefix = f"/* TYPE_HOLE_BEGIN({th_id}) */"
+                if raw_body.startswith(begin_prefix):
+                    leading_offset = raw_body[:len(begin_prefix)].count("\n")
+
+                if SID_ANNOTATION_RE.search(inner_body):
+                    hole_failed = True
+                    violations.append(
+                        StaticViolation(
+                            plugin=plugin_name,
+                            obligation="O1_purity",
+                            kind="cir_annotation_in_type_hole",
+                            message=f"type hole '{th_id}' must not contain `// @cir` annotations",
+                            hole_id=th_id,
+                            req_clauses=reqs,
+                            rust_span=f"{rel}:{start_line}:1",
+                        )
+                    )
+
+                stripped = strip_rust_comments_and_literals(inner_body)
+                for kind, desc, pattern in _TYPE_HOLE_FORBIDDEN_RULES:
+                    for m in pattern.finditer(stripped):
+                        rel_line = stripped.count("\n", 0, m.start())
+                        if kind == "loop_in_type_hole" and _is_explicitly_bounded_loop(inner_body, rel_line):
+                            continue
+                        hole_failed = True
+                        line_no = start_line + leading_offset + rel_line
+                        last_nl = stripped.rfind("\n", 0, m.start())
+                        col_no = (m.start() - last_nl) if last_nl >= 0 else (m.start() + 1)
+                        token = m.group(0).strip()
+                        violations.append(
+                            StaticViolation(
+                                plugin=plugin_name,
+                                obligation="O1_purity",
+                                kind=kind,
+                                message=f"{desc}: found `{token}` in type hole '{th_id}' ({rel})",
+                                hole_id=th_id,
+                                req_clauses=reqs,
+                                rust_span=f"{rel}:{line_no}:{col_no}",
+                                witness_trace=[{"inner_body": inner_body.strip()}],
+                            )
+                        )
+            continue
+
+        if has_seq_holes:
+            _skel_ok, extracted_holes, structural_errors = _align_filled_to_skeleton(
+                skel_text, fill_text, fills
+            )
+            for err in structural_errors:
+                skeleton_failed = True
+                violations.append(
+                    StaticViolation(
+                        plugin=plugin_name,
+                        obligation="O_skeleton_integrity",
+                        kind=err["kind"],
+                        message=err["message"],
+                        rust_span=f"{rel}:{err['line']}:1",
+                    )
+                )
+            if not check_sid_on_all_files:
+                _check_sid_multiset(rel, skel_text, fill_text)
+
+            holes_to_scan = list(extracted_holes)
+            if not holes_to_scan and HOLE_MARKER_RE.search(fill_text):
+                for m in HOLE_MARKER_RE.finditer(fill_text):
+                    s, e = _offset_to_line_range(fill_text, m.start(), m.end())
+                    holes_to_scan.append({
+                        "id": m.group("id"),
+                        "body": m.group(0),
+                        "start_line": s,
+                        "end_line": e,
+                    })
+
+            for item in holes_to_scan:
+                hid = item["id"]
+                holes_checked.append(hid)
+                raw_body = item["body"]
+                start_line = int(item["start_line"])
+                meta = hole_meta.get(hid, {})
+                sid = str(meta["sid"]) if meta.get("sid") is not None else None
+                reqs = [str(r) for r in (meta.get("req") or [])]
+
+                inner_body = _unwrap_hole_markers(hid, raw_body)
+
+                if SID_ANNOTATION_RE.search(inner_body):
+                    hole_failed = True
+                    violations.append(
+                        StaticViolation(
+                            plugin=plugin_name,
+                            obligation="O1_purity",
+                            kind="cir_annotation_in_hole",
+                            message=f"hole '{hid}' must not contain `// @cir` annotations",
+                            hole_id=hid,
+                            sid=sid,
+                            req_clauses=reqs,
+                            rust_span=f"{rel}:{start_line}:1",
+                        )
+                    )
+
+                stripped = strip_rust_comments_and_literals(inner_body)
+                for kind, desc, pattern in _FORBIDDEN_RULES:
+                    for m in pattern.finditer(stripped):
+                        hole_failed = True
+                        rel_line = stripped.count("\n", 0, m.start())
+                        line_no = start_line + rel_line
+                        last_nl = stripped.rfind("\n", 0, m.start())
+                        col_no = (m.start() - last_nl) if last_nl >= 0 else (m.start() + 1)
+                        token = m.group(0).strip()
+                        violations.append(
+                            StaticViolation(
+                                plugin=plugin_name,
+                                obligation="O1_purity",
+                                kind=kind,
+                                message=f"{desc}: found `{token}` in hole '{hid}'",
+                                hole_id=hid,
+                                sid=sid,
+                                req_clauses=reqs,
+                                rust_span=f"{rel}:{line_no}:{col_no}",
+                                witness_trace=[{"inner_body": inner_body.strip()}],
+                            )
+                        )
+            continue
+
+        # Pure file with neither SeqHole nor TypeHole: must be byte-identical.
+        if fill_text != skel_text:
+            skeleton_failed = True
+            diff_line = _first_diff_line(skel_text, fill_text)
+            violations.append(
+                StaticViolation(
+                    plugin=plugin_name,
+                    obligation="O_skeleton_integrity",
+                    kind="changed_outside_hole",
+                    message=f"{rel} modified outside holes near line {diff_line}",
+                    rust_span=f"{rel}:{diff_line}:1",
+                )
+            )
+
+    return skeleton_failed, hole_failed, violations, holes_checked, type_holes_checked, skel_files
+
+
 class AstHolePurityPlugin:
     """Verify skeleton integrity and comment/string-safe purity across all ``src/*.rs`` files,
     checking both ``SeqHole``s (``src/main.rs``, ``src/<mod>.rs``) and ``TypeHole``s
@@ -1185,228 +1410,21 @@ class AstHolePurityPlugin:
         hole_meta = _hole_meta_index(augmented)
         type_hole_meta = _type_hole_meta_index(augmented)
 
-        skel_files = _list_src_rs_files(skeleton)
-        fill_files = _list_src_rs_files(filled)
-
-        violations: list[StaticViolation] = []
-        skeleton_failed = False
-        hole_failed = False
-        holes_checked: list[str] = []
-        type_holes_checked: list[str] = []
-
-        # Detect added or removed .rs files outside skeleton.
-        for extra in sorted(set(fill_files) - set(skel_files)):
-            skeleton_failed = True
-            violations.append(
-                StaticViolation(
-                    plugin=self.name,
-                    obligation="O_skeleton_integrity",
-                    kind="unexpected_source_file",
-                    message=f"unexpected Rust file added outside skeleton: {extra}",
-                    rust_span=f"{extra}:1:1",
-                )
+        skeleton_failed, hole_failed, violations, holes_checked, type_holes_checked, skel_files = (
+            _scan_filled_crate(
+                skeleton,
+                filled,
+                fills=fills,
+                hole_meta=hole_meta,
+                type_hole_meta=type_hole_meta,
+                plugin_name=self.name,
+                check_sid_on_all_files=False,
             )
-        for missing_f in sorted(set(skel_files) - set(fill_files)):
-            skeleton_failed = True
-            violations.append(
-                StaticViolation(
-                    plugin=self.name,
-                    obligation="O_skeleton_integrity",
-                    kind="missing_source_file",
-                    message=f"skeleton Rust file removed in filled output: {missing_f}",
-                    rust_span=f"{missing_f}:1:1",
-                )
-            )
-
-        for rel in skel_files:
-            if rel not in fill_files:
-                continue
-            skel_text = (skeleton / rel).read_text(encoding="utf-8")
-            fill_text = (filled / rel).read_text(encoding="utf-8")
-
-            has_seq_holes = bool(PLACEHOLDER_RE.search(skel_text))
-            has_type_holes = bool(TYPE_HOLE_PLACEHOLDER_RE.search(skel_text))
-
-            if has_type_holes:
-                _th_ok, extracted_th, th_errs = _align_filled_to_type_hole_skeleton(
-                    skel_text, fill_text, fills
-                )
-                for err in th_errs:
-                    skeleton_failed = True
-                    violations.append(
-                        StaticViolation(
-                            plugin=self.name,
-                            obligation="O_skeleton_integrity",
-                            kind=err["kind"],
-                            message=f"{rel}: {err['message']}",
-                            rust_span=f"{rel}:{err['line']}:1",
-                        )
-                    )
-                th_to_scan = list(extracted_th)
-                if not th_to_scan and TYPE_HOLE_MARKER_RE.search(fill_text):
-                    for m in TYPE_HOLE_MARKER_RE.finditer(fill_text):
-                        s, e = _offset_to_line_range(fill_text, m.start(), m.end())
-                        th_to_scan.append({
-                            "id": m.group("id"),
-                            "body": m.group(0),
-                            "start_line": s,
-                            "end_line": e,
-                        })
-                for item in th_to_scan:
-                    th_id = item["id"]
-                    type_holes_checked.append(th_id)
-                    raw_body = item["body"]
-                    start_line = int(item["start_line"])
-                    meta = type_hole_meta.get(th_id, {})
-                    reqs = [str(r) for r in (meta.get("req") or [])]
-
-                    inner_body = _unwrap_type_hole_markers(th_id, raw_body)
-                    # Adjust start_line if wrapper starts with `/* TYPE_HOLE_BEGIN(...) */\n`
-                    leading_offset = 0
-                    begin_prefix = f"/* TYPE_HOLE_BEGIN({th_id}) */"
-                    if raw_body.startswith(begin_prefix):
-                        leading_offset = raw_body[:len(begin_prefix)].count("\n")
-
-                    if SID_ANNOTATION_RE.search(inner_body):
-                        hole_failed = True
-                        violations.append(
-                            StaticViolation(
-                                plugin=self.name,
-                                obligation="O1_purity",
-                                kind="cir_annotation_in_type_hole",
-                                message=f"type hole '{th_id}' must not contain `// @cir` annotations",
-                                hole_id=th_id,
-                                req_clauses=reqs,
-                                rust_span=f"{rel}:{start_line}:1",
-                            )
-                        )
-
-                    stripped = strip_rust_comments_and_literals(inner_body)
-                    for kind, desc, pattern in _TYPE_HOLE_FORBIDDEN_RULES:
-                        for m in pattern.finditer(stripped):
-                            rel_line = stripped.count("\n", 0, m.start())
-                            if kind == "loop_in_type_hole" and _is_explicitly_bounded_loop(inner_body, rel_line):
-                                continue
-                            hole_failed = True
-                            line_no = start_line + leading_offset + rel_line
-                            last_nl = stripped.rfind("\n", 0, m.start())
-                            col_no = (m.start() - last_nl) if last_nl >= 0 else (m.start() + 1)
-                            token = m.group(0).strip()
-                            violations.append(
-                                StaticViolation(
-                                    plugin=self.name,
-                                    obligation="O1_purity",
-                                    kind=kind,
-                                    message=f"{desc}: found `{token}` in type hole '{th_id}' ({rel})",
-                                    hole_id=th_id,
-                                    req_clauses=reqs,
-                                    rust_span=f"{rel}:{line_no}:{col_no}",
-                                )
-                            )
-                continue
-
-            if has_seq_holes:
-                _skel_ok, extracted_holes, structural_errors = _align_filled_to_skeleton(
-                    skel_text, fill_text, fills
-                )
-                for err in structural_errors:
-                    skeleton_failed = True
-                    violations.append(
-                        StaticViolation(
-                            plugin=self.name,
-                            obligation="O_skeleton_integrity",
-                            kind=err["kind"],
-                            message=err["message"],
-                            rust_span=f"{rel}:{err['line']}:1",
-                        )
-                    )
-                if _sid_multiset(skel_text) != _sid_multiset(fill_text):
-                    skeleton_failed = True
-                    violations.append(
-                        StaticViolation(
-                            plugin=self.name,
-                            obligation="O_skeleton_integrity",
-                            kind="sid_count",
-                            message=(
-                                f"multiset of `// @cir <sid>` annotations changed between "
-                                f"skeleton and filled source in {rel}"
-                            ),
-                        )
-                    )
-
-                holes_to_scan = list(extracted_holes)
-                if not holes_to_scan and HOLE_MARKER_RE.search(fill_text):
-                    for m in HOLE_MARKER_RE.finditer(fill_text):
-                        s, e = _offset_to_line_range(fill_text, m.start(), m.end())
-                        holes_to_scan.append({
-                            "id": m.group("id"),
-                            "body": m.group(0),
-                            "start_line": s,
-                            "end_line": e,
-                        })
-
-                for item in holes_to_scan:
-                    hid = item["id"]
-                    holes_checked.append(hid)
-                    raw_body = item["body"]
-                    start_line = int(item["start_line"])
-                    meta = hole_meta.get(hid, {})
-                    sid = str(meta["sid"]) if meta.get("sid") is not None else None
-                    reqs = [str(r) for r in (meta.get("req") or [])]
-
-                    inner_body = _unwrap_hole_markers(hid, raw_body)
-
-                    if SID_ANNOTATION_RE.search(inner_body):
-                        hole_failed = True
-                        violations.append(
-                            StaticViolation(
-                                plugin=self.name,
-                                obligation="O1_purity",
-                                kind="cir_annotation_in_hole",
-                                message=f"hole '{hid}' must not contain `// @cir` annotations",
-                                hole_id=hid,
-                                sid=sid,
-                                req_clauses=reqs,
-                                rust_span=f"{rel}:{start_line}:1",
-                            )
-                        )
-
-                    stripped = strip_rust_comments_and_literals(inner_body)
-                    for kind, desc, pattern in _FORBIDDEN_RULES:
-                        for m in pattern.finditer(stripped):
-                            hole_failed = True
-                            rel_line = stripped.count("\n", 0, m.start())
-                            line_no = start_line + rel_line
-                            last_nl = stripped.rfind("\n", 0, m.start())
-                            col_no = (m.start() - last_nl) if last_nl >= 0 else (m.start() + 1)
-                            token = m.group(0).strip()
-                            violations.append(
-                                StaticViolation(
-                                    plugin=self.name,
-                                    obligation="O1_purity",
-                                    kind=kind,
-                                    message=f"{desc}: found `{token}` in hole '{hid}'",
-                                    hole_id=hid,
-                                    sid=sid,
-                                    req_clauses=reqs,
-                                    rust_span=f"{rel}:{line_no}:{col_no}",
-                                )
-                            )
-                continue
-
-            # Pure file with neither SeqHole nor TypeHole: must be byte-identical.
-            if fill_text != skel_text:
-                skeleton_failed = True
-                diff_line = _first_diff_line(skel_text, fill_text)
-                violations.append(
-                    StaticViolation(
-                        plugin=self.name,
-                        obligation="O_skeleton_integrity",
-                        kind="changed_outside_hole",
-                        message=f"{rel} modified outside holes near line {diff_line}",
-                        rust_span=f"{rel}:{diff_line}:1",
-                    )
-                )
+        )
+        for v in violations:
+            if v.kind == "sid_count":
+                v.rust_span = None
+            v.witness_trace = []
 
         if skeleton_failed:
             status = "fail_skeleton"
@@ -1950,18 +1968,7 @@ class SpnMirRefinementPlugin:
             if rep.error:
                 errors.append(f"{mod_name}: {rep.error}")
 
-        if "fail_skeleton" in statuses:
-            agg = "fail_skeleton"
-        elif "fail_hole" in statuses:
-            agg = "fail_hole"
-        elif "fail_refinement" in statuses:
-            agg = "fail_refinement"
-        elif "error" in statuses:
-            agg = "error"
-        elif "unknown" in statuses:
-            agg = "unknown"
-        else:
-            agg = "pass"
+        agg = _aggregate_statuses(statuses)
 
         return StaticVerificationReport(
             status=agg,
@@ -2180,18 +2187,7 @@ class CompositeStaticVerifier:
                 break
 
         # Determine aggregate status (never downgrade unknown/fail/error to pass).
-        if "fail_skeleton" in statuses:
-            agg_status = "fail_skeleton"
-        elif "fail_hole" in statuses:
-            agg_status = "fail_hole"
-        elif "fail_refinement" in statuses:
-            agg_status = "fail_refinement"
-        elif "error" in statuses:
-            agg_status = "error"
-        elif "unknown" in statuses:
-            agg_status = "unknown"
-        else:
-            agg_status = "pass"
+        agg_status = _aggregate_statuses(statuses)
 
         return StaticVerificationReport(
             status=agg_status,

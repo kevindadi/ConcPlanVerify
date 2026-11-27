@@ -19,20 +19,15 @@ import os
 import re
 import shutil
 import subprocess
-import tempfile
-from dataclasses import dataclass, field
+import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-HOLE_RE = re.compile(r"/\* HOLE\((?P<id>[A-Za-z0-9_]+)\) expected: (?P<expected>.*?) \*/")
 PLACEHOLDER_RE = re.compile(
     r"/\* HOLE\((?P<id>[A-Za-z0-9_]+)\) expected: (?P<expected>.*?) \*/ Default::default\(\)")
-FORBIDDEN = re.compile(
-    r"std::sync|std::thread|Mutex|Condvar|RwLock|channel|Semaphore|"
-    r"thread::spawn|scope\(|\.lock\(|\.wait|notify|\.send\(|\.recv\(|Atomic|"
-    r"unsafe|cir_trace")
 
-
+from ..core.json_utils import extract_json, sha256_bytes, sha256_text
 from ..core.toolchain import find_concir_backend, resolve_binary_path, resolve_exe_in_dir
 
 
@@ -155,15 +150,8 @@ def fill_prompt(skeleton_dir: Path | str, requirements: str, *,
 
 def parse_fill(text: str) -> dict[str, str]:
     """Extract ``{hole_id: code}`` from a model reply (JSON object, fenced ok)."""
-
-    stripped = text.strip()
-    if "```" in stripped:
-        parts = stripped.split("```")
-        stripped = parts[1] if len(parts) > 1 else stripped
-        if stripped.lstrip().lower().startswith("json"):
-            stripped = stripped.lstrip()[4:]
     try:
-        data = json.loads(stripped)
+        data = json.loads(extract_json(text))
     except json.JSONDecodeError:
         return {}
     if not isinstance(data, dict):
@@ -174,7 +162,7 @@ def parse_fill(text: str) -> dict[str, str]:
 def fill_holes(skeleton_dir: Path | str, filled_dir: Path | str, fills: dict[str, str]) -> dict[str, Any]:
     """Substitute SeqHole and TypeHole code into a copy of the skeleton (no LLM here)."""
 
-    from .static_verify import TYPE_HOLE_PLACEHOLDER_RE, _list_src_rs_files
+    from .static_verify import _apply_seq_hole_fills_in_place, _apply_type_hole_fills_in_place
 
     skeleton = Path(skeleton_dir).expanduser().resolve()
     filled = Path(filled_dir).expanduser().resolve()
@@ -182,78 +170,10 @@ def fill_holes(skeleton_dir: Path | str, filled_dir: Path | str, fills: dict[str
         shutil.rmtree(filled)
     shutil.copytree(skeleton, filled)
 
-    rs_files = _list_src_rs_files(filled)
-    applied: list[str] = []
-    missing: list[str] = []
-    for hole in holes_of(skeleton):
-        hid = hole["id"]
-        if hid not in fills:
-            missing.append(hid)
-            continue
-        preferred = str(hole.get("file") or "src/main.rs")
-        candidate_files = [preferred] + [f for f in rs_files if f != preferred]
-        placeholder = f"/* HOLE({hid}) expected: {hole['expected']} */ Default::default()"
-        pattern = re.compile(
-            rf"/\* HOLE\({re.escape(hid)}\) expected: .*? \*/ Default::default\(\)"
-        )
-        matched = False
-        for rel in candidate_files:
-            path = filled / rel
-            if not path.is_file():
-                continue
-            text = path.read_text(encoding="utf-8")
-            if placeholder in text:
-                path.write_text(text.replace(placeholder, fills[hid], 1), encoding="utf-8")
-                applied.append(hid)
-                matched = True
-                break
-            new_text, count = pattern.subn(lambda _m: fills[hid], text, count=1)
-            if count:
-                path.write_text(new_text, encoding="utf-8")
-                applied.append(hid)
-                matched = True
-                break
-        if not matched:
-            missing.append(hid)
-
-    known_type_holes = type_holes_of(skeleton)
-    if not known_type_holes:
-        domain_rs = filled / "src/domain.rs"
-        if domain_rs.is_file():
-            for m in TYPE_HOLE_PLACEHOLDER_RE.finditer(domain_rs.read_text(encoding="utf-8")):
-                known_type_holes.append({
-                    "id": m.group("id"),
-                    "type_name": m.group("type_name"),
-                    "file": "src/domain.rs",
-                })
-
-    applied_type_holes: list[str] = []
-    missing_type_holes: list[str] = []
-    for th in known_type_holes:
-        th_id = str(th.get("id") or "")
-        if not th_id:
-            continue
-        if th_id not in fills:
-            missing_type_holes.append(th_id)
-            continue
-        rel_file = str(th.get("file") or "src/domain.rs")
-        target_path = filled / rel_file
-        if not target_path.is_file():
-            missing_type_holes.append(th_id)
-            continue
-        text = target_path.read_text(encoding="utf-8")
-        pattern = re.compile(
-            rf"/\* TYPE_HOLE\({re.escape(th_id)}\).*? \*/"
-            r"\s*(?:#\[[^\]]*\]\s*)*"
-            r"pub\s+struct\s+[A-Za-z_][A-Za-z0-9_]*\s*\{\s*\}",
-            re.DOTALL,
-        )
-        new_text, count = pattern.subn(lambda _m: fills[th_id].strip("\r\n"), text, count=1)
-        if count:
-            target_path.write_text(new_text, encoding="utf-8")
-            applied_type_holes.append(th_id)
-        else:
-            missing_type_holes.append(th_id)
+    applied, missing = _apply_seq_hole_fills_in_place(skeleton, filled, fills, marked=False)
+    applied_type_holes, missing_type_holes = _apply_type_hole_fills_in_place(
+        skeleton, filled, fills, marked=False
+    )
 
     return {
         "applied": applied,
@@ -266,169 +186,62 @@ def fill_holes(skeleton_dir: Path | str, filled_dir: Path | str, fills: dict[str
 def lint_filled(skeleton_dir: Path | str, filled_dir: Path | str) -> dict[str, Any]:
     """Multi-file, multi-line structural + purity diff across ``src/*.rs`` and ``TypeHole``s."""
 
-    from .static_verify import (
-        _FORBIDDEN_RULES,
-        _TYPE_HOLE_FORBIDDEN_RULES,
-        HOLE_MARKER_RE,
-        SID_ANNOTATION_RE,
-        TYPE_HOLE_MARKER_RE,
-        TYPE_HOLE_PLACEHOLDER_RE,
-        _align_filled_to_skeleton,
-        _align_filled_to_type_hole_skeleton,
-        _first_diff_line,
-        _is_explicitly_bounded_loop,
-        _list_src_rs_files,
-        _offset_to_line_range,
-        _sid_multiset,
-        _unwrap_hole_markers,
-        _unwrap_type_hole_markers,
-        strip_rust_comments_and_literals,
-    )
+    from .static_verify import _scan_filled_crate
 
     skel_root = Path(skeleton_dir).expanduser().resolve()
     fill_root = Path(filled_dir).expanduser().resolve()
-    skel_files = _list_src_rs_files(skel_root)
-    fill_files = _list_src_rs_files(fill_root)
+    _skel_fail, _hole_fail, raw_violations, _hc, _thc, _sf = _scan_filled_crate(
+        skel_root,
+        fill_root,
+        check_sid_on_all_files=True,
+    )
+
     violations: list[dict[str, Any]] = []
+    seen_forbidden_holes: set[tuple[str, str]] = set()
+    for v in raw_violations:
+        rel_file = (v.rust_span or "").split(":", 1)[0]
+        line_no: int | None = None
+        if v.rust_span and ":" in v.rust_span:
+            parts = v.rust_span.split(":")
+            if len(parts) >= 2 and parts[1].isdigit():
+                line_no = int(parts[1])
 
-    for extra in sorted(set(fill_files) - set(skel_files)):
-        violations.append({
-            "kind": "changed_outside_hole",
-            "file": extra,
-            "line": 1,
-            "detail": f"unexpected source file added outside skeleton: {extra}",
-        })
-    for missing_f in sorted(set(skel_files) - set(fill_files)):
-        violations.append({
-            "kind": "changed_outside_hole",
-            "file": missing_f,
-            "line": 1,
-            "detail": f"skeleton source file removed: {missing_f}",
-        })
-
-    for rel in skel_files:
-        if rel not in fill_files:
-            continue
-        skel_text = (skel_root / rel).read_text(encoding="utf-8")
-        fill_text = (fill_root / rel).read_text(encoding="utf-8")
-
-        s_sids = _sid_multiset(skel_text)
-        f_sids = _sid_multiset(fill_text)
-        if s_sids != f_sids:
+        if v.kind == "sid_count":
+            trace = v.witness_trace[0] if v.witness_trace else {}
             violations.append({
                 "kind": "sid_count",
-                "file": rel,
-                "detail": {"skeleton": s_sids, "filled": f_sids},
+                "file": trace.get("file", rel_file),
+                "detail": {
+                    "skeleton": trace.get("skeleton", {}),
+                    "filled": trace.get("filled", {}),
+                },
             })
-
-        has_type_holes = bool(TYPE_HOLE_PLACEHOLDER_RE.search(skel_text))
-        has_seq_holes = bool(PLACEHOLDER_RE.search(skel_text))
-
-        if has_type_holes:
-            _th_ok, extracted_th, th_errs = _align_filled_to_type_hole_skeleton(
-                skel_text, fill_text
+        elif v.obligation == "O1_purity":
+            key = (rel_file, v.hole_id or "")
+            if key in seen_forbidden_holes and v.kind not in (
+                "cir_annotation_in_hole",
+                "cir_annotation_in_type_hole",
+            ):
+                continue
+            seen_forbidden_holes.add(key)
+            detail = (
+                v.witness_trace[0].get("inner_body", v.message)
+                if v.witness_trace
+                else v.message
             )
-            for err in th_errs:
-                violations.append({
-                    "kind": "changed_outside_hole",
-                    "file": rel,
-                    "line": err["line"],
-                    "detail": err["message"],
-                })
-            th_to_scan = list(extracted_th)
-            if not th_to_scan and TYPE_HOLE_MARKER_RE.search(fill_text):
-                for m in TYPE_HOLE_MARKER_RE.finditer(fill_text):
-                    s, e = _offset_to_line_range(fill_text, m.start(), m.end())
-                    th_to_scan.append({
-                        "id": m.group("id"),
-                        "body": m.group(0),
-                        "start_line": s,
-                        "end_line": e,
-                    })
-            for item in th_to_scan:
-                th_id = item["id"]
-                inner_body = _unwrap_type_hole_markers(th_id, item["body"])
-                start_line = int(item["start_line"])
-                if SID_ANNOTATION_RE.search(inner_body):
-                    violations.append({
-                        "kind": "forbidden_in_hole",
-                        "file": rel,
-                        "hole_id": th_id,
-                        "line": start_line,
-                        "detail": f"type hole '{th_id}' must not contain // @cir annotations",
-                    })
-                stripped = strip_rust_comments_and_literals(inner_body)
-                for kind, _desc, pattern in _TYPE_HOLE_FORBIDDEN_RULES:
-                    for m in pattern.finditer(stripped):
-                        rel_line = stripped.count("\n", 0, m.start())
-                        if kind == "loop_in_type_hole" and _is_explicitly_bounded_loop(inner_body, rel_line):
-                            continue
-                        violations.append({
-                            "kind": "forbidden_in_hole",
-                            "file": rel,
-                            "hole_id": th_id,
-                            "line": start_line + rel_line,
-                            "detail": item["body"].strip(),
-                        })
-                        break
-                    else:
-                        continue
-                    break
-
-        if has_seq_holes:
-            _ok, extracted_holes, structural_errors = _align_filled_to_skeleton(
-                skel_text, fill_text
-            )
-            for err in structural_errors:
-                violations.append({
-                    "kind": "changed_outside_hole",
-                    "file": rel,
-                    "line": err["line"],
-                    "detail": err["message"],
-                })
-            holes_to_scan = list(extracted_holes)
-            if not holes_to_scan and HOLE_MARKER_RE.search(fill_text):
-                for m in HOLE_MARKER_RE.finditer(fill_text):
-                    s, e = _offset_to_line_range(fill_text, m.start(), m.end())
-                    holes_to_scan.append({
-                        "id": m.group("id"),
-                        "body": m.group(0),
-                        "start_line": s,
-                        "end_line": e,
-                    })
-            for item in holes_to_scan:
-                hid = item["id"]
-                inner_body = _unwrap_hole_markers(hid, item["body"])
-                start_line = int(item["start_line"])
-                if SID_ANNOTATION_RE.search(inner_body):
-                    violations.append({
-                        "kind": "forbidden_in_hole",
-                        "file": rel,
-                        "hole_id": hid,
-                        "line": start_line,
-                        "detail": f"hole '{hid}' must not contain // @cir annotations",
-                    })
-                stripped = strip_rust_comments_and_literals(inner_body)
-                for _kind, _desc, pattern in _FORBIDDEN_RULES:
-                    m = pattern.search(stripped)
-                    if m:
-                        rel_line = stripped.count("\n", 0, m.start())
-                        violations.append({
-                            "kind": "forbidden_in_hole",
-                            "file": rel,
-                            "hole_id": hid,
-                            "line": start_line + rel_line,
-                            "detail": inner_body.strip(),
-                        })
-                        break
-
-        if not has_type_holes and not has_seq_holes and fill_text != skel_text:
-            diff_line = _first_diff_line(skel_text, fill_text)
+            violations.append({
+                "kind": "forbidden_in_hole",
+                "file": rel_file,
+                "hole_id": v.hole_id,
+                "line": line_no,
+                "detail": detail,
+            })
+        else:
             violations.append({
                 "kind": "changed_outside_hole",
-                "file": rel,
-                "line": diff_line,
-                "detail": f"{rel} modified outside holes near line {diff_line}",
+                "file": rel_file,
+                "line": line_no or 1,
+                "detail": v.message,
             })
 
     return {"ok": not violations, "violations": violations}
@@ -445,18 +258,6 @@ class TraceRun:
     stdout_sha256: str | None = None
     stderr_sha256: str | None = None
     hang_suspect: bool = False
-
-
-def _sha(text: str) -> str:
-    import hashlib
-
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-def _sha_bytes(data: bytes) -> str:
-    import hashlib
-
-    return hashlib.sha256(data).hexdigest()
 
 
 def _git_rev(binary: Path) -> str:
@@ -476,8 +277,6 @@ def collect_traces(filled_dir: Path | str, *, native_runs: int = 50,
                    calls_dir: Path | str | None = None,
                    run_miri: bool = True) -> list[TraceRun]:
     """Build the filled project, run it N times plus oneMiri many-seeds pass."""
-
-    import time
 
     root = Path(filled_dir).expanduser().resolve()
     # Resolve so CIR_TRACE_OUT is absolute: the child runs with cwd=root, so a
@@ -509,7 +308,7 @@ def collect_traces(filled_dir: Path | str, *, native_runs: int = 50,
         runs.append(TraceRun(
             kind="native", index=i, trace_path=str(trace) if trace.is_file() else None,
             hang=hang, exit_code=code, wall_ms=wall,
-            stdout_sha256=_sha(out), stderr_sha256=_sha(err)))
+            stdout_sha256=sha256_text(out), stderr_sha256=sha256_text(err)))
     if run_miri:
         # One trace per seed: run each seed in its own process so the trace file
         # is not overwritten and each seed is an independent observation.
@@ -538,7 +337,7 @@ def collect_traces(filled_dir: Path | str, *, native_runs: int = 50,
                 kind="miri", index=seed,
                 trace_path=str(trace) if trace.is_file() else None,
                 hang=hang, exit_code=code, wall_ms=wall,
-                stdout_sha256=_sha(out), stderr_sha256=_sha(err),
+                stdout_sha256=sha256_text(out), stderr_sha256=sha256_text(err),
                 hang_suspect=hang))
     return runs
 
@@ -555,7 +354,7 @@ def run_conformance_smoke(cases: list[tuple[str, Path | str]], out_dir: Path | s
     out = Path(out_dir).expanduser().resolve()
     out.mkdir(parents=True, exist_ok=True)
     binary_path = _binary(binary)
-    binary_sha = _sha_bytes(binary_path.read_bytes())
+    binary_sha = sha256_bytes(binary_path.read_bytes())
     git_rev = _git_rev(binary_path)
     records = []
     for label, program in cases:
@@ -563,7 +362,7 @@ def run_conformance_smoke(cases: list[tuple[str, Path | str]], out_dir: Path | s
         case_dir = out / label
         skeleton = case_dir / "skeleton"
         record: dict[str, Any] = {"case": label, "program": str(program),
-                                  "program_sha256": _sha(program.read_text(encoding="utf-8")),
+                                  "program_sha256": sha256_text(program.read_text(encoding="utf-8")),
                                   "binary_sha256": binary_sha, "git_rev": git_rev}
         try:
             codegen(program, skeleton, binary=binary)
