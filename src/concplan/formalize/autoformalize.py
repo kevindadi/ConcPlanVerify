@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from ..core.concir_client import ConcirClient
-from ..core.json_utils import extract_json
+from ..core.json_utils import extract_json, write_json
 from ..core.providers import CandidateProvider, CandidateRequest
 from .models import (
     ContractExplanation,
@@ -731,6 +731,77 @@ def _matches_grounded(name: str, grounded: set[str], *, allow_main: bool = False
     return short in grounded_shorts
 
 
+def _validate_req_clauses(
+    reqs: Any,
+    *,
+    owner_kind: str,
+    owner_label: str,
+    property_id: str,
+    clause_index: dict[str, RequirementClause],
+    issues: list[SanityIssue],
+) -> None:
+    if not clause_index:
+        return
+    for cid in reqs or []:
+        cid_s = str(cid).strip()
+        if cid_s not in clause_index:
+            issues.append(
+                SanityIssue(
+                    "error",
+                    "unknown_req_clause",
+                    f"{owner_kind} '{owner_label}' references unknown clause '{cid_s}'",
+                    property_id=property_id,
+                    clause_id=cid_s,
+                )
+            )
+        elif not clause_index[cid_s].verifiable:
+            issues.append(
+                SanityIssue(
+                    "error",
+                    "unverifiable_req_clause",
+                    f"{owner_kind} '{owner_label}' references unverifiable"
+                    + ("/sequential_hole" if owner_kind == "property" else "")
+                    + f" clause '{cid_s}'",
+                    property_id=property_id,
+                    clause_id=cid_s,
+                )
+            )
+
+
+def _validate_entity_grounding(
+    funcs: set[str],
+    resources: set[str],
+    *,
+    owner_kind: str,
+    owner_label: str,
+    grounded_roles: set[str],
+    grounded_resources: set[str],
+    strict_entities: bool,
+    issues: list[SanityIssue],
+) -> None:
+    ent_sev = "error" if strict_entities else "warning"
+    for fn in sorted(funcs):
+        if not _matches_grounded(fn, grounded_roles, allow_main=True):
+            issues.append(
+                SanityIssue(
+                    ent_sev,
+                    "ungrounded_function",
+                    f"{owner_kind} '{owner_label}' references function '{fn}' not in grounded roles {sorted(grounded_roles)}",
+                    property_id=owner_label,
+                )
+            )
+    for res in sorted(resources):
+        if not _matches_grounded(res, grounded_resources):
+            issues.append(
+                SanityIssue(
+                    ent_sev,
+                    "ungrounded_resource",
+                    f"{owner_kind} '{owner_label}' references resource '{res}' not in grounded resources {sorted(grounded_resources)}",
+                    property_id=owner_label,
+                )
+            )
+
+
 def validate_contract_sanity(
     contract: dict[str, Any],
     structured: StructuredRequirements | None = None,
@@ -778,8 +849,6 @@ def validate_contract_sanity(
     )
 
     seen_ids: set[str] = set()
-    all_funcs: set[str] = set()
-    all_resources: set[str] = set()
 
     for idx, prop in enumerate(props):
         if not isinstance(prop, dict):
@@ -802,32 +871,16 @@ def validate_contract_sanity(
             )
             continue
 
-        # Validate req clause bindings.
-        for cid in prop.get("req") or []:
-            cid_s = str(cid).strip()
-            if structured is not None:
-                if cid_s not in clause_index:
-                    issues.append(
-                        SanityIssue(
-                            "error",
-                            "unknown_req_clause",
-                            f"property '{pid}' references unknown clause '{cid_s}'",
-                            property_id=pid,
-                            clause_id=cid_s,
-                        )
-                    )
-                elif not clause_index[cid_s].verifiable:
-                    issues.append(
-                        SanityIssue(
-                            "error",
-                            "unverifiable_req_clause",
-                            f"property '{pid}' references unverifiable/sequential_hole clause '{cid_s}'",
-                            property_id=pid,
-                            clause_id=cid_s,
-                        )
-                    )
+        if structured is not None:
+            _validate_req_clauses(
+                prop.get("req"),
+                owner_kind="property",
+                owner_label=pid,
+                property_id=pid,
+                clause_index=clause_index,
+                issues=issues,
+            )
 
-        # Validate inner predicate / temporal AST.
         tree_errors: list[str] = []
         p_funcs: set[str] = set()
         p_res: set[str] = set()
@@ -881,31 +934,17 @@ def validate_contract_sanity(
         for err in tree_errors:
             issues.append(SanityIssue("error", "malformed_formula", f"property '{pid}': {err}", property_id=pid))
 
-        all_funcs.update(p_funcs)
-        all_resources.update(p_res)
-
         if structured is not None:
-            ent_sev = "error" if strict_entities else "warning"
-            for fn in sorted(p_funcs):
-                if not _matches_grounded(fn, grounded_roles, allow_main=True):
-                    issues.append(
-                        SanityIssue(
-                            ent_sev,
-                            "ungrounded_function",
-                            f"property '{pid}' references function '{fn}' not in grounded roles {sorted(grounded_roles)}",
-                            property_id=pid,
-                        )
-                    )
-            for res in sorted(p_res):
-                if not _matches_grounded(res, grounded_resources):
-                    issues.append(
-                        SanityIssue(
-                            ent_sev,
-                            "ungrounded_resource",
-                            f"property '{pid}' references resource '{res}' not in grounded resources {sorted(grounded_resources)}",
-                            property_id=pid,
-                        )
-                    )
+            _validate_entity_grounding(
+                p_funcs,
+                p_res,
+                owner_kind="property",
+                owner_label=pid,
+                grounded_roles=grounded_roles,
+                grounded_resources=grounded_resources,
+                strict_entities=strict_entities,
+                issues=issues,
+            )
 
     preserved_list = contract.get("preserved") or []
     if not isinstance(preserved_list, list):
@@ -918,29 +957,15 @@ def validate_contract_sanity(
             continue
         pkind = str(pr.get("kind") or "").strip().lower()
         p_label = str(pr.get("description") or pr.get("id") or f"preserved[{idx}]")
-        for cid in pr.get("req") or []:
-            cid_s = str(cid).strip()
-            if structured is not None:
-                if cid_s not in clause_index:
-                    issues.append(
-                        SanityIssue(
-                            "error",
-                            "unknown_req_clause",
-                            f"preserved '{p_label}' references unknown clause '{cid_s}'",
-                            property_id=p_label,
-                            clause_id=cid_s,
-                        )
-                    )
-                elif not clause_index[cid_s].verifiable:
-                    issues.append(
-                        SanityIssue(
-                            "error",
-                            "unverifiable_req_clause",
-                            f"preserved '{p_label}' references unverifiable clause '{cid_s}'",
-                            property_id=p_label,
-                            clause_id=cid_s,
-                        )
-                    )
+        if structured is not None:
+            _validate_req_clauses(
+                pr.get("req"),
+                owner_kind="preserved",
+                owner_label=p_label,
+                property_id=p_label,
+                clause_index=clause_index,
+                issues=issues,
+            )
         pr_errors: list[str] = []
         pr_funcs: set[str] = set()
         pr_res: set[str] = set()
@@ -960,27 +985,16 @@ def validate_contract_sanity(
             issues.append(SanityIssue("error", "malformed_preserved", f"preserved '{p_label}': {err}", property_id=p_label))
 
         if structured is not None:
-            ent_sev = "error" if strict_entities else "warning"
-            for fn in sorted(pr_funcs):
-                if not _matches_grounded(fn, grounded_roles, allow_main=True):
-                    issues.append(
-                        SanityIssue(
-                            ent_sev,
-                            "ungrounded_function",
-                            f"preserved '{p_label}' references function '{fn}' not in grounded roles {sorted(grounded_roles)}",
-                            property_id=p_label,
-                        )
-                    )
-            for res in sorted(pr_res):
-                if not _matches_grounded(res, grounded_resources):
-                    issues.append(
-                        SanityIssue(
-                            ent_sev,
-                            "ungrounded_resource",
-                            f"preserved '{p_label}' references resource '{res}' not in grounded resources {sorted(grounded_resources)}",
-                            property_id=p_label,
-                        )
-                    )
+            _validate_entity_grounding(
+                pr_funcs,
+                pr_res,
+                owner_kind="preserved",
+                owner_label=p_label,
+                grounded_roles=grounded_roles,
+                grounded_resources=grounded_resources,
+                strict_entities=strict_entities,
+                issues=issues,
+            )
 
     has_errors = any(i.severity == "error" for i in issues)
     return SanityCheckReport(
@@ -1201,15 +1215,9 @@ def _write_stage0_artifacts(
     exp_path = root / "contract_explanation.json"
 
     req_md_path.write_text(req_md, encoding="utf-8")
-    req_json_path.write_text(
-        json.dumps(structured.as_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
-    contract_path.write_text(
-        json.dumps(contract, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
-    exp_path.write_text(
-        json.dumps(explanation.as_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    write_json(req_json_path, structured.as_dict())
+    write_json(contract_path, contract)
+    write_json(exp_path, explanation.as_dict())
     return {
         "out_dir": str(root),
         "requirements_md_path": str(req_md_path),
