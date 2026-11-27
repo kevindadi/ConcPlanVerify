@@ -41,6 +41,8 @@ SUPPORT_EXIT = {"supported": 0, "unsupported": 5, "invalid": 4}
 EXPLORE_EXIT = {"pass": 0, "fail": 1, "unknown": 3, "invalid": 4, "unsupported": 5}
 LOWER_EXIT = {"pass": 0, "fail": 1, "unknown": 3, "invalid": 4, "unsupported": 5}
 SUMMARIZE_EXIT = {"pass": 0, "fail": 1, "unknown": 3, "invalid": 4, "unsupported": 5}
+CHECK_REQ_EXIT = {"pass": 0, "fail": 1, "unknown": 3, "invalid": 4, "unsupported": 5}
+VERIFY_DESIGN_EXIT = {"pass": 0, "fail": 1, "unknown": 3, "invalid": 4, "unsupported": 5}
 VERIFY_REFINEMENT_EXIT = {"pass": 0, "fail": 1, "unknown": 3, "invalid": 4, "unsupported": 5}
 EXPLAIN_CONTRACT_EXIT = {"pass": 0, "invalid": 4}
 EXPORT_CVN_EXIT = {"pass": 0, "invalid": 4, "unsupported": 5}
@@ -563,6 +565,89 @@ class ConcirClient:
             result.artifact_path = str(resolved_out)
         return result
 
+    def check_req(
+        self,
+        req_ir: Path | str | dict[str, Any],
+        *,
+        contract: Path | str | dict[str, Any] | None = None,
+        out_path: Path | str | None = None,
+    ) -> ConcirResult:
+        call_dir = self._call_dir("check-req")
+        req_src: Path | str = (
+            json.dumps(req_ir, ensure_ascii=False, indent=2)
+            if isinstance(req_ir, dict)
+            else req_ir
+        )
+        req_mat = self._materialize(req_src, call_dir / "req_ir.json")
+        argv = ["check-req", str(req_mat)]
+        contract_mat: Path | None = None
+        if contract is not None:
+            c_src: Path | str = (
+                json.dumps(contract, ensure_ascii=False, indent=2)
+                if isinstance(contract, dict)
+                else contract
+            )
+            contract_mat = self._materialize(c_src, call_dir / "contract.json")
+            argv += ["--contract", str(contract_mat)]
+        resolved_out = self._prepare_out_path(out_path)
+        if resolved_out is not None:
+            argv += ["--out", str(resolved_out)]
+        result = self._invoke(
+            "check-req",
+            argv,
+            call_dir=call_dir,
+            input_path=req_mat,
+            contract_path=contract_mat,
+        )
+        if resolved_out is not None and resolved_out.exists():
+            result.artifact_path = str(resolved_out)
+        return result
+
+    def verify_design(
+        self,
+        req_ir: Path | str | dict[str, Any],
+        design: Path | str | dict[str, Any],
+        *,
+        contract: Path | str | dict[str, Any] | None = None,
+        out_path: Path | str | None = None,
+    ) -> ConcirResult:
+        call_dir = self._call_dir("verify-design")
+        req_src: Path | str = (
+            json.dumps(req_ir, ensure_ascii=False, indent=2)
+            if isinstance(req_ir, dict)
+            else req_ir
+        )
+        design_src: Path | str = (
+            json.dumps(design, ensure_ascii=False, indent=2)
+            if isinstance(design, dict)
+            else design
+        )
+        req_mat = self._materialize(req_src, call_dir / "req_ir.json")
+        design_mat = self._materialize(design_src, call_dir / "design.json")
+        argv = ["verify-design", "--req", str(req_mat), "--design", str(design_mat)]
+        contract_mat: Path | None = None
+        if contract is not None:
+            c_src: Path | str = (
+                json.dumps(contract, ensure_ascii=False, indent=2)
+                if isinstance(contract, dict)
+                else contract
+            )
+            contract_mat = self._materialize(c_src, call_dir / "contract.json")
+            argv += ["--contract", str(contract_mat)]
+        resolved_out = self._prepare_out_path(out_path)
+        if resolved_out is not None:
+            argv += ["--out", str(resolved_out)]
+        result = self._invoke(
+            "verify-design",
+            argv,
+            call_dir=call_dir,
+            input_path=design_mat,
+            contract_path=contract_mat,
+        )
+        if resolved_out is not None and resolved_out.exists():
+            result.artifact_path = str(resolved_out)
+        return result
+
     def explain_contract(
         self,
         contract: Path | str,
@@ -696,6 +781,22 @@ def _classify(result: ConcirResult) -> ConcirResult:
             status, expected = "invalid", 4
         else:
             return _protocol(result, f"verify-refinement payload missing outcome (exit {exit_code})")
+    elif command == "check-req":
+        outcome = payload.get("outcome")
+        if outcome is None:
+            return _protocol(result, f"check-req payload missing outcome (exit {exit_code})")
+        status = str(outcome).lower()
+        if status not in CHECK_REQ_EXIT:
+            return _protocol(result, f"check-req payload has unknown outcome {outcome!r}")
+        expected = CHECK_REQ_EXIT[status]
+    elif command == "verify-design":
+        outcome = payload.get("outcome")
+        if outcome is None:
+            return _protocol(result, f"verify-design payload missing outcome (exit {exit_code})")
+        status = str(outcome).lower()
+        if status not in VERIFY_DESIGN_EXIT:
+            return _protocol(result, f"verify-design payload has unknown outcome {outcome!r}")
+        expected = VERIFY_DESIGN_EXIT[status]
     elif command == "explain-contract":
         if exit_code == 0 and (
             payload.get("schema") == "concir-contract-explanation/1"
