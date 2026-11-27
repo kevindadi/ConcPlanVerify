@@ -72,7 +72,8 @@ Free-Form NL (Entry A) or Pre-Authored R1..Rn (Entry B)
 
 ```
 ConcPlanVerify/
-├── pyproject.toml                  # PEP 621 package metadata (`concplan`, `src/` layout)
+├── AGENTS.md                       # Developer & agent workflow guide, invariants, and MCP/CLI quickstart
+├── pyproject.toml                  # PEP 621 package metadata (`concplan`, `concplan-mcp`, `src/` layout)
 ├── backends/
 │   ├── unipn/                      # Unified Petri Net core (`temporal` CTL/LTL, `refinement`, `unipn-transfer`)
 │   ├── concir/                     # git submodule: ConcIR v5 AST/SCIR, UniPN CTL/LTL verifier, TypeHole/RwLock codegen, modular verify-refinement
@@ -87,6 +88,7 @@ ConcPlanVerify/
 │       ├── model_verify/           # normalize, offline_workflow, revision_workflow, patch_repair
 │       ├── code_verify/            # conformance, static_verify (SeqHole/TypeHole purity + modular SPN), bounded_monitor
 │       ├── pipeline/               # e2e_pipeline (Stage 0 + Loops A/B/C + traceability), benchmarks loader
+│       ├── mcp/                    # Zero-dependency stdio MCP server (`concplan-mcp` / `python -m concplan.mcp`)
 │       └── prompts/                # Bundled v5 prompt assets loaded via `importlib.resources`
 │           ├── nl_to_clauses.md        # Stage 0.1 NL -> grounded entities + R1..Rn clauses
 │           ├── clauses_to_contract.md  # Stage 0.2 isolated clauses -> CTL/LTL contract
@@ -94,7 +96,7 @@ ConcPlanVerify/
 │           ├── hole_repair.md          # SeqHole & TypeHole filling, Loop B repair & Loop C escalation
 │           ├── cir_patch.md            # Constrained single-patch repair prompt
 │           └── cir_local_revision.md   # Function-scoped local revision prompt
-├── tests/                          # Consolidated unittest suite (Stage 0 + unit + integration + live SPN/ConcIR E2E)
+├── tests/                          # Consolidated unittest suite (Stage 0 + unit + integration + live SPN/ConcIR E2E + MCP)
 ├── benchmarks/                     # Concurrency benchmark families & upstream real-world cases
 └── docs/
     ├── ARCHITECTURE.md             # Layer-by-layer v5 architecture & extension guide
@@ -172,6 +174,32 @@ PYTHONPATH=src python -m concplan --out out/e2e-demo e2e \
   --run-summarize --report out/e2e_report.json
 ```
 
+### MCP Server (`concplan-mcp`)
+
+ConcPlanVerify ships a zero-dependency stdio MCP server exposing 12 formal concurrency development tools (`concplan_validate_contract`, `concplan_lower_scir`, `concplan_check_model`, `concplan_summarize_modules`, `concplan_explore_model`, `concplan_repair_model`, `concplan_export_cvn`, `concplan_codegen_skeleton`, `concplan_fill_holes`, `concplan_verify_code`, `concplan_list_benchmarks`, `concplan_toolchain_status`), documentation/prompt resources, and workflow prompts:
+
+```bash
+# Inspect registered MCP tools, resources, and prompts
+PYTHONPATH=src python -m concplan.mcp --list-tools
+
+# Start the stdio MCP server (or use `concplan-mcp` after `pip install -e .`, or `python -m concplan mcp`)
+PYTHONPATH=src python -m concplan.mcp
+```
+
+Example `mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "concplan": {
+      "command": "python",
+      "args": ["-m", "concplan.mcp"],
+      "cwd": "/path/to/ConcPlanVerify"
+    }
+  }
+}
+```
+
 ## Running Tests
 
 Linux / macOS:
@@ -194,6 +222,7 @@ the built `concir-backend` and `spn` binaries when present.
 
 ## Further Reading
 
+- [`AGENTS.md`](AGENTS.md) — ConcPlanVerify developer & agent workflow guide, invariants, and MCP/CLI quickstart.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Modular v5 architecture and
   how to add custom `StaticVerifierPlugin`s or LLM providers.
 - [`docs/REFINEMENT_SPEC.md`](docs/REFINEMENT_SPEC.md) — Wire schemas

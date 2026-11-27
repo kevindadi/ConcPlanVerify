@@ -326,6 +326,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--benchmarks-dir", help="override benchmarks directory")
     p.add_argument("--suite", choices=["families", "real-cases"], help="filter by benchmark suite")
 
+    p = sub.add_parser("mcp", help="run the ConcPlanVerify MCP stdio server (or inspect tools)")
+    p.add_argument("--workdir", help="override workspace directory for MCP tool artifacts")
+    p.add_argument("--spn-binary", help="explicit path to spn binary (overrides CONCIR_SPN)")
+    p.add_argument("--lockbud-binary", help="explicit path to lockbud binary")
+    p.add_argument("--list-tools", action="store_true", help="print registered MCP tools/resources/prompts and exit")
+
     return parser
 
 
@@ -342,6 +348,28 @@ def main(argv: list[str] | None = None) -> int:
                 summary["tasks"] = [t for t in summary["tasks"] if t["suite"] == args.suite]
                 summary["total"] = len(summary["tasks"])
             print(json.dumps(summary, ensure_ascii=False, indent=2))
+            return 0
+
+        if args.command == "mcp":
+            from .mcp.server import create_server
+
+            server = create_server(
+                workdir=args.workdir or (Path(args.out) / "mcp"),
+                concir_binary=args.binary if Path(args.binary).is_file() else None,
+                spn_binary=args.spn_binary,
+                lockbud_binary=args.lockbud_binary,
+                timeout=args.timeout,
+            )
+            if args.list_tools:
+                payload = {
+                    "server": {"name": server.name, "version": server.version},
+                    "tools": [t.to_mcp() for t in server.tools.values()],
+                    "resources": [r.to_mcp() for r in server.resources.values()],
+                    "prompts": [p.to_mcp() for p in server.prompts.values()],
+                }
+                print(json.dumps(payload, ensure_ascii=False, indent=2))
+                return 0
+            server.serve_stdio()
             return 0
 
         client = ConcirClient(args.binary, workdir=args.out, timeout=args.timeout)
