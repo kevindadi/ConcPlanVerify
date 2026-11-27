@@ -329,6 +329,53 @@ def register_concplan_tools(server: McpServer, ws: McpWorkspace) -> None:
             "report": payload,
         }
 
+    def handle_check_req(args: dict[str, Any]) -> dict[str, Any]:
+        if "req_ir" not in args:
+            raise ValueError("missing required parameter 'req_ir'")
+        call_dir = ws.new_call_dir("check-req")
+        req_path = ws.materialize_json(args["req_ir"], call_dir, "req_ir.json", field_name="req_ir")
+        contract_path: Path | None = None
+        if args.get("contract") is not None:
+            contract_path = ws.materialize_json(args["contract"], call_dir, "contract.json", field_name="contract")
+        out_path = call_dir / "req_check.json"
+        res = ws.client().check_req(req_path, contract=contract_path, out_path=out_path)
+        payload = res.payload or {}
+        return {
+            **_result_meta(res),
+            "outcome": payload.get("outcome"),
+            "complete": payload.get("complete"),
+            "deadlock_free": payload.get("deadlock_free"),
+            "no_dead_milestones": payload.get("no_dead_milestones"),
+            "missing_milestones": payload.get("missing_milestones", []),
+            "report": payload,
+            "report_path": str(out_path) if out_path.is_file() else None,
+        }
+
+    def handle_verify_design(args: dict[str, Any]) -> dict[str, Any]:
+        if "req_ir" not in args:
+            raise ValueError("missing required parameter 'req_ir'")
+        if "program" not in args:
+            raise ValueError("missing required parameter 'program'")
+        call_dir = ws.new_call_dir("verify-design")
+        req_path = ws.materialize_json(args["req_ir"], call_dir, "req_ir.json", field_name="req_ir")
+        prog_path = ws.materialize_json(args["program"], call_dir, "program.scir.json", field_name="program")
+        contract_path: Path | None = None
+        if args.get("contract") is not None:
+            contract_path = ws.materialize_json(args["contract"], call_dir, "contract.json", field_name="contract")
+        out_path = call_dir / "design_refinement.json"
+        res = ws.client().verify_design(req_path, prog_path, contract=contract_path, out_path=out_path)
+        payload = res.payload or {}
+        return {
+            **_result_meta(res),
+            "outcome": payload.get("outcome"),
+            "complete": payload.get("complete"),
+            "checks": payload.get("checks", {}),
+            "missing_milestones": payload.get("missing_milestones", []),
+            "violations": payload.get("violations", []),
+            "report": payload,
+            "report_path": str(out_path) if out_path.is_file() else None,
+        }
+
     def handle_repair_model(args: dict[str, Any]) -> dict[str, Any]:
         if "program" not in args:
             raise ValueError("missing required parameter 'program'")
@@ -586,6 +633,35 @@ def register_concplan_tools(server: McpServer, ws: McpWorkspace) -> None:
                 "additionalProperties": False,
             },
             handler=handle_explore_model,
+        ),
+        ToolSpec(
+            name="concplan_check_req",
+            description="Validate and explore a Stage 0 Requirement Net (concir-req-ir/1) for non-terminal deadlock freedom, non-dead milestones, and optional requirement-level temporal properties.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "req_ir": _JSON_OR_PATH_SCHEMA,
+                    "contract": _JSON_OR_PATH_SCHEMA,
+                },
+                "required": ["req_ir"],
+                "additionalProperties": False,
+            },
+            handler=handle_check_req,
+        ),
+        ToolSpec(
+            name="concplan_verify_design",
+            description="Verify Stage 0-2 dual-net extension/stuttering refinement (N_req <=_ext N_code), milestone preservation, and concurrency health obligations.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "req_ir": _JSON_OR_PATH_SCHEMA,
+                    "program": _JSON_OR_PATH_SCHEMA,
+                    "contract": _JSON_OR_PATH_SCHEMA,
+                },
+                "required": ["req_ir", "program"],
+                "additionalProperties": False,
+            },
+            handler=handle_verify_design,
         ),
         ToolSpec(
             name="concplan_repair_model",
