@@ -1,15 +1,15 @@
 """Stage 0 Autoformalization subpackage (NL / Structured -> Contract + Back-Translation)."""
 
-from .autoformalize import (
+from .backend_contract import (
+    VALID_CMP_OPS,
     VALID_CTL_OPS,
     VALID_FAIRNESS_KINDS,
+    VALID_HEALTH_CHECKS,
     VALID_LTL_OPS,
+    VALID_PATTERN_KINDS,
     VALID_PREDICATE_KINDS,
     VALID_PRESERVED_KINDS,
     VALID_PROPERTY_KINDS,
-    build_clauses_to_contract_prompt,
-    build_nl_to_clauses_prompt,
-    clauses_to_contract,
     ensure_implication_non_vacuous,
     explain_contract_data,
     explain_ctl_formula,
@@ -18,14 +18,10 @@ from .autoformalize import (
     explain_predicate,
     explain_preserved,
     explain_property,
-    formalize_from_nl,
-    formalize_from_structured,
     formula_contains_implication,
-    nl_to_clauses,
-    parse_structured_markdown,
-    parse_structured_requirements,
     validate_contract_sanity,
 )
+from .markdown import parse_structured_markdown, parse_structured_requirements
 from .models import (
     CLAUSE_CATEGORIES,
     ContractExplanation,
@@ -37,6 +33,14 @@ from .models import (
     SanityCheckReport,
     SanityIssue,
     StructuredRequirements,
+)
+from .workflow import (
+    build_clauses_to_contract_prompt,
+    build_nl_to_clauses_prompt,
+    clauses_to_contract,
+    formalize_from_nl,
+    formalize_from_structured,
+    nl_to_clauses,
 )
 
 __all__ = [
@@ -50,9 +54,12 @@ __all__ = [
     "SanityCheckReport",
     "SanityIssue",
     "StructuredRequirements",
+    "VALID_CMP_OPS",
     "VALID_CTL_OPS",
     "VALID_FAIRNESS_KINDS",
+    "VALID_HEALTH_CHECKS",
     "VALID_LTL_OPS",
+    "VALID_PATTERN_KINDS",
     "VALID_PREDICATE_KINDS",
     "VALID_PRESERVED_KINDS",
     "VALID_PROPERTY_KINDS",

@@ -257,7 +257,7 @@ class PatternAndMilestoneOfflineTests(unittest.TestCase):
         exp = explain_contract_data(contract)
         rendered = exp.render_markdown()
         self.assertIn("Pattern(precedence)", rendered)
-        self.assertIn("Concurrency health obligations", rendered)
+        self.assertIn("Verify concurrency health obligations", rendered)
         self.assertIn("item_produced", rendered)
 
         # Ungrounded milestone fails sanity when entities.milestones is declared.

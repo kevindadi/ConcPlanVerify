@@ -211,8 +211,9 @@ class Stage0FormalizationTests(unittest.TestCase):
             self.assertEqual(len(res.explanation.properties), 4)
             self.assertEqual(len(res.explanation.preserved), 2)
             ctl_exp = next(p for p in res.explanation.properties if p["id"] == "pending-drains-ctl")
-            self.assertIn("in all reachable states", ctl_exp["explanation"].lower())
-            self.assertIn("non-vacuous", ctl_exp["explanation"].lower())
+            self.assertIn("always on every path", ctl_exp["explanation"].lower())
+            self.assertTrue(ctl_exp["non_vacuous"])
+            self.assertIn("non-vacuous", res.explanation.render_markdown().lower())
 
     def test_entry_b_from_structured_markdown_synthesizes_and_validates(self):
         md = (
@@ -405,14 +406,13 @@ class Stage0FormalizationTests(unittest.TestCase):
             self.assertTrue((out_dir / "contract.json").is_file())
             self.assertTrue((out_dir / "REQUIREMENTS.md").is_file())
 
-            # 2. concplan explain-contract --python-only
+            # 2. concplan explain-contract via concir-backend
             exp_file = root / "explained.json"
             buf2 = io.StringIO()
             with contextlib.redirect_stdout(buf2):
                 rc2 = cli_main([
                     "--out", str(root / "exp-work"),
                     "explain-contract", str(out_dir / "contract.json"),
-                    "--python-only",
                     "--output", str(exp_file),
                 ])
             self.assertEqual(rc2, 0)

@@ -118,26 +118,6 @@ def find_concir_backend(explicit: Path | str | None = None) -> Path | None:
     )
 
 
-def find_concir_instrument(explicit: Path | str | None = None) -> Path | None:
-    return find_binary(
-        "concir-instrument",
-        explicit=explicit,
-        env_var="CONCIR_INSTRUMENT",
-        search_dirs=CONCIR_SEARCH_DIRS,
-        check_toolchain_env=True,
-    )
-
-
-def find_bind_check(explicit: Path | str | None = None) -> Path | None:
-    return find_binary(
-        "bind_check",
-        explicit=explicit,
-        env_var="CONCIR_BIND_CHECK",
-        search_dirs=CONCIR_SEARCH_DIRS,
-        check_toolchain_env=True,
-    )
-
-
 def find_spn(explicit: Path | str | None = None) -> Path | None:
     return find_binary(
         "spn",
@@ -165,10 +145,7 @@ class ToolchainConfig:
     """Explicit bundle of ConcIR binaries and optional static analyzers."""
 
     backend: Path
-    instrument: Path | None = None
-    bind_check: Path | None = None
     spn: Path | None = None
-    concir_sync_runtime: Path | None = None
     label: str = "explicit"
 
     def validate(self) -> None:
@@ -176,13 +153,8 @@ class ToolchainConfig:
             raise ToolchainError(f"concir-backend not found: {self.backend}")
         if not os.access(self.backend, os.X_OK):
             raise ToolchainError(f"concir-backend not executable: {self.backend}")
-        for name, path in (
-            ("concir-instrument", self.instrument),
-            ("bind_check", self.bind_check),
-            ("spn", self.spn),
-        ):
-            if path is not None and not path.is_file():
-                raise ToolchainError(f"{name} not found: {path}")
+        if self.spn is not None and not self.spn.is_file():
+            raise ToolchainError(f"spn not found: {self.spn}")
 
     def fingerprint(self) -> dict[str, str | None]:
         out: dict[str, str | None] = {
@@ -190,25 +162,16 @@ class ToolchainConfig:
             "backend": str(self.backend),
             "backend_sha256": sha256_file(self.backend),
         }
-        for key, path in (
-            ("instrument", self.instrument),
-            ("bind_check", self.bind_check),
-            ("spn", self.spn),
-        ):
-            if path is not None and path.is_file():
-                out[key] = str(path)
-                out[f"{key}_sha256"] = sha256_file(path)
-            else:
-                out[key] = None
-                out[f"{key}_sha256"] = None
+        if self.spn is not None and self.spn.is_file():
+            out["spn"] = str(self.spn)
+            out["spn_sha256"] = sha256_file(self.spn)
+        else:
+            out["spn"] = None
+            out["spn_sha256"] = None
         return out
 
     def as_env(self) -> dict[str, str]:
         env = {"CONCIR_BACKEND": str(self.backend)}
-        if self.instrument is not None:
-            env["CONCIR_INSTRUMENT"] = str(self.instrument)
-        if self.bind_check is not None:
-            env["CONCIR_BIND_CHECK"] = str(self.bind_check)
         if self.spn is not None:
             env["CONCIR_SPN"] = str(self.spn)
         return env
@@ -216,12 +179,8 @@ class ToolchainConfig:
 
 def from_dir(directory: Path | str, *, label: str | None = None) -> ToolchainConfig:
     d = Path(directory).expanduser().resolve()
-    inst = resolve_exe_in_dir(d, "concir-instrument")
-    bind = resolve_exe_in_dir(d, "bind_check")
     return ToolchainConfig(
         backend=resolve_exe_in_dir(d, "concir-backend"),
-        instrument=inst if inst.is_file() else None,
-        bind_check=bind if bind.is_file() else None,
         spn=find_spn(),
         label=label or d.name,
     )
