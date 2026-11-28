@@ -518,7 +518,7 @@ class SpnMirRefinementAndLockbudPluginTests(unittest.TestCase):
 
     def test_spn_unavailable_returns_unknown_never_pass(self):
         plugin = SpnMirRefinementPlugin(spn_binary=None)
-        with mock.patch("concplan.code_verify.static_verify.find_spn", return_value=None):
+        with mock.patch("concplan.code_verify.spn_mir.find_spn", return_value=None):
             rep = plugin.verify(
                 skeleton_dir=self.skel,
                 filled_dir=self.filled,
@@ -572,7 +572,7 @@ class SpnMirRefinementAndLockbudPluginTests(unittest.TestCase):
         fake_run, captured = self._mock_cargo_exporting_net(
             {"schema": "concir-impl-net/1", "states": [], "edges": [], "truncated": False}
         )
-        with mock.patch("concplan.code_verify.static_verify.subprocess.run", side_effect=fake_run):
+        with mock.patch("concplan.code_verify.spn_mir.subprocess.run", side_effect=fake_run):
             rep = plugin.verify(
                 skeleton_dir=self.skel,
                 filled_dir=self.filled,
@@ -609,7 +609,7 @@ class SpnMirRefinementAndLockbudPluginTests(unittest.TestCase):
         )
         plugin = SpnMirRefinementPlugin(client=client, spn_binary=self.fake_spn)
         fake_run, _ = self._mock_cargo_exporting_net({"schema": "concir-impl-net/1", "states": []})
-        with mock.patch("concplan.code_verify.static_verify.subprocess.run", side_effect=fake_run):
+        with mock.patch("concplan.code_verify.spn_mir.subprocess.run", side_effect=fake_run):
             rep = plugin.verify(
                 skeleton_dir=self.skel,
                 filled_dir=self.filled,
@@ -636,7 +636,7 @@ class SpnMirRefinementAndLockbudPluginTests(unittest.TestCase):
         )
         plugin = SpnMirRefinementPlugin(client=client, spn_binary=self.fake_spn)
         fake_run, _ = self._mock_cargo_exporting_net({"schema": "concir-impl-net/1", "truncated": True})
-        with mock.patch("concplan.code_verify.static_verify.subprocess.run", side_effect=fake_run):
+        with mock.patch("concplan.code_verify.spn_mir.subprocess.run", side_effect=fake_run):
             rep = plugin.verify(
                 skeleton_dir=self.skel,
                 filled_dir=self.filled,
@@ -649,7 +649,7 @@ class SpnMirRefinementAndLockbudPluginTests(unittest.TestCase):
             AstHolePurityPlugin(),
             SpnMirRefinementPlugin(spn_binary=None),
         ])
-        with mock.patch("concplan.code_verify.static_verify.find_spn", return_value=None):
+        with mock.patch("concplan.code_verify.spn_mir.find_spn", return_value=None):
             rep = composite.verify(
                 skeleton_dir=self.skel,
                 filled_dir=self.filled,
@@ -661,7 +661,7 @@ class SpnMirRefinementAndLockbudPluginTests(unittest.TestCase):
         self.assertFalse(rep.checks["spn_available"])
 
     def test_lockbud_plugin_unknown_clean_and_detected(self):
-        with mock.patch("concplan.code_verify.static_verify.find_lockbud", return_value=None):
+        with mock.patch("concplan.code_verify.lockbud.find_lockbud", return_value=None):
             rep = LockbudPlugin().verify(skeleton_dir=self.skel, filled_dir=self.filled)
         self.assertEqual(rep.status, "unknown")
 
@@ -670,14 +670,14 @@ class SpnMirRefinementAndLockbudPluginTests(unittest.TestCase):
         plugin = LockbudPlugin(lockbud_binary=fake_lb)
 
         clean_proc = subprocess.CompletedProcess(["cargo"], 0, stdout="ok", stderr="")
-        with mock.patch("concplan.code_verify.static_verify.subprocess.run", return_value=clean_proc):
+        with mock.patch("concplan.code_verify.lockbud.subprocess.run", return_value=clean_proc):
             rep_ok = plugin.verify(skeleton_dir=self.skel, filled_dir=self.filled)
         self.assertEqual(rep_ok.status, "pass")
 
         bug_proc = subprocess.CompletedProcess(
             ["cargo"], 0, stdout='{"bug_kind": "ConflictLock"}', stderr=""
         )
-        with mock.patch("concplan.code_verify.static_verify.subprocess.run", return_value=bug_proc):
+        with mock.patch("concplan.code_verify.lockbud.subprocess.run", return_value=bug_proc):
             rep_bug = plugin.verify(skeleton_dir=self.skel, filled_dir=self.filled)
         self.assertEqual(rep_bug.status, "fail_refinement")
         self.assertEqual(rep_bug.violations[0].kind, "lockbud_ConflictLock")
@@ -731,7 +731,7 @@ class SpnMirRefinementAndLockbudPluginTests(unittest.TestCase):
             return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
 
         plugin = SpnMirRefinementPlugin(client=_FakeClient(), spn_binary=self.fake_spn, modular=True)
-        with mock.patch("concplan.code_verify.static_verify.subprocess.run", side_effect=_fake_cargo):
+        with mock.patch("concplan.code_verify.spn_mir.subprocess.run", side_effect=_fake_cargo):
             rep = plugin.verify(
                 skeleton_dir=self.skel,
                 filled_dir=self.filled,

@@ -181,9 +181,9 @@ class TypedSymbolAndHoleErrorAttributionTests(unittest.TestCase):
             )
             plugin = SpnMirRefinementPlugin(spn_binary=root / "fake-spn.exe")
             with (
-                mock.patch("concplan.code_verify.static_verify.find_spn", return_value=root / "fake-spn.exe"),
-                mock.patch("concplan.code_verify.static_verify.find_concir_backend", return_value=root / "fake-concir.exe"),
-                mock.patch("concplan.code_verify.static_verify.subprocess.run", return_value=fake_proc),
+                mock.patch("concplan.code_verify.spn_mir.find_spn", return_value=root / "fake-spn.exe"),
+                mock.patch("concplan.code_verify.spn_mir.find_concir_backend", return_value=root / "fake-concir.exe"),
+                mock.patch("concplan.code_verify.spn_mir.subprocess.run", return_value=fake_proc),
             ):
                 rep = plugin.verify(
                     skeleton_dir=skel,
