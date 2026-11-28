@@ -31,7 +31,7 @@ Shared formal foundation used by both `concir` and `spn`:
   logic-driven bug obligation checkers over finite reachability graphs:
   `Deadlock`, `PartialDeadlock`, `LostWakeup`, `WakeStarvation`,
   `AcquireStarvation`, `ResourceLeak`, `DoubleLock`, and `DataRace`.
-- **`unipn::analysis::temporal`:** Generic finite-state CTL (15 operators) and
+- **`unipn::analysis::temporal`** (`src/analysis/temporal/{mod,ast,graph,vacuity,explain,ctl,ltl,gba}.rs`): Modular finite-state CTL (15 operators) and
   LTL (12 operators + `Justice`/`Compassion` fairness) model checkers with
   implicit stutter self-loops on sink states, lasso counterexample extraction,
   deterministic natural-language back-translation (`explain_ctl`, `explain_ltl`),
@@ -47,13 +47,19 @@ Shared formal foundation used by both `concir` and `spn`:
 
 ### 1.2 `backends/concir/` (git submodule — `concir-backend`)
 
-The `concir-backend` CLI implements the ConcIR v5 formal engine and the 3-tier
+The `concir-backend` CLI is organized as a **7-crate acyclic Cargo workspace** under `backends/concir/crates/` plus a thin compatibility root crate (`concir`):
+
+```text
+concir-ir -> concir-sem -> concir-codegen / concir-engine -> concir-verify -> concir-repair -> concir-cli
+```
+
+It implements the ConcIR v5 formal engine and the 3-tier
 refinement pipeline $N_{\text{req}} \sqsubseteq_{\text{ext}} N_{\text{code}} \sqsubseteq_{\text{sync}} N_{\text{mir}}$:
 
-- **Unified Colored Petri Engine (`unipn_engine` / `PetriEngine`):**
-  Single-subnet-per-function `HlnNet` execution engine integrated with
+- **Unified Colored Petri Engine (`concir_engine::hln` & `concir_engine::graph::explore_system`):**
+  Single-subnet-per-function `HlnNet` execution engine and unified BFS state-space explorer integrated with
   `unipn::analysis::obligations`.
-- **Stage 0 Requirement Net IR (`req_ir`, `check-req`):** Abstract,
+- **Stage 0 Requirement Net IR (`concir_ir::req_ir` / `concir_verify::req_check`, `check-req`):** Abstract,
   sync-free requirement net (`concir-req-ir/1`: roles, bounded `state_vars`,
   `milestones`, `steps`) lowered to `unipn::hln::HlnNet` and checked for
   non-terminal deadlock freedom, zero dead milestones, and requirement-level
@@ -70,7 +76,7 @@ refinement pipeline $N_{\text{req}} \sqsubseteq_{\text{ext}} N_{\text{code}} \sq
   flat CIR statements with deterministic `s1, s2, ...` `sid`s and LIFO guard
   unwinding on early `return`, emitting `concir-trace-map/1` preserving
   `structured_id`, `hole_id`, `milestone`, and `req` traceability tags.
-- **Constraint Pattern DSL & Health Suite (`explore/patterns.rs`, `contract.rs`):**
+- **Constraint Pattern DSL & Health Suite (`concir_verify::contract::patterns` & `spec`):**
   Supports `PropertySpec::Pattern` (`always`, `exclude`, `at_most`, `precedence`,
   `triggers`, `can_reach`, `always_can_reach`), `PropertySpec::Health`
   (`BugKind`), and `PredicateSpec::MilestoneReached`.
@@ -79,10 +85,12 @@ refinement pipeline $N_{\text{req}} \sqsubseteq_{\text{ext}} N_{\text{code}} \sq
     `expected_type`, executed as an atomic silent step (`tau`).
   - `TypeDef` / `{"Hole": ...}`, `Struct`, `Array`, and `RwLock` (with optional
     payload `base` type on `Mutex` and `RwLock`).
-- **Model Verification (`check`, `support`, `explore`, `summarize`, `explain-contract`, `export-cvn`):**
+- **Model & Contract Verification (`check`, `support`, `explore`, `summarize`, `validate-contract`, `explain-contract`, `export-cvn`):**
   - Exhaustive Petri-net / interpreter exploration evaluating classic properties
     AND **CTL/LTL properties with non-vacuity enforcement** (marking vacuous
     implications `FAIL` when `non_vacuous: true`).
+  - `validate-contract`: Rust Single Source of Truth (SSoT) Stage 0 sanity check & normalization
+    (`concir-contract-validation/1`).
   - `explain-contract`: deterministic JSON back-translation
     (`concir-contract-explanation/1`).
   - `export-cvn`: auto-lowers SCIR and exports a `UniPN` CVN net + degradation
@@ -145,21 +153,21 @@ Dual-entry formalization layer preventing specification-model collusion:
 - **Entry B (`formalize_from_structured`):** Accepts existing `REQUIREMENTS.md`
   or `requirements.json` (plus optional `contract.json`), synthesizing a
   contract via Step 0.2 when omitted.
-- **Step 0.3 (`explain_contract_data`, `validate_contract_sanity`):**
-  Pure-Python recursive deterministic NL renderer (plus optional
-  `ConcirClient.explain_contract` pass-through) and sanity checks for unique IDs,
-  clause existence & verifiability, entity grounding, and `non_vacuous: true`.
+- **Step 0.3 (`backend_contract.py`: `explain_contract_data`, `validate_contract_sanity`):**
+  Delegates contract sanity validation, implication non-vacuity normalization, and
+  deterministic NL back-translation directly to `concir-backend validate-contract`
+  and `explain-contract` (Rust Single Source of Truth).
 
 ### 2.2 `concplan.core`
 
 Low-level infrastructure shared across all workflows:
 
-- `toolchain.py` — Backend-first, Windows `.exe`-safe binary discovery.
-- `concir_client.py` — Typed subprocess wrapper (`ConcirClient`, `ConcirResult`,
+- `toolchain.py` — Backend-first, Windows `.exe`-safe binary discovery (`concir-backend`, `spn`, `lockbud`).
+- `client/` (`protocol.py`, `runner.py`, `client.py`, plus `concir_client.py` facade) — Typed subprocess wrapper (`ConcirClient`, `ConcirResult`,
   `ConcirIdentity`) for `check`, `support`, `explore`, `lower`, `summarize`,
   `check_req`, `verify_design`, `verify_refinement(module=...)`,
-  `explain_contract`, `export_cvn`, `repair`, `replay`, `repair_context`, and
-  `evaluate_patch`.
+  `validate_contract`, `explain_contract`, `export_cvn`, `repair`, `replay`,
+  `repair_context`, and `evaluate_patch`.
 - `models.py`, `llm.py`, `providers.py`, `env.py`, `json_utils.py`.
 - `prompts.py` — `importlib.resources`-backed loader and SHA-256 registry for
   the bundled prompt assets (including Stage 0 `nl_to_clauses.md` and
@@ -167,46 +175,35 @@ Low-level infrastructure shared across all workflows:
 
 ### 2.3 `concplan.model_verify`
 
-Model-level verification, normalization, and repair loops (`normalize.py`,
-`offline_workflow.py`, `revision_workflow.py`, `patch_repair.py`).
+Model-level verification, normalization, and iterative revision (`normalize.py`,
+`runner.py` shared `verify_model_candidate`, and `revision_workflow.py`).
 
 ### 2.4 `concplan.code_verify`
 
-Post-codegen static and dynamic Rust verification:
+Modular post-codegen static and dynamic Rust verification (with `conformance.py` and `static_verify.py` compatibility facades):
 
-- `conformance.py` — `codegen`, `holes_of`, `type_holes_of`, `fill_holes`,
-  `lint_filled`, `collect_traces` (native & Miri), and `conform_all`.
-- `static_verify.py` — Pluggable static verification architecture:
-  - `fill_holes_marked`, `fill_type_holes_marked`, and multi-file
-    `augment_codegen_map_with_hole_ranges` (tracking both `hole_ranges` across
-    `src/main.rs` / `src/<mod>.rs` and `type_hole_ranges` in `src/domain.rs`).
-  - `AstHolePurityPlugin`: multi-file skeleton integrity (`src/*.rs`) and
-    comment/string-safe `O1` purity for both `SeqHole`s and `TypeHole`s
-    (allowing pure `struct`/`enum`/`impl` + bounded loops in `TypeHole`s while
-    forbidding `Mutex`, `RwLock`, `Condvar`, `Semaphore`, `mpsc`, `Atomic*`,
-    `thread::spawn`, `unsafe`, `cir_trace`, and unbounded `loop`/`while`).
-  - `SpnMirRefinementPlugin`: supports both whole-program mode and modular mode
-    (`modular=True` / `focus_modules=[...]`, combining `concir-backend summarize`
-    with per-module `spn --focus-module <m>` + `verify-refinement --module <m>`).
-  - `LockbudPlugin`: optional static deadlock detector.
-- `bounded_monitor.py` — Wraps `concir-backend monitor`.
+- `rust_lexer.py` — Line/column-preserving comment and literal stripping.
+- `holes.py` — Single source of `SeqHole`/`TypeHole` discovery, skeleton alignment, marked filling (`fill_holes_marked`, `fill_type_holes_marked`), and `augment_codegen_map_with_hole_ranges`.
+- `verifier.py` — `StaticViolation`, `StaticVerificationReport`, `StaticVerifierPlugin`, and `CompositeStaticVerifier`.
+- `ast_purity.py` — Multi-file skeleton integrity (`src/*.rs`) and comment/string-safe `O1` purity (`AstHolePurityPlugin`, `lint_filled`).
+- `spn_mir.py` — `SpnMirRefinementPlugin` supporting whole-program and modular refinement (`concir-backend summarize` + per-module `spn --focus-module <m>` + `verify-refinement --module <m>`).
+- `lockbud.py` — Optional static deadlock detector (`LockbudPlugin`).
+- `dynamic.py` — `codegen`, `collect_traces` (native & Miri), `conform_all`, and `run_conformance_smoke`.
 
-### 2.5 `concplan.pipeline`
+### 2.5 `concplan.pipeline`, `concplan.cli`, & `concplan.mcp`
 
-- `e2e_pipeline.py` — `run_e2e_pipeline`: integrates Stage 0 (optional
+- `pipeline/e2e.py`, `manifest.py`, `fill_prompts.py` — `run_e2e_pipeline` integrates Stage 0 (optional
   `nl_spec`, auto-formalization when `contract` is omitted, and optional
-  `req_ir` + `check-req`) $\to$ Stage 1/2 (Loop A with vacuity + `verify-design`
-  $N_{\text{req}} \sqsubseteq_{\text{ext}} N_{\text{code}}$ refinement feedback)
+  `req_ir` + `check-req`) $\to$ Stage 1/2 (Loop A with `verify_model_candidate`, vacuity & `verify-design`
+  $N_{\text{req}} \sqsubseteq_{\text{ext}} N_{\text{code}}$ feedback)
   $\to$ Stage 3 (`codegen` + `SeqHole` & `TypeHole` filling) $\to$ Stage 4
   (`CompositeStaticVerifier` with optional `modular_refinement=True` + Loop B
   offending-hole/type-hole repair + Loop C cross-layer escalation + optional
   dynamic `conform`). Emits upgraded `traceability_manifest.json`
   (`formalization`, `nl_explanations`, `vacuity_status`, `type_holes`,
-  `modular_reports`, `req_net_check`, `design_refinement`, plus all v4 keys).
+  `modular_reports`, `req_net_check`, `design_refinement`).
 - `examples.py` — Stage 0-first example discovery and loaders.
-- `__main__.py` & `mcp/tools.py` — Unified CLI (`concplan check-req`,
-  `concplan verify-design`, ...) and stdio MCP server (14 tools including
-  `concplan_check_req` and `concplan_verify_design`).
+- `cli/` (`parser.py`, `commands.py`) & `mcp/` (`workspace.py`, `handlers_model.py`, `handlers_code.py`, `tools.py`) — Unified CLI and stdio MCP server (14 tools including `concplan_check_req` and `concplan_verify_design`).
 
 ---
 

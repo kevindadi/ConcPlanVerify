@@ -76,7 +76,7 @@ Supported `StructuredStmt` variants (`#[serde(tag = "kind")]`, each carrying `id
 ```
 
 ### 1.4 MIR-Clean `codegen` (`concir-backend codegen <program.json> --out <dir>`)
-`backends/concir/src/codegen.rs` emits a generated crate that compiles cleanly under both dynamic trace execution AND `spn` static MIR Petri-net extraction:
+`backends/concir/crates/concir-codegen` emits a generated crate that compiles cleanly under both dynamic trace execution AND `spn` static MIR Petri-net extraction:
 1. **Cargo Features in generated `Cargo.toml`**:
    ```toml
    [package]
@@ -127,7 +127,7 @@ Checks **Branch-Pruning Stuttering Refinement ($N_{\text{impl}} \preceq_{\text{r
    - Canonicalize observable sync labels `(op, resource_fqn)` using `codegen_map.resources` (if provided) or suffix/name matching (`r0_main_m` / `main::m` / `m` $\to$ `main::m`). Note: `condvar_notify` and `condvar_notify_all` match `condvar_notify*` if `impl_net` emits `condvar_notify` or exact match when distinguished; `scope` in spec matches `spawn` + `join` of its child functions in impl!
    - Compute $\tau^*$-closure on both $N_{\text{spec}}$ (explored via `ConcIR` Petri engine) and $N_{\text{impl}}$ (`states` + `edges` from `impl_sync_net.json`, or explored from `places` + `transitions` if `states` is empty).
    - Check that from `(s_impl_0, s_spec_0)`, every observable step $s_{\text{impl}} \xrightarrow{\tau^* \cdot a} s'_{\text{impl}}$ can be matched by some $s_{\text{spec}} \xrightarrow{\tau^* \cdot a} s'_{\text{spec}}$ (greatest fixed-point weak simulation relation $R$, or trace-refinement BFS with Shortest Distinguishing Witness Trace on failure!).
-   - *Crucial practical detail for `scope` / thread tags*: Compare observable sync actions `(op, resource_fqn)` (and for `spawn`/`join`, target function name if mapped; treat `scope` transitions in spec as $\tau$ or matchable with `spawn`/`join` if `SemOp::Scope` doesn't emit separate `spawn`/`join` labels in spec's Petri net—check how `backends/concir/src/petri/exec.rs` steps `Scope`!). Specifically: in `ConcIR`, `Scope` starts child threads and waits at `ScopeWait` until children return; in Rust/`spn`, `Scope` lowers to `spawn` transitions for each child and `join` transitions! So in `verify-refinement`, treat `spawn`/`join`/`scope` lifecycle transitions consistently (either map spec `Scope` entry/exit to `spawn`/`join` OR project the observable alphabet $\Sigma_{\text{sync}}$ onto synchronization resource primitives `{mutex_lock, mutex_unlock, rwlock_read, rwlock_write, rwlock_unlock, condvar_wait, condvar_notify, condvar_notify_all, sem_acquire, sem_release, channel_send, channel_recv, atomic_load, atomic_store, atomic_cas}` while checking thread completion via `preserved_goals`!). Projecting $\Sigma_{\text{sync}}$ onto resource synchronization operations + checking thread completion in `preserved_goals` makes `std::thread::scope` vs `Vec<JoinHandle>` 100% representation-independent!
+   - *Crucial practical detail for `scope` / thread tags*: Compare observable sync actions `(op, resource_fqn)` (and for `spawn`/`join`, target function name if mapped; treat `scope` transitions in spec as $\tau$ or matchable with `spawn`/`join`). Specifically: in `ConcIR`, `Scope` starts child threads and waits at `ScopeWait` until children return; in Rust/`spn`, `Scope` lowers to `spawn` transitions for each child and `join` transitions! So in `verify-refinement`, treat `spawn`/`join`/`scope` lifecycle transitions consistently (projecting $\Sigma_{\text{sync}}$ onto synchronization resource primitives `{mutex_lock, mutex_unlock, rwlock_read, rwlock_write, rwlock_unlock, condvar_wait, condvar_notify, condvar_notify_all, sem_acquire, sem_release, channel_send, channel_recv, atomic_load, atomic_store, atomic_cas}` while checking thread completion via `preserved_goals`). Projecting $\Sigma_{\text{sync}}$ onto resource synchronization operations + checking thread completion in `preserved_goals` makes `std::thread::scope` vs `Vec<JoinHandle>` 100% representation-independent!
 3. **No New Deadlocks & Lock-Divergence Freedom (`O2_deadlock_and_divergence`)**:
    - No reachable state in $N_{\text{impl}}$ has `deadlock == true`.
    - No reachable $\tau$-cycle in $N_{\text{impl}}$ occurs while `held_locks` is non-empty (unless also present in spec).
@@ -207,20 +207,21 @@ From `explored.results[0].state_graph` and `constructed.net` (or `raw_net` when 
 ## 3. `ConcPlanVerify` Python Orchestration & Pluggable Static Verification (`src/concplan/`)
 
 1. **Backend-First Toolchain Discovery (`src/concplan/core/toolchain.py`)**:
-   - `concir-backend`, `concir-instrument`, `bind_check`: check `REPO / "backends/concir/target/release"` and `REPO / "backends/concir/target/debug"` FIRST (honoring `CONCIR_BACKEND`, `CONCIR_INSTRUMENT`, `CONCIR_BIND_CHECK`, `CONCIR_TOOLCHAIN`).
+   - `concir-backend`: check `REPO / "backends/concir/target/release"` and `REPO / "backends/concir/target/debug"` FIRST (honoring `CONCIR_BACKEND`, `CONCIR_TOOLCHAIN`).
    - `spn`: check `CONCIR_SPN` env or `REPO / "backends/spn/target/{release,debug}"`.
    - `lockbud`: check `CONCIR_LOCKBUD` (or `LOCKBUD_BIN`) env or `REPO / "backends/third_party/lockbud/target/{release,debug}"`.
-2. **Typed `ConcirClient` Extensions (`src/concplan/core/concir_client.py`)**:
+2. **Typed `ConcirClient` (`src/concplan/core/client/`)**:
    - `lower(program_path, *, out_path=None, trace_map_path=None)`
    - `summarize(program_path, *, module=None, out_path=None)`
+   - `validate_contract(contract, *, requirements=None, strict_entities=True, require_non_vacuous=True, normalize=False, out_path=None)`
    - `verify_refinement(spec_path, impl_net_path, *, contract_path=None, codegen_map_path=None, out_path=None)`
-3. **Pluggable Post-Codegen Static Verification (`src/concplan/code_verify/static_verify.py`)**:
+3. **Modular Post-Codegen Static Verification (`src/concplan/code_verify/{verifier,ast_purity,spn_mir,lockbud,holes}.py`)**:
    - Defines `StaticViolation`, `StaticVerificationReport`, `StaticVerifierPlugin` protocol, and `CompositeStaticVerifier`.
    - Implements three plugins:
      1. `AstHolePurityPlugin`: structural skeleton integrity + hole line-range computation (`hole_ranges` written into an augmented `codegen_filled.json` after `fill_holes` so multi-line hole fills have exact `[start_line, end_line]` spans!) + AST-aware check for forbidden sync/unsafe/thread constructs (ignoring comments and string literals!).
      2. `SpnMirRefinementPlugin`: invokes `cargo` with `RUSTC_WRAPPER=<spn>` and `--no-default-features` + `SPN_FLAGS="--export-concir-net <net.json> --codegen-map <codegen_filled.json>"` on the generated crate, then calls `ConcirClient.verify_refinement(...)` to check `concir-impl-net/1` against the verified CIR & contract! Gracefully reports `"unknown"` (never a fake pass!) if `spn` binary is absent.
      3. `LockbudPlugin`: optional adapter wrapping `backends/third_party/lockbud` when configured.
-4. **End-to-End Traceable & Bi-level Iterative Pipeline (`src/concplan/pipeline/e2e_pipeline.py`)**:
+4. **End-to-End Traceable & Bi-level Iterative Pipeline (`src/concplan/pipeline/e2e.py`)**:
    - Connects Stage 1 (Requirements + Contract) $\to$ Stage 2 (SCIR/CIR generation + modular/exhaustive verification + Loop A revision) $\to$ Stage 3 (`codegen` + `fill_holes`) $\to$ Stage 4 (`CompositeStaticVerifier` + optional dynamic `conform`):
      - **Loop B (Hole-local repair)**: When `StaticVerificationReport` fails with `hole_id`, re-prompts the provider ONLY for the offending hole(s) with exact `StaticViolation` diagnostics (`rust_span`, `witness_trace`, `req_clauses`).
      - **Loop C (Cross-layer Escalation)**: When the hole filler emits `{"escalate": {"reason": "...", "module": "..."}}` or exceeds `max_hole_rounds`, routes structured escalation diagnostics back to Stage 2 CIR revision!
@@ -242,6 +243,7 @@ From `explored.results[0].state_graph` and `constructed.net` (or `raw_net` when 
   - `FairnessConstraint` tags (`#[serde(tag = "kind", rename_all = "snake_case")]`): `justice` (`{atom}` = $\mathrm{GF}\,p$), `compassion` (`{enabled, taken}` = $\mathrm{GF}\,\text{enabled} \to \mathrm{GF}\,\text{taken}$).
 - **Non-Vacuity**: `PropertyResult` adds optional `vacuous: bool`, `vacuous_antecedents: Vec<String>`, and `explanation: Option<String>`. When `non_vacuous: true` and an implication antecedent holds in 0 reachable states, `explore` marks the property `FAIL` and surfaces `vacuous_antecedents` to Loop A.
 - **Additional CLIs**:
+  - `concir-backend validate-contract <contract.json> [--requirements <req.json>] [--no-strict-entities] [--no-require-non-vacuous] [--normalize] [--output <file>]` $\to$ `concir-contract-validation/1`.
   - `concir-backend explain-contract <contract.json> [--output <file>]` $\to$ `concir-contract-explanation/1`.
   - `concir-backend export-cvn <program.json> [--output <file>]` $\to$ `unipn::cvn::CvnNet` + initial state + degradation report.
 

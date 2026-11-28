@@ -11,7 +11,7 @@ ConcPlanVerify strictly separates **specification formalization**, **concurrency
 1. **Stage 0 — Dual-Entry Autoformalization (`concplan.formalize`)**
    - **Entry A (Raw Natural Language):** Decomposes free-form text into grounded entities (`roles`, `resources`, `domain_types`) and atomic clauses `R1..Rn` (`safety | liveness | reachability | sequential_hole` `[U]`), then synthesizes `contract.json` in an **isolated prompt** (never seeing any candidate SCIR/CIR model to prevent specification-model collusion).
    - **Entry B (Structured Requirements):** Validates and explains pre-authored `REQUIREMENTS.md` / `requirements.json` and optional `contract.json`.
-   - **Anti-Hallucination Guardrails:** Entity grounding checks, automatic `"non_vacuous": true` on CTL/LTL implications, and deterministic NL back-translation (`explain_contract_data` / `concir-backend explain-contract`).
+   - **Anti-Hallucination Guardrails:** Entity grounding checks, automatic `"non_vacuous": true` on CTL/LTL implications (`concir-backend validate-contract` Rust SSoT), and deterministic NL back-translation (`explain_contract_data` / `concir-backend explain-contract`).
 2. **Stage 1 / 2 — Concurrency Model Verification (`SCIR` + `UniPN`, Loop A)**
    - You author concurrency control flow in **Structured ConcIR (`SCIR`)** (`lock_guard`, `rwlock_read_guard`, `rwlock_write_guard`, `if_else`, `while_loop`, `while_wait`, `seq_hole`, `TypeHole`, `Mutex`, `RwLock`, `Condvar`, `Semaphore`, `Channel`, `Atomic`, `Var`, multi-module `provides`/`requires`, and `req` traceability tags).
    - `concir-backend lower` lowers `structured_body` to flat CIR + `concir-trace-map/1`.
@@ -40,19 +40,20 @@ ConcPlanVerify/
 │   ├── ARCHITECTURE.md              # Layer-by-layer v5 architecture & extension points
 │   └── REFINEMENT_SPEC.md           # Authoritative JSON wire schemas & CLI exit codes
 ├── backends/
-│   ├── unipn/                       # Unified Petri-net core (`temporal` CTL/LTL, `refinement`, `unipn-transfer`)
-│   ├── concir/                      # git submodule: ConcIR v5 AST/SCIR, codegen, model checker, verify-refinement
+│   ├── unipn/                       # Unified Petri-net core (`analysis/temporal/{ast,graph,vacuity,explain,ctl,ltl,gba}`, `refinement`, `obligations`, `unipn-transfer`)
+│   ├── concir/                      # git submodule: 7-crate Cargo workspace (`crates/concir-{ir,sem,codegen,engine,verify,repair,cli}`) + root `concir` facade & `concir-backend`
 │   ├── spn/                         # git submodule: rustc_driver MIR Petri-net extractor (`spn`)
 │   └── third_party/                 # Optional gitignored analyzers (e.g. `lockbud`)
 ├── src/concplan/
-│   ├── __main__.py                  # Unified CLI (`concplan ...`)
-│   ├── formalize/                   # Stage 0 autoformalization, NL back-translation, sanity validation
-│   ├── core/                        # Toolchain discovery, ConcirClient, LLM providers, bundled prompts
-│   ├── model_verify/                # Offline/revision/patch-repair model workflows
-│   ├── code_verify/                 # Multi-file conformance, AstHolePurityPlugin, SpnMirRefinementPlugin, LockbudPlugin
-│   ├── pipeline/                    # Bi-level E2E pipeline (`run_e2e_pipeline`) & example discovery
+│   ├── __main__.py                  # Thin CLI entrypoint -> `concplan.cli`
+│   ├── cli/                         # Modular CLI parser & command dispatch (`parser.py`, `commands.py`)
+│   ├── formalize/                   # Stage 0 autoformalization (`models.py`, `markdown.py`, `backend_contract.py` Rust SSoT, `workflow.py`)
+│   ├── core/                        # Toolchain discovery, `client/{protocol,runner,client}.py`, LLM providers, bundled prompts
+│   ├── model_verify/                # CIR normalization (`normalize.py`), shared `runner.py`, and revision loop (`revision_workflow.py`)
+│   ├── code_verify/                 # Modular verification (`rust_lexer`, `holes`, `verifier`, `ast_purity`, `spn_mir`, `lockbud`, `dynamic`) + thin facades
+│   ├── pipeline/                    # Bi-level E2E pipeline (`manifest.py`, `fill_prompts.py`, `e2e.py`, `examples.py`)
 │   ├── prompts/                     # Bundled v5 system prompts (`nl_to_clauses.md`, `clauses_to_contract.md`, `scir_generation.md`, `hole_repair.md`, ...)
-│   └── mcp/                         # Zero-dependency stdio MCP server (`concplan-mcp` / `python -m concplan.mcp`)
+│   └── mcp/                         # Zero-dependency stdio MCP server (`workspace.py`, `handlers_model.py`, `handlers_code.py`, `tools.py`, `protocol.py`, `server.py`)
 ├── examples/                        # Stage 0-driven natural language concurrency examples
 └── tests/                           # Consolidated unittest suite (offline + live SPN/ConcIR E2E + MCP tests)
 ```
