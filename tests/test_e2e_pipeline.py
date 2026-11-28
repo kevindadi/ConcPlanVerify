@@ -239,6 +239,48 @@ if cmd == "summarize":
     }}))
     sys.exit(0)
 
+if cmd == "validate-contract":
+    c = json.loads(Path(args[1]).read_text(encoding="utf-8"))
+    out = {{
+        "schema": "concir-contract-validation/1",
+        "ok": True,
+        "checked_properties": len(c.get("properties") or []),
+        "checked_preserved": len(c.get("preserved") or []),
+        "issues": [],
+    }}
+    if "--normalize" in args:
+        out["normalized_contract"] = c
+    sys.stdout.write(json.dumps(out))
+    sys.exit(0)
+
+if cmd == "explain-contract":
+    c = json.loads(Path(args[1]).read_text(encoding="utf-8"))
+    sys.stdout.write(json.dumps({{
+        "schema": "concir-contract-explanation/1",
+        "name": c.get("name", "contract"),
+        "properties": [
+            {{
+                "id": p.get("id", ""),
+                "kind": p.get("kind", ""),
+                "req": p.get("req", []),
+                "non_vacuous": bool(p.get("non_vacuous", False)),
+                "explanation": f"Property {{p.get('id', '')}} ({{p.get('kind', '')}})",
+            }}
+            for p in (c.get("properties") or [])
+            if isinstance(p, dict)
+        ],
+        "preserved": [
+            {{
+                "description": pr.get("description", ""),
+                "req": pr.get("req", []),
+                "explanation": f"Preserved {{pr.get('description', '')}}",
+            }}
+            for pr in (c.get("preserved") or [])
+            if isinstance(pr, dict)
+        ],
+    }}))
+    sys.exit(0)
+
 if cmd == "explore":
     prog = json.loads(Path(args[1]).read_text(encoding="utf-8"))
     if prog.get("program") == "fail_first":

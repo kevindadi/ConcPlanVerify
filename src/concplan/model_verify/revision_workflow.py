@@ -1,9 +1,7 @@
 """Whole-artifact CIR revision loop (arm ``A3_ours_revision``).
 
-Unlike :mod:`offline_workflow` (which freezes the first statically valid CIR and
-then only allows the backend's deterministic patch search), this workflow lets
-the provider rewrite the **whole** modular-CIR artifact between rounds. It is the
-only place a provider may replace the program after freezing, and it is labelled
+This workflow lets the provider rewrite the **whole** modular-CIR artifact between rounds
+and checks acceptance against the frozen contract via the Rust backend. It is labelled
 ``repair_mode=llm_revision`` so it is never confused with the backend's
 deterministic repair or with ``external_single_patch``.
 
@@ -28,12 +26,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
-from ..core.concir_client import ConcirClient, sha256_file
-from ..core.json_utils import exclusive_run_dir, extract_json, sha256_text, write_json
+from ..core.concir_client import ConcirClient
+from ..core.json_utils import exclusive_run_dir, extract_json, sha256_file, sha256_text, write_json
 from ..core.models import Consumption, normalize_token_usage
 from ..core.prompts import build_explore_feedback, render_feedback
 from ..core.providers import CandidateProvider, CandidateRequest
 from .normalize import normalize as normalize_program
+from .runner import verify_model_candidate
 
 SUCCESS_STATUSES = {"accepted"}
 
@@ -298,50 +297,61 @@ class WholeArtifactRevisionWorkflow:
             last_norm_sha = record.program_sha256
             last_normalized = parsed
 
-            check = self.client.check(program_path)
-            record.check_status = check.status
-            record.tool_wall_ms += check.wall_ms
-            result.consumption.tool_wall_ms += check.wall_ms
-            record.tool_output_sha256 = _payload_hash("check", check.status, check.payload)
-            if check.kind != "semantic":
-                # A malformed candidate (usage/protocol/parse) is a schema error
-                # the LLM can fix: feed it back and spend the round instead of
-                # stopping the batch. Only a missing/broken binary is a tool error.
-                if check.kind in ("usage_error", "protocol_error"):
-                    record.decision = "check_schema_error"
-                    feedback_dict = {
-                        "stage": "check",
-                        "schema_error": check.error or check.stderr,
-                        "detail": "the program JSON did not parse or had an invalid shape; "
-                                  "fix the schema (e.g. `expr` must be a string) and "
-                                  "resend the whole program",
-                    }
-                    record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
-                    continue
+            ver = verify_model_candidate(
+                client=self.client,
+                program_dict=parsed,
+                program_path=program_path,
+                contract_path=contract_path,
+                attempt_dir=run_dir / f"verify-{version}",
+                engine=self.engine,
+                run_summarize=False,
+                req_ir_path=None,
+            )
+            record.tool_wall_ms += ver.tool_wall_ms
+            result.consumption.tool_wall_ms += ver.tool_wall_ms
+            if ver.check_res is not None:
+                record.check_status = ver.check_res.status
+                record.tool_output_sha256 = _payload_hash(
+                    "check", ver.check_res.status, ver.check_res.payload
+                )
+            if ver.support_res is not None:
+                record.support_status = ver.support_res.status
+            if ver.explore_res is not None:
+                record.explore_outcome = ver.explore_res.outcome
+                record.explore_complete = ver.explore_res.complete
+                record.tool_output_sha256 = _payload_hash(
+                    "explore", ver.explore_res.status, ver.explore_res.payload
+                )
+
+            if ver.decision == "tool_error":
                 result.status = "tool_error"
-                result.error = check.error or "check failed"
+                result.error = ver.error or "backend call failed"
                 _write_result(run_dir, result)
                 return result
-            if check.status == "invalid":
-                record.decision = "check_invalid"
-                record.local_patch_function = _first_function(check)
-                local_patch_function = record.local_patch_function
-                feedback_dict = (build_schema_feedback(check, record.normalizations, parsed)
-                                 if self.diagnostics
-                                 else {"stage": "check", "outcome": "INVALID"})
+            if ver.decision in ("lower_schema_error", "check_schema_error"):
+                record.decision = "check_schema_error"
+                err_src = ver.check_res or ver.lower_res
+                feedback_dict = {
+                    "stage": "check",
+                    "schema_error": (err_src.error or err_src.stderr) if err_src else ver.error,
+                    "detail": "the program JSON did not parse or had an invalid shape; "
+                              "fix the schema (e.g. `expr` must be a string) and "
+                              "resend the whole program",
+                }
                 record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
                 continue
-
-            support = self.client.support(program_path)
-            record.support_status = support.status
-            record.tool_wall_ms += support.wall_ms
-            result.consumption.tool_wall_ms += support.wall_ms
-            if support.kind != "semantic":
-                result.status = "tool_error"
-                result.error = support.error or "support failed"
-                _write_result(run_dir, result)
-                return result
-            if support.status == "unsupported":
+            if ver.decision == "check_invalid" and ver.check_res is not None:
+                record.decision = "check_invalid"
+                record.local_patch_function = _first_function(ver.check_res)
+                local_patch_function = record.local_patch_function
+                feedback_dict = (
+                    build_schema_feedback(ver.check_res, record.normalizations, parsed)
+                    if self.diagnostics
+                    else {"stage": "check", "outcome": "INVALID"}
+                )
+                record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
+                continue
+            if ver.decision == "unsupported":
                 record.decision = "unsupported"
                 result.status = "unsupported"
                 if self.check_fidelity:
@@ -349,23 +359,10 @@ class WholeArtifactRevisionWorkflow:
                 _write_result(run_dir, result)
                 return result
 
-            explore = self.client.explore(program_path, contract_path, self.engine)
-            record.explore_outcome = explore.outcome
-            record.explore_complete = explore.complete
-            record.tool_wall_ms += explore.wall_ms
-            result.consumption.tool_wall_ms += explore.wall_ms
-            record.tool_output_sha256 = _payload_hash("explore", explore.status,
-                                                      explore.payload)
-            if explore.kind != "semantic":
-                result.status = "tool_error"
-                result.error = explore.error or "explore failed"
-                _write_result(run_dir, result)
-                return result
-
             if self.check_fidelity:
                 self._fidelity(program_path, record)
 
-            if explore.outcome == "PASS" and explore.complete is True:
+            if ver.accepted:
                 record.accepted = True
                 record.decision = "accepted"
                 result.status = "accepted"
@@ -374,35 +371,33 @@ class WholeArtifactRevisionWorkflow:
                 _write_result(run_dir, result)
                 return result
 
-            if explore.status == "unknown":
+            if ver.explore_res is not None and ver.explore_res.status in ("unknown", "invalid", "unsupported"):
+                record.decision = ver.explore_res.status
                 if self.tolerate_invalid:
-                    record.decision = "unknown"
-                    feedback_dict = (build_explore_feedback(explore) if self.diagnostics
-                                     else {"stage": "explore", "outcome": "UNKNOWN"})
+                    feedback_dict = (
+                        build_explore_feedback(ver.explore_res)
+                        if self.diagnostics
+                        else {"stage": "explore", "outcome": ver.explore_res.status.upper()}
+                    )
                     record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
                     continue
-                record.decision = "unknown"
-                result.status = "unknown"
-                _write_result(run_dir, result)
-                return result
-            if explore.status in ("invalid", "unsupported"):
-                if self.tolerate_invalid:
-                    record.decision = explore.status
-                    feedback_dict = (build_explore_feedback(explore) if self.diagnostics
-                                     else {"stage": "explore",
-                                           "outcome": explore.status.upper()})
-                    record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
-                    continue
-                record.decision = explore.status
-                result.status = explore.status
+                result.status = ver.explore_res.status
                 _write_result(run_dir, result)
                 return result
 
             record.decision = "explore_fail"
-            feedback_dict = (build_explore_feedback(explore) if self.diagnostics
-                             else {"stage": "explore",
-                                   "outcome": explore.outcome,
-                                   "complete": explore.complete})
+            if ver.explore_res is not None:
+                feedback_dict = (
+                    build_explore_feedback(ver.explore_res)
+                    if self.diagnostics
+                    else {
+                        "stage": "explore",
+                        "outcome": ver.explore_res.outcome,
+                        "complete": ver.explore_res.complete,
+                    }
+                )
+            else:
+                feedback_dict = dict(ver.feedback)
             record.feedback_sha256 = sha256_text(render_feedback(feedback_dict))
 
         result.status = "exhausted"
